@@ -14,10 +14,10 @@ func main() {
 
 	log.Infof("Goliath %s.", VERSION)
 
-	parsedOpml, err := opml.ParseOpml("testdata/opml.xml")
+	p, err := opml.ParseOpml("testdata/opml2.xml")
 	if err != nil {
 		log.Warningf("Error while parsing OPML: %s", err)
 	}
 
-	log.Infof("Parsed OPML file: %+v", *parsedOpml)
+	log.Infof("Parsed OPML file: %+v", *p)
 }
