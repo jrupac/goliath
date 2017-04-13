@@ -1,21 +1,28 @@
 package models
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+)
 
 type Header struct {
 	Title string `xml:"title"`
 }
 
 type Outline struct {
-	Feed
-	Outlines []Outline `xml:"outline,omitempty"`
-
-	// Do not directly unmarshal into this object. This is populated afterwards.
-	Folder `xml:"-"`
+	Title       string    `xml:"title,attr,omitempty"`
+	Description string    `xml:"description,attr,omitempty"`
+	Url         string    `xml:"xmlUrl,attr,omitempty"`
+	Text        string    `xml:"text,attr,omitempty"`
+	Folders     []Outline `xml:"outline,omitempty"`
 }
 
-type Opml struct {
+type OpmlInternal struct {
 	XMLName xml.Name  `xml:"opml"`
 	Header  Header    `xml:"head"`
 	Body    []Outline `xml:"body>outline"`
+}
+
+type Opml struct {
+	Header  Header
+	Folders Folder
 }

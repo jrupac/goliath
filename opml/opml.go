@@ -19,42 +19,55 @@ func ParseOpml(filename string) (*models.Opml, error) {
 	d := xml.NewDecoder(r)
 	d.CharsetReader = charset.NewReaderLabel
 
-	p := new(models.Opml)
-	err = d.Decode(&p)
+	oi := new(models.OpmlInternal)
+	err = d.Decode(&oi)
 	if err != nil {
 		return nil, err
 	}
 
-	p.Body = convertToFolders(p.Body)
-	return p, nil
+	return createOpmlObject(oi), nil
 }
 
-// convertToFolders converts "outline" objects that are actually just folder names into Folder objects
-func convertToFolders(outlines []models.Outline) []models.Outline {
-	if len(outlines) == 0 {
-		return outlines
+func createOpmlObject(oi *models.OpmlInternal) *models.Opml {
+	return &models.Opml{
+		Header:  oi.Header,
+		Folders: parseOutline(oi.Body),
+	}
+}
+
+// parseOutline converts "outline" objects into Folder and Feed objects.
+func parseOutline(children []models.Outline) models.Folder {
+	folder := models.Folder{
+		Name: "<root>",
 	}
 
-	var updatedBody []models.Outline
-	for _, o := range outlines {
-		// A Folder has a name, no URL associated with it
-		if (o.Title != "" || o.Text != "") && o.Url == "" {
+	for _, o := range children {
+		if o.Url != "" {
+			// This entity has a URL so we presume it is a Feed and has no children.
+			feed := models.Feed{
+				Title:       o.Title,
+				Description: o.Description,
+				Url:         o.Url,
+				Text:        o.Text,
+			}
+			folder.Feed = append(folder.Feed, feed)
+		} else {
+			// This entity has no URL so we presume it is a Folder.
 			var name string
-			if o.Title != "" {
+			switch {
+			case o.Title != "":
 				name = o.Title
-			} else {
+			case o.Text != "":
 				name = o.Text
+			default:
+				name = "<Unnamed>"
 			}
 
-			var newOutline = models.Outline{
-				Folder:   models.Folder{Name: name},
-				Outlines: convertToFolders(o.Outlines),
-			}
-			updatedBody = append(updatedBody, newOutline)
-		} else {
-			o.Outlines = convertToFolders(o.Outlines)
-			updatedBody = append(updatedBody, o)
+			child := parseOutline(o.Folders)
+			child.Name = name
+			folder.Folders = append(folder.Folders, child)
 		}
 	}
-	return updatedBody
+
+	return folder
 }

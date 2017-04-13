@@ -21,8 +21,10 @@
             <outline type="rss" text="Todoist Blog" xmlUrl="https://blog.todoist.com/feed/" htmlUrl="https://blog.todoist.com"/>
         </outline>
         <outline text="Google">
-            <outline type="rss" text="Android Developers Blog" xmlUrl="http://feeds.feedburner.com/blogspot/hsDu" htmlUrl="http://android-developers.blogspot.com/"/>
-            <outline type="rss" text="Android Police - Android News, Apps, Games, Phones, Tablets" xmlUrl="http://feeds.feedburner.com/AndroidPolice" htmlUrl="http://www.androidpolice.com"/>
+            <outline text="Android">
+                <outline type="rss" text="Android Developers Blog" xmlUrl="http://feeds.feedburner.com/blogspot/hsDu" htmlUrl="http://android-developers.blogspot.com/"/>
+                <outline type="rss" text="Android Police - Android News, Apps, Games, Phones, Tablets" xmlUrl="http://feeds.feedburner.com/AndroidPolice" htmlUrl="http://www.androidpolice.com"/>
+            </outline>
             <outline type="rss" text="Chromium Blog" xmlUrl="http://blog.chromium.org/feeds/posts/default?alt=rss" htmlUrl="http://blog.chromium.org/"/>
             <outline type="rss" text="Google Chrome Blog" xmlUrl="http://feeds2.feedburner.com/blogspot/Egta" htmlUrl="http://chrome.blogspot.com/"/>
             <outline type="rss" text="Google Code Blog" xmlUrl="http://googlecode.blogspot.com/feeds/posts/default" htmlUrl="http://googledevelopers.blogspot.com/"/>

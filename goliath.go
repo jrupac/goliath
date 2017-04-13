@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/db"
@@ -30,5 +31,11 @@ func main() {
 		log.Warningf("Error while parsing OPML: %s", err)
 	}
 
-	log.Infof("Parsed OPML file: %+v", *p)
+	b, err := json.MarshalIndent(*p, "", " ")
+	log.Infof("Parsed OPML file: %s\n", string(b))
+
+	err = d.ImportOpml(p)
+	if err != nil {
+		log.Warningf("Error while importing OPML: %s", err)
+	}
 }
