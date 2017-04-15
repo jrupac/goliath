@@ -1,7 +1,7 @@
 package models
 
 type Feed struct {
-	FeedId uint
+	Id int
 
 	Title       string
 	Description string

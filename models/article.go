@@ -1,5 +1,5 @@
 package models
 
 type Article struct {
-	ArticleId uint
+	Id int
 }

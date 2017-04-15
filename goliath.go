@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	log "github.com/golang/glog"
-	"github.com/jrupac/goliath/db"
 	"github.com/jrupac/goliath/opml"
+	"github.com/jrupac/goliath/storage"
 )
 
 const VERSION = "0.01"
@@ -20,7 +20,7 @@ func main() {
 
 	log.Infof("Goliath %s.", VERSION)
 
-	d, err := db.Open(*dbPath)
+	d, err := storage.Open(*dbPath)
 	if err != nil {
 		log.Fatalf("Unable to open DB: %s", err)
 	}

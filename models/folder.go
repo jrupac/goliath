@@ -1,7 +1,7 @@
 package models
 
 type Folder struct {
-	FolderId uint
+	Id int
 
 	Name    string
 	Feed    []Feed
