@@ -11,7 +11,8 @@ import (
 const VERSION = "0.01"
 
 var (
-	dbPath = flag.String("dbPath", "", "The address of the database.")
+	dbPath   = flag.String("dbPath", "", "The address of the database.")
+	opmlPath = flag.String("opmlPath", "", "Path of OPML file to import.")
 )
 
 func main() {
@@ -26,16 +27,18 @@ func main() {
 	}
 	defer d.Close()
 
-	p, err := opml.ParseOpml("testdata/opml2.xml")
-	if err != nil {
-		log.Warningf("Error while parsing OPML: %s", err)
-	}
+	if *opmlPath != "" {
+		p, err := opml.ParseOpml(*opmlPath)
+		if err != nil {
+			log.Warningf("Error while parsing OPML: %s", err)
+		}
 
-	b, err := json.MarshalIndent(*p, "", " ")
-	log.Infof("Parsed OPML file: %s\n", string(b))
+		b, err := json.MarshalIndent(*p, "", " ")
+		log.Infof("Parsed OPML file: %s\n", string(b))
 
-	err = d.ImportOpml(p)
-	if err != nil {
-		log.Warningf("Error while importing OPML: %s", err)
+		err = d.ImportOpml(p)
+		if err != nil {
+			log.Warningf("Error while importing OPML: %s", err)
+		}
 	}
 }
