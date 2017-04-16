@@ -39,5 +39,12 @@ CREATE TABLE IF NOT EXISTS Article (
   feed INT NOT NULL,
   folder INT NOT NULL,
   PRIMARY KEY (folder, feed, id),
-  CONSTRAINT fk_feed_folder FOREIGN KEY (folder, feed) REFERENCES Feed
+  CONSTRAINT fk_feed_folder FOREIGN KEY (folder, feed) REFERENCES Feed,
+  -- Data columns
+  title STRING,
+  summary STRING,
+  content STRING,
+  link STRING,
+  date TIMESTAMPTZ,
+  read BOOL
 ) INTERLEAVE IN PARENT Feed (folder, feed);

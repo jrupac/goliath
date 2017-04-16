@@ -1,7 +1,8 @@
 package models
 
 type Feed struct {
-	Id int
+	Id       int
+	FolderId int
 
 	Title       string
 	Description string
