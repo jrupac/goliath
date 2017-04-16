@@ -1,7 +1,7 @@
 package models
 
 type Folder struct {
-	Id int
+	Id int64
 
 	Name    string
 	Feed    []Feed

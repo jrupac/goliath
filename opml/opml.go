@@ -3,13 +3,17 @@ package opml
 import (
 	"bytes"
 	"encoding/xml"
+	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
+
 	"golang.org/x/net/html/charset"
 	"io/ioutil"
 )
 
 // ParseOpml open a file and returns a parsed OPML object.
 func ParseOpml(filename string) (*models.Opml, error) {
+	log.Infof("Loading OPML file from %s", filename)
+
 	f, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -60,7 +64,7 @@ func parseOutline(children []models.Outline) models.Folder {
 			case o.Text != "":
 				name = o.Text
 			default:
-				name = "<Unnamed>"
+				name = "<untitled>"
 			}
 
 			child := parseOutline(o.Folders)

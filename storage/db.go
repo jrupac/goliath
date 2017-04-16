@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	_ "github.com/lib/pq"
 )
@@ -35,12 +36,23 @@ func (d *Database) Close() error {
 }
 
 func (d *Database) InsertArticle(a models.Article) error {
-	var articleId int
+	var articleId int64
+	var count int
 	err := d.db.QueryRow(
+		`SELECT COUNT(*) FROM `+ARTICLE_TABLE+` WHERE hash = $1`, a.Hash()).Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		log.Infof("Duplicate article entry, skipping.")
+		return nil
+	}
+
+	err = d.db.QueryRow(
 		`INSERT INTO `+ARTICLE_TABLE+`
-		(feed, folder, title, summary, content, link, date, read)
-		VALUES($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-		a.FeedId, a.FolderId, a.Title, a.Summary, a.Content, a.Link, a.Date, a.Read).Scan(&articleId)
+		(feed, folder, hash, title, summary, content, link, date, read)
+		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+		a.FeedId, a.FolderId, a.Hash(), a.Title, a.Summary, a.Content, a.Link, a.Date, a.Read).Scan(&articleId)
 	if err != nil {
 		return err
 	}
@@ -69,7 +81,7 @@ func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 
 func (d *Database) ImportOpml(opml *models.Opml) error {
 	root := opml.Folders
-	var rootId int
+	var rootId int64
 	err := d.db.QueryRow(
 		`INSERT INTO `+FOLDER_TABLE+`(name) VALUES($1) RETURNING id`, root.Name).Scan(&rootId)
 	if err != nil {
@@ -81,12 +93,23 @@ func (d *Database) ImportOpml(opml *models.Opml) error {
 
 func (d *Database) importChildren(parent models.Folder) error {
 	var err error
-	var feedId int
+	var feedId int64
+	var count int
 	for _, f := range parent.Feed {
+		err := d.db.QueryRow(
+			`SELECT COUNT(*) FROM `+FEED_TABLE+` WHERE hash = $1`, f.Hash()).Scan(&count)
+		if err != nil {
+			return err
+		}
+		if count > 0 {
+			log.Infof("Duplicate feed entry, skipping.")
+			continue
+		}
+
 		err = d.db.QueryRow(
-			`INSERT INTO `+FEED_TABLE+`(folder, title, description, url, text)
-			VALUES($1, $2, $3, $4, $5) RETURNING id`,
-			parent.Id, f.Title, f.Description, f.Url, f.Text).Scan(&feedId)
+			`INSERT INTO `+FEED_TABLE+`(folder, hash, title, description, url, text)
+			VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
+			parent.Id, f.Hash(), f.Title, f.Description, f.Url, f.Text).Scan(&feedId)
 		if err != nil {
 			return err
 		}
@@ -94,7 +117,7 @@ func (d *Database) importChildren(parent models.Folder) error {
 		f.FolderId = parent.Id
 	}
 
-	var childId int
+	var childId int64
 	for _, child := range parent.Folders {
 		err = d.db.QueryRow(
 			`INSERT INTO `+FOLDER_TABLE+`(name) VALUES($1) RETURNING id`, child.Name).Scan(&childId)

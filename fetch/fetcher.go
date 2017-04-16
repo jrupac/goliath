@@ -24,7 +24,7 @@ func Do(ctx context.Context, d *storage.Database, feeds []models.Feed) {
 		case a := <-ac:
 			utils.DebugPrint("Received a new article:", a)
 			if err := d.InsertArticle(a); err != nil {
-				log.Warningf("Failed to persist article: %+v", a)
+				log.Warningf("Failed to persist article: %+v: %s", a, err)
 			}
 		case <-ctx.Done():
 			log.Infof("Stopping fetching feeds...")

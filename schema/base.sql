@@ -26,6 +26,8 @@ CREATE TABLE IF NOT EXISTS Feed (
   folder INT NOT NULL,
   PRIMARY KEY (folder, id),
   CONSTRAINT fd_folder FOREIGN KEY (folder) REFERENCES Folder,
+  -- Metadata columns
+  hash INT UNIQUE,
   -- Data columns
   title STRING,
   description STRING,
@@ -40,6 +42,8 @@ CREATE TABLE IF NOT EXISTS Article (
   folder INT NOT NULL,
   PRIMARY KEY (folder, feed, id),
   CONSTRAINT fk_feed_folder FOREIGN KEY (folder, feed) REFERENCES Feed,
+  -- Metadata columns
+  hash INT UNIQUE,
   -- Data columns
   title STRING,
   summary STRING,
