@@ -8,7 +8,9 @@ import (
 	"github.com/jrupac/goliath/opml"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
-	"time"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 const VERSION = "0.01"
@@ -53,9 +55,17 @@ func main() {
 	}
 	utils.DebugPrint("Feed list", allFeeds)
 	ctx, cancel := context.WithCancel(ctx)
-	go fetch.Do(ctx, d, allFeeds)
+	installSignalHandler(cancel)
 
-	time.Sleep(20 * time.Second)
-	log.Info("About to cancel.")
-	cancel()
+	fetch.Do(ctx, d, allFeeds)
+}
+
+func installSignalHandler(cancel context.CancelFunc) {
+	sc := make(chan os.Signal, 1)
+	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	go func() {
+		s := <-sc
+		log.Infof("Received signal and shutting down: %s", s)
+		cancel()
+	}()
 }
