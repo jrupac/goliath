@@ -1,0 +1,12 @@
+[submodule "vendor/github.com/SlyMarbo/rss"]
+	path = vendor/github.com/SlyMarbo/rss
+	url = https://github.com/SlyMarbo/rss
+[submodule "vendor/github.com/golang/glog"]
+	path = vendor/github.com/golang/glog
+	url = https://github.com/golang/glog
+[submodule "vendor/github.com/lib/pq"]
+	path = vendor/github.com/lib/pq
+	url = https://github.com/lib/pq
+[submodule "vendor/golang.org/x/net"]
+	path = vendor/golang.org/x/net
+	url = https://go.googlesource.com/net
