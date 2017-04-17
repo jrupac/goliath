@@ -12,6 +12,8 @@ import (
 )
 
 func Do(ctx context.Context, d *storage.Database, feeds []models.Feed) {
+	log.Infof("Starting continuous feed fetching.")
+
 	wg := &sync.WaitGroup{}
 	wg.Add(len(feeds))
 	ac := make(chan models.Article)
