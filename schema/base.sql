@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS Feed (
   title STRING,
   description STRING,
   url STRING,
-  text STRING
+  text STRING,
+  icon BYTEA
 ) INTERLEAVE IN PARENT Folder (folder);
 
 CREATE TABLE IF NOT EXISTS Article (

@@ -2,6 +2,9 @@ package storage
 
 import (
 	"database/sql"
+	"encoding/hex"
+	"errors"
+	"fmt"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	_ "github.com/lib/pq"
@@ -58,6 +61,29 @@ func (d *Database) InsertArticle(a models.Article) error {
 	}
 	a.Id = articleId
 	return nil
+}
+
+func (d *Database) InsertFeedIcon(feedId int64, img []byte) error {
+	var count int
+	err := d.db.QueryRow(
+		`SELECT COUNT(*) FROM `+FEED_TABLE+` WHERE id = $1`, feedId).Scan(&count)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return errors.New(fmt.Sprintf("Original feed not in table: %d", feedId))
+	}
+
+	// Convert into a CockroachDB-specific hex string for insertion
+	dst := make([]byte, hex.DecodedLen(len(img)))
+	n, err := hex.Decode(dst, img)
+	if err != nil {
+		return err
+	}
+	h := fmt.Sprintf("x'%s'", dst[:n])
+
+	_, err = d.db.Query(`INSERT INTO `+FEED_TABLE+` (id, icon) VALUES ($1, $2)`, feedId, h)
+	return err
 }
 
 func (d *Database) GetAllFeeds() ([]models.Feed, error) {
