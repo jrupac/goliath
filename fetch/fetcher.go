@@ -17,7 +17,7 @@ type imagePair struct {
 	img []byte
 }
 
-func Do(ctx context.Context, d *storage.Database, feeds []models.Feed) {
+func Start(ctx context.Context, d *storage.Database, feeds []models.Feed) {
 	log.Infof("Starting continuous feed fetching.")
 
 	wg := &sync.WaitGroup{}
@@ -44,6 +44,7 @@ func Do(ctx context.Context, d *storage.Database, feeds []models.Feed) {
 			log.Infof("Stopping fetching feeds...")
 			wg.Wait()
 			close(ac)
+			close(ic)
 			log.Infof("Stopped fetching feeds.")
 			return
 		}
@@ -70,12 +71,11 @@ func do(ctx context.Context, ac chan models.Article, ic chan imagePair, wg *sync
 			log.Infof("Fetching feed %s", feed.Url)
 			if err = f.Update(); err != nil {
 				log.Warningf("Error fetching %s: %s", feed.Url, err)
-				break
 			} else {
 				handleItems(feed, ac, f.Items)
-				tick = time.After(time.Until(f.Refresh))
-				log.Infof("Waiting to fetch %s until %s\n", feed.Url, f.Refresh)
 			}
+			log.Infof("Waiting to fetch %s until %s\n", feed.Url, f.Refresh)
+			tick = time.After(time.Until(f.Refresh))
 		case <-ctx.Done():
 			return
 		}

@@ -59,7 +59,7 @@ func main() {
 	utils.DebugPrint("Feed list", allFeeds)
 	ctx, cancel := context.WithCancel(ctx)
 
-	go fetch.Do(ctx, d, allFeeds)
+	go fetch.Start(ctx, d, allFeeds)
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", *portFlag)}
 	installSignalHandler(cancel, srv)
 
@@ -74,6 +74,7 @@ func installSignalHandler(cancel context.CancelFunc, srv *http.Server) {
 	go func() {
 		s := <-sc
 		log.Infof("Received signal and shutting down: %s", s)
+		close(sc)
 		cancel()
 		log.Infof("Shutting down HTTP server.")
 		if err := srv.Shutdown(nil); err != nil {
