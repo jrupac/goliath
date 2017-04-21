@@ -75,14 +75,9 @@ func (d *Database) InsertFeedIcon(feedId int64, img []byte) error {
 	}
 
 	// Convert into a CockroachDB-specific hex string for insertion
-	dst := make([]byte, hex.DecodedLen(len(img)))
-	n, err := hex.Decode(dst, img)
-	if err != nil {
-		return err
-	}
-	h := fmt.Sprintf("x'%s'", dst[:n])
+	h := fmt.Sprintf("x'%s'", hex.EncodeToString(img))
 
-	_, err = d.db.Query(`INSERT INTO `+FEED_TABLE+` (id, icon) VALUES ($1, $2)`, feedId, h)
+	_, err = d.db.Query(`UPDATE `+FEED_TABLE+` SET icon = $1  WHERE id = $2`, h, feedId)
 	return err
 }
 
