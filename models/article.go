@@ -1,7 +1,8 @@
 package models
 
 import (
-	"hash/fnv"
+	"fmt"
+	"golang.org/x/crypto/sha3"
 	"time"
 )
 
@@ -18,12 +19,12 @@ type Article struct {
 	Read    bool
 }
 
-func (a *Article) Hash() int64 {
-	h := fnv.New64()
+func (a *Article) Hash() string {
+	h := sha3.New256()
 	h.Write([]byte(a.Title))
 	h.Write([]byte(a.Summary))
 	h.Write([]byte(a.Content))
 	h.Write([]byte(a.Link))
 	h.Write([]byte(a.Date.String()))
-	return int64(h.Sum64())
+	return fmt.Sprintf("%x", h.Sum(nil))
 }

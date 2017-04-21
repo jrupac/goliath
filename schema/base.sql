@@ -1,7 +1,6 @@
-CREATE USER goliath;
-
 CREATE DATABASE IF NOT EXISTS Goliath;
 
+-- User "goliath" must already exist.
 GRANT ALL ON DATABASE Goliath TO goliath;
 
 SET DATABASE TO Goliath;
@@ -27,7 +26,7 @@ CREATE TABLE IF NOT EXISTS Feed (
   PRIMARY KEY (folder, id),
   CONSTRAINT fd_folder FOREIGN KEY (folder) REFERENCES Folder,
   -- Metadata columns
-  hash INT UNIQUE,
+  hash STRING UNIQUE,
   -- Data columns
   title STRING,
   description STRING,
@@ -44,7 +43,7 @@ CREATE TABLE IF NOT EXISTS Article (
   PRIMARY KEY (folder, feed, id),
   CONSTRAINT fk_feed_folder FOREIGN KEY (folder, feed) REFERENCES Feed,
   -- Metadata columns
-  hash INT UNIQUE,
+  hash STRING UNIQUE,
   -- Data columns
   title STRING,
   summary STRING,

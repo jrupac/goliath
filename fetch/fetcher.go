@@ -23,9 +23,15 @@ func Start(ctx context.Context, d *storage.Database, feeds []models.Feed) {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(feeds))
 	ac := make(chan models.Article)
+	defer close(ac)
 	ic := make(chan imagePair)
+	defer close(ic)
+
 	for _, f := range feeds {
-		go do(ctx, ac, ic, wg, f)
+		go func(f models.Feed) {
+			defer wg.Done()
+			do(ctx, ac, ic, f)
+		}(f)
 	}
 
 	for {
@@ -43,16 +49,13 @@ func Start(ctx context.Context, d *storage.Database, feeds []models.Feed) {
 		case <-ctx.Done():
 			log.Infof("Stopping fetching feeds...")
 			wg.Wait()
-			close(ac)
-			close(ic)
 			log.Infof("Stopped fetching feeds.")
 			return
 		}
 	}
 }
 
-func do(ctx context.Context, ac chan models.Article, ic chan imagePair, wg *sync.WaitGroup, feed models.Feed) {
-	defer wg.Done()
+func do(ctx context.Context, ac chan models.Article, ic chan imagePair, feed models.Feed) {
 	log.Infof("Fetching %s", feed.Url)
 	f, err := rss.Fetch(feed.Url)
 	if err != nil {

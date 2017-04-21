@@ -1,6 +1,9 @@
 package models
 
-import "hash/fnv"
+import (
+	"fmt"
+	"golang.org/x/crypto/sha3"
+)
 
 type Feed struct {
 	Id       int64
@@ -12,11 +15,11 @@ type Feed struct {
 	Text        string
 }
 
-func (a *Feed) Hash() int64 {
-	h := fnv.New64()
+func (a *Feed) Hash() string {
+	h := sha3.New256()
 	h.Write([]byte(a.Title))
 	h.Write([]byte(a.Description))
 	h.Write([]byte(a.Url))
 	h.Write([]byte(a.Text))
-	return int64(h.Sum64())
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
