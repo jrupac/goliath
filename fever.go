@@ -37,7 +37,6 @@ type feedsGroup struct {
 
 func HandleFever(d *storage.Database) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Infof("Handling request.")
 		handleFever(d, w, r)
 	}
 }
@@ -50,11 +49,6 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.ParseForm()
-	// Endpoint must be "/fever?api" so check specifically that "api" is in the URL.
-	if _, ok := r.Form["api"]; !ok {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
 
 	switch r.Form.Get("api") {
 	case "":
