@@ -2,12 +2,14 @@ package storage
 
 import (
 	"database/sql"
-	"encoding/hex"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	_ "github.com/lib/pq"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -63,7 +65,7 @@ func (d *Database) InsertArticle(a models.Article) error {
 	return nil
 }
 
-func (d *Database) InsertFeedIcon(feedId int64, img []byte) error {
+func (d *Database) InsertFavicon(feedId int64, mime string, img []byte) error {
 	var count int
 	err := d.db.QueryRow(
 		`SELECT COUNT(*) FROM `+FEED_TABLE+` WHERE id = $1`, feedId).Scan(&count)
@@ -74,11 +76,32 @@ func (d *Database) InsertFeedIcon(feedId int64, img []byte) error {
 		return errors.New(fmt.Sprintf("Original feed not in table: %d", feedId))
 	}
 
-	// Convert into a CockroachDB-specific hex string for insertion
-	h := fmt.Sprintf("x'%s'", hex.EncodeToString(img))
+	// Convert to a base64 encoded string before inserting
+	h := base64.StdEncoding.EncodeToString(img)
 
-	_, err = d.db.Query(`UPDATE `+FEED_TABLE+` SET icon = $1  WHERE id = $2`, h, feedId)
+	_, err = d.db.Query(
+		`UPDATE `+FEED_TABLE+` SET favicon = $1, mime = $2 WHERE id = $3`,
+		h, mime, feedId)
 	return err
+}
+
+func (d *Database) GetAllFolders() ([]models.Folder, error) {
+	folders := []models.Folder{}
+	rows, err := d.db.Query(`SELECT id, name FROM ` + FOLDER_TABLE)
+	if err != nil {
+		return folders, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		f := models.Folder{}
+		if err = rows.Scan(&f.Id, &f.Name); err != nil {
+			return folders, err
+		}
+		folders = append(folders, f)
+	}
+
+	return folders, err
 }
 
 func (d *Database) GetAllFeeds() ([]models.Feed, error) {
@@ -98,6 +121,52 @@ func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 	}
 
 	return feeds, err
+}
+
+func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
+	agg := map[int64][]string{}
+	resp := map[int64]string{}
+
+	// CockroachDB doesn't have a concat-with-separator aggregation function
+	rows, err := d.db.Query(`SELECT folder, id FROM ` + FEED_TABLE)
+	if err != nil {
+		return resp, err
+	}
+	defer rows.Close()
+
+	var folderId, feed_id int64
+	for rows.Next() {
+		if err = rows.Scan(&folderId, &feed_id); err != nil {
+			return resp, err
+		}
+		agg[folderId] = append(agg[folderId], strconv.FormatInt(feed_id, 10))
+	}
+
+	for k, v := range agg {
+		resp[k] = strings.Join(v, ",")
+	}
+	return resp, err
+}
+
+func (d *Database) GetAllFavicons() (map[int64]string, error) {
+	favicons := map[int64]string{}
+	rows, err := d.db.Query(
+		`SELECT id, mime, favicon FROM ` + FEED_TABLE + ` WHERE favicon IS NOT NULL`)
+	if err != nil {
+		return favicons, err
+	}
+	defer rows.Close()
+
+	var id int64
+	var mime string
+	var favicon string
+	for rows.Next() {
+		if err = rows.Scan(&id, &mime, &favicon); err != nil {
+			return favicons, err
+		}
+		favicons[id] = fmt.Sprintf("%s;base64,%s", mime, favicon)
+	}
+	return favicons, err
 }
 
 func (d *Database) ImportOpml(opml *models.Opml) error {

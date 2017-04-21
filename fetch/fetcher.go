@@ -8,13 +8,15 @@ import (
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
 	"io/ioutil"
+	"net/http"
 	"sync"
 	"time"
 )
 
 type imagePair struct {
-	id  int64
-	img []byte
+	id      int64
+	mime    string
+	favicon []byte
 }
 
 func Start(ctx context.Context, d *storage.Database, feeds []models.Feed) {
@@ -43,7 +45,7 @@ func Start(ctx context.Context, d *storage.Database, feeds []models.Feed) {
 			}
 		case ip := <-ic:
 			utils.DebugPrint("Received a new image:", ip)
-			if err := d.InsertFeedIcon(ip.id, ip.img); err != nil {
+			if err := d.InsertFavicon(ip.id, ip.mime, ip.favicon); err != nil {
 				log.Warningf("Failed to persist icon for feed %d: %s", ip.id, err)
 			}
 		case <-ctx.Done():
@@ -113,5 +115,6 @@ func handleImage(feed models.Feed, img *rss.Image, send chan imagePair) {
 	if err != nil {
 		log.Warningf("Unable to decode icon for feed %d: %s", feed.Id, err)
 	}
-	send <- imagePair{feed.Id, src}
+	mime := http.DetectContentType(src)
+	send <- imagePair{feed.Id, mime, src}
 }

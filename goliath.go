@@ -63,7 +63,7 @@ func main() {
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", *portFlag)}
 	installSignalHandler(cancel, srv)
 
-	if err = Serve(srv); err != nil {
+	if err = Serve(srv, d); err != nil {
 		log.Infof("%s", err)
 	}
 }
@@ -83,8 +83,8 @@ func installSignalHandler(cancel context.CancelFunc, srv *http.Server) {
 	}()
 }
 
-func Serve(srv *http.Server) error {
-	http.HandleFunc("/fever", HandleFever)
+func Serve(srv *http.Server, d *storage.Database) error {
+	http.HandleFunc("/fever/", HandleFever(d))
 	log.Infof("Starting HTTP server on port %d", *portFlag)
 	return srv.ListenAndServe()
 }

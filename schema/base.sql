@@ -32,7 +32,10 @@ CREATE TABLE IF NOT EXISTS Feed (
   description STRING,
   url STRING,
   text STRING,
-  icon BYTEA
+  -- MIME type of the favicon
+  mime STRING,
+  -- Base64 encoding of favicon
+  favicon STRING
 ) INTERLEAVE IN PARENT Folder (folder);
 
 CREATE TABLE IF NOT EXISTS Article (
