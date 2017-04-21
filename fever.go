@@ -49,6 +49,8 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 	}
 
 	r.ParseForm()
+	log.Infof("Fever request URL: %s", r.URL.String())
+	log.Infof("Fever request body: %s", r.PostForm.Encode())
 
 	switch r.Form.Get("api") {
 	case "":
