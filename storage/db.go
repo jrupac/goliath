@@ -201,15 +201,19 @@ func (d *Database) GetAllFavicons() (map[int64]string, error) {
 
 func (d *Database) GetAllUnreadArticles(limit int) ([]models.Article, error) {
 	articles := []models.Article{}
-	var limitStr string
+	var rows *sql.Rows
+	var err error
+
 	if limit == -1 {
-		limitStr = "ALL"
+		rows, err = d.db.Query(
+			`SELECT id, feed, folder, title, summary, content, link, date FROM ` + ARTICLE_TABLE + `
+			 WHERE NOT read`)
 	} else {
-		limitStr = strconv.Itoa(limit)
+		rows, err = d.db.Query(
+			`SELECT id, feed, folder, title, summary, content, link, date FROM `+ARTICLE_TABLE+`
+			 WHERE NOT read LIMIT $1`, limit)
 	}
-	rows, err := d.db.Query(
-		`SELECT id, feed, folder, title, summary, content, link, date FROM `+ARTICLE_TABLE+`
-		WHERE NOT read LIMIT $1`, limitStr)
+
 	if err != nil {
 		return articles, err
 	}
