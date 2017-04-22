@@ -146,8 +146,13 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 		resp["favicons"] = favicons
 	}
 	if _, ok := r.Form["items"]; ok {
-		// TODO: support "since_id", "max_id", and "with_ids".
-		articles, err := d.GetAllUnreadArticles(50)
+		// TODO: support "max_id" and "with_ids".
+		since_id, err := strconv.ParseInt(r.FormValue("since_id"), 10, 64)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+
+		articles, err := d.GetUnreadArticles(50, since_id)
 		if err != nil {
 			returnError(w, "Failed to fetch unread articles: %s", err)
 			return
@@ -174,7 +179,7 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 		resp["links"] = ""
 	}
 	if _, ok := r.Form["unread_item_ids"]; ok {
-		articles, err := d.GetAllUnreadArticles(-1)
+		articles, err := d.GetUnreadArticles(-1, -1)
 		if err != nil {
 			returnError(w, "Failed to fetch unread articles: %s", err)
 			return

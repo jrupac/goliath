@@ -18,6 +18,7 @@ const (
 	FOLDER_CHILDREN_TABLE = "FolderChildren"
 	FEED_TABLE            = "Feed"
 	ARTICLE_TABLE         = "Article"
+	MAX_FETCHED_ROWS      = 10000
 )
 
 type Database struct {
@@ -91,7 +92,7 @@ func (d *Database) MarkArticle(id int64, status string) error {
 		return nil
 	}
 
-	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read WHERE id = $1`, id)
+	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = true WHERE id = $1`, id)
 	return err
 }
 
@@ -101,7 +102,7 @@ func (d *Database) MarkFeed(id int64, status string) error {
 		return nil
 	}
 
-	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read WHERE feed = $1`, id)
+	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = true WHERE feed = $1`, id)
 	return err
 }
 
@@ -111,7 +112,7 @@ func (d *Database) MarkFolder(id int64, status string) error {
 		return nil
 	}
 
-	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read WHERE folder = $1`, id)
+	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = true WHERE folder = $1`, id)
 	return err
 }
 
@@ -199,20 +200,21 @@ func (d *Database) GetAllFavicons() (map[int64]string, error) {
 	return favicons, err
 }
 
-func (d *Database) GetAllUnreadArticles(limit int) ([]models.Article, error) {
+func (d *Database) GetUnreadArticles(limit int, since_id int64) ([]models.Article, error) {
 	articles := []models.Article{}
 	var rows *sql.Rows
 	var err error
 
 	if limit == -1 {
-		rows, err = d.db.Query(
-			`SELECT id, feed, folder, title, summary, content, link, date FROM ` + ARTICLE_TABLE + `
-			 WHERE NOT read`)
-	} else {
-		rows, err = d.db.Query(
-			`SELECT id, feed, folder, title, summary, content, link, date FROM `+ARTICLE_TABLE+`
-			 WHERE NOT read LIMIT $1`, limit)
+		limit = MAX_FETCHED_ROWS
 	}
+	if since_id == -1 {
+		since_id = 0
+	}
+
+	rows, err = d.db.Query(
+		`SELECT id, feed, folder, title, summary, content, link, date FROM `+ARTICLE_TABLE+`
+		WHERE NOT read AND id > $1 LIMIT $2`, since_id, limit)
 
 	if err != nil {
 		return articles, err
