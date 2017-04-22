@@ -245,9 +245,6 @@ func (d *Database) GetUnreadArticles(limit int, since_id int64) ([]models.Articl
 			&a.Id, &a.FeedId, &a.FolderId, &a.Title, &a.Summary, &a.Content, &a.Link, &a.Date); err != nil {
 			return articles, err
 		}
-		if err != nil {
-			return articles, nil
-		}
 		articles = append(articles, a)
 	}
 	return articles, err
