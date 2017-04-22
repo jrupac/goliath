@@ -137,7 +137,7 @@ func (d *Database) GetAllFolders() ([]models.Folder, error) {
 
 func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 	feeds := []models.Feed{}
-	rows, err := d.db.Query(`SELECT id, folder, title, description, url, text FROM ` + FEED_TABLE)
+	rows, err := d.db.Query(`SELECT id, folder, title, description, url FROM ` + FEED_TABLE)
 	if err != nil {
 		return feeds, err
 	}
@@ -145,7 +145,7 @@ func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 
 	for rows.Next() {
 		f := models.Feed{}
-		if err = rows.Scan(&f.Id, &f.FolderId, &f.Title, &f.Description, &f.Url, &f.Text); err != nil {
+		if err = rows.Scan(&f.Id, &f.FolderId, &f.Title, &f.Description, &f.Url); err != nil {
 			return feeds, err
 		}
 		feeds = append(feeds, f)
@@ -261,9 +261,9 @@ func (d *Database) importChildren(parent models.Folder) error {
 		}
 
 		err = d.db.QueryRow(
-			`INSERT INTO `+FEED_TABLE+`(folder, hash, title, description, url, text)
-			VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
-			parent.Id, f.Hash(), f.Title, f.Description, f.Url, f.Text).Scan(&feedId)
+			`INSERT INTO `+FEED_TABLE+`(folder, hash, title, description, url)
+			VALUES($1, $2, $3, $4, $5) RETURNING id`,
+			parent.Id, f.Hash(), f.Title, f.Description, f.Url).Scan(&feedId)
 		if err != nil {
 			return err
 		}

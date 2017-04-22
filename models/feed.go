@@ -12,7 +12,6 @@ type Feed struct {
 	Title       string
 	Description string
 	Url         string
-	Text        string
 }
 
 func (a *Feed) Hash() string {
@@ -20,6 +19,5 @@ func (a *Feed) Hash() string {
 	h.Write([]byte(a.Title))
 	h.Write([]byte(a.Description))
 	h.Write([]byte(a.Url))
-	h.Write([]byte(a.Text))
 	return fmt.Sprintf("%x", h.Sum(nil))
 }

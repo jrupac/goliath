@@ -48,11 +48,20 @@ func parseOutline(children []models.Outline) models.Folder {
 	for _, o := range children {
 		if o.Url != "" {
 			// This entity has a URL so we presume it is a Feed and has no children.
+			var name string
+			switch {
+			case o.Title != "":
+				name = o.Title
+			case o.Text != "":
+				name = o.Text
+			default:
+				name = "<untitled>"
+			}
+
 			feed := models.Feed{
-				Title:       o.Title,
+				Title:       name,
 				Description: o.Description,
 				Url:         o.Url,
-				Text:        o.Text,
 			}
 			folder.Feed = append(folder.Feed, feed)
 		} else {
