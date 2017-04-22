@@ -158,13 +158,21 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		items := []item{}
+		var content string
 		for _, a := range articles {
+			// The "content" field usually has more text, but is not always set.
+			if a.Content != "" {
+				content = a.Content
+			} else {
+				content = a.Summary
+			}
+
 			i := item{
 				Id:          a.Id,
 				FeedId:      a.FeedId,
 				Title:       a.Title,
 				Author:      "",
-				Html:        a.Summary,
+				Html:        content,
 				Url:         a.Link,
 				IsSaved:     false,
 				IsRead:      false,
@@ -198,7 +206,7 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 		// TODO: Support "before" argument.
 		var as string
 		switch r.FormValue("as") {
-		case "read", "saved", "unsaved":
+		case "read", "unread", "saved", "unsaved":
 			as = r.FormValue("as")
 		default:
 			w.WriteHeader(http.StatusBadRequest)

@@ -87,32 +87,50 @@ func (d *Database) InsertFavicon(feedId int64, mime string, img []byte) error {
 }
 
 func (d *Database) MarkArticle(id int64, status string) error {
-	// Perhaps add support for saving articles in the future.
-	if status == "saved" || status == "unsaved" {
+	var state bool
+	switch status {
+	case "saved", "unsaved":
+		// Perhaps add support for saving articles in the future.
 		return nil
+	case "read":
+		state = true
+	case "unread":
+		state = false
 	}
 
-	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = true WHERE id = $1`, id)
+	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE id = $2`, state, id)
 	return err
 }
 
 func (d *Database) MarkFeed(id int64, status string) error {
-	// Perhaps add support for saving articles in the future.
-	if status == "saved" || status == "unsaved" {
+	var state bool
+	switch status {
+	case "saved", "unsaved":
+		// Perhaps add support for saving articles in the future.
 		return nil
+	case "read":
+		state = true
+	case "unread":
+		state = false
 	}
 
-	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = true WHERE feed = $1`, id)
+	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE feed = $2`, state, id)
 	return err
 }
 
 func (d *Database) MarkFolder(id int64, status string) error {
-	// Perhaps add support for saving articles in the future.
-	if status == "saved" || status == "unsaved" {
+	var state bool
+	switch status {
+	case "saved", "unsaved":
+		// Perhaps add support for saving articles in the future.
 		return nil
+	case "read":
+		state = true
+	case "unread":
+		state = false
 	}
 
-	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = true WHERE folder = $1`, id)
+	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE folder = $2`, state, id)
 	return err
 }
 
