@@ -85,6 +85,36 @@ func (d *Database) InsertFavicon(feedId int64, mime string, img []byte) error {
 	return err
 }
 
+func (d *Database) MarkArticle(id int64, status string) error {
+	// Perhaps add support for saving articles in the future.
+	if status == "saved" || status == "unsaved" {
+		return nil
+	}
+
+	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read WHERE id = $1`, id)
+	return err
+}
+
+func (d *Database) MarkFeed(id int64, status string) error {
+	// Perhaps add support for saving articles in the future.
+	if status == "saved" || status == "unsaved" {
+		return nil
+	}
+
+	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read WHERE feed = $1`, id)
+	return err
+}
+
+func (d *Database) MarkFolder(id int64, status string) error {
+	// Perhaps add support for saving articles in the future.
+	if status == "saved" || status == "unsaved" {
+		return nil
+	}
+
+	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read WHERE folder = $1`, id)
+	return err
+}
+
 func (d *Database) GetAllFolders() ([]models.Folder, error) {
 	folders := []models.Folder{}
 	rows, err := d.db.Query(`SELECT id, name FROM ` + FOLDER_TABLE)
@@ -167,6 +197,34 @@ func (d *Database) GetAllFavicons() (map[int64]string, error) {
 		favicons[id] = fmt.Sprintf("%s;base64,%s", mime, favicon)
 	}
 	return favicons, err
+}
+
+func (d *Database) GetAllUnreadArticles(limit int) ([]models.Article, error) {
+	articles := []models.Article{}
+	var limitStr string
+	if limit == -1 {
+		limitStr = "ALL"
+	} else {
+		limitStr = strconv.Itoa(limit)
+	}
+	rows, err := d.db.Query(
+		`SELECT id, feed, folder, title, summary, content, link, date FROM `+ARTICLE_TABLE+`
+		WHERE NOT read LIMIT $1`, limitStr)
+	if err != nil {
+		return articles, err
+	}
+	defer rows.Close()
+
+	var dateStr string
+	for rows.Next() {
+		a := models.Article{}
+		if err = rows.Scan(
+			&a.Id, &a.FeedId, &a.FolderId, &a.Title, &a.Summary, &a.Content, &a.Link, &dateStr); err != nil {
+			return articles, err
+		}
+		articles = append(articles, a)
+	}
+	return articles, err
 }
 
 func (d *Database) ImportOpml(opml *models.Opml) error {

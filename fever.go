@@ -5,10 +5,24 @@ import (
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/storage"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 )
 
 const API_VERSION = "1.0"
+
+type item struct {
+	Id          int64  `json:"id"`
+	FeedId      int64  `json:"feed_id"`
+	Title       string `json:"title"`
+	Author      string `json:"author"`
+	Html        string `json:"html"`
+	Url         string `json:"url"`
+	IsSaved     bool   `json:"is_saved"`
+	IsRead      bool   `json:"is_read"`
+	CreatedTime int64  `json:"created_on_time"`
+}
 
 type feed struct {
 	Id          int64  `json:"id"`
@@ -63,15 +77,14 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 
 	resp["auth"] = auth(r.FormValue("api_key"))
 	if resp["auth"] == 0 {
-		encodeResponse(w, resp)
+		returnSuccess(w, resp)
 		return
 	}
 
 	if _, ok := r.Form["groups"]; ok {
 		folders, err := d.GetAllFolders()
 		if err != nil {
-			log.Warningf("Failed to fetch folders: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			returnError(w, "Failed to fetch folders: %s", err)
 			return
 		}
 		groups := []group{}
@@ -86,15 +99,14 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 
 		resp["feeds_groups"], err = constructFeedsGroups(d)
 		if err != nil {
-			log.Warningf("Failed to fetch feeds per folder: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			returnError(w, "Failed to fetch feeds per folder: %s", err)
 			return
 		}
-	} else if _, ok := r.Form["feeds"]; ok {
+	}
+	if _, ok := r.Form["feeds"]; ok {
 		fetchedFeeds, err := d.GetAllFeeds()
 		if err != nil {
-			log.Warningf("Failed to fetch feeds: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			returnError(w, "Failed to fetch feeds: %s", err)
 			return
 		}
 		feeds := []feed{}
@@ -113,15 +125,14 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 		resp["feeds"] = feeds
 		resp["feeds_groups"], err = constructFeedsGroups(d)
 		if err != nil {
-			log.Warningf("Failed to fetch feeds per folder: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			returnError(w, "Failed to fetch feeds per folder: %s", err)
 			return
 		}
-	} else if _, ok := r.Form["favicons"]; ok {
+	}
+	if _, ok := r.Form["favicons"]; ok {
 		faviconMap, err := d.GetAllFavicons()
 		if err != nil {
-			log.Warningf("Failed to fetch favicons: %s", err)
-			w.WriteHeader(http.StatusInternalServerError)
+			returnError(w, "Failed to fetch favicons: %s", err)
 			return
 		}
 		favicons := []favicon{}
@@ -133,27 +144,98 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 			favicons = append(favicons, favicon)
 		}
 		resp["favicons"] = favicons
-	} else if _, ok := r.Form["items"]; ok {
-		w.WriteHeader(http.StatusNotImplemented)
-		return
-	} else if _, ok := r.Form["links"]; ok {
-		w.WriteHeader(http.StatusNotImplemented)
-		return
-	} else if _, ok := r.Form["unread_item_ids"]; ok {
-		w.WriteHeader(http.StatusNotImplemented)
-		return
-	} else if _, ok := r.Form["saved_item_ids"]; ok {
-		w.WriteHeader(http.StatusNotImplemented)
-		return
+	}
+	if _, ok := r.Form["items"]; ok {
+		// TODO: support "since_id", "max_id", and "with_ids".
+		articles, err := d.GetAllUnreadArticles(50)
+		if err != nil {
+			returnError(w, "Failed to fetch unread articles: %s", err)
+			return
+		}
+		items := []item{}
+		for _, a := range articles {
+			i := item{
+				Id:          a.Id,
+				FeedId:      a.FeedId,
+				Title:       a.Title,
+				Author:      "",
+				Html:        a.Summary,
+				Url:         a.Link,
+				IsSaved:     false,
+				IsRead:      false,
+				CreatedTime: a.Date.Unix(),
+			}
+			items = append(items, i)
+		}
+		resp["items"] = items
+	}
+	if _, ok := r.Form["links"]; ok {
+		// Perhaps add support for Hot Links in the future.
+		resp["links"] = ""
+	}
+	if _, ok := r.Form["unread_item_ids"]; ok {
+		articles, err := d.GetAllUnreadArticles(-1)
+		if err != nil {
+			returnError(w, "Failed to fetch unread articles: %s", err)
+			return
+		}
+		unread_item_ids := []string{}
+		for _, a := range articles {
+			unread_item_ids = append(unread_item_ids, strconv.FormatInt(a.Id, 10))
+		}
+		resp["unread_item_ids"] = strings.Join(unread_item_ids, ",")
+	}
+	if _, ok := r.Form["saved_item_ids"]; ok {
+		// Perhaps add support for saving items in the future.
+		resp["saved_item_ids"] = ""
+	}
+	if _, ok := r.Form["mark"]; ok {
+		// TODO: Support "before" argument.
+		var as string
+		switch r.FormValue("as") {
+		case "read", "saved", "unsaved":
+			as = r.FormValue("as")
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+
+		switch r.FormValue("mark") {
+		case "item":
+			if err := d.MarkArticle(id, as); err != nil {
+				returnError(w, "Unable to mark article: %s", err)
+			}
+		case "feed":
+			if err := d.MarkFeed(id, as); err != nil {
+				returnError(w, "Unable to mark feed: %s", err)
+			}
+		case "group":
+			if err := d.MarkFolder(id, as); err != nil {
+				returnError(w, "Unable to mark folder: %s", err)
+			}
+		default:
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 	}
 
-	encodeResponse(w, resp)
+	returnSuccess(w, resp)
 }
 
-func encodeResponse(w http.ResponseWriter, resp map[string]interface{}) {
+func returnError(w http.ResponseWriter, msg string, err error) {
+	log.Warningf(msg, err)
+	w.WriteHeader(http.StatusInternalServerError)
+}
+
+func returnSuccess(w http.ResponseWriter, resp map[string]interface{}) {
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		log.Warningf("Failed to encode response JSON: %s", err)
+		returnError(w, "Failed to encode response JSON: %s", err)
 	}
 }
 
