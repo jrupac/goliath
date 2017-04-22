@@ -239,12 +239,14 @@ func (d *Database) GetUnreadArticles(limit int, since_id int64) ([]models.Articl
 	}
 	defer rows.Close()
 
-	var dateStr string
 	for rows.Next() {
 		a := models.Article{}
 		if err = rows.Scan(
-			&a.Id, &a.FeedId, &a.FolderId, &a.Title, &a.Summary, &a.Content, &a.Link, &dateStr); err != nil {
+			&a.Id, &a.FeedId, &a.FolderId, &a.Title, &a.Summary, &a.Content, &a.Link, &a.Date); err != nil {
 			return articles, err
+		}
+		if err != nil {
+			return articles, nil
 		}
 		articles = append(articles, a)
 	}

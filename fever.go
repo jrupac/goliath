@@ -147,9 +147,15 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 	}
 	if _, ok := r.Form["items"]; ok {
 		// TODO: support "max_id" and "with_ids".
-		since_id, err := strconv.ParseInt(r.FormValue("since_id"), 10, 64)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
+		since_id := int64(-1)
+		var err error
+
+		if _, ok := r.Form["since_id"]; ok {
+			since_id, err = strconv.ParseInt(r.FormValue("since_id"), 10, 64)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 		}
 
 		articles, err := d.GetUnreadArticles(50, since_id)
@@ -215,6 +221,7 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
+			return
 		}
 
 		switch r.FormValue("mark") {
