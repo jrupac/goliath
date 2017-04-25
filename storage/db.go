@@ -87,51 +87,60 @@ func (d *Database) InsertFavicon(feedId int64, mime string, img []byte) error {
 }
 
 func (d *Database) MarkArticle(id int64, status string) error {
-	var state bool
-	switch status {
-	case "saved", "unsaved":
-		// Perhaps add support for saving articles in the future.
-		return nil
-	case "read":
-		state = true
-	case "unread":
-		state = false
+	state, err := parseState(status)
+	if err != nil {
+		return err
 	}
 
-	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE id = $2`, state, id)
+	_, err = d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE id = $2`, state, id)
 	return err
 }
 
 func (d *Database) MarkFeed(id int64, status string) error {
-	var state bool
-	switch status {
-	case "saved", "unsaved":
-		// Perhaps add support for saving articles in the future.
-		return nil
-	case "read":
-		state = true
-	case "unread":
-		state = false
+	state, err := parseState(status)
+	if err != nil {
+		return err
 	}
 
-	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE feed = $2`, state, id)
+	_, err = d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE feed = $2`, state, id)
 	return err
 }
 
 func (d *Database) MarkFolder(id int64, status string) error {
-	var state bool
-	switch status {
-	case "saved", "unsaved":
-		// Perhaps add support for saving articles in the future.
-		return nil
-	case "read":
-		state = true
-	case "unread":
-		state = false
+	state, err := parseState(status)
+	if err != nil {
+		return err
 	}
 
-	_, err := d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE folder = $2`, state, id)
+	_, err = d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE folder = $2`, state, id)
+	children, err := d.GetFolderChildren(id)
+	if err != nil {
+		return err
+	}
+	for _, c := range children {
+		if err := d.MarkFolder(c, status); err != nil {
+			return err
+		}
+	}
 	return err
+}
+
+func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
+	children := []int64{}
+	rows, err := d.db.Query(`SELECT child FROM `+FOLDER_CHILDREN_TABLE+` WHERE parent = $1`, id)
+	if err != nil {
+		return children, err
+	}
+	defer rows.Close()
+
+	var childId int64
+	for rows.Next() {
+		if err = rows.Scan(&childId); err != nil {
+			return children, err
+		}
+		children = append(children, childId)
+	}
+	return children, err
 }
 
 func (d *Database) GetAllFolders() ([]models.Folder, error) {
@@ -306,4 +315,18 @@ func (d *Database) importChildren(parent models.Folder) error {
 		}
 	}
 	return err
+}
+
+func parseState(status string) (bool, error) {
+	var state bool
+	switch status {
+	case "saved", "unsaved":
+		// Perhaps add support for saving articles in the future.
+		return false, errors.New("Unsupported status: %s" + status)
+	case "read":
+		state = true
+	case "unread":
+		state = false
+	}
+	return state, nil
 }
