@@ -32,6 +32,9 @@ func Open(dbPath string) (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err = d.Ping(); err != nil {
+		return nil, err
+	}
 
 	db.db = d
 	return db, nil

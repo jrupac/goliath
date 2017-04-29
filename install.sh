@@ -5,18 +5,10 @@
 set -euxo pipefail
 
 echo "Building Goliath core."
-if [ -f ./goliath ]
-then
-    rm ./goliath
-fi
 go build -x -v .
 
 echo "Building Goliath frontend."
 cd frontend/
-if [ -d ./build/ ]
-then
-    rm -rf ./build/
-fi
 npm run build
 cd ..
 

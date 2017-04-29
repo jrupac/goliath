@@ -5,7 +5,8 @@
   "dependencies": {
     "antd": "^2.9.3",
     "react": "^15.5.4",
-    "react-dom": "^15.5.4"
+    "react-dom": "^15.5.4",
+    "moment": "^2.18.1"
   },
   "devDependencies": {
     "react-scripts": "0.9.5"

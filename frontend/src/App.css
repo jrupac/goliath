@@ -2,6 +2,8 @@
   font-family: 'Nunito', sans-serif;
 }
 
+/* antd elements */
+
 .ant-layout {
   height: 100vh;
 }
@@ -9,8 +11,17 @@
 .ant-layout-sider {
   width: 300px;
   overflow: auto;
-  padding-top: 24px;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+}
+
+.ant-layout-sider .logo {
+  text-align: center;
+  font-family: 'Pacifico', cursive;
+  color: #ececec;
+  font-size: 32px;
+  padding-top: 24px;
+  padding-bottom: 20px;
+  background: #3a3a3a;
 }
 
 .ant-layout-content {
@@ -23,12 +34,28 @@
   text-align: center;
 }
 
-.ant-card {
-  margin-top: 5px;
+.ant-tree {
+  padding: 10px 0 0 15px;
+}
+
+.ant-tree li span.ant-tree-switcher.ant-tree-roots_open:after,
+.ant-tree li span.ant-tree-switcher.ant-tree-center_open:after,
+.ant-tree li span.ant-tree-switcher.ant-tree-bottom_open:after,
+.ant-tree li span.ant-tree-switcher.ant-tree-noline_open:after {
+  color: #ececec;
+  content: "\E61D";
+}
+
+.ant-tree li span.ant-tree-switcher.ant-tree-roots_close:after,
+.ant-tree li span.ant-tree-switcher.ant-tree-center_close:after,
+.ant-tree li span.ant-tree-switcher.ant-tree-bottom_close:after,
+.ant-tree li span.ant-tree-switcher.ant-tree-noline_close:after {
+  color: #ececec;
+  content: "\E61D";
 }
 
 .ant-tree-title {
-  color: white;
+  color: #ececec;
   font-size: 14px;
   width: 100%;
 }
@@ -63,9 +90,11 @@
   background-color: black;
 }
 
-.ant-tree-noline_close {
-  color: white;
+.ant-card {
+  margin-top: 5px;
 }
+
+/* Goliath elements */
 
 .article-list {
 }
@@ -76,6 +105,31 @@
   padding-top: 10%;
 }
 
+.article-header {
+  display: flex;
+  align-items: stretch;
+  flex-flow: row nowrap;
+  justify-content:space-between;
+}
+
+.article-title {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.article-date {
+  width: 150px;
+  min-width: 150px;
+  font-size: 12px;
+  text-align: right;
+}
+
 .article-content {
   font-size: 14px;
+}
+
+.article-content img {
+  max-width: 100%;
+  height: auto;
 }

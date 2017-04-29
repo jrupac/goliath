@@ -19,7 +19,7 @@ class FolderFeedList extends React.Component {
   }
 
   renderFeed(f) {
-    return <TreeNode key={f.favicon_id} title={f.title} />;
+    return <TreeNode key={f.favicon_id} title={f.title} isLeaf />;
   }
 }
 

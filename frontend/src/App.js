@@ -108,6 +108,9 @@ class App extends React.Component {
     return (
       <Layout className="App">
         <Sider width={250}>
+          <div className="logo" >
+            Goliath RSS
+          </div>
           <Menu mode="inline" theme="dark">
             <FolderFeedList tree={this.state.structure}/>
           </Menu>
