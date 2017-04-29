@@ -19,7 +19,24 @@ class FolderFeedList extends React.Component {
   }
 
   renderFeed(f) {
-    return <TreeNode key={f.favicon_id} title={f.title} isLeaf />;
+    var img;
+    if (f.favicon === "") {
+      img = <img src="/favicon.ico" height={16} width={16}/>
+    } else {
+      img = <img src={"data:" + f.favicon} height={16} width={16}/>
+    }
+
+    var elem = (
+      <div className="feed-row">
+        <div className="feed-icon">
+          {img}
+        </div>
+        <div className="feed-title">
+          {f.title}
+        </div>
+      </div>
+    );
+    return <TreeNode key={f.id} title={elem} isLeaf />;
   }
 }
 

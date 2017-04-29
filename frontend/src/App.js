@@ -12,6 +12,7 @@ const DoneFlags = {
   FolderFetch: 1,
   FeedFetch: 2,
   ArticleFetch: 4,
+  FaviconFetch: 8,
 };
 
 class App extends React.Component {
@@ -20,6 +21,7 @@ class App extends React.Component {
     this.state = {
       folders: new Map(),
       feeds: new Map(),
+      favicons: new Map(),
       feed_groups: new Map(),
       articles: [],
       structure: new Map(),
@@ -30,7 +32,8 @@ class App extends React.Component {
   ready() {
     return (
       this.state.done === (
-        DoneFlags.FolderFetch | DoneFlags.FeedFetch | DoneFlags.ArticleFetch));
+        DoneFlags.FolderFetch | DoneFlags.FeedFetch |
+        DoneFlags.ArticleFetch | DoneFlags.FaviconFetch));
   }
 
   restructure() {
@@ -47,7 +50,14 @@ class App extends React.Component {
         structure.set(group_id, {
           'title': title,
           'feeds': prevState.feed_groups.get(group_id).map(
-              feedId => Object.assign({}, prevState.feeds.get(feedId)))
+              feedId => {
+                var f = prevState.feeds.get(feedId);
+                if (f === undefined) {
+                  return null;
+                }
+                f.favicon = prevState.favicons.get(f.favicon_id) || '';
+                return f;
+              })
         });
       });
       return {
@@ -58,7 +68,8 @@ class App extends React.Component {
 
   componentDidMount() {
     Promise.all(
-        [this.fetchFolders(), this.fetchFeeds(), this.fetchItems()])
+        [this.fetchFolders(), this.fetchFeeds(), this.fetchItems(),
+          this.fetchFavicons()])
         .then(() => { console.log("Completed all requests to server."); });
   }
 
@@ -95,6 +106,7 @@ class App extends React.Component {
                 feeds.set(feed.id, {
                   'id': feed.id,
                   'favicon_id': feed.favicon_id,
+                  'favicon': '',
                   'title': feed.title,
                   'url': feed.url,
                   'site_url': feed.site_url,
@@ -121,6 +133,23 @@ class App extends React.Component {
                 done: prevState.done | DoneFlags.ArticleFetch,
               }}, this.restructure);
           }
+        );
+  }
+
+  fetchFavicons() {
+    fetch('/fever/?api&favicons')
+        .then(result => result.json())
+        .then(body => {
+              this.setState(prevState => {
+                var favicons = new Map();
+                body.favicons.forEach(favicon => {
+                  favicons.set(favicon.id, favicon.data);
+                });
+                return {
+                  favicons: favicons,
+                  done: prevState.done | DoneFlags.FaviconFetch,
+                }}, this.restructure);
+            }
         );
   }
 

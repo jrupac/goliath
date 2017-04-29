@@ -55,26 +55,26 @@
 }
 
 .ant-tree-title {
-  color: #ececec;
-  font-size: 14px;
-  width: 100%;
+
 }
 
 .ant-tree li {
   line-height: 10px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 1px 15px 1px 0;
+  padding: 0 15px 0 0;
 }
 
 .ant-tree li ul {
   padding-top: 4px;
+  padding-left: 10px;
 }
 
 .ant-tree li a {
-  display: inline;
+  display: inline-block;
   padding: 4px;
   transition: all 0.1s ease;
+  color: #ececec;
+  font-size: 14px;
+  width: 100%;
 }
 
 .ant-tree li a.ant-tree-node-selected,
@@ -96,6 +96,24 @@
 }
 
 /* Goliath elements */
+
+.feed-row {
+  display: flex;
+  align-items: stretch;
+  flex-flow: row nowrap;
+}
+
+.feed-icon {
+  height: 16px;
+  width: 16px;
+}
+
+.feed-title {
+  padding-left: 4px;
+  padding-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .article-list {
 }
