@@ -8,16 +8,18 @@ class FolderFeedList extends React.Component {
     return (
         <Tree defaultExpandAll>
           {
-            Array.from(tree.keys(), k => {
-                var v = tree.get(k);
-                return <TreeNode key={k} title={v.title}>
-                {v.feeds.map(e => (
-                    <TreeNode key={e.favicon_id} title={e.title} />))}
+            Array.from(tree.keys(), k => (
+              <TreeNode key={k} title={tree.get(k).title}>
+                {tree.get(k).feeds.map(this.renderFeed)}
               </TreeNode>
-            })
+            ))
           }
         </Tree>
     )
+  }
+
+  renderFeed(f) {
+    return <TreeNode key={f.favicon_id} title={f.title} />;
   }
 }
 

@@ -2,13 +2,8 @@
   font-family: 'Nunito', sans-serif;
 }
 
-.ant-layout-content {
-  background: #ececec;
-  padding: 24px 24px 0;
-}
-
-.ant-card {
-  margin-top: 5px;
+.ant-layout {
+  height: 100vh;
 }
 
 .ant-layout-sider {
@@ -18,21 +13,67 @@
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
 }
 
+.ant-layout-content {
+  overflow: initial;
+  background: #ececec;
+  padding: 24px 24px 0;
+}
+
+.ant-layout-footer {
+  text-align: center;
+}
+
+.ant-card {
+  margin-top: 5px;
+}
+
 .ant-tree-title {
   color: white;
   font-size: 14px;
+  width: 100%;
+}
+
+.ant-tree li {
+  line-height: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ant-tree li ul {
+  padding-top: 4px;
 }
 
 .ant-tree li a {
   display: inline;
+  padding: 4px;
+  transition: all 0.1s ease;
 }
 
-.ant-tree li {
-  line-height: 24px;
+.ant-tree li a.ant-tree-node-selected,
+.ant-tree li a:hover
+{
+  padding: 4px;
+}
+
+.ant-tree li a:hover {
+  background-color: #222;
+}
+
+.ant-tree li a.ant-tree-node-selected {
+  background-color: black;
 }
 
 .ant-tree-noline_close {
   color: white;
+}
+
+.article-list {
+}
+
+.article-list-empty {
+  text-align: center;
+  font-size: 48px;
+  padding-top: 10%;
 }
 
 .article-content {

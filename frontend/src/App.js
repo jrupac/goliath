@@ -107,16 +107,16 @@ class App extends React.Component {
   render() {
     return (
       <Layout className="App">
-        <Sider>
-          <Menu mode="inline" theme="dark" style={{height: '100%' }}>
+        <Sider width={250}>
+          <Menu mode="inline" theme="dark">
             <FolderFeedList tree={this.state.structure}/>
           </Menu>
         </Sider>
         <Layout>
-          <Content style={{ minHeight: 280 }}>
+          <Content>
             <ArticleList articles={this.state.articles}/>
           </Content>
-          <Footer style={{ textAlign: 'center' }}>
+          <Footer>
             Goliath RSS
           </Footer>
         </Layout>

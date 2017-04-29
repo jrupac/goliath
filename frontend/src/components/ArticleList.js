@@ -2,29 +2,25 @@ import React from 'react';
 import Article from './Article.js';
 
 class ArticleList extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-        articles: props.articles
+
+  render() {
+    if (this.props.articles.length === 0) {
+      return (
+          <div className="article-list-empty">
+            Loading feeds...
+          </div>
+      )
+    } else {
+      return (
+          <div className="article-list">
+            {this.getFeedList()}
+          </div>
+      )
     }
   }
 
-  render() {
-    return (
-      <div className="feed-list">
-        {this.getFeedList()}
-      </div>
-    )
-  }
-
-  componentWillReceiveProps(nextProps) {
-    this.setState({
-      articles: nextProps.articles
-    })
-  }
-
   getFeedList() {
-    return this.state.articles.map((f) => <Article key={f.id} article={f}/>)
+    return this.props.articles.map((f) => <Article key={f.id} article={f}/>)
   }
 }
 
