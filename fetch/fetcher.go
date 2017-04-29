@@ -7,10 +7,11 @@ import (
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
-	"io/ioutil"
-	"net/http"
 	"sync"
 	"time"
+	"github.com/mat/besticon/besticon"
+	"net/url"
+	"errors"
 )
 
 type imagePair struct {
@@ -64,8 +65,8 @@ func do(ctx context.Context, ac chan models.Article, ic chan imagePair, feed mod
 		log.Warningf("Error fetching %s: %s", feed.Url, err)
 		return
 	}
-	handleImage(feed, f.Image, ic)
-	handleItems(feed, ac, f.Items)
+	handleImage(feed, f, ic)
+	handleItems(feed, f.Items, ac)
 
 	tick := time.After(time.Until(f.Refresh))
 	log.Infof("Waiting to fetch %s until %s\n", feed.Url, f.Refresh)
@@ -77,7 +78,7 @@ func do(ctx context.Context, ac chan models.Article, ic chan imagePair, feed mod
 			if err = f.Update(); err != nil {
 				log.Warningf("Error fetching %s: %s", feed.Url, err)
 			} else {
-				handleItems(feed, ac, f.Items)
+				handleItems(feed, f.Items, ac)
 			}
 			log.Infof("Waiting to fetch %s until %s\n", feed.Url, f.Refresh)
 			tick = time.After(time.Until(f.Refresh))
@@ -87,7 +88,7 @@ func do(ctx context.Context, ac chan models.Article, ic chan imagePair, feed mod
 	}
 }
 
-func handleItems(feed models.Feed, send chan models.Article, items []*rss.Item) {
+func handleItems(feed models.Feed, items []*rss.Item, send chan models.Article) {
 	for _, item := range items {
 		a := models.Article{
 			FeedId:   feed.Id,
@@ -103,18 +104,46 @@ func handleItems(feed models.Feed, send chan models.Article, items []*rss.Item) 
 	}
 }
 
-func handleImage(feed models.Feed, img *rss.Image, send chan imagePair) {
-	body, err := img.Get()
-	if err != nil {
-		log.Warningf("Unable to fetch icon for feed %d: %s", feed.Id, err)
+func handleImage(feed models.Feed, f *rss.Feed, send chan imagePair) {
+	var icon besticon.Icon
+	var feedHost string
+
+	u, err := url.Parse(f.Link)
+	if err == nil {
+		feedHost = u.Hostname()
+	}
+
+	if i, err := tryIconFetch(f.Link); err == nil {
+		icon = i
+	} else if i, err := tryIconFetch(f.Image.Url); err == nil {
+		icon = i
+	} else if i, err = tryIconFetch(feedHost); err == nil {
+		icon = i
+	} else {
 		return
 	}
-	defer body.Close()
 
-	src, err := ioutil.ReadAll(body)
+	send <- imagePair{feed.Id, "image/" + icon.Format, icon.ImageData}
+}
+
+func tryIconFetch(link string) (besticon.Icon, error){
+	icon := besticon.Icon{}
+	finder := besticon.IconFinder{}
+
+	icons, err := finder.FetchIcons(link);
 	if err != nil {
-		log.Warningf("Unable to decode icon for feed %d: %s", feed.Id, err)
+		return icon, err
 	}
-	mime := http.DetectContentType(src)
-	send <- imagePair{feed.Id, mime, src}
+
+	if len(icons) == 0 {
+		return icon, errors.New("No icons found.")
+	}
+
+	for _, i := range icons {
+		if i.URL != "" && i.Format != "" {
+			return i, nil
+		}
+	}
+
+	return icon, errors.New("No suitable icons found.")
 }
