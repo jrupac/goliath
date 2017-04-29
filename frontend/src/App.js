@@ -8,6 +8,12 @@ import './App.css';
 
 const { Content, Footer, Sider } = Layout;
 
+const DoneFlags = {
+  FolderFetch: 1,
+  FeedFetch: 2,
+  ArticleFetch: 4,
+};
+
 class App extends React.Component {
   constructor(props) {
     super(props);
@@ -17,13 +23,20 @@ class App extends React.Component {
       feed_groups: new Map(),
       articles: [],
       structure: new Map(),
+      done: 0,
     };
+  }
+
+  ready() {
+    return (
+      this.state.done === (
+        DoneFlags.FolderFetch | DoneFlags.FeedFetch | DoneFlags.ArticleFetch));
   }
 
   restructure() {
     this.setState((prevState) => {
       var structure = new Map();
-      prevState.folders.forEach(function(title, group_id) {
+      prevState.folders.forEach((title, group_id) => {
         if (!prevState.feed_groups.has(group_id)) {
           return;
         }
@@ -53,7 +66,7 @@ class App extends React.Component {
     fetch('/fever/?api&groups')
         .then(result => result.json())
         .then(body => {
-            this.setState(() => {
+            this.setState(prevState => {
               var feed_groups = new Map();
               body.feeds_groups.forEach(e => {
                 feed_groups.set(e.group_id, e.feed_ids.split(',').map(Number));
@@ -65,6 +78,7 @@ class App extends React.Component {
               return {
                 folders: groups,
                 feed_groups: feed_groups,
+                done: prevState.done | DoneFlags.FolderFetch,
               };
             }, this.restructure);
           }
@@ -75,10 +89,11 @@ class App extends React.Component {
     fetch('/fever/?api&feeds')
         .then(result => result.json())
         .then(body => {
-            this.setState(() => {
+            this.setState(prevState => {
               var feeds = new Map();
               body.feeds.forEach(feed => {
                 feeds.set(feed.id, {
+                  'id': feed.id,
                   'favicon_id': feed.favicon_id,
                   'title': feed.title,
                   'url': feed.url,
@@ -88,7 +103,8 @@ class App extends React.Component {
                 });
               });
               return {
-                feeds: feeds
+                feeds: feeds,
+                done: prevState.done | DoneFlags.FeedFetch,
               };
             }, this.restructure);
           }
@@ -99,7 +115,11 @@ class App extends React.Component {
     fetch('/fever/?api&items')
         .then(result => result.json())
         .then(body => {
-            this.setState({articles: body.items}, this.restructure);
+            this.setState(prevState => {
+              return {
+                articles: body.items,
+                done: prevState.done | DoneFlags.ArticleFetch,
+              }}, this.restructure);
           }
         );
   }
@@ -112,7 +132,7 @@ class App extends React.Component {
             Goliath RSS
           </div>
           <Menu mode="inline" theme="dark">
-            <FolderFeedList tree={this.state.structure}/>
+            {this.ready() ? <FolderFeedList tree={this.state.structure}/> : null}
           </Menu>
         </Sider>
         <Layout>

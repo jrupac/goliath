@@ -64,6 +64,7 @@
   line-height: 10px;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding: 1px 15px 1px 0;
 }
 
 .ant-tree li ul {
