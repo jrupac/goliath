@@ -1,0 +1,40 @@
+.App {
+  font-family: 'Nunito', sans-serif;
+}
+
+.ant-layout-content {
+  background: #ececec;
+  padding: 24px 24px 0;
+}
+
+.ant-card {
+  margin-top: 5px;
+}
+
+.ant-layout-sider {
+  width: 300px;
+  overflow: auto;
+  padding-top: 24px;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+}
+
+.ant-tree-title {
+  color: white;
+  font-size: 14px;
+}
+
+.ant-tree li a {
+  display: inline;
+}
+
+.ant-tree li {
+  line-height: 24px;
+}
+
+.ant-tree-noline_close {
+  color: white;
+}
+
+.article-content {
+  font-size: 14px;
+}

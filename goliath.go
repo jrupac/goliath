@@ -21,6 +21,7 @@ var (
 	dbPath   = flag.String("dbPath", "", "The address of the database.")
 	opmlPath = flag.String("opmlPath", "", "Path of OPML file to import.")
 	portFlag = flag.Int("port", 9999, "Port of HTTP server.")
+	publicFolder = flag.String("publicFolder", "public", "Location of static content to serve.")
 )
 
 func main() {
@@ -84,6 +85,7 @@ func installSignalHandler(cancel context.CancelFunc, srv *http.Server) {
 }
 
 func Serve(srv *http.Server, d *storage.Database) error {
+	http.Handle("/", http.FileServer(http.Dir(*publicFolder)))
 	http.HandleFunc("/fever/", HandleFever(d))
 	log.Infof("Starting HTTP server on port %d", *portFlag)
 	return srv.ListenAndServe()
