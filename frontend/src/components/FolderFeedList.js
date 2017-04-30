@@ -3,9 +3,18 @@ import { Tree } from 'antd';
 const TreeNode = Tree.TreeNode;
 
 class FolderFeedList extends React.Component {
-  handleSelect = (key) => {
-    key = Number(key);
+  constructor(props) {
+    super(props);
+    this.handleSelect = this.handleSelect.bind(this);
+  }
+
+  handleSelect = (key, info) => {
     var type;
+    if (key === null || key.length === 0) {
+      key = info.node.props.eventKey;
+    } else {
+      key = key[0];
+    }
     if (this.props.tree.has(key)) {
       type = 'folder';
     } else {
@@ -17,7 +26,9 @@ class FolderFeedList extends React.Component {
   render() {
     var tree = this.props.tree;
     return (
-        <Tree defaultExpandAll onSelect={this.handleSelect}>
+        <Tree
+            expandedKeys={this.props.expandedKeys}
+            onSelect={this.handleSelect}>
           {
             Array.from(tree.keys(), k => (
               <TreeNode key={k} title={tree.get(k).title}>

@@ -25,6 +25,7 @@ class App extends React.Component {
       folderToFeeds: new Map(),
       articles: [],
       shownArticles: [],
+      expandedKeys: [],
       structure: new Map(),
       done: 0,
     };
@@ -64,6 +65,7 @@ class App extends React.Component {
       return {
         structure: structure,
         shownArticles: prevState.articles,
+        expandedKeys: Array.from(prevState.folders.keys(), String),
       }
     });
   }
@@ -82,11 +84,13 @@ class App extends React.Component {
             this.setState(prevState => {
               var folderToFeeds = new Map();
               body.feeds_groups.forEach(e => {
-                folderToFeeds.set(e.group_id, e.feed_ids.split(',').map(Number));
+                folderToFeeds.set(
+                    String(e.group_id),
+                    e.feed_ids.split(',').map(Number).map(String));
               });
               var groups = new Map();
               body.groups.forEach(group => {
-                groups.set(group.id, group.title);
+                groups.set(String(group.id), group.title);
               });
               return {
                 folders: groups,
@@ -105,9 +109,9 @@ class App extends React.Component {
             this.setState(prevState => {
               var feeds = new Map();
               body.feeds.forEach(feed => {
-                feeds.set(feed.id, {
-                  'id': feed.id,
-                  'favicon_id': feed.favicon_id,
+                feeds.set(String(feed.id), {
+                  'id': String(feed.id),
+                  'favicon_id': String(feed.favicon_id),
                   'favicon': '',
                   'title': feed.title,
                   'url': feed.url,
@@ -130,8 +134,20 @@ class App extends React.Component {
         .then(result => result.json())
         .then(body => {
             this.setState(prevState => {
+              var articles = [];
+              body.items.forEach(item => {
+                articles.push({
+                  'id': String(item.id),
+                  'feed_id': String(item.feed_id),
+                  'title': item.title,
+                  'url': item.url,
+                  'html': item.html,
+                  'is_read': item.is_read,
+                  'created_on_time': item.created_on_time,
+                });
+              });
               return {
-                articles: body.items,
+                articles: articles,
                 done: prevState.done | DoneFlags.ArticleFetch,
               }}, this.restructure);
           }
@@ -145,7 +161,7 @@ class App extends React.Component {
               this.setState(prevState => {
                 var favicons = new Map();
                 body.favicons.forEach(favicon => {
-                  favicons.set(favicon.id, favicon.data);
+                  favicons.set(String(favicon.id), favicon.data);
                 });
                 return {
                   favicons: favicons,
@@ -170,16 +186,26 @@ class App extends React.Component {
       });
     } else if (type === "folder") {
       this.setState((prevState) => {
+        var expandedKeys = prevState.expandedKeys;
+        var i = expandedKeys.indexOf(key);
+        if (i === -1) {
+          expandedKeys.push(key);
+        } else {
+          expandedKeys.splice(i, 1);
+        }
+
         var feeds = prevState.folderToFeeds.get(key) || [];
         return {
           shownArticles: prevState.articles.filter(
               e => feeds.indexOf(e.feed_id) !== -1),
+          expandedKeys: expandedKeys,
         };
       });
     }
   };
 
   render() {
+    console.log(this.state.expandedKeys);
     return (
       <Layout className="App">
         <Sider width={250}>
@@ -190,6 +216,7 @@ class App extends React.Component {
             {this.ready()
                 ? <FolderFeedList
                     tree={this.state.structure}
+                    expandedKeys={this.state.expandedKeys}
                     handleSelect={this.handleSelect} />
                 : null}
           </Menu>
