@@ -53,7 +53,7 @@ func (d *Database) InsertArticle(a models.Article) error {
 		return err
 	}
 	if count > 0 {
-		log.V(2).Infof("Duplicate article entry, skipping: %s", a.Id)
+		log.V(2).Infof("Duplicate article entry, skipping (hash): %s", a.Hash())
 		return nil
 	}
 

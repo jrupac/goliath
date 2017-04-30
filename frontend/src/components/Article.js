@@ -33,7 +33,7 @@ class Article extends React.Component {
     if (then.isBetween(before, now)) {
       return then.fromNow();
     } else {
-      return then.format("ddd, MMM D, h:m A");
+      return then.format("ddd, MMM D, h:mm A");
     }
   }
 }

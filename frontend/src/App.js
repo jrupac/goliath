@@ -24,6 +24,7 @@ class App extends React.Component {
       favicons: new Map(),
       feed_groups: new Map(),
       articles: [],
+      shownArticles: [],
       structure: new Map(),
       done: 0,
     };
@@ -61,7 +62,8 @@ class App extends React.Component {
         });
       });
       return {
-        structure: structure
+        structure: structure,
+        shownArticles: prevState.articles,
       }
     });
   }
@@ -153,20 +155,51 @@ class App extends React.Component {
         );
   }
 
+  sortArticles(articles) {
+    return articles.sort((a, b) => {
+      return a.created_on_time - b.created_on_time;
+    });
+  }
+
+  handleSelect = (key, type) => {
+    if (type === "feed") {
+      this.setState((prevState) => {
+        return {
+          shownArticles: prevState.articles.filter(e => e.feed_id === key),
+        };
+      });
+    } else if (type === "folder") {
+      this.setState((prevState) => {
+        var feeds = prevState.feed_groups.get(key) || [];
+        return {
+          shownArticles: prevState.articles.filter(
+              e => feeds.indexOf(e.feed_id) !== -1),
+        };
+      });
+    }
+  };
+
   render() {
     return (
       <Layout className="App">
         <Sider width={250}>
           <div className="logo" >
-            Goliath RSS
+            Goliath
           </div>
           <Menu mode="inline" theme="dark">
-            {this.ready() ? <FolderFeedList tree={this.state.structure}/> : null}
+            {this.ready()
+                ? <FolderFeedList
+                    tree={this.state.structure}
+                    handleSelect={this.handleSelect}
+                />
+                : null}
           </Menu>
         </Sider>
         <Layout>
           <Content>
-            <ArticleList articles={this.state.articles}/>
+            <ArticleList
+                ready={this.ready()}
+                articles={this.sortArticles(this.state.shownArticles)} />
           </Content>
           <Footer>
             Goliath RSS

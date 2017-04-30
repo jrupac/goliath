@@ -65,8 +65,8 @@ func do(ctx context.Context, ac chan models.Article, ic chan imagePair, feed mod
 		log.Warningf("Error fetching %s: %s", feed.Url, err)
 		return
 	}
-	handleImage(feed, f, ic)
 	handleItems(feed, f.Items, ac)
+	handleImage(feed, f, ic)
 
 	tick := time.After(time.Until(f.Refresh))
 	log.Infof("Waiting to fetch %s until %s\n", feed.Url, f.Refresh)
@@ -113,9 +113,9 @@ func handleImage(feed models.Feed, f *rss.Feed, send chan imagePair) {
 		feedHost = u.Hostname()
 	}
 
-	if i, err := tryIconFetch(f.Link); err == nil {
+	if i, err := tryIconFetch(f.Image.Url); err == nil {
 		icon = i
-	} else if i, err := tryIconFetch(f.Image.Url); err == nil {
+	} else if i, err := tryIconFetch(f.Link); err == nil {
 		icon = i
 	} else if i, err = tryIconFetch(feedHost); err == nil {
 		icon = i
@@ -126,7 +126,7 @@ func handleImage(feed models.Feed, f *rss.Feed, send chan imagePair) {
 	send <- imagePair{feed.Id, "image/" + icon.Format, icon.ImageData}
 }
 
-func tryIconFetch(link string) (besticon.Icon, error){
+func tryIconFetch(link string) (besticon.Icon, error) {
 	icon := besticon.Icon{}
 	finder := besticon.IconFinder{}
 
