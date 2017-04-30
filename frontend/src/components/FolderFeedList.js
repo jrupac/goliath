@@ -11,7 +11,7 @@ class FolderFeedList extends React.Component {
     } else {
       type = 'feed';
     }
-    this.props.handleSelect(key, type);
+    this.props.handleSelect(type, key);
   };
 
   render() {

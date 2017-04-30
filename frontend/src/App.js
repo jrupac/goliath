@@ -22,7 +22,7 @@ class App extends React.Component {
       folders: new Map(),
       feeds: new Map(),
       favicons: new Map(),
-      feed_groups: new Map(),
+      folderToFeeds: new Map(),
       articles: [],
       shownArticles: [],
       structure: new Map(),
@@ -41,7 +41,7 @@ class App extends React.Component {
     this.setState((prevState) => {
       var structure = new Map();
       prevState.folders.forEach((title, group_id) => {
-        if (!prevState.feed_groups.has(group_id)) {
+        if (!prevState.folderToFeeds.has(group_id)) {
           return;
         }
         if (!prevState.feeds) {
@@ -50,7 +50,7 @@ class App extends React.Component {
 
         structure.set(group_id, {
           'title': title,
-          'feeds': prevState.feed_groups.get(group_id).map(
+          'feeds': prevState.folderToFeeds.get(group_id).map(
               feedId => {
                 var f = prevState.feeds.get(feedId);
                 if (f === undefined) {
@@ -80,9 +80,9 @@ class App extends React.Component {
         .then(result => result.json())
         .then(body => {
             this.setState(prevState => {
-              var feed_groups = new Map();
+              var folderToFeeds = new Map();
               body.feeds_groups.forEach(e => {
-                feed_groups.set(e.group_id, e.feed_ids.split(',').map(Number));
+                folderToFeeds.set(e.group_id, e.feed_ids.split(',').map(Number));
               });
               var groups = new Map();
               body.groups.forEach(group => {
@@ -90,7 +90,7 @@ class App extends React.Component {
               });
               return {
                 folders: groups,
-                feed_groups: feed_groups,
+                folderToFeeds: folderToFeeds,
                 done: prevState.done | DoneFlags.FolderFetch,
               };
             }, this.restructure);
@@ -161,7 +161,7 @@ class App extends React.Component {
     });
   }
 
-  handleSelect = (key, type) => {
+  handleSelect = (type, key) => {
     if (type === "feed") {
       this.setState((prevState) => {
         return {
@@ -170,7 +170,7 @@ class App extends React.Component {
       });
     } else if (type === "folder") {
       this.setState((prevState) => {
-        var feeds = prevState.feed_groups.get(key) || [];
+        var feeds = prevState.folderToFeeds.get(key) || [];
         return {
           shownArticles: prevState.articles.filter(
               e => feeds.indexOf(e.feed_id) !== -1),
@@ -190,8 +190,7 @@ class App extends React.Component {
             {this.ready()
                 ? <FolderFeedList
                     tree={this.state.structure}
-                    handleSelect={this.handleSelect}
-                />
+                    handleSelect={this.handleSelect} />
                 : null}
           </Menu>
         </Sider>

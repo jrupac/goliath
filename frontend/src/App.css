@@ -4,10 +4,6 @@
 
 /* antd elements */
 
-.ant-layout {
-  height: 100vh;
-}
-
 .ant-layout-sider {
   width: 300px;
   overflow: auto;
@@ -34,7 +30,12 @@
 }
 
 .ant-tree {
-  padding: 10px 0 0 15px;
+  line-height: 16px;
+  padding-right: 1px;
+}
+
+.ant-tree li span.ant-tree-switcher {
+  padding-top: 2px;
 }
 
 .ant-tree li span.ant-tree-switcher.ant-tree-roots_open:after,
@@ -53,33 +54,25 @@
   content: "\E61D";
 }
 
-.ant-tree-title {
-
-}
-
 .ant-tree li {
-  line-height: 10px;
   padding: 0 15px 0 0;
 }
 
 .ant-tree li ul {
-  padding-top: 4px;
   padding-left: 10px;
 }
 
-.ant-tree li a {
+.ant-tree-title, .ant-tree li a {
   display: inline-block;
-  padding: 4px;
   transition: all 0.1s ease;
   color: #ececec;
   font-size: 14px;
   width: 100%;
 }
 
-.ant-tree li a.ant-tree-node-selected,
-.ant-tree li a:hover
-{
-  padding: 4px;
+.ant-tree-title {
+  line-height: initial;
+  padding: 0 0 0 2px;
 }
 
 .ant-tree li a:hover {
@@ -98,7 +91,7 @@
 
 .feed-row {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   flex-flow: row nowrap;
 }
 
@@ -108,8 +101,7 @@
 }
 
 .feed-title {
-  padding-left: 4px;
-  padding-top: 4px;
+  padding-left: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
 }

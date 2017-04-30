@@ -20,7 +20,7 @@ class Article extends React.Component {
               </div>
             } >
           <div className="article-content">
-            <div dangerouslySetInnerHTML={{__html: this.props.article.html}}></div>
+            <div dangerouslySetInnerHTML={{__html: this.props.article.html}} />
           </div>
         </Card>
     )
