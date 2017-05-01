@@ -27,7 +27,7 @@ class FolderFeedList extends React.Component {
     var tree = this.props.tree;
     return (
         <Tree
-            expandedKeys={this.props.expandedKeys}
+            defaultExpandAll
             onSelect={this.handleSelect}>
           {
             Array.from(tree.keys(), k => (

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Spin } from 'antd';
 import Article from './Article.js';
 
 class ArticleList extends React.Component {
@@ -7,13 +8,13 @@ class ArticleList extends React.Component {
     if (!this.props.ready) {
       return (
           <div className="article-list-empty">
-            Loading feeds...
+            <Spin size="large" />
           </div>
       )
     } else if (this.props.articles.length === 0) {
       return (
           <div className="article-list-empty">
-            Nothing to see here...
+            No unread articles.
           </div>
       )
     } else {

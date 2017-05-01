@@ -25,7 +25,6 @@ class App extends React.Component {
       folderToFeeds: new Map(),
       articles: [],
       shownArticles: [],
-      expandedKeys: [],
       structure: new Map(),
       done: 0,
     };
@@ -65,7 +64,6 @@ class App extends React.Component {
       return {
         structure: structure,
         shownArticles: prevState.articles,
-        expandedKeys: Array.from(prevState.folders.keys(), String),
       }
     });
   }
@@ -186,26 +184,16 @@ class App extends React.Component {
       });
     } else if (type === "folder") {
       this.setState((prevState) => {
-        var expandedKeys = prevState.expandedKeys;
-        var i = expandedKeys.indexOf(key);
-        if (i === -1) {
-          expandedKeys.push(key);
-        } else {
-          expandedKeys.splice(i, 1);
-        }
-
         var feeds = prevState.folderToFeeds.get(key) || [];
         return {
           shownArticles: prevState.articles.filter(
               e => feeds.indexOf(e.feed_id) !== -1),
-          expandedKeys: expandedKeys,
         };
       });
     }
   };
 
   render() {
-    console.log(this.state.expandedKeys);
     return (
       <Layout className="App">
         <Sider width={250}>
@@ -216,7 +204,6 @@ class App extends React.Component {
             {this.ready()
                 ? <FolderFeedList
                     tree={this.state.structure}
-                    expandedKeys={this.state.expandedKeys}
                     handleSelect={this.handleSelect} />
                 : null}
           </Menu>
