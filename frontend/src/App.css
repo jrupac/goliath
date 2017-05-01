@@ -1,10 +1,10 @@
 #root {
-  height: 100%;
+  min-height: 100%;
 }
 
 .App {
   font-family: 'Nunito', sans-serif;
-  height: 100%;
+  min-height: 100vh;
 }
 
 /* antd elements */
@@ -92,6 +92,30 @@
 }
 
 /* Goliath elements */
+
+.all-items, .all-items-selected {
+  padding-right: 15px;
+  padding-left: 30px;
+  display: inline-block;
+  transition: all 0.1s ease;
+  color: #ececec;
+  font-size: 14px;
+  width: 100%;
+  cursor: pointer;
+}
+
+.all-items:hover {
+  background-color: #222;
+}
+
+.all-items-selected {
+  background-color: black;
+}
+
+.all-items-text {
+  display: inline;
+  padding-left: 8px;
+}
 
 .feed-row {
   display: flex;

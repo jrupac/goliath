@@ -26,6 +26,7 @@ class App extends React.Component {
       articles: [],
       shownArticles: [],
       structure: new Map(),
+      selectedKey: null,
       done: 0,
     };
   }
@@ -176,10 +177,18 @@ class App extends React.Component {
   }
 
   handleSelect = (type, key) => {
-    if (type === "feed") {
+    if (type === "all") {
+      this.setState((prevState) => {
+        return {
+          shownArticles: prevState.articles,
+          selectedKey: key,
+        }
+      });
+    } else if (type === "feed") {
       this.setState((prevState) => {
         return {
           shownArticles: prevState.articles.filter(e => e.feed_id === key),
+          selectedKey: key,
         };
       });
     } else if (type === "folder") {
@@ -188,6 +197,7 @@ class App extends React.Component {
         return {
           shownArticles: prevState.articles.filter(
               e => feeds.indexOf(e.feed_id) !== -1),
+          selectedKey: key,
         };
       });
     }
@@ -204,6 +214,7 @@ class App extends React.Component {
             {this.ready()
                 ? <FolderFeedList
                     tree={this.state.structure}
+                    selectedKey={this.state.selectedKey}
                     handleSelect={this.handleSelect} />
                 : null}
           </Menu>
