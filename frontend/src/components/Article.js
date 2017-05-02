@@ -4,25 +4,30 @@ import { Card } from 'antd';
 
 class Article extends React.Component {
   render() {
-    var date = new Date(this.props.article.created_on_time * 1000);
+    const date = new Date(this.props.article.created_on_time * 1000);
+    const cardClass = "ant-card" + (this.props.isSelected ? "-selected" : "");
     return (
-        <Card
-            title={
-              <div className="article-header">
-                <div className="article-title">
-                  <a target="_blank" href={this.props.article.url}>
-                    {this.props.article.title}
-                  </a>
+        <div className="ant-card-outer">
+          <Card
+              className={cardClass}
+              ref={(ref) => {this.ref = ref}}
+              title={
+                <div className="article-header">
+                  <div className="article-title">
+                    <a target="_blank" href={this.props.article.url}>
+                      {this.props.article.title}
+                    </a>
+                  </div>
+                  <div className="article-date">
+                    {this.formatDate(date)}
+                  </div>
                 </div>
-                <div className="article-date">
-                  {this.formatDate(date)}
-                </div>
-              </div>
-            } >
-          <div className="article-content">
-            <div dangerouslySetInnerHTML={{__html: this.props.article.html}} />
-          </div>
-        </Card>
+              } >
+            <div className="article-content">
+              <div dangerouslySetInnerHTML={{__html: this.props.article.html}} />
+            </div>
+          </Card>
+        </div>
     )
   }
 

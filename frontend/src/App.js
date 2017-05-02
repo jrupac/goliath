@@ -172,7 +172,7 @@ class App extends React.Component {
 
   sortArticles(articles) {
     return articles.sort((a, b) => {
-      return a.created_on_time - b.created_on_time;
+      return  b.created_on_time - a.created_on_time;
     });
   }
 
@@ -224,10 +224,11 @@ class App extends React.Component {
             <ArticleList
                 ready={this.ready()}
                 articles={this.sortArticles(this.state.shownArticles)} />
+            <Footer>
+              Goliath RSS
+            </Footer>
           </Content>
-          <Footer>
-            Goliath RSS
-          </Footer>
+
         </Layout>
       </Layout>
     );
