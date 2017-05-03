@@ -72,10 +72,10 @@ class ArticleList extends React.Component {
   handleKeyDown(event) {
     this.setState((prevState) => {
       var scrollIndex;
-      if (event.key === 'j') {
+      if (event.key === 'j' || event.key === 'ArrowDown') {
         scrollIndex = Math.min(
             prevState.scrollIndex + 1, this.props.articles.length - 1);
-      } else if (event.key === 'k') {
+      } else if (event.key === 'k' || event.key === 'ArrowUp') {
         scrollIndex = Math.max(
             prevState.scrollIndex - 1, 0);
       }
