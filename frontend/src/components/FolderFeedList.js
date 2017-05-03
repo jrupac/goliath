@@ -54,7 +54,7 @@ class FolderFeedList extends React.Component {
               onSelect={this.handleSelect}>
             {
               Array.from(tree.keys(), k => (
-                <TreeNode key={k} title={tree.get(k).title}>
+                <TreeNode key={k} title={this.renderFolderTitle(tree.get(k))}>
                   {tree.get(k).feeds.map(this.renderFeed)}
                 </TreeNode>
               ))
@@ -62,6 +62,16 @@ class FolderFeedList extends React.Component {
           </Tree>
         </div>
     )
+  }
+
+  renderFolderTitle(folder) {
+    var unreadCount = folder.feeds.reduce(
+        (a, b) => a + b.unread_count, 0);
+    if (unreadCount === 0) {
+      return folder.title;
+    } else {
+      return <b>{"(" + unreadCount + ") " + folder.title}</b>;
+    }
   }
 
   renderFeed(f) {
@@ -72,13 +82,20 @@ class FolderFeedList extends React.Component {
       img = <img src={"data:" + f.favicon} height={16} width={16} alt=""/>
     }
 
+    var title;
+    if (f.unread_count === 0) {
+      title = f.title;
+    } else {
+      title = <b>{"(" + f.unread_count + ") " + f.title}</b>;
+    }
+
     var elem = (
       <div className="feed-row">
         <div className="feed-icon">
           {img}
         </div>
         <div className="feed-title">
-          {f.title}
+          {title}
         </div>
       </div>
     );

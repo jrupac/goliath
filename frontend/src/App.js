@@ -23,6 +23,7 @@ class App extends React.Component {
       feeds: new Map(),
       favicons: new Map(),
       folderToFeeds: new Map(),
+      unreadCounts: new Map(),
       articles: [],
       shownArticles: [],
       structure: new Map(),
@@ -58,6 +59,7 @@ class App extends React.Component {
                   return null;
                 }
                 f.favicon = prevState.favicons.get(f.favicon_id) || '';
+                f.unread_count = prevState.unreadCounts.get(feedId) || 0;
                 return f;
               })
         });
@@ -117,6 +119,7 @@ class App extends React.Component {
                   'site_url': feed.site_url,
                   'is_spark': feed.is_spark,
                   'last_updated_on_time': feed.last_updated_on_time,
+                  'unread_count': 0,
                 });
               });
               return {
@@ -134,10 +137,14 @@ class App extends React.Component {
         .then(body => {
             this.setState(prevState => {
               var articles = [];
+              var unreadCounts = new Map();
               body.items.forEach(item => {
+                var feed_id = String(item.feed_id);
+                unreadCounts.set(
+                    feed_id, (unreadCounts.get(feed_id) || 0) + 1);
                 articles.push({
                   'id': String(item.id),
-                  'feed_id': String(item.feed_id),
+                  'feed_id': feed_id,
                   'title': item.title,
                   'url': item.url,
                   'html': item.html,
@@ -147,6 +154,7 @@ class App extends React.Component {
               });
               return {
                 articles: articles,
+                unreadCounts: unreadCounts,
                 done: prevState.done | DoneFlags.ArticleFetch,
               }}, this.restructure);
           }
