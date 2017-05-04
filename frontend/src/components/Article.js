@@ -5,7 +5,7 @@ import React from 'react';
 export default class Article extends React.Component {
   render() {
     const date = new Date(this.props.article.created_on_time * 1000);
-    const cardClass = "ant-card" + (this.props.isSelected ? "-selected" : "");
+    const cardClass = this.props.isSelected ? 'card-selected' : 'card-normal';
     return (
         <div className="ant-card-outer">
           <Card

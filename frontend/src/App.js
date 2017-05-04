@@ -250,8 +250,6 @@ export default class App extends React.Component {
     } else if (type === 'folder') {
       this.setState((prevState) => {
         const feeds = prevState.folderToFeeds.get(key) || [];
-
-
         return {
           shownArticles: prevState.articles.filter(
               (e) => feeds.indexOf(e.feed_id) !== -1),
@@ -273,7 +271,7 @@ export default class App extends React.Component {
     }
     return (
       <Layout className="App">
-        <Sider width={250}>
+        <Sider width={300}>
           <div className="logo" >
             Goliath
           </div>

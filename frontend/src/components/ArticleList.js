@@ -49,7 +49,7 @@ export default class ArticleList extends React.Component {
               ref={this.handleMounted}
               itemRenderer={(e) => renderArticle(e)}
               length={articles.length}
-              type='simple'/>
+              type='variable'/>
       )
     }
   }
@@ -68,11 +68,15 @@ export default class ArticleList extends React.Component {
       if (event.key === 'j' || event.key === 'ArrowDown') {
         scrollIndex = Math.min(
             prevState.scrollIndex + 1, this.props.articles.length - 1);
+        return { scrollIndex: scrollIndex }
       } else if (event.key === 'k' || event.key === 'ArrowUp') {
         scrollIndex = Math.max(
             prevState.scrollIndex - 1, 0);
+        return { scrollIndex: scrollIndex }
       }
-      return { scrollIndex: scrollIndex };
+      // No change.
+      return { scrollIndex: prevState.scrollIndex };
     }, this.handleScroll);
+    event.stopPropagation();
   }
 }
