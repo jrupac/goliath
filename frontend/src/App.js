@@ -220,6 +220,12 @@ export default class App extends React.Component {
     if (this.state.status !== Status.Ready) {
       return <Loading status={this.state.status} />
     }
+
+    if (this.state.unreadCount === 0) {
+      document.title = 'Goliath RSS';
+    } else {
+      document.title = '(' + this.state.unreadCount + ')  Goliath RSS';
+    }
     return (
       <Layout className="App">
         <Sider width={250}>

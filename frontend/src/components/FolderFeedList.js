@@ -29,7 +29,7 @@ export default class FolderFeedList extends React.Component {
   };
 
   render() {
-    var tree = this.props.tree;
+    const tree = this.props.tree;
     var selectedKeys, allSelectedClass;
     if (this.props.selectedKey) {
       selectedKeys = [this.props.selectedKey];
@@ -38,6 +38,8 @@ export default class FolderFeedList extends React.Component {
       selectedKeys = [];
       allSelectedClass = "all-items-selected";
     }
+    const expandedKeys = Array.from(tree.entries()).map(
+        ([k, v]) => ( (v.unread_count > 0) ? k : null));
 
     return (
         <div>
@@ -50,13 +52,13 @@ export default class FolderFeedList extends React.Component {
             </div>
           </div>
           <Tree
-              defaultExpandAll
+              expandedKeys={expandedKeys}
               selectedKeys={selectedKeys}
               onSelect={this.handleSelect}>
             {
-              Array.from(tree.keys(), k => (
-                <TreeNode key={k} title={this.renderFolderTitle(tree.get(k))}>
-                  {tree.get(k).feeds.map(this.renderFeed)}
+              Array.from(tree.entries(), ([k, v]) => (
+                <TreeNode key={k} title={this.renderFolderTitle(v)}>
+                  {v.feeds.map(this.renderFeed)}
                 </TreeNode>
               ))
             }
