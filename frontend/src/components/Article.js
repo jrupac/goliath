@@ -1,6 +1,6 @@
-import React from 'react';
-import moment from 'moment';
 import Card from 'antd/lib/card';
+import moment from 'moment';
+import React from 'react';
 
 export default class Article extends React.Component {
   render() {

@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "antd": "^2.9.3",
+    "decimal.js-light": "^2.2.3",
     "lossless-json": "^1.0.0",
     "moment": "^2.18.1",
     "react": "^15.5.4",
@@ -25,7 +26,8 @@
     "css-loader": "0.26.1",
     "detect-port": "1.1.0",
     "dotenv": "2.0.0",
-    "eslint": "3.16.1",
+    "eslint": "^3.16.1",
+    "eslint-config-google": "^0.7.1",
     "eslint-config-react-app": "^0.6.2",
     "eslint-loader": "1.6.0",
     "eslint-plugin-flowtype": "2.21.0",

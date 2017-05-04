@@ -1,5 +1,6 @@
-import React from 'react';
 import Progress from 'antd/lib/progress';
+import React from 'react';
+
 import { Status } from '../App.js';
 
 export default class Article extends React.Component {

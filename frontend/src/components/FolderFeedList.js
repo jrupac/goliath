@@ -1,6 +1,7 @@
 import React from 'react';
-import Tree from 'antd/lib/tree';
 import Icon from 'antd/lib/icon';
+import Tree from 'antd/lib/tree';
+
 const TreeNode = Tree.TreeNode;
 
 export default class FolderFeedList extends React.Component {
@@ -72,7 +73,7 @@ export default class FolderFeedList extends React.Component {
     if (unreadCount === 0) {
       return 'All items';
     } else {
-      return <b>{"(" + unreadCount + ") All items"}</b>;
+      return <b>{`(${unreadCount})  All items`}</b>;
     }
   }
 
@@ -80,7 +81,7 @@ export default class FolderFeedList extends React.Component {
     if (folder.unread_count === 0) {
       return folder.title;
     } else {
-      return <b>{"(" + folder.unread_count + ") " + folder.title}</b>;
+      return <b>{`(${folder.unread_count})  ${folder.title}`}</b>;
     }
   }
 

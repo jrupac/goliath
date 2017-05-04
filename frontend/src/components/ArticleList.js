@@ -1,6 +1,6 @@
+import Article from './Article.js';
 import React from 'react';
 import ReactList from 'react-list';
-import Article from './Article.js';
 
 export default class ArticleList extends React.Component {
   constructor(props) {

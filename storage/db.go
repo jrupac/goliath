@@ -244,7 +244,7 @@ func (d *Database) GetUnreadArticles(limit int, since_id int64) ([]models.Articl
 
 	rows, err = d.db.Query(
 		`SELECT id, feed, folder, title, summary, content, link, date FROM `+ARTICLE_TABLE+`
-		WHERE NOT read AND id > $1 LIMIT $2`, since_id, limit)
+		WHERE NOT read AND id > $1 ORDER BY id LIMIT $2`, since_id, limit)
 
 	if err != nil {
 		return articles, err
