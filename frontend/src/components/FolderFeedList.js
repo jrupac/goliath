@@ -1,8 +1,9 @@
 import React from 'react';
-import { Tree, Icon } from 'antd';
+import Tree from 'antd/lib/tree';
+import Icon from 'antd/lib/icon';
 const TreeNode = Tree.TreeNode;
 
-class FolderFeedList extends React.Component {
+export default class FolderFeedList extends React.Component {
   constructor(props) {
     super(props);
     this.handleSelect = this.handleSelect.bind(this);
@@ -45,7 +46,7 @@ class FolderFeedList extends React.Component {
               className={allSelectedClass}>
             <Icon type="inbox" />
             <div className="all-items-text">
-              All items
+              {this.renderAllItemsTitle()}
             </div>
           </div>
           <Tree
@@ -64,13 +65,20 @@ class FolderFeedList extends React.Component {
     )
   }
 
-  renderFolderTitle(folder) {
-    var unreadCount = folder.feeds.reduce(
-        (a, b) => a + b.unread_count, 0);
+  renderAllItemsTitle() {
+    const unreadCount = this.props.unreadCount;
     if (unreadCount === 0) {
+      return 'All items';
+    } else {
+      return <b>{"(" + unreadCount + ") All items"}</b>;
+    }
+  }
+
+  renderFolderTitle(folder) {
+    if (folder.unread_count === 0) {
       return folder.title;
     } else {
-      return <b>{"(" + unreadCount + ") " + folder.title}</b>;
+      return <b>{"(" + folder.unread_count + ") " + folder.title}</b>;
     }
   }
 
@@ -102,5 +110,3 @@ class FolderFeedList extends React.Component {
     return <TreeNode key={f.id} title={elem} isLeaf />;
   }
 }
-
-export default FolderFeedList;

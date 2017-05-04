@@ -1,9 +1,8 @@
 import React from 'react';
-import { Spin } from 'antd';
 import ReactList from 'react-list';
 import Article from './Article.js';
 
-class ArticleList extends React.Component {
+export default class ArticleList extends React.Component {
   constructor(props) {
     super(props);
     this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -32,13 +31,7 @@ class ArticleList extends React.Component {
   }
 
   render() {
-    if (!this.props.ready) {
-      return (
-          <div className="article-list-empty">
-            <Spin size="large" />
-          </div>
-      )
-    } else if (this.props.articles.length === 0) {
+    if (this.props.articles.length === 0) {
       return (
           <div className="article-list-empty">
             No unread articles.
@@ -83,7 +76,3 @@ class ArticleList extends React.Component {
     }, this.handleScroll);
   }
 }
-
-
-
-export default ArticleList;

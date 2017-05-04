@@ -1,21 +1,25 @@
 import React from 'react';
-import { Layout, Menu } from 'antd';
+import Layout from 'antd/lib/layout';
+import Menu from 'antd/lib/menu';
 import ArticleList from './components/ArticleList.js';
-import FolderFeedList from "./components/FolderFeedList";
+import FolderFeedList from './components/FolderFeedList';
+import Loading from "./components/Loading";
 
 import 'antd/dist/antd.css';
 import './App.css';
 
 const { Content, Footer, Sider } = Layout;
 
-const DoneFlags = {
-  FolderFetch: 1,
-  FeedFetch: 2,
-  ArticleFetch: 4,
-  FaviconFetch: 8,
+export const Status = {
+  Start: 0,
+  Folder: 1 << 0,
+  Feed: 1 << 1,
+  Article: 1 << 2,
+  Favicon: 1 << 3,
+  Ready: 1 << 4
 };
 
-class App extends React.Component {
+export default class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
@@ -23,50 +27,51 @@ class App extends React.Component {
       feeds: new Map(),
       favicons: new Map(),
       folderToFeeds: new Map(),
-      unreadCounts: new Map(),
+      unreadCountMap: new Map(),
+      unreadCount: 0,
       articles: [],
       shownArticles: [],
       structure: new Map(),
       selectedKey: null,
-      done: 0,
+      status: Status.Start,
     };
   }
 
-  ready() {
-    return (
-      this.state.done === (
-        DoneFlags.FolderFetch | DoneFlags.FeedFetch |
-        DoneFlags.ArticleFetch | DoneFlags.FaviconFetch));
-  }
+  buildStructure() {
+    // Only build the structure object once all other requests are done.
+    if (this.state.status !== (
+        Status.Folder | Status.Feed |
+        Status.Article | Status.Favicon)) {
+      return;
+    }
 
-  restructure() {
     this.setState((prevState) => {
       var structure = new Map();
       prevState.folders.forEach((title, group_id) => {
+        // Some folders may not have any feeds.
         if (!prevState.folderToFeeds.has(group_id)) {
           return;
         }
-        if (!prevState.feeds) {
-          return;
-        }
-
-        structure.set(group_id, {
+        var g = {
           'title': title,
           'feeds': prevState.folderToFeeds.get(group_id).map(
               feedId => {
                 var f = prevState.feeds.get(feedId);
-                if (f === undefined) {
-                  return null;
-                }
                 f.favicon = prevState.favicons.get(f.favicon_id) || '';
-                f.unread_count = prevState.unreadCounts.get(feedId) || 0;
+                f.unread_count = prevState.unreadCountMap.get(feedId) || 0;
                 return f;
               })
-        });
+        };
+        g.unread_count = g.feeds.reduce((a, b) => a + b.unread_count, 0);
+        structure.set(group_id, g);
       });
+      const unreadCount = Array.from(structure.values()).reduce(
+          (a, b) => a + b.unread_count, 0);
       return {
         structure: structure,
         shownArticles: prevState.articles,
+        unreadCount: unreadCount,
+        status: Status.Ready,
       }
     });
   }
@@ -96,9 +101,9 @@ class App extends React.Component {
               return {
                 folders: groups,
                 folderToFeeds: folderToFeeds,
-                done: prevState.done | DoneFlags.FolderFetch,
+                status: prevState.status | Status.Folder,
               };
-            }, this.restructure);
+            }, this.buildStructure);
           }
         );
   }
@@ -124,9 +129,9 @@ class App extends React.Component {
               });
               return {
                 feeds: feeds,
-                done: prevState.done | DoneFlags.FeedFetch,
+                status: prevState.status | Status.Feed,
               };
-            }, this.restructure);
+            }, this.buildStructure);
           }
         );
   }
@@ -154,9 +159,9 @@ class App extends React.Component {
               });
               return {
                 articles: articles,
-                unreadCounts: unreadCounts,
-                done: prevState.done | DoneFlags.ArticleFetch,
-              }}, this.restructure);
+                unreadCountMap: unreadCounts,
+                status: prevState.status | Status.Article,
+              }}, this.buildStructure);
           }
         );
   }
@@ -172,8 +177,8 @@ class App extends React.Component {
                 });
                 return {
                   favicons: favicons,
-                  done: prevState.done | DoneFlags.FaviconFetch,
-                }}, this.restructure);
+                  status: prevState.status | Status.Favicon,
+                }}, this.buildStructure);
             }
         );
   }
@@ -212,6 +217,9 @@ class App extends React.Component {
   };
 
   render() {
+    if (this.state.status !== Status.Ready) {
+      return <Loading status={this.state.status} />
+    }
     return (
       <Layout className="App">
         <Sider width={250}>
@@ -219,18 +227,16 @@ class App extends React.Component {
             Goliath
           </div>
           <Menu mode="inline" theme="dark">
-            {this.ready()
-                ? <FolderFeedList
-                    tree={this.state.structure}
-                    selectedKey={this.state.selectedKey}
-                    handleSelect={this.handleSelect} />
-                : null}
+            <FolderFeedList
+              tree={this.state.structure}
+              unreadCount={this.state.unreadCount}
+              selectedKey={this.state.selectedKey}
+              handleSelect={this.handleSelect} />
           </Menu>
         </Sider>
         <Layout>
           <Content>
             <ArticleList
-                ready={this.ready()}
                 articles={this.sortArticles(this.state.shownArticles)} />
             <Footer>
               Goliath RSS
@@ -242,5 +248,3 @@ class App extends React.Component {
     );
   }
 }
-
-export default App;

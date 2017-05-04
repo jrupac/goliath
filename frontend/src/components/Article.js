@@ -1,8 +1,8 @@
 import React from 'react';
 import moment from 'moment';
-import { Card } from 'antd';
+import Card from 'antd/lib/card';
 
-class Article extends React.Component {
+export default class Article extends React.Component {
   render() {
     const date = new Date(this.props.article.created_on_time * 1000);
     const cardClass = "ant-card" + (this.props.isSelected ? "-selected" : "");
@@ -42,5 +42,3 @@ class Article extends React.Component {
     }
   }
 }
-
-export default Article;
