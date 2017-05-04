@@ -113,16 +113,16 @@ export default class App extends React.Component {
         .then((body) => {
           this.setState((prevState) => {
             const folderToFeeds = prevState.folderToFeeds;
-            const groups = prevState.groups;
+            const folders = prevState.folders;
 
             body.feeds_groups.forEach((e) => {
               folderToFeeds.set(e.group_id, e.feed_ids.split(','));
             });
             body.groups.forEach((group) => {
-              groups.set(group.id, group.title);
+              folders.set(group.id, group.title);
             });
             return {
-              folders: groups,
+              folders: folders,
               folderToFeeds,
               status: prevState.status | Status.Folder,
             };
