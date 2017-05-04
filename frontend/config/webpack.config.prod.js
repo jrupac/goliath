@@ -48,9 +48,6 @@ const extractTextPluginOptions = shouldUseRelativeAssetPaths
 module.exports = {
   // Don't attempt to continue if there are any errors.
   bail: true,
-  // We generate sourcemaps in production. This is slow but gives good results.
-  // You can exclude the *.map files from the build during deployment.
-  devtool: 'eval',
   // In production, we only want to load the polyfills and the app code.
   entry: [
     require.resolve('./polyfills'),
@@ -85,7 +82,7 @@ module.exports = {
       'react-native': 'react-native-web'
     }
   },
-  
+
   module: {
     // First, run the linter.
     // It's important to do this before Babel processes the JS.
@@ -225,7 +222,7 @@ module.exports = {
       fileName: 'asset-manifest.json'
     }),
     // Only load the "en" locale for moment.js.
-    new webpack.ContextReplacementPlugin(/moment[\/\\]locale$/, /en/)
+    new webpack.ContextReplacementPlugin(/moment\/locale$/, /en/)
   ],
   // Some libraries import Node modules but don't use them in the browser.
   // Tell Webpack to provide empty mocks for them so importing them works.
