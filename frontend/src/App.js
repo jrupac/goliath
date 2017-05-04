@@ -1,6 +1,8 @@
-import React from 'react';
 import Layout from 'antd/lib/layout';
+import LosslessJSON from 'lossless-json';
 import Menu from 'antd/lib/menu';
+import React from 'react';
+
 import ArticleList from './components/ArticleList.js';
 import FolderFeedList from './components/FolderFeedList';
 import Loading from "./components/Loading";
@@ -83,20 +85,31 @@ export default class App extends React.Component {
         .then(() => { console.log("Completed all requests to server."); });
   }
 
+  parseJson(t) {
+    // Parse as Lossless numbers since values from the server are 64-bit
+    // integer, but then convert back to String for use going forward.
+    return LosslessJSON.parse(t, (k, v) => {
+      if (v && v.isLosslessNumber) {
+        return String(v);
+      } else {
+        return v;
+      }
+    });
+}
+
   fetchFolders() {
     fetch('/fever/?api&groups')
-        .then(result => result.json())
+        .then(result => result.text())
+        .then(result => this.parseJson(result))
         .then(body => {
             this.setState(prevState => {
               var folderToFeeds = new Map();
               body.feeds_groups.forEach(e => {
-                folderToFeeds.set(
-                    String(e.group_id),
-                    e.feed_ids.split(',').map(Number).map(String));
+                folderToFeeds.set(e.group_id, e.feed_ids.split(','));
               });
               var groups = new Map();
               body.groups.forEach(group => {
-                groups.set(String(group.id), group.title);
+                groups.set(group.id, group.title);
               });
               return {
                 folders: groups,
@@ -110,14 +123,15 @@ export default class App extends React.Component {
 
   fetchFeeds() {
     fetch('/fever/?api&feeds')
-        .then(result => result.json())
+        .then(result => result.text())
+        .then(result => this.parseJson(result))
         .then(body => {
             this.setState(prevState => {
               var feeds = new Map();
               body.feeds.forEach(feed => {
-                feeds.set(String(feed.id), {
-                  'id': String(feed.id),
-                  'favicon_id': String(feed.favicon_id),
+                feeds.set(feed.id, {
+                  'id': feed.id,
+                  'favicon_id': feed.favicon_id,
                   'favicon': '',
                   'title': feed.title,
                   'url': feed.url,
@@ -138,17 +152,18 @@ export default class App extends React.Component {
 
   fetchItems() {
     fetch('/fever/?api&items')
-        .then(result => result.json())
+        .then(result => result.text())
+        .then(result => this.parseJson(result))
         .then(body => {
             this.setState(prevState => {
               var articles = [];
               var unreadCounts = new Map();
               body.items.forEach(item => {
-                var feed_id = String(item.feed_id);
+                var feed_id = item.feed_id;
                 unreadCounts.set(
                     feed_id, (unreadCounts.get(feed_id) || 0) + 1);
                 articles.push({
-                  'id': String(item.id),
+                  'id': item.id,
                   'feed_id': feed_id,
                   'title': item.title,
                   'url': item.url,
@@ -168,12 +183,13 @@ export default class App extends React.Component {
 
   fetchFavicons() {
     fetch('/fever/?api&favicons')
-        .then(result => result.json())
+        .then(result => result.text())
+        .then(result => this.parseJson(result))
         .then(body => {
               this.setState(prevState => {
                 var favicons = new Map();
                 body.favicons.forEach(favicon => {
-                  favicons.set(String(favicon.id), favicon.data);
+                  favicons.set(favicon.id, favicon.data);
                 });
                 return {
                   favicons: favicons,
