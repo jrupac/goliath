@@ -13,8 +13,8 @@ export default class FolderFeedList extends React.Component {
 
   handleSelect = (key, info) => {
     var type;
-    if (info === "all") {
-      this.props.handleSelect("all", key);
+    if (info === 'all') {
+      this.props.handleSelect('all', key);
       return;
     } else if (key && key.length === 1) {
       key = key[0];
@@ -35,10 +35,10 @@ export default class FolderFeedList extends React.Component {
     var selectedKeys, allSelectedClass;
     if (this.props.selectedKey) {
       selectedKeys = [this.props.selectedKey];
-      allSelectedClass = "all-items";
+      allSelectedClass = 'all-items';
     } else {
       selectedKeys = [];
-      allSelectedClass = "all-items-selected";
+      allSelectedClass = 'all-items-selected';
     }
     const expandedKeys = Array.from(tree.entries()).map(
         ([k, v]) => ( (v.unread_count > 0) ? k : null));
@@ -46,10 +46,10 @@ export default class FolderFeedList extends React.Component {
     return (
         <div>
           <div
-              onClick={() => this.handleSelect(null, "all")}
+              onClick={() => this.handleSelect(null, 'all')}
               className={allSelectedClass}>
-            <Icon type="inbox" />
-            <div className="all-items-text">
+            <Icon type='inbox' />
+            <div className='all-items-text'>
               {this.renderAllItemsTitle()}
             </div>
           </div>
@@ -88,25 +88,25 @@ export default class FolderFeedList extends React.Component {
 
   renderFeed(f) {
     var img;
-    if (f.favicon === "") {
-      img = <img src={favicon} height={16} width={16} alt=""/>
+    if (f.favicon === '') {
+      img = <img src={favicon} height={16} width={16} alt=''/>
     } else {
-      img = <img src={"data:" + f.favicon} height={16} width={16} alt=""/>
+      img = <img src={`data:${f.favicon}`} height={16} width={16} alt=''/>
     }
 
     var title;
     if (f.unread_count === 0) {
       title = f.title;
     } else {
-      title = <b>{"(" + f.unread_count + ") " + f.title}</b>;
+      title = <b>{`(${f.unread_count})  ${f.title}`}</b>
     }
 
     var elem = (
-      <div className="feed-row">
-        <div className="feed-icon">
+      <div className='feed-row'>
+        <div className='feed-icon'>
           {img}
         </div>
-        <div className="feed-title">
+        <div className='feed-title'>
           {title}
         </div>
       </div>

@@ -286,7 +286,8 @@ export default class App extends React.Component {
         <Layout>
           <Content>
             <ArticleList
-                articles={this.sortArticles(this.state.shownArticles)} />
+                articles={this.sortArticles(this.state.shownArticles)}
+                handleSelect={this.handleSelect} />
             <Footer>
               Goliath RSS
             </Footer>

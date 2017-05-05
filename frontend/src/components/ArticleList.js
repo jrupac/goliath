@@ -2,13 +2,16 @@ import Article from './Article.js';
 import React from 'react';
 import ReactList from 'react-list';
 
+const goToAllSequence = ['g', 'a'];
+
 export default class ArticleList extends React.Component {
   constructor(props) {
     super(props);
     this.handleKeyDown = this.handleKeyDown.bind(this);
     this.handleMounted = this.handleMounted.bind(this);
     this.state = {
-      scrollIndex: 0
+      scrollIndex: 0,
+      keypressBuffer: new Array(2)
     };
   }
 
@@ -59,24 +62,43 @@ export default class ArticleList extends React.Component {
   }
 
   handleScroll() {
-    this.list.scrollTo(this.state.scrollIndex);
+    // If this feed is empty, there's no list, so nothing to scroll.
+    if (this.list) {
+      this.list.scrollTo(this.state.scrollIndex);
+    }
   }
 
   handleKeyDown(event) {
     this.setState((prevState) => {
-      var scrollIndex;
-      if (event.key === 'j' || event.key === 'ArrowDown') {
-        scrollIndex = Math.min(
-            prevState.scrollIndex + 1, this.props.articles.length - 1);
-        return { scrollIndex: scrollIndex }
-      } else if (event.key === 'k' || event.key === 'ArrowUp') {
-        scrollIndex = Math.max(
-            prevState.scrollIndex - 1, 0);
-        return { scrollIndex: scrollIndex }
+      var keypressBuffer = [...prevState.keypressBuffer.slice(1), event.key];
+      var scrollIndex = prevState.scrollIndex;
+      if (goToAllSequence.every((e, i) => e === keypressBuffer[i])) {
+        this.props.handleSelect('all', null);
+        keypressBuffer = new Array(2);
+      } else {
+        switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault(); // fallthrough
+        case 'j':
+          scrollIndex = Math.min(
+              prevState.scrollIndex + 1, this.props.articles.length - 1);
+          break;
+        case 'ArrowUp':
+          event.preventDefault(); // fallthrough
+        case 'k':
+          scrollIndex = Math.max(prevState.scrollIndex - 1, 0);
+          break;
+        case 'v':
+          const article = this.props.articles[prevState.scrollIndex];
+          window.open(article.url, '_blank');
+          break;
+        }
       }
-      // No change.
-      return { scrollIndex: prevState.scrollIndex };
+      return {
+        keypressBuffer: keypressBuffer,
+        scrollIndex: scrollIndex
+      };
     }, this.handleScroll);
-    event.stopPropagation();
+
   }
 }
