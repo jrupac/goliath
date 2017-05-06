@@ -9,7 +9,9 @@
     "moment": "^2.18.1",
     "react": "^15.5.4",
     "react-dom": "^15.5.4",
-    "react-list": "^0.8.5"
+    "react-list": "^0.8.5",
+    "react-router": "^4.1.1",
+    "react-router-dom": "^4.1.1"
   },
   "devDependencies": {
     "autoprefixer": "6.7.2",
