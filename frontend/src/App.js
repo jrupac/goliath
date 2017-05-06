@@ -50,9 +50,10 @@ export default class App extends React.Component {
 
   buildStructure() {
     // Only build the structure object once all other requests are done.
-    if (this.state.status !== (
-        Status.Folder | Status.Feed |
-        Status.Article | Status.Favicon)) {
+    if ((this.state.status !== Status.Ready) &&
+        (this.state.status !== (
+         Status.Folder | Status.Feed |
+         Status.Article | Status.Favicon))) {
       return;
     }
 
@@ -80,7 +81,6 @@ export default class App extends React.Component {
       const unreadCount = Array.from(structure.values()).reduce(
           (a, b) => a + b.unread_count, 0);
       return {
-        shownArticles: Array.from(prevState.articles.values()),
         status: Status.Ready,
         structure,
         unreadCount,
@@ -207,6 +207,7 @@ export default class App extends React.Component {
             return {
               articles,
               unreadCountMap,
+              shownArticles: Array.from(articles.values()),
               status: prevState.status | Status.Article,
             };
           }, this.buildStructure);
@@ -236,33 +237,18 @@ export default class App extends React.Component {
   handleMark = (mark, article) => {
     // TODO: Actually mark article as read on backend.
     console.log("TODO: Send backend request here!");
+
+    // Update the read buffer and unread counts.
     this.setState((prevState) => {
       var readBuffer = [...prevState.readBuffer, article.id];
-      // Update unread counts.
-      // TODO: Make this more efficient.
-      var structure = new Map();
-      prevState.structure.forEach((v, k) => {
-        var feeds = Array.from(v.feeds);
-        var unreadCount = v.unread_count;
-        for (var f of feeds) {
-          if (f.id === article.feed_id) {
-            f.unread_count -= 1;
-            unreadCount -= 1;
-            break;
-          }
-        }
-        structure.set(k, {
-          feeds: feeds,
-          title: v.title,
-          unread_count: unreadCount
-        });
-      });
+      const unreadCountMap = new Map(prevState.unreadCountMap);
+      unreadCountMap.set(
+          article.feed_id, unreadCountMap.get(article.feed_id) - 1);
       return {
         readBuffer: readBuffer,
-        structure: structure,
-        unreadCount: prevState.unreadCount - 1
+        unreadCountMap: unreadCountMap
       }
-    });
+    }, this.buildStructure);
   };
 
   handleSelect = (type, key) => {
