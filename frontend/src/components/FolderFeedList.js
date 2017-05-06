@@ -1,7 +1,7 @@
+import defaultFavicon from '../../public/favicon.ico';
 import React from 'react';
 import Icon from 'antd/lib/icon';
 import Tree from 'antd/lib/tree';
-import defaultFavicon from '../../public/favicon.ico';
 
 const TreeNode = Tree.TreeNode;
 

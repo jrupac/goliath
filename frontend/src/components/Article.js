@@ -1,7 +1,8 @@
 import Card from 'antd/lib/card';
+import defaultFavicon from '../../public/favicon.ico';
 import moment from 'moment';
 import React from 'react';
-import defaultFavicon from '../../public/favicon.ico';
+import Tooltip from 'antd/lib/tooltip';
 
 export default class Article extends React.Component {
   render() {
@@ -28,7 +29,9 @@ export default class Article extends React.Component {
                     </div>
                   </div>
                   <div className="article-date">
-                    {this.formatDate(date)}
+                    <Tooltip title={this.formatFullDate(date)} overlay="">
+                      {this.formatDate(date)}
+                    </Tooltip>
                   </div>
                 </div>
               } >
@@ -47,6 +50,10 @@ export default class Article extends React.Component {
     } else {
       return <img src={`data:${favicon}`} height={16} width={16} alt=''/>
     }
+  }
+
+  formatFullDate(date) {
+    return moment(date).format('dddd, MMMM Do YYYY, h:mm:ss A');
   }
 
   formatDate(date) {
