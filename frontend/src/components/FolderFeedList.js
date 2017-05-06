@@ -1,7 +1,7 @@
 import React from 'react';
 import Icon from 'antd/lib/icon';
 import Tree from 'antd/lib/tree';
-import favicon from '../../public/favicon.ico';
+import defaultFavicon from '../../public/favicon.ico';
 
 const TreeNode = Tree.TreeNode;
 
@@ -91,7 +91,7 @@ export default class FolderFeedList extends React.Component {
   renderFeed(f) {
     var img;
     if (f.favicon === '') {
-      img = <img src={favicon} height={16} width={16} alt=''/>
+      img = <img src={defaultFavicon} height={16} width={16} alt=''/>
     } else {
       img = <img src={`data:${f.favicon}`} height={16} width={16} alt=''/>
     }

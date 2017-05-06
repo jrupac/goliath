@@ -45,10 +45,12 @@ export default class ArticleList extends React.Component {
       )
     } else {
       const articles = this.state.articles;
+      const feeds = this.props.feeds;
       const renderArticle = (index) => (
           <Article
               key={articles[index].id}
               article={articles[index]}
+              feed={feeds.get(articles[index].feed_id)}
               isSelected={index === this.state.scrollIndex} />);
       return (
           <ReactList

@@ -1,24 +1,31 @@
 import Card from 'antd/lib/card';
 import moment from 'moment';
 import React from 'react';
+import defaultFavicon from '../../public/favicon.ico';
 
 export default class Article extends React.Component {
   render() {
     const date = new Date(this.props.article.created_on_time * 1000);
     const cardClass = this.props.isSelected ? 'card-selected' : 'card-normal';
-    const titleClass = (
-        this.props.article.is_read ? 'article-title-read' : 'article-title');
+    const headerClass = (
+        this.props.article.is_read ? 'article-header-read' : 'article-header');
+    const feedTitle = this.props.feed.title;
     return (
         <div className="ant-card-outer">
           <Card
               className={cardClass}
               ref={(ref) => {this.ref = ref}}
               title={
-                <div className="article-header">
-                  <div className={titleClass}>
+                <div className={headerClass}>
+                  <div className="article-title">
                     <a target="_blank" href={this.props.article.url}>
                       {this.props.article.title}
                     </a>
+                    <br />
+                    <div className="article-feed">
+                      {this.renderFavicon()}
+                      <p className="article-feed-title">{feedTitle}</p>
+                    </div>
                   </div>
                   <div className="article-date">
                     {this.formatDate(date)}
@@ -31,6 +38,15 @@ export default class Article extends React.Component {
           </Card>
         </div>
     )
+  }
+
+  renderFavicon() {
+    const favicon = this.props.feed.favicon;
+    if (!favicon) {
+      return <img src={defaultFavicon} height={16} width={16} alt=''/>
+    } else {
+      return <img src={`data:${favicon}`} height={16} width={16} alt=''/>
+    }
   }
 
   formatDate(date) {

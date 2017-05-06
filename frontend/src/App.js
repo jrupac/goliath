@@ -260,7 +260,7 @@ export default class App extends React.Component {
     this.setState((prevState) => {
       // Apply read buffer to articles in state.
       var articles = new Map(prevState.articles);
-      prevState.readBuffer.forEach((e) => articles.get(e).is_read = true);
+      prevState.readBuffer.forEach((e) => articles.get(e)['is_read'] = true);
       var shownArticles = Array.from(articles.values());
 
       // TODO: Consider having a "read" list too.
@@ -279,7 +279,7 @@ export default class App extends React.Component {
         const feeds = prevState.folderToFeeds.get(key) || [];
         // Consider using a Set() polyfill to speed this up.
         shownArticles = shownArticles.filter(
-            (e) => feeds.indexOf(e.feed_id) < 0 && checkUnread(e));
+            (e) => feeds.indexOf(e.feed_id) > -1 && checkUnread(e));
         break;
       }
 
@@ -320,6 +320,7 @@ export default class App extends React.Component {
           <Content>
             <ArticleList
                 articles={this.sortArticles(this.state.shownArticles)}
+                feeds={this.state.feeds}
                 handleMark={this.handleMark}
                 handleSelect={this.handleSelect} />
             <Footer>
