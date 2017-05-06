@@ -235,8 +235,8 @@ export default class App extends React.Component {
   }
 
   handleMark = (mark, article) => {
-    // TODO: Actually mark article as read on backend.
-    console.log("TODO: Send backend request here!");
+    // TODO: Handle marking feeds as read.
+    fetch('/fever/?api&mark=item&as=' + mark + '&id=' + article.id);
 
     // Update the read buffer and unread counts.
     this.setState((prevState) => {
@@ -250,6 +250,11 @@ export default class App extends React.Component {
       }
     }, this.buildStructure);
   };
+
+  sortArticles(articles) {
+    // Sort by descending time.
+    return articles.sort((a, b) => b.created_on_time - a.created_on_time);
+  }
 
   handleSelect = (type, key) => {
     this.setState((prevState) => {
@@ -277,9 +282,6 @@ export default class App extends React.Component {
             (e) => feeds.indexOf(e.feed_id) < 0 && checkUnread(e));
         break;
       }
-
-      // Sort by descending time.
-      shownArticles.sort((a, b) => b.created_on_time - a.created_on_time);
 
       return {
         articles: articles,
@@ -317,7 +319,7 @@ export default class App extends React.Component {
         <Layout>
           <Content>
             <ArticleList
-                articles={this.state.shownArticles}
+                articles={this.sortArticles(this.state.shownArticles)}
                 handleMark={this.handleMark}
                 handleSelect={this.handleSelect} />
             <Footer>
