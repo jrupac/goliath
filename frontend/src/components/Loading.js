@@ -10,7 +10,11 @@ export default class Article extends React.Component {
         Status.Article | Status.Favicon);
     return (
         <div className="article-list-empty">
-          <Progress percent={100 * progress} status="active" showInfo={false} />
+          <Progress
+              percent={100 * progress}
+              showInfo={false}
+              status="active"
+              strokeWidth={5}/>
         </div>
     )
   }
