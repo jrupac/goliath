@@ -24,11 +24,12 @@ export default class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      articles: [],
+      articles: new Map(),
       favicons: new Map(),
       feeds: new Map(),
       folderToFeeds: new Map(),
       folders: new Map(),
+      readBuffer: [],
       selectedKey: null,
       shownArticles: [],
       status: Status.Start,
@@ -58,28 +59,28 @@ export default class App extends React.Component {
     this.setState((prevState) => {
       const structure = new Map();
 
-      prevState.folders.forEach((title, groupId) => {
+      prevState.folders.forEach((title, folderId) => {
         // Some folders may not have any feeds.
-        if (!prevState.folderToFeeds.has(groupId)) {
+        if (!prevState.folderToFeeds.has(folderId)) {
           return;
         }
         const g = {
-          'feeds': prevState.folderToFeeds.get(groupId).map(
+          feeds: prevState.folderToFeeds.get(folderId).map(
               (feedId) => {
                 const f = prevState.feeds.get(feedId);
                 f.favicon = prevState.favicons.get(f.favicon_id) || '';
                 f.unread_count = prevState.unreadCountMap.get(feedId) || 0;
                 return f;
               }),
-          title,
+          title: title,
         };
         g.unread_count = g.feeds.reduce((a, b) => a + b.unread_count, 0);
-        structure.set(groupId, g);
+        structure.set(folderId, g);
       });
       const unreadCount = Array.from(structure.values()).reduce(
           (a, b) => a + b.unread_count, 0);
       return {
-        shownArticles: prevState.articles,
+        shownArticles: Array.from(prevState.articles.values()),
         status: Status.Ready,
         structure,
         unreadCount,
@@ -140,15 +141,15 @@ export default class App extends React.Component {
             const feeds = prevState.feeds;
             body.feeds.forEach((feed) => {
               feeds.set(feed.id, {
-                'id': feed.id,
-                'favicon_id': feed.favicon_id,
-                'favicon': '',
-                'title': feed.title,
-                'url': feed.url,
-                'site_url': feed.site_url,
-                'is_spark': feed.is_spark,
-                'last_updated_on_time': feed.last_updated_on_time,
-                'unread_count': 0,
+                id: feed.id,
+                favicon_id: feed.favicon_id,
+                favicon: '',
+                title: feed.title,
+                url: feed.url,
+                site_url: feed.site_url,
+                is_spark: feed.is_spark,
+                last_updated_on_time: feed.last_updated_on_time,
+                unread_count: 0
               });
             });
             return {
@@ -184,14 +185,14 @@ export default class App extends React.Component {
 
               unreadCountMap.set(
                     feed_id, (unreadCountMap.get(feed_id) || 0) + 1);
-              articles.push({
-                'id': item.id,
-                feed_id,
-                'title': item.title,
-                'url': item.url,
-                'html': item.html,
-                'is_read': item.is_read,
-                'created_on_time': item.created_on_time,
+              articles.set(item.id, {
+                id: item.id,
+                feed_id: feed_id,
+                title: item.title,
+                url: item.url,
+                html: item.html,
+                is_read: item.is_read,
+                created_on_time: item.created_on_time
               });
             });
             // Keep fetching until we see less than the max items returned.
@@ -232,31 +233,75 @@ export default class App extends React.Component {
         );
   }
 
-  sortArticles(articles) {
-    return articles.sort((a, b) => b.created_on_time - a.created_on_time);
-  }
+  handleMark = (mark, article) => {
+    // TODO: Actually mark article as read on backend.
+    console.log("TODO: Send backend request here!");
+    this.setState((prevState) => {
+      var readBuffer = [...prevState.readBuffer, article.id];
+      // Update unread counts.
+      // TODO: Make this more efficient.
+      var structure = new Map();
+      prevState.structure.forEach((v, k) => {
+        var feeds = Array.from(v.feeds);
+        var unreadCount = v.unread_count;
+        for (var f of feeds) {
+          if (f.id === article.feed_id) {
+            f.unread_count -= 1;
+            unreadCount -= 1;
+            break;
+          }
+        }
+        structure.set(k, {
+          feeds: feeds,
+          title: v.title,
+          unread_count: unreadCount
+        });
+      });
+      return {
+        readBuffer: readBuffer,
+        structure: structure,
+        unreadCount: prevState.unreadCount - 1
+      }
+    });
+  };
 
   handleSelect = (type, key) => {
-    if (type === 'all') {
-      this.setState((prevState) => ({
-        shownArticles: prevState.articles,
-        selectedKey: key,
-      }));
-    } else if (type === 'feed') {
-      this.setState((prevState) => ({
-        shownArticles: prevState.articles.filter((e) => e.feed_id === key),
-        selectedKey: key,
-      }));
-    } else if (type === 'folder') {
-      this.setState((prevState) => {
+    this.setState((prevState) => {
+      // Apply read buffer to articles in state.
+      var articles = new Map(prevState.articles);
+      prevState.readBuffer.forEach((e) => articles.get(e).is_read = true);
+      var shownArticles = Array.from(articles.values());
+
+      // TODO: Consider having a "read" list too.
+      const checkUnread = (e) => !e.is_read;
+
+      switch (type) {
+      case 'all':
+        shownArticles = shownArticles.filter(checkUnread);
+        break;
+      case 'feed':
+        shownArticles = shownArticles.filter(
+            (e) => e.feed_id === key && checkUnread(e));
+        break;
+      case 'folder':
+        // Some folder may not have feeds.
         const feeds = prevState.folderToFeeds.get(key) || [];
-        return {
-          shownArticles: prevState.articles.filter(
-              (e) => feeds.indexOf(e.feed_id) !== -1),
-          selectedKey: key,
-        };
-      });
-    }
+        // Consider using a Set() polyfill to speed this up.
+        shownArticles = shownArticles.filter(
+            (e) => feeds.indexOf(e.feed_id) < 0 && checkUnread(e));
+        break;
+      }
+
+      // Sort by descending time.
+      shownArticles.sort((a, b) => b.created_on_time - a.created_on_time);
+
+      return {
+        articles: articles,
+        readBuffer: [],
+        shownArticles: shownArticles,
+        selectedKey: key
+      }
+    });
   };
 
   render() {
@@ -286,7 +331,8 @@ export default class App extends React.Component {
         <Layout>
           <Content>
             <ArticleList
-                articles={this.sortArticles(this.state.shownArticles)}
+                articles={this.state.shownArticles}
+                handleMark={this.handleMark}
                 handleSelect={this.handleSelect} />
             <Footer>
               Goliath RSS

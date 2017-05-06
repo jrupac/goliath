@@ -173,11 +173,15 @@
   justify-content:space-between;
 }
 
-.article-title {
+.article-title, .article-title-read {
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: 'Montserrat', sans-serif;
+}
+
+.article-title-read a {
+  color: gray;
 }
 
 .article-date {

@@ -40,8 +40,10 @@ export default class FolderFeedList extends React.Component {
       selectedKeys = [];
       allSelectedClass = 'all-items-selected';
     }
-    const expandedKeys = Array.from(tree.entries()).map(
-        ([k, v]) => ( (v.unread_count > 0) ? k : null));
+
+    // TODO: Implement folder expansion with override correctly.
+    // const expandedKeys = Array.from(tree.entries()).map(
+    //     ([k, v]) => ( (v.unread_count > 0) ? k : null));
 
     return (
         <div>
@@ -54,7 +56,7 @@ export default class FolderFeedList extends React.Component {
             </div>
           </div>
           <Tree
-              expandedKeys={expandedKeys}
+              defaultExpandAll
               selectedKeys={selectedKeys}
               onSelect={this.handleSelect}>
             {

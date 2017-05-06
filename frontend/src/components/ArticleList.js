@@ -7,11 +7,10 @@ const goToAllSequence = ['g', 'a'];
 export default class ArticleList extends React.Component {
   constructor(props) {
     super(props);
-    this.handleKeyDown = this.handleKeyDown.bind(this);
-    this.handleMounted = this.handleMounted.bind(this);
     this.state = {
-      scrollIndex: 0,
-      keypressBuffer: new Array(2)
+      articles: Array.from(this.props.articles),
+      scrollIndex: -1,
+      keypressBuffer: new Array(goToAllSequence.length)
     };
   }
 
@@ -25,23 +24,27 @@ export default class ArticleList extends React.Component {
 
   componentWillReceiveProps(nextProps) {
     // Reset scroll position when articles change.
-    if (this.props === nextProps) {
+    if (this.props.articles === nextProps.articles) {
       return;
     }
+    if (this.list) {
+      this.list.scrollTo(0);
+    }
     this.setState({
-      scrollIndex: 0
+      articles: Array.from(nextProps.articles),
+      scrollIndex: -1
     });
   }
 
   render() {
-    if (this.props.articles.length === 0) {
+    if (this.state.articles.length === 0) {
       return (
           <div className="article-list-empty">
             No unread articles.
           </div>
       )
     } else {
-      const articles = this.props.articles;
+      const articles = this.state.articles;
       const renderArticle = (index) => (
           <Article
               key={articles[index].id}
@@ -57,31 +60,20 @@ export default class ArticleList extends React.Component {
     }
   }
 
-  handleMounted(list) {
-    this.list = list;
-  }
-
-  handleScroll() {
-    // If this feed is empty, there's no list, so nothing to scroll.
-    if (this.list) {
-      this.list.scrollTo(this.state.scrollIndex);
-    }
-  }
-
-  handleKeyDown(event) {
+  handleKeyDown = (event) => {
     this.setState((prevState) => {
       var keypressBuffer = [...prevState.keypressBuffer.slice(1), event.key];
       var scrollIndex = prevState.scrollIndex;
       if (goToAllSequence.every((e, i) => e === keypressBuffer[i])) {
         this.props.handleSelect('all', null);
-        keypressBuffer = new Array(2);
+        keypressBuffer = new Array(goToAllSequence.length);
       } else {
         switch (event.key) {
         case 'ArrowDown':
           event.preventDefault(); // fallthrough
         case 'j':
           scrollIndex = Math.min(
-              prevState.scrollIndex + 1, this.props.articles.length - 1);
+              prevState.scrollIndex + 1, this.state.articles.length - 1);
           break;
         case 'ArrowUp':
           event.preventDefault(); // fallthrough
@@ -89,7 +81,7 @@ export default class ArticleList extends React.Component {
           scrollIndex = Math.max(prevState.scrollIndex - 1, 0);
           break;
         case 'v':
-          const article = this.props.articles[prevState.scrollIndex];
+          const article = this.state.articles[prevState.scrollIndex];
           window.open(article.url, '_blank');
           break;
         }
@@ -99,6 +91,34 @@ export default class ArticleList extends React.Component {
         scrollIndex: scrollIndex
       };
     }, this.handleScroll);
+  };
 
+  handleMounted = (list) => {
+    this.list = list;
+  };
+
+  handleScroll() {
+    // If this feed is empty, there's no list, so nothing to scroll.
+    if (this.list) {
+      // A scroll index of less than 0 is meaningless.
+      if (this.state.scrollIndex < 0) {
+        return;
+      }
+      this.list.scrollTo(this.state.scrollIndex);
+      this.setState((prevState) => {
+        const articles = Array.from(prevState.articles);
+        const article = articles[prevState.scrollIndex];
+        if (!article) {
+          console.log('why');
+        }
+        if (!article.is_read) {
+          this.props.handleMark('read', article);
+          article.is_read = true;
+        }
+        return {
+          articles: articles
+        };
+      });
+    }
   }
 }

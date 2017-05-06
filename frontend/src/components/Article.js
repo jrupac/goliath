@@ -6,6 +6,8 @@ export default class Article extends React.Component {
   render() {
     const date = new Date(this.props.article.created_on_time * 1000);
     const cardClass = this.props.isSelected ? 'card-selected' : 'card-normal';
+    const titleClass = (
+        this.props.article.is_read ? 'article-title-read' : 'article-title');
     return (
         <div className="ant-card-outer">
           <Card
@@ -13,7 +15,7 @@ export default class Article extends React.Component {
               ref={(ref) => {this.ref = ref}}
               title={
                 <div className="article-header">
-                  <div className="article-title">
+                  <div className={titleClass}>
                     <a target="_blank" href={this.props.article.url}>
                       {this.props.article.title}
                     </a>
