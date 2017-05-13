@@ -8,8 +8,15 @@ export default class Article extends React.Component {
   render() {
     const date = new Date(this.props.article.created_on_time * 1000);
     const cardClass = this.props.isSelected ? 'card-selected' : 'card-normal';
-    const headerClass = (
-        this.props.article.is_read ? 'article-header-read' : 'article-header');
+
+    var headerClass;
+    if (this.props.isSelected) {
+      headerClass = 'article-header';
+    } else if (this.props.article.is_read) {
+      headerClass = 'article-header-read';
+    } else {
+      headerClass = 'article-header';
+    }
     const feedTitle = this.props.feed.title;
     return (
         <div className="ant-card-outer">
