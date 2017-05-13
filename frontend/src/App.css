@@ -164,13 +164,9 @@
 }
 
 .login-page-form form {
-  /*display: grid;*/
-  /*height: 100px;*/
 }
 
 .login-page-form form input {
-  /*margin: 4px;*/
-  /*padding: 2px;*/
 }
 
 /* Sidebar */
@@ -279,7 +275,6 @@
   min-width: 150px;
   font-size: 12px;
   text-align: right;
-  font-family: 'Montserrat', sans-serif;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -287,7 +282,6 @@
 
 .article-content {
   font-size: 14px;
-  font-family: 'Montserrat', sans-serif;
 }
 
 .article-content img {
