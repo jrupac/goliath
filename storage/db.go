@@ -44,6 +44,10 @@ func (d *Database) Close() error {
 	return d.db.Close()
 }
 
+/*******************************************************************************
+ * Insertion/deletion methods
+ ******************************************************************************/
+
 func (d *Database) InsertArticle(a models.Article) error {
 	var articleId int64
 	var count int
@@ -88,6 +92,14 @@ func (d *Database) InsertFavicon(feedId int64, mime string, img []byte) error {
 		h, mime, feedId)
 	return err
 }
+
+func (d *Database) InsertUser(u models.User) error {
+	return errors.New("unimplemented")
+}
+
+/*******************************************************************************
+ * Modification methods
+ ******************************************************************************/
 
 func (d *Database) MarkArticle(id int64, status string) error {
 	state, err := parseState(status)
@@ -261,6 +273,14 @@ func (d *Database) GetUnreadArticles(limit int, since_id int64) ([]models.Articl
 	}
 	return articles, err
 }
+
+func (d *Database) GetUserByKey(key string) (models.User, error) {
+	return models.User{}, errors.New("unimplemented")
+}
+
+/*******************************************************************************
+ * Import methods
+ ******************************************************************************/
 
 func (d *Database) ImportOpml(opml *models.Opml) error {
 	root := opml.Folders
