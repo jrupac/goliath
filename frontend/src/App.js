@@ -108,57 +108,57 @@ export default class App extends React.Component {
   }
 
   fetchFolders() {
-    fetch('/fever/?api&groups')
-        .then((result) => result.text())
-        .then((result) => this.parseJson(result))
-        .then((body) => {
-          this.setState((prevState) => {
-            const folderToFeeds = prevState.folderToFeeds;
-            const folders = prevState.folders;
+    fetch('/fever/?api&groups', {
+      credentials: 'include'
+    }).then((result) => result.text())
+    .then((result) => this.parseJson(result))
+    .then((body) => {
+      this.setState((prevState) => {
+        const folderToFeeds = prevState.folderToFeeds;
+        const folders = prevState.folders;
 
-            body.feeds_groups.forEach((e) => {
-              folderToFeeds.set(e.group_id, e.feed_ids.split(','));
-            });
-            body.groups.forEach((group) => {
-              folders.set(group.id, group.title);
-            });
-            return {
-              folders: folders,
-              folderToFeeds,
-              status: prevState.status | Status.Folder,
-            };
-          }, this.buildStructure);
-        }
-        );
+        body.feeds_groups.forEach((e) => {
+          folderToFeeds.set(e.group_id, e.feed_ids.split(','));
+        });
+        body.groups.forEach((group) => {
+          folders.set(group.id, group.title);
+        });
+        return {
+          folders: folders,
+          folderToFeeds,
+          status: prevState.status | Status.Folder,
+        };
+      }, this.buildStructure);
+    });
   }
 
   fetchFeeds() {
-    fetch('/fever/?api&feeds')
-        .then((result) => result.text())
-        .then((result) => this.parseJson(result))
-        .then((body) => {
-          this.setState((prevState) => {
-            const feeds = prevState.feeds;
-            body.feeds.forEach((feed) => {
-              feeds.set(feed.id, {
-                id: feed.id,
-                favicon_id: feed.favicon_id,
-                favicon: '',
-                title: feed.title,
-                url: feed.url,
-                site_url: feed.site_url,
-                is_spark: feed.is_spark,
-                last_updated_on_time: feed.last_updated_on_time,
-                unread_count: 0
-              });
-            });
-            return {
-              feeds,
-              status: prevState.status | Status.Feed,
-            };
-          }, this.buildStructure);
-        }
-        );
+    fetch('/fever/?api&feeds', {
+      credentials: 'include'
+    }).then((result) => result.text())
+    .then((result) => this.parseJson(result))
+    .then((body) => {
+      this.setState((prevState) => {
+        const feeds = prevState.feeds;
+        body.feeds.forEach((feed) => {
+          feeds.set(feed.id, {
+            id: feed.id,
+            favicon_id: feed.favicon_id,
+            favicon: '',
+            title: feed.title,
+            url: feed.url,
+            site_url: feed.site_url,
+            is_spark: feed.is_spark,
+            last_updated_on_time: feed.last_updated_on_time,
+            unread_count: 0
+          });
+        });
+        return {
+          feeds,
+          status: prevState.status | Status.Feed,
+        };
+      }, this.buildStructure);
+    });
   }
 
   fetchItems(sinceId) {
@@ -170,68 +170,68 @@ export default class App extends React.Component {
       since = new Decimal(0);
       itemUri = '/fever/?api&items';
     }
-    fetch(itemUri)
-        .then((result) => result.text())
-        .then((result) => this.parseJson(result))
-        .then((body) => {
-          const itemCount = body.items.length;
-          this.setState((prevState) => {
-            const articles = prevState.articles;
-            const unreadCountMap = prevState.unreadCountMap;
+    fetch(itemUri, {
+      credentials: 'include'
+    }).then((result) => result.text())
+    .then((result) => this.parseJson(result))
+    .then((body) => {
+      const itemCount = body.items.length;
+      this.setState((prevState) => {
+        const articles = prevState.articles;
+        const unreadCountMap = prevState.unreadCountMap;
 
-            body.items.forEach((item) => {
-              since = this.max(since, item.id);
-              const feed_id = item.feed_id;
+        body.items.forEach((item) => {
+          since = this.max(since, item.id);
+          const feed_id = item.feed_id;
 
-              unreadCountMap.set(
-                    feed_id, (unreadCountMap.get(feed_id) || 0) + 1);
-              articles.set(item.id, {
-                id: item.id,
-                feed_id: feed_id,
-                title: item.title,
-                url: item.url,
-                html: item.html,
-                is_read: item.is_read,
-                created_on_time: item.created_on_time
-              });
-            });
-            // Keep fetching until we see less than the max items returned.
-            // Don't update the status field until we're done.
-            if (itemCount === 50) {
-              this.fetchItems(since);
-              return {
-                articles,
-                unreadCountMap,
-              };
-            }
-            return {
-              articles,
-              unreadCountMap,
-              shownArticles: Array.from(articles.values()),
-              status: prevState.status | Status.Article,
-            };
-          }, this.buildStructure);
+          unreadCountMap.set(
+                feed_id, (unreadCountMap.get(feed_id) || 0) + 1);
+          articles.set(item.id, {
+            id: item.id,
+            feed_id: feed_id,
+            title: item.title,
+            url: item.url,
+            html: item.html,
+            is_read: item.is_read,
+            created_on_time: item.created_on_time
+          });
+        });
+        // Keep fetching until we see less than the max items returned.
+        // Don't update the status field until we're done.
+        if (itemCount === 50) {
+          this.fetchItems(since);
+          return {
+            articles,
+            unreadCountMap,
+          };
         }
-        );
+        return {
+          articles,
+          unreadCountMap,
+          shownArticles: Array.from(articles.values()),
+          status: prevState.status | Status.Article,
+        };
+      }, this.buildStructure);
+    });
   }
 
   fetchFavicons() {
-    fetch('/fever/?api&favicons')
-        .then((result) => result.text())
-        .then((result) => this.parseJson(result))
-        .then((body) => {
-          this.setState((prevState) => {
-            const favicons = prevState.favicons;
-            body.favicons.forEach((favicon) => {
-              favicons.set(favicon.id, favicon.data);
-            });
-            return {
-              favicons,
-              status: prevState.status | Status.Favicon,
-            };
-          }, this.buildStructure);
-        }
-        );
+    fetch('/fever/?api&favicons', {
+      credentials: 'include'
+    }).then((result) => result.text())
+    .then((result) => this.parseJson(result))
+    .then((body) => {
+      this.setState((prevState) => {
+        const favicons = prevState.favicons;
+        body.favicons.forEach((favicon) => {
+          favicons.set(favicon.id, favicon.data);
+        });
+        return {
+          favicons,
+          status: prevState.status | Status.Favicon,
+        };
+      }, this.buildStructure);
+    });
   }
 
   handleMark = (mark, article) => {
