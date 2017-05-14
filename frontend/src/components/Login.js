@@ -1,9 +1,14 @@
 import React from 'react';
 import { Form, Icon, Input, Button } from 'antd';
+
 const FormItem = Form.Item;
 
-
 class WrappedLogin extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { loginFailed: false };
+  }
+
   render() {
     const { getFieldDecorator } = this.props.form;
     return (
@@ -11,9 +16,11 @@ class WrappedLogin extends React.Component {
           <div className='login-page-logo'>Goliath</div>
           <div className='login-page-form-background'>
             <Form
-                onSubmit={this.handleSubmit}
+                id="login-form"
+                onSubmit={(e) => this.handleSubmit(e)}
                 layout='vertical'
                 className='login-page-form'>
+              {this.showLoginFailedMessage()}
               <FormItem>
                 {getFieldDecorator('username', {
                   rules: [{ required: true, message: 'Empty username!' }],
@@ -41,15 +48,39 @@ class WrappedLogin extends React.Component {
     )
   }
 
-  handleSubmit = (e) => {
+  showLoginFailedMessage = () => {
+    if (this.state.loginFailed) {
+      return <div className="login-failed">Invalid username or password!</div>
+    } else {
+      return null;
+    }
+  };
+
+  handleSubmit(e) {
     e.preventDefault();
     this.props.form.validateFields((err, values) => {
       if (!err) {
-        this.setState({isValid: true});
-        console.log('Received values of form: ', values);
+        fetch('/auth', {
+          method: 'POST',
+          body: JSON.stringify(values),
+          credentials: 'include'
+        }).then((res) => {
+          if (!res.ok) {
+            this.setState({loginFailed: true});
+            console.log(res);
+          } else {
+            this.setState({loginFailed: false});
+            this.props.router.push({
+              pathname: '/'
+            });
+          }
+        }).catch((e) => {
+          this.setState({loginFailed: true});
+          console.log(e);
+        });
       }
     });
-  };
+  }
 }
 
 export default Form.create()(WrappedLogin);

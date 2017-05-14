@@ -163,10 +163,9 @@
   width: 100%;
 }
 
-.login-page-form form {
-}
-
-.login-page-form form input {
+.login-failed {
+  color: #f04134;
+  padding-bottom: 5px;
 }
 
 /* Sidebar */
