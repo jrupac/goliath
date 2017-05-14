@@ -5,6 +5,13 @@ GRANT ALL ON DATABASE Goliath TO goliath;
 
 SET DATABASE TO Goliath;
 
+CREATE TABLE IF NOT EXISTS UserTable (
+  -- Key columns
+  username STRING PRIMARY KEY,
+  -- Data columns
+  key STRING NOT NULL UNIQUE
+);
+
 CREATE TABLE IF NOT EXISTS Folder (
   -- Key columns
   id SERIAL PRIMARY KEY,

@@ -13,12 +13,13 @@ import (
 )
 
 const (
-	DIALECT               = "postgres"
-	FOLDER_TABLE          = "Folder"
+	DIALECT = "postgres"
+	FOLDER_TABLE = "Folder"
 	FOLDER_CHILDREN_TABLE = "FolderChildren"
-	FEED_TABLE            = "Feed"
-	ARTICLE_TABLE         = "Article"
-	MAX_FETCHED_ROWS      = 10000
+	FEED_TABLE = "Feed"
+	ARTICLE_TABLE = "Article"
+	USER_TABLE = "UserTable"
+	MAX_FETCHED_ROWS = 10000
 )
 
 type Database struct {
@@ -52,7 +53,7 @@ func (d *Database) InsertArticle(a models.Article) error {
 	var articleId int64
 	var count int
 	err := d.db.QueryRow(
-		`SELECT COUNT(*) FROM `+ARTICLE_TABLE+` WHERE hash = $1`, a.Hash()).Scan(&count)
+		`SELECT COUNT(*) FROM ` + ARTICLE_TABLE + ` WHERE hash = $1`, a.Hash()).Scan(&count)
 	if err != nil {
 		return err
 	}
@@ -62,7 +63,7 @@ func (d *Database) InsertArticle(a models.Article) error {
 	}
 
 	err = d.db.QueryRow(
-		`INSERT INTO `+ARTICLE_TABLE+`
+		`INSERT INTO ` + ARTICLE_TABLE + `
 		(feed, folder, hash, title, summary, content, link, date, read)
 		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
 		a.FeedId, a.FolderId, a.Hash(), a.Title, a.Summary, a.Content, a.Link, a.Date, a.Read).Scan(&articleId)
@@ -76,7 +77,7 @@ func (d *Database) InsertArticle(a models.Article) error {
 func (d *Database) InsertFavicon(feedId int64, mime string, img []byte) error {
 	var count int
 	err := d.db.QueryRow(
-		`SELECT COUNT(*) FROM `+FEED_TABLE+` WHERE id = $1`, feedId).Scan(&count)
+		`SELECT COUNT(*) FROM ` + FEED_TABLE + ` WHERE id = $1`, feedId).Scan(&count)
 	if err != nil {
 		return err
 	}
@@ -88,13 +89,15 @@ func (d *Database) InsertFavicon(feedId int64, mime string, img []byte) error {
 	h := base64.StdEncoding.EncodeToString(img)
 
 	_, err = d.db.Query(
-		`UPDATE `+FEED_TABLE+` SET favicon = $1, mime = $2 WHERE id = $3`,
+		`UPDATE ` + FEED_TABLE + ` SET favicon = $1, mime = $2 WHERE id = $3`,
 		h, mime, feedId)
 	return err
 }
 
 func (d *Database) InsertUser(u models.User) error {
-	return errors.New("unimplemented")
+	_, err := d.db.Query(
+		`INSERT INTO ` + USER_TABLE + `(username, key) VALUES($1, $2)`, u.Username, u.Key)
+	return err
 }
 
 /*******************************************************************************
@@ -107,7 +110,7 @@ func (d *Database) MarkArticle(id int64, status string) error {
 		return err
 	}
 
-	_, err = d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE id = $2`, state, id)
+	_, err = d.db.Query(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE id = $2`, state, id)
 	return err
 }
 
@@ -117,7 +120,7 @@ func (d *Database) MarkFeed(id int64, status string) error {
 		return err
 	}
 
-	_, err = d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE feed = $2`, state, id)
+	_, err = d.db.Query(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE feed = $2`, state, id)
 	return err
 }
 
@@ -127,7 +130,7 @@ func (d *Database) MarkFolder(id int64, status string) error {
 		return err
 	}
 
-	_, err = d.db.Query(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE folder = $2`, state, id)
+	_, err = d.db.Query(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE folder = $2`, state, id)
 	children, err := d.GetFolderChildren(id)
 	if err != nil {
 		return err
@@ -142,7 +145,7 @@ func (d *Database) MarkFolder(id int64, status string) error {
 
 func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
 	children := []int64{}
-	rows, err := d.db.Query(`SELECT child FROM `+FOLDER_CHILDREN_TABLE+` WHERE parent = $1`, id)
+	rows, err := d.db.Query(`SELECT child FROM ` + FOLDER_CHILDREN_TABLE + ` WHERE parent = $1`, id)
 	if err != nil {
 		return children, err
 	}
@@ -255,7 +258,7 @@ func (d *Database) GetUnreadArticles(limit int, since_id int64) ([]models.Articl
 	}
 
 	rows, err = d.db.Query(
-		`SELECT id, feed, folder, title, summary, content, link, date FROM `+ARTICLE_TABLE+`
+		`SELECT id, feed, folder, title, summary, content, link, date FROM ` + ARTICLE_TABLE + `
 		WHERE NOT read AND id > $1 ORDER BY id LIMIT $2`, since_id, limit)
 
 	if err != nil {
@@ -275,7 +278,11 @@ func (d *Database) GetUnreadArticles(limit int, since_id int64) ([]models.Articl
 }
 
 func (d *Database) GetUserByKey(key string) (models.User, error) {
-	return models.User{}, errors.New("unimplemented")
+	var u models.User
+	err := d.db.QueryRow(
+		`SELECT username, key FROM ` + USER_TABLE + ` WHERE key = $1`, key).Scan(
+		&u.Username, &u.Key)
+	return u, err
 }
 
 /*******************************************************************************
@@ -286,7 +293,7 @@ func (d *Database) ImportOpml(opml *models.Opml) error {
 	root := opml.Folders
 	var rootId int64
 	err := d.db.QueryRow(
-		`INSERT INTO `+FOLDER_TABLE+`(name) VALUES($1) RETURNING id`, root.Name).Scan(&rootId)
+		`INSERT INTO ` + FOLDER_TABLE + `(name) VALUES($1) RETURNING id`, root.Name).Scan(&rootId)
 	if err != nil {
 		return err
 	}
@@ -300,7 +307,7 @@ func (d *Database) importChildren(parent models.Folder) error {
 	var count int
 	for _, f := range parent.Feed {
 		err := d.db.QueryRow(
-			`SELECT COUNT(*) FROM `+FEED_TABLE+` WHERE hash = $1`, f.Hash()).Scan(&count)
+			`SELECT COUNT(*) FROM ` + FEED_TABLE + ` WHERE hash = $1`, f.Hash()).Scan(&count)
 		if err != nil {
 			return err
 		}
@@ -310,7 +317,7 @@ func (d *Database) importChildren(parent models.Folder) error {
 		}
 
 		err = d.db.QueryRow(
-			`INSERT INTO `+FEED_TABLE+`(folder, hash, title, description, url)
+			`INSERT INTO ` + FEED_TABLE + `(folder, hash, title, description, url)
 			VALUES($1, $2, $3, $4, $5) RETURNING id`,
 			parent.Id, f.Hash(), f.Title, f.Description, f.Url).Scan(&feedId)
 		if err != nil {
@@ -323,13 +330,13 @@ func (d *Database) importChildren(parent models.Folder) error {
 	var childId int64
 	for _, child := range parent.Folders {
 		err = d.db.QueryRow(
-			`INSERT INTO `+FOLDER_TABLE+`(name) VALUES($1) RETURNING id`, child.Name).Scan(&childId)
+			`INSERT INTO ` + FOLDER_TABLE + `(name) VALUES($1) RETURNING id`, child.Name).Scan(&childId)
 		if err != nil {
 			return err
 		}
 		child.Id = childId
 		_, err = d.db.Query(
-			`INSERT INTO `+FOLDER_CHILDREN_TABLE+`(parent, child) VALUES($1, $2)`, parent.Id, child.Id)
+			`INSERT INTO ` + FOLDER_CHILDREN_TABLE + `(parent, child) VALUES($1, $2)`, parent.Id, child.Id)
 		if err != nil {
 			return err
 		}
