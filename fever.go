@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"github.com/jrupac/goliath/auth"
 )
 
 const API_VERSION = "1.0"
@@ -75,7 +76,7 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp["auth"] = auth(r.FormValue("api_key"))
+	resp["auth"] = handleAuth(d, r)
 	if resp["auth"] == 0 {
 		returnSuccess(w, resp)
 		return
@@ -258,12 +259,18 @@ func returnSuccess(w http.ResponseWriter, resp map[string]interface{}) {
 	}
 }
 
-func auth(hash string) int {
-	// TODO: Implement validation via DB lookup.
-	if hash == "" {
-		log.Warningf("No api_key provided.")
+func handleAuth(d *storage.Database, r *http.Request) int {
+	// A request can be authenticated by cookie or api key in request.
+	if auth.VerifyCookie(d, r) {
+		log.V(2).Infof("Verified cookie: %s", r)
+		return 1
+	} else if _, err := d.GetUserByKey(r.FormValue("api_key")); err != nil {
+		log.Warningf("Rejected request: %s", r)
+		return 0
+	} else {
+		log.V(2).Infof("Sucessfully authenticated by key: %s", r)
+		return 1
 	}
-	return 1
 }
 
 func constructFeedsGroups(d *storage.Database) ([]feedsGroup, error) {

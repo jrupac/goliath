@@ -13,6 +13,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"github.com/jrupac/goliath/auth"
+	"time"
 )
 
 const VERSION = "0.01"
@@ -61,7 +63,12 @@ func main() {
 	ctx, cancel := context.WithCancel(ctx)
 
 	go fetch.Start(ctx, d, allFeeds)
-	srv := &http.Server{Addr: fmt.Sprintf(":%d", *portFlag)}
+	srv := &http.Server{
+		Addr: fmt.Sprintf(":%d", *portFlag),
+		ReadTimeout: 10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		MaxHeaderBytes: 1 << 10,
+	}
 	installSignalHandler(cancel, srv)
 
 	if err = Serve(srv, d); err != nil {
@@ -85,8 +92,11 @@ func installSignalHandler(cancel context.CancelFunc, srv *http.Server) {
 }
 
 func Serve(srv *http.Server, d *storage.Database) error {
-	http.Handle("/", http.FileServer(http.Dir(*publicFolder)))
+	http.HandleFunc("/auth", auth.HandleLogin(d));
+	http.HandleFunc("/logout", auth.HandleLogout);
 	http.HandleFunc("/fever/", HandleFever(d))
+	http.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))
+	http.Handle("/", auth.WithAuth(http.FileServer(http.Dir(*publicFolder)), d, *publicFolder))
 	log.Infof("Starting HTTP server on port %d", *portFlag)
 	return srv.ListenAndServe()
 }

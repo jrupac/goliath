@@ -282,6 +282,9 @@ func (d *Database) GetUserByKey(key string) (models.User, error) {
 	err := d.db.QueryRow(
 		`SELECT username, key FROM ` + USER_TABLE + ` WHERE key = $1`, key).Scan(
 		&u.Username, &u.Key)
+	if !u.Valid() {
+		return models.User{}, errors.New("Could not find user.")
+	}
 	return u, err
 }
 
