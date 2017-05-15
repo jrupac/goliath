@@ -236,7 +236,9 @@ export default class App extends React.Component {
 
   handleMark = (mark, article) => {
     // TODO: Handle marking feeds as read.
-    fetch('/fever/?api&mark=item&as=' + mark + '&id=' + article.id);
+    fetch('/fever/?api&mark=item&as=' + mark + '&id=' + article.id, {
+      credentials: 'include'
+    });
 
     // Update the read buffer and unread counts.
     this.setState((prevState) => {
