@@ -7,6 +7,7 @@ import (
 	"fmt"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
+	// PostgreSQL driver support
 	_ "github.com/lib/pq"
 	"strconv"
 	"strings"
@@ -64,9 +65,9 @@ func (d *Database) InsertArticle(a models.Article) error {
 
 	err = d.db.QueryRow(
 		`INSERT INTO ` + ARTICLE_TABLE + `
-		(feed, folder, hash, title, summary, content, link, date, read)
-		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-		a.FeedId, a.FolderId, a.Hash(), a.Title, a.Summary, a.Content, a.Link, a.Date, a.Read).Scan(&articleId)
+		(feed, folder, hash, title, summary, content, link, read, date, retrieved)
+		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+		a.FeedId, a.FolderId, a.Hash(), a.Title, a.Summary, a.Content, a.Link, a.Read, a.Date, a.Retrieved).Scan(&articleId)
 	if err != nil {
 		return err
 	}
@@ -82,7 +83,7 @@ func (d *Database) InsertFavicon(feedId int64, mime string, img []byte) error {
 		return err
 	}
 	if count == 0 {
-		return errors.New(fmt.Sprintf("Original feed not in table: %d", feedId))
+		return fmt.Errorf("Original feed not in table: %d", feedId)
 	}
 
 	// Convert to a base64 encoded string before inserting
@@ -210,12 +211,12 @@ func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
 	}
 	defer rows.Close()
 
-	var folderId, feed_id int64
+	var folderId, feedId int64
 	for rows.Next() {
-		if err = rows.Scan(&folderId, &feed_id); err != nil {
+		if err = rows.Scan(&folderId, &feedId); err != nil {
 			return resp, err
 		}
-		agg[folderId] = append(agg[folderId], strconv.FormatInt(feed_id, 10))
+		agg[folderId] = append(agg[folderId], strconv.FormatInt(feedId, 10))
 	}
 
 	for k, v := range agg {
@@ -245,7 +246,7 @@ func (d *Database) GetAllFavicons() (map[int64]string, error) {
 	return favicons, err
 }
 
-func (d *Database) GetUnreadArticles(limit int, since_id int64) ([]models.Article, error) {
+func (d *Database) GetUnreadArticles(limit int, sinceId int64) ([]models.Article, error) {
 	articles := []models.Article{}
 	var rows *sql.Rows
 	var err error
@@ -253,13 +254,13 @@ func (d *Database) GetUnreadArticles(limit int, since_id int64) ([]models.Articl
 	if limit == -1 {
 		limit = MAX_FETCHED_ROWS
 	}
-	if since_id == -1 {
-		since_id = 0
+	if sinceId == -1 {
+		sinceId = 0
 	}
 
 	rows, err = d.db.Query(
 		`SELECT id, feed, folder, title, summary, content, link, date FROM ` + ARTICLE_TABLE + `
-		WHERE NOT read AND id > $1 ORDER BY id LIMIT $2`, since_id, limit)
+		WHERE NOT read AND id > $1 ORDER BY id LIMIT $2`, sinceId, limit)
 
 	if err != nil {
 		return articles, err

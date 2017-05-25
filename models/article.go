@@ -15,8 +15,9 @@ type Article struct {
 	Summary string
 	Content string
 	Link    string
-	Date    time.Time
 	Read    bool
+	Date    time.Time
+	Retrieved time.Time
 }
 
 func (a *Article) Hash() string {
