@@ -11,6 +11,7 @@ import (
 	_ "github.com/lib/pq"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -99,6 +100,24 @@ func (d *Database) InsertUser(u models.User) error {
 	_, err := d.db.Query(
 		`INSERT INTO ` + USER_TABLE + `(username, key) VALUES($1, $2)`, u.Username, u.Key)
 	return err
+}
+
+func (d *Database) DeleteArticles(minTimestamp time.Time) (int, error) {
+	count := 0
+	rows, err := d.db.Query(
+		`DELETE FROM ` + ARTICLE_TABLE + ` WHERE read AND (retrieved IS NULL OR retrieved < $1) RETURNING id`, minTimestamp)
+	if err != nil {
+		return count, err
+	}
+	defer rows.Close()
+
+	var id int64
+	for rows.Next() {
+		rows.Scan(&id)
+		count += 1
+	}
+
+	return count, err
 }
 
 /*******************************************************************************
