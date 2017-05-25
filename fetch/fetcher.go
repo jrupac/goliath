@@ -12,6 +12,7 @@ import (
 	"github.com/mat/besticon/besticon"
 	"net/url"
 	"errors"
+	"io/ioutil"
 )
 
 type imagePair struct {
@@ -22,6 +23,9 @@ type imagePair struct {
 
 func Start(ctx context.Context, d *storage.Database) {
 	log.Infof("Starting continuous feed fetching.")
+
+	// Turn off logging of HTTP icon requests.
+	besticon.SetLogOutput(ioutil.Discard)
 
 	feeds, err := d.GetAllFeeds()
 	if err != nil {
