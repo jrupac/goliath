@@ -12,7 +12,7 @@
             <outline type="rss" text="The Gentlemans Armchair" xmlUrl="http://thegentlemansarmchair.com/feed/" htmlUrl="http://thegentlemansarmchair.com"/>
             <outline type="rss" text="Extra Fabulous Comics" xmlUrl="http://extrafabulouscomics.com/feed/" htmlUrl="http://extrafabulouscomics.com"/>
             <outline type="rss" text="Poorly Drawn Lines" xmlUrl="http://feeds.feedburner.com/PoorlyDrawnLines" htmlUrl="http://poorlydrawnlines.com"/>
-            <outline type="rss" text="The Perry Bible Fellowship" xmlUrl="http://pbfcomics.com/feed/feed.xml" htmlUrl="http://pbfcomics.com/feed/"/>
+            <outline type="rss" text="The Perry Bible Fellowship" xmlUrl="http://pbfcomics.com/feed/" htmlUrl="http://pbfcomics.com/feed/"/>
             <outline type="rss" text="Toonhole" xmlUrl="http://feeds.feedburner.com/Toonhole" htmlUrl="http://toonhole.com"/>
             <outline type="rss" text="xkcd.com" xmlUrl="http://xkcd.com/rss.xml" htmlUrl="http://xkcd.com/"/>
         </outline>
