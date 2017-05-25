@@ -22,7 +22,7 @@ const VERSION = "0.01"
 var (
 	dbPath   = flag.String("dbPath", "", "The address of the database.")
 	opmlPath = flag.String("opmlPath", "", "Path of OPML file to import.")
-	portFlag = flag.Int("port", 9999, "Port of HTTP server.")
+	port = flag.Int("port", 9999, "Port of HTTP server.")
 	publicFolder = flag.String("publicFolder", "public", "Location of static content to serve.")
 )
 
@@ -31,6 +31,7 @@ func main() {
 	defer log.Flush()
 	ctx := context.Background()
 
+	log.CopyStandardLogTo("INFO")
 	log.Infof("Goliath %s.", VERSION)
 
 	if *dbPath == "" {
@@ -55,28 +56,18 @@ func main() {
 		}
 	}
 
-	allFeeds, err := d.GetAllFeeds()
-	if err != nil {
-		log.Infof("Failed to fetch all feeds: %s", err)
-	}
-	utils.DebugPrint("Feed list", allFeeds)
 	ctx, cancel := context.WithCancel(ctx)
+	installSignalHandler(cancel)
 
-	go fetch.Start(ctx, d, allFeeds)
-	srv := &http.Server{
-		Addr: fmt.Sprintf(":%d", *portFlag),
-		ReadTimeout: 10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		MaxHeaderBytes: 1 << 10,
-	}
-	installSignalHandler(cancel, srv)
+	go fetch.Start(ctx, d)
+	go storage.StartGc(ctx, d)
 
-	if err = Serve(srv, d); err != nil {
+	if err = Serve(ctx, d); err != nil {
 		log.Infof("%s", err)
 	}
 }
 
-func installSignalHandler(cancel context.CancelFunc, srv *http.Server) {
+func installSignalHandler(cancel context.CancelFunc) {
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
@@ -84,19 +75,32 @@ func installSignalHandler(cancel context.CancelFunc, srv *http.Server) {
 		log.Infof("Received signal and shutting down: %s", s)
 		close(sc)
 		cancel()
-		log.Infof("Shutting down HTTP server.")
-		if err := srv.Shutdown(nil); err != nil {
-			log.Infof("Failed to cleanly shutdown HTTP server: %s", err)
-		}
 	}()
 }
 
-func Serve(srv *http.Server, d *storage.Database) error {
+func Serve(ctx context.Context, d *storage.Database) error {
+	srv := &http.Server{
+		Addr: fmt.Sprintf(":%d", *port),
+		ReadTimeout: 10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		MaxHeaderBytes: 1 << 10,
+	}
+
+	go func(srv *http.Server) {
+		select {
+		case <- ctx.Done():
+			log.Infof("Shutting down HTTP server.")
+			if err := srv.Shutdown(nil); err != nil {
+				log.Infof("Failed to cleanly shutdown HTTP server: %s", err)
+			}
+		}
+	}(srv)
+
 	http.HandleFunc("/auth", auth.HandleLogin(d));
 	http.HandleFunc("/logout", auth.HandleLogout);
 	http.HandleFunc("/fever/", HandleFever(d))
 	http.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))
 	http.Handle("/", auth.WithAuth(http.FileServer(http.Dir(*publicFolder)), d, *publicFolder))
-	log.Infof("Starting HTTP server on port %d", *portFlag)
+	log.Infof("Starting HTTP server on port %d", *port)
 	return srv.ListenAndServe()
 }

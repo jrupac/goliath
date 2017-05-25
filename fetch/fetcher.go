@@ -20,8 +20,14 @@ type imagePair struct {
 	favicon []byte
 }
 
-func Start(ctx context.Context, d *storage.Database, feeds []models.Feed) {
+func Start(ctx context.Context, d *storage.Database) {
 	log.Infof("Starting continuous feed fetching.")
+
+	feeds, err := d.GetAllFeeds()
+	if err != nil {
+		log.Infof("Failed to fetch all feeds: %s", err)
+	}
+	utils.DebugPrint("Feed list", feeds)
 
 	wg := &sync.WaitGroup{}
 	wg.Add(len(feeds))
@@ -99,6 +105,7 @@ func handleItems(feed models.Feed, items []*rss.Item, send chan models.Article) 
 			Link:     item.Link,
 			Date:     item.Date,
 			Read:     item.Read,
+			Retrieved: time.Now(),
 		}
 		send <- a
 	}
@@ -128,6 +135,11 @@ func handleImage(feed models.Feed, f *rss.Feed, send chan imagePair) {
 
 func tryIconFetch(link string) (besticon.Icon, error) {
 	icon := besticon.Icon{}
+
+	if link == "" {
+		return icon, errors.New("Invalid URL.")
+	}
+
 	finder := besticon.IconFinder{}
 
 	icons, err := finder.FetchIcons(link);
