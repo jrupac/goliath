@@ -15,6 +15,7 @@
             <outline type="rss" text="The Perry Bible Fellowship" xmlUrl="http://pbfcomics.com/feed/" htmlUrl="http://pbfcomics.com/feed/"/>
             <outline type="rss" text="Toonhole" xmlUrl="http://feeds.feedburner.com/Toonhole" htmlUrl="http://toonhole.com"/>
             <outline type="rss" text="xkcd.com" xmlUrl="http://xkcd.com/rss.xml" htmlUrl="http://xkcd.com/"/>
+            <outline type="rss" text="Port Sherry" xmlUrl="http://portsherry.com/feed/" htmlUrl="http://portsherry.com/"/>
         </outline>
         <outline text="Personal Development">
             <outline type="rss" text="Barking Up The Wrong Tree" xmlUrl="http://www.bakadesuyo.com/feed/" htmlUrl="http://www.bakadesuyo.com"/>
