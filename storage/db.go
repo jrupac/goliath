@@ -314,52 +314,54 @@ func (d *Database) GetUserByKey(key string) (models.User, error) {
 
 func (d *Database) ImportOpml(opml *models.Opml) error {
 	root := opml.Folders
-	var rootId int64
-	err := d.db.QueryRow(
-		`INSERT INTO ` + FOLDER_TABLE + `(name) VALUES($1) RETURNING id`, root.Name).Scan(&rootId)
+	// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
+	_, err := d.db.Query(
+		`INSERT INTO ` + FOLDER_TABLE + `(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, root.Name)
 	if err != nil {
 		return err
 	}
-	root.Id = rootId
+	err = d.db.QueryRow(
+		`SELECT id FROM ` + FOLDER_TABLE + ` WHERE name = $1`, root.Name).Scan(&root.Id)
+	if err != nil {
+		return err
+	}
 	return d.importChildren(root)
 }
 
 func (d *Database) importChildren(parent models.Folder) error {
 	var err error
-	var feedId int64
-	var count int
 	for _, f := range parent.Feed {
-		err := d.db.QueryRow(
-			`SELECT COUNT(*) FROM ` + FEED_TABLE + ` WHERE hash = $1`, f.Hash()).Scan(&count)
-		if err != nil {
-			return err
-		}
-		if count > 0 {
-			log.Infof("Duplicate feed entry, skipping.")
-			continue
-		}
-
-		err = d.db.QueryRow(
+		// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
+		_, err = d.db.Query(
 			`INSERT INTO ` + FEED_TABLE + `(folder, hash, title, description, url)
-			VALUES($1, $2, $3, $4, $5) RETURNING id`,
-			parent.Id, f.Hash(), f.Title, f.Description, f.Url).Scan(&feedId)
+			VALUES($1, $2, $3, $4, $5) ON CONFLICT(hash) DO NOTHING`,
+			parent.Id, f.Hash(), f.Title, f.Description, f.Url)
 		if err != nil {
 			return err
 		}
-		f.Id = feedId
+		err = d.db.QueryRow(
+			`SELECT id FROM ` + FEED_TABLE + ` WHERE hash = $1`, f.Hash()).Scan(&f.Id)
+		if err != nil {
+			return err
+		}
 		f.FolderId = parent.Id
 	}
 
-	var childId int64
 	for _, child := range parent.Folders {
-		err = d.db.QueryRow(
-			`INSERT INTO ` + FOLDER_TABLE + `(name) VALUES($1) RETURNING id`, child.Name).Scan(&childId)
+		// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
+		_, err := d.db.Query(
+			`INSERT INTO ` + FOLDER_TABLE + `(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, child.Name)
 		if err != nil {
 			return err
 		}
-		child.Id = childId
+		err = d.db.QueryRow(
+			`SELECT id FROM ` + FOLDER_TABLE + ` WHERE name = $1`, child.Name).Scan(&child.Id)
+		if err != nil {
+			return err
+		}
+
 		_, err = d.db.Query(
-			`INSERT INTO ` + FOLDER_CHILDREN_TABLE + `(parent, child) VALUES($1, $2)`, parent.Id, child.Id)
+			`UPSERT INTO ` + FOLDER_CHILDREN_TABLE + `(parent, child) VALUES($1, $2)`, parent.Id, child.Id)
 		if err != nil {
 			return err
 		}

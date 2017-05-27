@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS Folder (
   -- Key columns
   id SERIAL PRIMARY KEY,
   -- Data columns
-  name STRING
+  name STRING UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS FolderChildren (

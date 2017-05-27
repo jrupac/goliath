@@ -1,0 +1,3 @@
+SET DATABASE TO Goliath;
+
+ALTER TABLE IF EXISTS Folder ADD CONSTRAINT Folder_name_key UNIQUE (name);
