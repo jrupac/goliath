@@ -48,6 +48,7 @@ func main() {
 		if err != nil {
 			log.Warningf("Error while parsing OPML: %s", err)
 		}
+		log.Infof("Completed parsing OPML file %s", *opmlPath)
 		utils.DebugPrint("Parsed OPML file", *p)
 
 		err = d.ImportOpml(p)
