@@ -262,13 +262,14 @@ func returnSuccess(w http.ResponseWriter, resp map[string]interface{}) {
 func handleAuth(d *storage.Database, r *http.Request) int {
 	// A request can be authenticated by cookie or api key in request.
 	if auth.VerifyCookie(d, r) {
-		log.V(2).Infof("Verified cookie: %s", r)
+		log.V(2).Infof("Verified cookie: %+v", r)
 		return 1
 	} else if _, err := d.GetUserByKey(r.FormValue("api_key")); err != nil {
-		log.Warningf("Rejected request: %s", r)
+		log.Warningf("Rejected request: %+v", r)
+		log.Warningf("Failed because: %s", err)
 		return 0
 	} else {
-		log.V(2).Infof("Sucessfully authenticated by key: %s", r)
+		log.V(2).Infof("Sucessfully authenticated by key: %+v", r)
 		return 1
 	}
 }
