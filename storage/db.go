@@ -21,6 +21,7 @@ const (
 	FEED_TABLE = "Feed"
 	ARTICLE_TABLE = "Article"
 	USER_TABLE = "UserTable"
+	MAX_FETCHED_ROWS = 10000
 )
 
 type Database struct {
@@ -269,32 +270,29 @@ func (d *Database) GetUnreadArticles(limit int, sinceId int64) ([]models.Article
 	var rows *sql.Rows
 	var err error
 
+	if limit == -1 {
+		limit = MAX_FETCHED_ROWS
+	}
 	if sinceId == -1 {
 		sinceId = 0
 	}
 
 	rows, err = d.db.Query(
 		`SELECT id, feed, folder, title, summary, content, link, date FROM ` + ARTICLE_TABLE + `
-		WHERE NOT read AND id > $1 ORDER BY id`, sinceId)
+		WHERE NOT read AND id > $1 ORDER BY id LIMIT $2`, sinceId, limit)
 
 	if err != nil {
 		return articles, err
 	}
 	defer rows.Close()
 
-	count := 0
 	for rows.Next() {
-		if count == limit {
-			break
-		}
-
 		a := models.Article{}
 		if err = rows.Scan(
 			&a.Id, &a.FeedId, &a.FolderId, &a.Title, &a.Summary, &a.Content, &a.Link, &a.Date); err != nil {
 			return articles, err
 		}
 		articles = append(articles, a)
-		count += 1
 	}
 	return articles, err
 }
