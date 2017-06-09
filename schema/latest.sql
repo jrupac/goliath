@@ -64,3 +64,6 @@ CREATE TABLE IF NOT EXISTS Article (
   -- Retrieval timestamp
   retrieved TIMESTAMPTZ
 ) INTERLEAVE IN PARENT Feed (folder, feed);
+
+CREATE UNIQUE INDEX IF NOT EXISTS article_idx_read_key
+  ON Article (id) STORING (read);
