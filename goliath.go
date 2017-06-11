@@ -43,7 +43,7 @@ func main() {
 	if err != nil {
 		log.Warningf("Invalid build timestamp %s: %s", buildTimestamp, err)
 	} else {
-		buildTimestamp = time.Unix(t, 0)
+		buildTimestamp = time.Unix(t, 0).String()
 		log.Infof("Built at: %s", buildTimestamp)
 	}
 	log.Infof("Build hash: %s", buildHash)
