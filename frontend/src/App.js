@@ -25,6 +25,8 @@ export default class App extends React.Component {
     super(props);
     this.state = {
       articles: new Map(),
+      buildTimestamp: "",
+      buildHash: "",
       favicons: new Map(),
       feeds: new Map(),
       folderToFeeds: new Map(),
@@ -42,7 +44,7 @@ export default class App extends React.Component {
   componentDidMount() {
     Promise.all(
       [this.fetchFolders(), this.fetchFeeds(), this.fetchItems(),
-        this.fetchFavicons()])
+        this.fetchFavicons(), this.fetchVersion()])
         .then(() => {
           console.log('Completed all requests to server.');
         });
@@ -234,6 +236,19 @@ export default class App extends React.Component {
     });
   }
 
+  fetchVersion() {
+    fetch('/version', {
+      credentials: 'include'
+    }).then((result) => result.text())
+    .then((result) => this.parseJson(result))
+    .then((body) => {
+      this.setState({
+        buildTimestamp: body.build_timestamp,
+        buildHash: body.build_hash
+      })
+    });
+  }
+
   handleMark = (mark, article) => {
     // TODO: Handle marking feeds as read.
     fetch('/fever/?api&mark=item&as=' + mark + '&id=' + article.id, {
@@ -327,6 +342,10 @@ export default class App extends React.Component {
                 handleSelect={this.handleSelect} />
             <Footer>
               Goliath RSS
+              <br />
+              Built at: {this.state.buildTimestamp}
+              <br />
+              {this.state.buildHash}
             </Footer>
           </Content>
         </Layout>

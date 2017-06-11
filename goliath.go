@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"github.com/jrupac/goliath/auth"
 	"time"
+	"encoding/json"
+	"strconv"
 )
 
 const VERSION = "0.01"
@@ -26,6 +28,10 @@ var (
 	publicFolder = flag.String("publicFolder", "public", "Location of static content to serve.")
 )
 
+// Linker-initialized compile-time variables.
+var buildTimestamp string
+var buildHash string
+
 func main() {
 	flag.Parse()
 	defer log.Flush()
@@ -33,6 +39,14 @@ func main() {
 
 	log.CopyStandardLogTo("INFO")
 	log.Infof("Goliath %s.", VERSION)
+	t, err := strconv.ParseInt(buildTimestamp, 10, 64)
+	if err != nil {
+		log.Warningf("Invalid build timestamp %s: %s", buildTimestamp, err)
+	} else {
+		buildTimestamp = time.Unix(t, 0)
+		log.Infof("Built at: %s", buildTimestamp)
+	}
+	log.Infof("Build hash: %s", buildHash)
 
 	if *dbPath == "" {
 		log.Fatalf("Path to database must be set.")
@@ -100,8 +114,21 @@ func Serve(ctx context.Context, d *storage.Database) error {
 	http.HandleFunc("/auth", auth.HandleLogin(d));
 	http.HandleFunc("/logout", auth.HandleLogout);
 	http.HandleFunc("/fever/", HandleFever(d))
+	http.HandleFunc("/version", HandleVersion)
 	http.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))
 	http.Handle("/", auth.WithAuth(http.FileServer(http.Dir(*publicFolder)), d, *publicFolder))
 	log.Infof("Starting HTTP server on port %d", *port)
 	return srv.ListenAndServe()
+}
+
+func HandleVersion(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	resp := map[string]string{
+		"build_timestamp": buildTimestamp,
+		"build_hash": buildHash,
+	}
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Warningf("Failed to encode response JSON: %s", err)
+	}
 }

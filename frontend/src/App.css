@@ -48,6 +48,7 @@
 
 .ant-layout-footer {
   text-align: center;
+  font-family: 'Muli', sans-serif;
 }
 
 .ant-tree {
@@ -228,7 +229,7 @@
 .article-list-empty {
   text-align: center;
   color: #ababab;
-  font-size: 16px;
+  font-size: 24px;
   margin-top: 20%;
   margin-left: 35%;
   width: 30%;
