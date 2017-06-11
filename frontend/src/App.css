@@ -299,6 +299,9 @@
 .article-content img {
   max-width: 50%;
   height: auto;
+  /* Center images */
+  display: flex;
+  margin: 0 auto;
 }
 
 /* Hide some elements that clutter article display. */
