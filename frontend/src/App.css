@@ -2,8 +2,15 @@
   height: 100%;
 }
 
+@font-face {
+  font-family: "et-book";
+  src: url("https://cdn.jsdelivr.net/font-et-book/0.1/et-book/et-book-roman-line-figures/et-book-roman-line-figures.woff") format("woff");
+  font-weight: normal;
+  font-style: normal
+}
+
 .App {
-  font-family: 'PT Sans', sans-serif;
+  font-family: 'et-book', serif;
   height: 100%;
 }
 
@@ -21,6 +28,7 @@
   width: 300px;
   border-right: 1px solid #aaa;
   overflow: auto;
+  font-family: 'Muli', sans-serif;
 }
 
 .ant-layout-sider .logo {
@@ -233,17 +241,15 @@
   align-items: stretch;
   flex-flow: row nowrap;
   justify-content:space-between;
-  border-left: 1px solid #222;
 }
 
 .article-title {
   width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: 'Montserrat', sans-serif;
-  font-size: 18px;
+  font-family: 'et-book', serif;
+  font-size: 24px;
   padding-left: 10px;
-
 }
 
 .article-header a {
@@ -251,7 +257,6 @@
 }
 
 .article-header-read {
-  border-left: 1px solid #aaa;
   color: #aaa;
 }
 
@@ -259,8 +264,14 @@
   color: #aaa;
 }
 
-.article-feed {
+.article-status-read,
+.article-status-unread {
   font-size: 12px;
+  padding-left: 7px;
+}
+
+.article-feed {
+  font-size: 16px;
   display: flex;
   padding-top: 5px;
 }
@@ -272,18 +283,26 @@
 .article-date {
   width: 150px;
   min-width: 150px;
-  font-size: 12px;
+  font-size: 16px;
   text-align: right;
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: flex-end;
 }
 
 .article-content {
-  font-size: 14px;
+  font-size: 18px;
+  font-family: 'et-book', serif;
+  color: black;
 }
 
 .article-content img {
   max-width: 50%;
   height: auto;
+}
+
+/* Hide some elements that clutter article display. */
+.share_submission,
+.feedflare {
+  display: none;
 }

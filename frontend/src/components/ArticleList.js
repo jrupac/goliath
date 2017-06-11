@@ -64,8 +64,12 @@ export default class ArticleList extends React.Component {
 
   handleKeyDown = (event) => {
     this.setState((prevState) => {
-      var keypressBuffer = [...prevState.keypressBuffer.slice(1), event.key];
-      var scrollIndex = prevState.scrollIndex;
+      let scrollIndex = prevState.scrollIndex;
+
+      // Add new keypress to buffer, dropping the oldest entry.
+      let keypressBuffer = [...prevState.keypressBuffer.slice(1), event.key];
+
+      // If this sequence is fulfilled, reset the buffer and handle it.
       if (goToAllSequence.every((e, i) => e === keypressBuffer[i])) {
         this.props.handleSelect('all', null);
         keypressBuffer = new Array(goToAllSequence.length);

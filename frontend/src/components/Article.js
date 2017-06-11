@@ -39,6 +39,7 @@ export default class Article extends React.Component {
                     <Tooltip title={this.formatFullDate(date)} overlay="">
                       {this.formatDate(date)}
                     </Tooltip>
+                    {this.renderReadIcon()}
                   </div>
                 </div>
               } >
@@ -48,6 +49,14 @@ export default class Article extends React.Component {
           </Card>
         </div>
     )
+  }
+
+  renderReadIcon() {
+    if (this.props.article.is_read) {
+      return <i className="fa fa-circle-thin article-status-read" aria-hidden="true" />
+    } else {
+      return <i className="fa fa-circle article-status-unread" aria-hidden="true" />
+    }
   }
 
   renderFavicon() {
