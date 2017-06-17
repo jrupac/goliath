@@ -41,7 +41,9 @@ CREATE TABLE IF NOT EXISTS Feed (
   -- MIME type of the favicon
   mime STRING,
   -- Base64 encoding of favicon
-  favicon STRING
+  favicon STRING,
+  -- Latest timestamp of articles in this feed
+  latest TIMESTAMPTZ
 ) INTERLEAVE IN PARENT Folder (folder);
 
 CREATE TABLE IF NOT EXISTS Article (
@@ -59,7 +61,7 @@ CREATE TABLE IF NOT EXISTS Article (
   content STRING,
   link STRING,
   read BOOL,
-    -- Publication timestamp
+  -- Publication timestamp
   date TIMESTAMPTZ,
   -- Retrieval timestamp
   retrieved TIMESTAMPTZ
