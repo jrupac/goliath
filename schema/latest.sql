@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS Feed (
   -- Base64 encoding of favicon
   favicon STRING,
   -- Latest timestamp of articles in this feed
-  latest TIMESTAMPTZ
+  latest TIMESTAMPTZ DEFAULT CAST(0 AS TIMESTAMPTZ)
 ) INTERLEAVE IN PARENT Folder (folder);
 
 CREATE TABLE IF NOT EXISTS Article (
