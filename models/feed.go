@@ -3,15 +3,17 @@ package models
 import (
 	"fmt"
 	"golang.org/x/crypto/sha3"
+	"time"
 )
 
 type Feed struct {
-	Id       int64
-	FolderId int64
+	Id          int64
+	FolderId    int64
 
 	Title       string
 	Description string
 	Url         string
+	Latest      time.Time
 }
 
 func (a *Feed) Hash() string {

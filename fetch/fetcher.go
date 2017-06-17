@@ -43,7 +43,7 @@ func Start(ctx context.Context, d *storage.Database) {
 	for _, f := range feeds {
 		go func(f models.Feed) {
 			defer wg.Done()
-			do(ctx, ac, ic, f)
+			do(ctx, d, ac, ic, f)
 		}(f)
 	}
 
@@ -68,14 +68,14 @@ func Start(ctx context.Context, d *storage.Database) {
 	}
 }
 
-func do(ctx context.Context, ac chan models.Article, ic chan imagePair, feed models.Feed) {
+func do(ctx context.Context, d *storage.Database, ac chan models.Article, ic chan imagePair, feed models.Feed) {
 	log.Infof("Fetching %s", feed.Url)
 	f, err := rss.Fetch(feed.Url)
 	if err != nil {
 		log.Warningf("Error fetching %s: %s", feed.Url, err)
 		return
 	}
-	handleItems(feed, f.Items, ac)
+	handleItems(feed, d, f.Items, ac)
 	handleImage(feed, f, ic)
 
 	tick := time.After(time.Until(f.Refresh))
@@ -88,7 +88,7 @@ func do(ctx context.Context, ac chan models.Article, ic chan imagePair, feed mod
 			if err = f.Update(); err != nil {
 				log.Warningf("Error fetching %s: %s", feed.Url, err)
 			} else {
-				handleItems(feed, f.Items, ac)
+				handleItems(feed, d, f.Items, ac)
 			}
 			log.Infof("Waiting to fetch %s until %s\n", feed.Url, f.Refresh)
 			tick = time.After(time.Until(f.Refresh))
@@ -98,7 +98,8 @@ func do(ctx context.Context, ac chan models.Article, ic chan imagePair, feed mod
 	}
 }
 
-func handleItems(feed models.Feed, items []*rss.Item, send chan models.Article) {
+func handleItems(feed models.Feed, d *storage.Database, items []*rss.Item, send chan models.Article) {
+	latest := feed.Latest
 	for _, item := range items {
 		a := models.Article{
 			FeedId:   feed.Id,
@@ -111,7 +112,19 @@ func handleItems(feed models.Feed, items []*rss.Item, send chan models.Article) 
 			Read:     item.Read,
 			Retrieved: time.Now(),
 		}
-		send <- a
+		if a.Date.After(latest) {
+			send <- a
+			latest = a.Date
+		} else {
+			log.V(2).Infof("Not persisting too old article: %+v", a)
+		}
+	}
+
+	err := d.UpdateLatestTimeForFeed(feed.Id, latest)
+	if err != nil {
+		log.Warningf("Failed to update latest feed time: %s", err)
+	} else {
+		feed.Latest = latest
 	}
 }
 

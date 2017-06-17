@@ -163,6 +163,15 @@ func (d *Database) MarkFolder(id int64, status string) error {
 	return err
 }
 
+func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
+	_, err := d.db.Query(`UPDATE ` + FEED_TABLE + ` SET latest = $1 WHERE id = $2`, latest, id)
+	return err
+}
+
+/*******************************************************************************
+ * Getter methods
+ ******************************************************************************/
+
 func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
 	children := []int64{}
 	rows, err := d.db.Query(`SELECT child FROM ` + FOLDER_CHILDREN_TABLE + ` WHERE parent = $1`, id)
@@ -202,7 +211,7 @@ func (d *Database) GetAllFolders() ([]models.Folder, error) {
 
 func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 	feeds := []models.Feed{}
-	rows, err := d.db.Query(`SELECT id, folder, title, description, url FROM ` + FEED_TABLE)
+	rows, err := d.db.Query(`SELECT id, folder, title, description, url, latest FROM ` + FEED_TABLE)
 	if err != nil {
 		return feeds, err
 	}
@@ -210,7 +219,7 @@ func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 
 	for rows.Next() {
 		f := models.Feed{}
-		if err = rows.Scan(&f.Id, &f.FolderId, &f.Title, &f.Description, &f.Url); err != nil {
+		if err = rows.Scan(&f.Id, &f.FolderId, &f.Title, &f.Description, &f.Url, &f.Latest); err != nil {
 			return feeds, err
 		}
 		feeds = append(feeds, f)
