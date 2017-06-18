@@ -90,15 +90,17 @@ func (d *Database) InsertFavicon(feedId int64, mime string, img []byte) error {
 	// Convert to a base64 encoded string before inserting
 	h := base64.StdEncoding.EncodeToString(img)
 
-	_, err = d.db.Query(
+	rows, err := d.db.Query(
 		`UPDATE ` + FEED_TABLE + ` SET favicon = $1, mime = $2 WHERE id = $3`,
 		h, mime, feedId)
+	rows.Close()
 	return err
 }
 
 func (d *Database) InsertUser(u models.User) error {
-	_, err := d.db.Query(
+	rows, err := d.db.Query(
 		`INSERT INTO ` + USER_TABLE + `(username, key) VALUES($1, $2)`, u.Username, u.Key)
+	rows.Close()
 	return err
 }
 
@@ -106,10 +108,10 @@ func (d *Database) DeleteArticles(minTimestamp time.Time) (int, error) {
 	count := 0
 	rows, err := d.db.Query(
 		`DELETE FROM ` + ARTICLE_TABLE + ` WHERE read AND (retrieved IS NULL OR retrieved < $1) RETURNING id`, minTimestamp)
+	defer rows.Close()
 	if err != nil {
 		return count, err
 	}
-	defer rows.Close()
 
 	var id int64
 	for rows.Next() {
@@ -130,7 +132,8 @@ func (d *Database) MarkArticle(id int64, status string) error {
 		return err
 	}
 
-	_, err = d.db.Query(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE id = $2`, state, id)
+	rows, err := d.db.Query(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE id = $2`, state, id)
+	rows.Close()
 	return err
 }
 
@@ -140,7 +143,8 @@ func (d *Database) MarkFeed(id int64, status string) error {
 		return err
 	}
 
-	_, err = d.db.Query(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE feed = $2`, state, id)
+	rows, err := d.db.Query(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE feed = $2`, state, id)
+	rows.Close()
 	return err
 }
 
@@ -150,7 +154,8 @@ func (d *Database) MarkFolder(id int64, status string) error {
 		return err
 	}
 
-	_, err = d.db.Query(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE folder = $2`, state, id)
+	rows, err := d.db.Query(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE folder = $2`, state, id)
+	rows.Close()
 	children, err := d.GetFolderChildren(id)
 	if err != nil {
 		return err
@@ -164,7 +169,8 @@ func (d *Database) MarkFolder(id int64, status string) error {
 }
 
 func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
-	_, err := d.db.Query(`UPDATE ` + FEED_TABLE + ` SET latest = $1 WHERE id = $2`, latest, id)
+	rows, err := d.db.Query(`UPDATE ` + FEED_TABLE + ` SET latest = $1 WHERE id = $2`, latest, id)
+	rows.Close()
 	return err
 }
 
@@ -175,10 +181,10 @@ func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
 func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
 	children := []int64{}
 	rows, err := d.db.Query(`SELECT child FROM ` + FOLDER_CHILDREN_TABLE + ` WHERE parent = $1`, id)
+	defer rows.Close()
 	if err != nil {
 		return children, err
 	}
-	defer rows.Close()
 
 	var childId int64
 	for rows.Next() {
@@ -193,10 +199,10 @@ func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
 func (d *Database) GetAllFolders() ([]models.Folder, error) {
 	folders := []models.Folder{}
 	rows, err := d.db.Query(`SELECT id, name FROM ` + FOLDER_TABLE)
+	defer rows.Close()
 	if err != nil {
 		return folders, err
 	}
-	defer rows.Close()
 
 	for rows.Next() {
 		f := models.Folder{}
@@ -212,10 +218,10 @@ func (d *Database) GetAllFolders() ([]models.Folder, error) {
 func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 	feeds := []models.Feed{}
 	rows, err := d.db.Query(`SELECT id, folder, title, description, url, latest FROM ` + FEED_TABLE)
+	defer rows.Close()
 	if err != nil {
 		return feeds, err
 	}
-	defer rows.Close()
 
 	for rows.Next() {
 		f := models.Feed{}
@@ -234,10 +240,10 @@ func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
 
 	// CockroachDB doesn't have a concat-with-separator aggregation function
 	rows, err := d.db.Query(`SELECT folder, id FROM ` + FEED_TABLE)
+	defer rows.Close()
 	if err != nil {
 		return resp, err
 	}
-	defer rows.Close()
 
 	var folderId, feedId int64
 	for rows.Next() {
@@ -257,10 +263,10 @@ func (d *Database) GetAllFavicons() (map[int64]string, error) {
 	favicons := map[int64]string{}
 	rows, err := d.db.Query(
 		`SELECT id, mime, favicon FROM ` + FEED_TABLE + ` WHERE favicon IS NOT NULL`)
+	defer rows.Close()
 	if err != nil {
 		return favicons, err
 	}
-	defer rows.Close()
 
 	var id int64
 	var mime string
@@ -289,11 +295,10 @@ func (d *Database) GetUnreadArticles(limit int, sinceId int64) ([]models.Article
 	rows, err = d.db.Query(
 		`SELECT id, feed, folder, title, summary, content, link, date FROM ` + ARTICLE_TABLE + `
 		WHERE NOT read AND id > $1 ORDER BY id LIMIT $2`, sinceId, limit)
-
+	defer rows.Close()
 	if err != nil {
 		return articles, err
 	}
-	defer rows.Close()
 
 	for rows.Next() {
 		a := models.Article{}
@@ -324,8 +329,9 @@ func (d *Database) GetUserByKey(key string) (models.User, error) {
 func (d *Database) ImportOpml(opml *models.Opml) error {
 	root := opml.Folders
 	// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
-	_, err := d.db.Query(
+	rows, err := d.db.Query(
 		`INSERT INTO ` + FOLDER_TABLE + `(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, root.Name)
+	rows.Close()
 	if err != nil {
 		return err
 	}
@@ -341,10 +347,11 @@ func (d *Database) importChildren(parent models.Folder) error {
 	var err error
 	for _, f := range parent.Feed {
 		// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
-		_, err = d.db.Query(
+		rows, err := d.db.Query(
 			`INSERT INTO ` + FEED_TABLE + `(folder, hash, title, description, url)
 			VALUES($1, $2, $3, $4, $5) ON CONFLICT(hash) DO NOTHING`,
 			parent.Id, f.Hash(), f.Title, f.Description, f.Url)
+		rows.Close()
 		if err != nil {
 			return err
 		}
@@ -358,8 +365,9 @@ func (d *Database) importChildren(parent models.Folder) error {
 
 	for _, child := range parent.Folders {
 		// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
-		_, err := d.db.Query(
+		rows, err := d.db.Query(
 			`INSERT INTO ` + FOLDER_TABLE + `(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, child.Name)
+		rows.Close()
 		if err != nil {
 			return err
 		}
@@ -369,8 +377,9 @@ func (d *Database) importChildren(parent models.Folder) error {
 			return err
 		}
 
-		_, err = d.db.Query(
+		rows, err = d.db.Query(
 			`UPSERT INTO ` + FOLDER_CHILDREN_TABLE + `(parent, child) VALUES($1, $2)`, parent.Id, child.Id)
+		rows.Close()
 		if err != nil {
 			return err
 		}
