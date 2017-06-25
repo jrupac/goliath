@@ -1,5 +1,5 @@
 import Card from 'antd/lib/card';
-import defaultFavicon from '../../public/favicon.ico';
+import defaultFavicon from '../favicon.ico';
 import moment from 'moment';
 import React from 'react';
 import Tooltip from 'antd/lib/tooltip';
@@ -26,7 +26,10 @@ export default class Article extends React.Component {
               title={
                 <div className={headerClass}>
                   <div className="article-title">
-                    <a target="_blank" href={this.props.article.url}>
+                    <a
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        href={this.props.article.url}>
                       {this.props.article.title}
                     </a>
                     <br />

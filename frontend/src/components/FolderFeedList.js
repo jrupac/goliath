@@ -1,4 +1,4 @@
-import defaultFavicon from '../../public/favicon.ico';
+import defaultFavicon from '../favicon.ico';
 import React from 'react';
 import Icon from 'antd/lib/icon';
 import Tree from 'antd/lib/tree';

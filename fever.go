@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/auth"
 	"github.com/jrupac/goliath/storage"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
-	"github.com/jrupac/goliath/auth"
 )
 
 const API_VERSION = "1.0"

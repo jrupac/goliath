@@ -113,25 +113,25 @@ export default class App extends React.Component {
     fetch('/fever/?api&groups', {
       credentials: 'include'
     }).then((result) => result.text())
-    .then((result) => this.parseJson(result))
-    .then((body) => {
-      this.setState((prevState) => {
-        const folderToFeeds = prevState.folderToFeeds;
-        const folders = prevState.folders;
+      .then((result) => this.parseJson(result))
+      .then((body) => {
+        this.setState((prevState) => {
+          const folderToFeeds = prevState.folderToFeeds;
+          const folders = prevState.folders;
 
-        body.feeds_groups.forEach((e) => {
-          folderToFeeds.set(e.group_id, e.feed_ids.split(','));
-        });
-        body.groups.forEach((group) => {
-          folders.set(group.id, group.title);
-        });
-        return {
-          folders: folders,
-          folderToFeeds,
-          status: prevState.status | Status.Folder,
-        };
-      }, this.buildStructure);
-    });
+          body.feeds_groups.forEach((e) => {
+            folderToFeeds.set(e.group_id, e.feed_ids.split(','));
+          });
+          body.groups.forEach((group) => {
+            folders.set(group.id, group.title);
+          });
+          return {
+            folders: folders,
+            folderToFeeds,
+            status: prevState.status | Status.Folder,
+          };
+        }, this.buildStructure);
+      }).catch((e) => console.log(e));
   }
 
   fetchFeeds() {
@@ -160,7 +160,7 @@ export default class App extends React.Component {
           status: prevState.status | Status.Feed,
         };
       }, this.buildStructure);
-    });
+    }).catch((e) => console.log(e));
   }
 
   fetchItems(sinceId) {
@@ -214,7 +214,7 @@ export default class App extends React.Component {
           status: prevState.status | Status.Article,
         };
       }, this.buildStructure);
-    });
+    }).catch((e) => console.log(e));
   }
 
   fetchFavicons() {
@@ -233,7 +233,7 @@ export default class App extends React.Component {
           status: prevState.status | Status.Favicon,
         };
       }, this.buildStructure);
-    });
+    }).catch((e) => console.log(e));
   }
 
   fetchVersion() {
@@ -246,14 +246,14 @@ export default class App extends React.Component {
         buildTimestamp: body.build_timestamp,
         buildHash: body.build_hash
       })
-    });
+    }).catch((e) => console.log(e));
   }
 
   handleMark = (mark, article) => {
     // TODO: Handle marking feeds as read.
     fetch('/fever/?api&mark=item&as=' + mark + '&id=' + article.id, {
       credentials: 'include'
-    });
+    }).catch((e) => console.log(e));
 
     // Update the read buffer and unread counts.
     this.setState((prevState) => {
