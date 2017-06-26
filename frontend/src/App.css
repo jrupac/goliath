@@ -28,6 +28,7 @@
   width: 300px;
   border-right: 1px solid #aaa;
   overflow: auto;
+  overflow-x: hidden;
   font-family: 'Muli', sans-serif;
 }
 
@@ -80,6 +81,12 @@
   padding: 0 15px 0 0;
 }
 
+.ant-tree li .ant-tree-node-content-wrapper {
+  display: inline;
+  padding-top: 3px;
+  padding-bottom: 6px;
+}
+
 .ant-tree li ul {
   padding-left: 10px;
 }
@@ -97,11 +104,11 @@
   padding: 0 0 0 2px;
 }
 
-.ant-tree li a:hover {
+.ant-tree li .ant-tree-node-content-wrapper:hover {
   background-color: #383838;
 }
 
-.ant-tree li a.ant-tree-node-selected {
+.ant-tree li .ant-tree-node-content-wrapper.ant-tree-node-selected {
   background-color: #222;
 }
 
