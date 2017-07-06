@@ -75,7 +75,7 @@ func do(ctx context.Context, d *storage.Database, ac chan models.Article, ic cha
 		log.Warningf("Error fetching %s: %s", feed.Url, err)
 		return
 	}
-	handleItems(feed, d, f.Items, ac)
+	handleItems(&feed, d, f.Items, ac)
 	handleImage(feed, f, ic)
 
 	tick := time.After(time.Until(f.Refresh))
@@ -88,7 +88,7 @@ func do(ctx context.Context, d *storage.Database, ac chan models.Article, ic cha
 			if err = f.Update(); err != nil {
 				log.Warningf("Error fetching %s: %s", feed.Url, err)
 			} else {
-				handleItems(feed, d, f.Items, ac)
+				handleItems(&feed, d, f.Items, ac)
 			}
 			log.Infof("Waiting to fetch %s until %s\n", feed.Url, f.Refresh)
 			tick = time.After(time.Until(f.Refresh))
@@ -98,7 +98,7 @@ func do(ctx context.Context, d *storage.Database, ac chan models.Article, ic cha
 	}
 }
 
-func handleItems(feed models.Feed, d *storage.Database, items []*rss.Item, send chan models.Article) {
+func handleItems(feed *models.Feed, d *storage.Database, items []*rss.Item, send chan models.Article) {
 	latest := feed.Latest
 	for _, item := range items {
 		a := models.Article{
