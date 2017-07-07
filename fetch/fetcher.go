@@ -85,7 +85,7 @@ func do(ctx context.Context, d *storage.Database, ac chan models.Article, ic cha
 		select {
 		case <-tick:
 			log.Infof("Fetching feed %s", feed.Url)
-			if err = f.Update(); err != nil {
+			if f, err = rss.Fetch(feed.Url); err != nil {
 				log.Warningf("Error fetching %s: %s", feed.Url, err)
 			} else {
 				handleItems(&feed, d, f.Items, ac)
