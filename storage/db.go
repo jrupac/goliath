@@ -140,7 +140,16 @@ func (d *Database) MarkFolder(id int64, status string) error {
 		return err
 	}
 
+	// Special-case id=0 to mean everything (the root folder).
+	if id == 0 {
+		_, err = d.db.Exec(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1`, state)
+		return err
+	}
+
 	_, err = d.db.Exec(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE folder = $2`, state, id)
+	if err != nil {
+		return err
+	}
 	children, err := d.GetFolderChildren(id)
 	if err != nil {
 		return err
