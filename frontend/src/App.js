@@ -265,89 +265,92 @@ export default class App extends React.Component {
     case EnclosingType.Article:
       fetch('/fever/?api&mark=item&as=' + mark + '&id=' + entity, {
         credentials: 'include'
+      }).then(() => {
+        // Update the read buffer and unread counts.
+        this.setState((prevState) => {
+          let feedId = prevState.articles.get(entity).feed_id;
+          let readBuffer = [...prevState.readBuffer, entity];
+          const unreadCountMap = new Map(prevState.unreadCountMap);
+          unreadCountMap.set(feedId, unreadCountMap.get(feedId) - 1);
+          return {
+            readBuffer: readBuffer,
+            unreadCountMap: unreadCountMap
+          }
+        }, this.buildStructure);
       }).catch((e) => console.log(e));
-
-      // Update the read buffer and unread counts.
-      this.setState((prevState) => {
-        let feedId = prevState.articles.get(entity).feed_id;
-        let readBuffer = [...prevState.readBuffer, entity];
-        const unreadCountMap = new Map(prevState.unreadCountMap);
-        unreadCountMap.set(feedId, unreadCountMap.get(feedId) - 1);
-        return {
-          readBuffer: readBuffer,
-          unreadCountMap: unreadCountMap
-        }
-      }, this.buildStructure);
       break;
     case EnclosingType.Feed:
       fetch('/fever/?api&mark=feed&as=' + mark + '&id=' + entity, {
         credentials: 'include'
-      }).catch((e) => console.log(e));
+      }).then(() => {
+        // Update the read buffer and unread counts.
+        this.setState((prevState) => {
+          let articles = new Map(prevState.articles);
+          let ids = [];
+          articles.forEach((v, k) => {
+            if (!v.is_read && v.feed_id === entity) {
+              ids.push(k);
+            }
+          });
 
-      // Update the read buffer and unread counts.
-      this.setState((prevState) => {
-        let articles = new Map(prevState.articles);
-        let ids = [];
-        articles.forEach((v, k) => {
-          if (!v.is_read && v.feed_id === entity) {
-            ids.push(k);
+          let readBuffer = [...prevState.readBuffer, ...ids];
+          let unreadCountMap = new Map(prevState.unreadCountMap);
+          unreadCountMap.set(entity, 0);
+          return {
+            readBuffer: readBuffer,
+            unreadCountMap: unreadCountMap
           }
-        });
-
-        let readBuffer = [...prevState.readBuffer, ...ids];
-        let unreadCountMap = new Map(prevState.unreadCountMap);
-        unreadCountMap.set(entity, 0);
-        return {
-          readBuffer: readBuffer,
-          unreadCountMap: unreadCountMap
-        }
-      }, this.buildStructure);
+        }, this.buildStructure);
+      }).catch((e) => console.log(e));
       break;
     case EnclosingType.Folder:
       fetch('/fever/?api&mark=group&as=' + mark + '&id=' + entity, {
         credentials: 'include'
-      }).catch((e) => console.log(e));
-      this.setState((prevState) => {
-        const feeds = prevState.folderToFeeds.get(entity) || [];
-        let articles = new Map(prevState.articles);
-        let ids = new Map();
-        articles.forEach((v, k) => {
-          if (!v.is_read && feeds.indexOf(v.feed_id) >= 0) {
-            ids.set(k, (ids.get(k) || 0) + 1);
-          }
-        });
+      }).then(() => {
+        // Update the read buffer and unread counts.
+        this.setState((prevState) => {
+          const feeds = prevState.folderToFeeds.get(entity) || [];
+          let articles = new Map(prevState.articles);
+          let ids = new Map();
+          articles.forEach((v, k) => {
+            if (!v.is_read && feeds.indexOf(v.feed_id) >= 0) {
+              ids.set(k, (ids.get(k) || 0) + 1);
+            }
+          });
 
-        let readBuffer = [...prevState.readBuffer, ...Array.from(ids.keys())];
-        let unreadCountMap = new Map(prevState.unreadCountMap);
-        ids.forEach((v, k) => {
-          unreadCountMap.set(k, unreadCountMap.get(k) - v);
-        });
-        return {
-          readBuffer: readBuffer,
-          unreadCountMap: unreadCountMap
-        }
-      }, this.buildStructure);
+          let readBuffer = [...prevState.readBuffer, ...Array.from(ids.keys())];
+          let unreadCountMap = new Map(prevState.unreadCountMap);
+          ids.forEach((v, k) => {
+            unreadCountMap.set(k, unreadCountMap.get(k) - v);
+          });
+          return {
+            readBuffer: readBuffer,
+            unreadCountMap: unreadCountMap
+          }
+        }, this.buildStructure);
+      }).catch((e) => console.log(e));
       break;
     case EnclosingType.All:
       fetch('/fever/?api&mark=group&as=' + mark + '&id=' + entity, {
         credentials: 'include'
+      }).then(() => {
+        // Update the read buffer and unread counts.
+        this.setState((prevState) => {
+          let articles = new Map(prevState.articles);
+          let ids = [];
+          articles.forEach((v, k) => { if (!v.is_read) { ids.push(k); } });
+
+          let readBuffer = [...prevState.readBuffer, ...ids];
+          let unreadCountMap = new Map(prevState.unreadCountMap);
+          unreadCountMap.forEach((v, k) => {
+            unreadCountMap.set(k, 0);
+          });
+          return {
+            readBuffer: readBuffer,
+            unreadCountMap: unreadCountMap
+          }
+        }, this.buildStructure);
       }).catch((e) => console.log(e));
-
-      this.setState((prevState) => {
-        let articles = new Map(prevState.articles);
-        let ids = [];
-        articles.forEach((v, k) => { if (!v.is_read) { ids.push(k); } });
-
-        let readBuffer = [...prevState.readBuffer, ...ids];
-        let unreadCountMap = new Map(prevState.unreadCountMap);
-        unreadCountMap.forEach((v, k) => {
-          unreadCountMap.set(k, 0);
-        });
-        return {
-          readBuffer: readBuffer,
-          unreadCountMap: unreadCountMap
-        }
-      }, this.buildStructure);
       break;
     }
   };
