@@ -7,15 +7,15 @@
 [submodule "vendor/github.com/lib/pq"]
 	path = vendor/github.com/lib/pq
 	url = https://github.com/lib/pq
-[submodule "vendor/golang.org/x/net"]
-	path = vendor/golang.org/x/net
-	url = https://go.googlesource.com/net
-[submodule "vendor/golang.org/x/crypto"]
-	path = vendor/golang.org/x/crypto
-	url = https://go.googlesource.com/crypto
 [submodule "vendor/github.com/mat/besticon"]
 	path = vendor/github.com/mat/besticon
 	url = https://github.com/mat/besticon
 [submodule "vendor/github.com/prometheus/client_golang"]
 	path = vendor/github.com/prometheus/client_golang
 	url = https://github.com/prometheus/client_golang
+[submodule "vendor/golang.org/x/crypto"]
+	path = vendor/golang.org/x/crypto
+	url = https://go.googlesource.com/crypto
+[submodule "vendor/golang.org/x/net"]
+	path = vendor/golang.org/x/net
+	url = https://go.googlesource.com/net

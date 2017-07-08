@@ -137,7 +137,7 @@ func handleImage(feed models.Feed, f *rss.Feed, send chan imagePair) {
 		feedHost = u.Hostname()
 	}
 
-	if i, err := tryIconFetch(f.Image.Url); err == nil {
+	if i, err := tryIconFetch(f.Image.URL); err == nil {
 		icon = i
 	} else if i, err := tryIconFetch(f.Link); err == nil {
 		icon = i
