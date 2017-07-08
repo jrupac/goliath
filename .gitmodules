@@ -16,3 +16,6 @@
 [submodule "vendor/github.com/mat/besticon"]
 	path = vendor/github.com/mat/besticon
 	url = https://github.com/mat/besticon
+[submodule "vendor/github.com/prometheus/client_golang"]
+	path = vendor/github.com/prometheus/client_golang
+	url = https://github.com/prometheus/client_golang
