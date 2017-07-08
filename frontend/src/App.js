@@ -20,6 +20,13 @@ export const Status = {
   Ready: 1 << 4,
 };
 
+export const EnclosingType = {
+  All: 'all',
+  Folder: 'folder',
+  Feed: 'feed',
+  Article: 'article',
+};
+
 export default class App extends React.Component {
   constructor(props) {
     super(props);
@@ -27,6 +34,8 @@ export default class App extends React.Component {
       articles: new Map(),
       buildTimestamp: "",
       buildHash: "",
+      enclosingKey: null,
+      enclosingType: EnclosingType.All,
       favicons: new Map(),
       feeds: new Map(),
       folderToFeeds: new Map(),
@@ -249,29 +258,54 @@ export default class App extends React.Component {
     }).catch((e) => console.log(e));
   }
 
-  handleMark = (mark, article) => {
-    // TODO: Handle marking feeds as read.
-    fetch('/fever/?api&mark=item&as=' + mark + '&id=' + article.id, {
-      credentials: 'include'
-    }).catch((e) => console.log(e));
+  handleMark = (mark, entity, type) => {
+    switch(type) {
+    case EnclosingType.Article:
+      fetch('/fever/?api&mark=item&as=' + mark + '&id=' + entity, {
+        credentials: 'include'
+      }).catch((e) => console.log(e));
 
-    // Update the read buffer and unread counts.
-    this.setState((prevState) => {
-      var readBuffer = [...prevState.readBuffer, article.id];
-      const unreadCountMap = new Map(prevState.unreadCountMap);
-      unreadCountMap.set(
-          article.feed_id, unreadCountMap.get(article.feed_id) - 1);
-      return {
-        readBuffer: readBuffer,
-        unreadCountMap: unreadCountMap
-      }
-    }, this.buildStructure);
+      // Update the read buffer and unread counts.
+      this.setState((prevState) => {
+        let feedId = prevState.articles.get(entity).feed_id;
+        let readBuffer = [...prevState.readBuffer, entity];
+        const unreadCountMap = new Map(prevState.unreadCountMap);
+        unreadCountMap.set(feedId, unreadCountMap.get(feedId) - 1);
+        return {
+          readBuffer: readBuffer,
+          unreadCountMap: unreadCountMap
+        }
+      }, this.buildStructure);
+      break;
+    case EnclosingType.Feed:
+      fetch('/fever/?api&mark=feed&as=' + mark + '&id=' + entity, {
+        credentials: 'include'
+      }).catch((e) => console.log(e));
+
+      // Update the read buffer and unread counts.
+      this.setState((prevState) => {
+        let articles = new Map(prevState.articles);
+        let ids = [];
+        articles.forEach((v, k) => {
+          if (v.feed_id === entity) {
+            ids.push(k);
+          }
+        });
+
+        let readBuffer = [...prevState.readBuffer, ...ids];
+        let unreadCountMap = new Map(prevState.unreadCountMap);
+        unreadCountMap.set(entity, 0);
+        return {
+          readBuffer: readBuffer,
+          unreadCountMap: unreadCountMap
+        }
+      }, this.buildStructure);
+      break;
+    case EnclosingType.Folder:
+      // TODO: Implement.
+      break;
+    }
   };
-
-  sortArticles(articles) {
-    // Sort by descending time.
-    return articles.sort((a, b) => b.created_on_time - a.created_on_time);
-  }
 
   handleSelect = (type, key) => {
     this.setState((prevState) => {
@@ -284,14 +318,14 @@ export default class App extends React.Component {
       const checkUnread = (e) => !e.is_read;
 
       switch (type) {
-      case 'all':
+      case EnclosingType.All:
         shownArticles = shownArticles.filter(checkUnread);
         break;
-      case 'feed':
+      case EnclosingType.Feed:
         shownArticles = shownArticles.filter(
             (e) => e.feed_id === key && checkUnread(e));
         break;
-      case 'folder':
+      case EnclosingType.Folder:
         // Some folder may not have feeds.
         const feeds = prevState.folderToFeeds.get(key) || [];
         // Consider using a Set() polyfill to speed this up.
@@ -302,12 +336,19 @@ export default class App extends React.Component {
 
       return {
         articles: articles,
+        enclosingKey: key,
+        enclosingType: type,
         readBuffer: [],
         shownArticles: shownArticles,
         selectedKey: key
       }
     });
   };
+
+  sortArticles(articles) {
+    // Sort by descending time.
+    return articles.sort((a, b) => b.created_on_time - a.created_on_time);
+  }
 
   render() {
     if (this.state.status !== Status.Ready) {

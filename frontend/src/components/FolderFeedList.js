@@ -2,6 +2,7 @@ import defaultFavicon from '../favicon.ico';
 import React from 'react';
 import Icon from 'antd/lib/icon';
 import Tree from 'antd/lib/tree';
+import { EnclosingType } from '../App';
 
 const TreeNode = Tree.TreeNode;
 
@@ -11,10 +12,9 @@ export default class FolderFeedList extends React.Component {
     this.handleSelect = this.handleSelect.bind(this);
   }
 
-  handleSelect = (key, info) => {
-    var type;
-    if (info === 'all') {
-      this.props.handleSelect('all', key);
+  handleSelect = (key, type) => {
+    if (type === EnclosingType.All) {
+      this.props.handleSelect(EnclosingType.All, key);
       return;
     } else if (key && key.length === 1) {
       key = key[0];
@@ -23,9 +23,9 @@ export default class FolderFeedList extends React.Component {
     }
 
     if (this.props.tree.has(key)) {
-      type = 'folder';
+      type = EnclosingType.Folder;
     } else {
-      type = 'feed';
+      type = EnclosingType.Feed;
     }
     this.props.handleSelect(type, key);
   };
@@ -48,7 +48,7 @@ export default class FolderFeedList extends React.Component {
     return (
         <div>
           <div
-              onClick={() => this.handleSelect(null, 'all')}
+              onClick={() => this.handleSelect(null, EnclosingType.All)}
               className={allSelectedClass}>
             <Icon type='inbox' />
             <div className='all-items-text'>
