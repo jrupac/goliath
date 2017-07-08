@@ -2,7 +2,7 @@ import defaultFavicon from '../favicon.ico';
 import React from 'react';
 import Icon from 'antd/lib/icon';
 import Tree from 'antd/lib/tree';
-import { EnclosingType } from '../App';
+import {EnclosingType, KeyAll} from '../App';
 
 const TreeNode = Tree.TreeNode;
 
@@ -33,12 +33,12 @@ export default class FolderFeedList extends React.Component {
   render() {
     const tree = this.props.tree;
     var selectedKeys, allSelectedClass;
-    if (this.props.selectedKey) {
-      selectedKeys = [this.props.selectedKey];
-      allSelectedClass = 'all-items';
-    } else {
+    if (!this.props.selectedKey || this.props.selectedKey === KeyAll) {
       selectedKeys = [];
       allSelectedClass = 'all-items-selected';
+    } else if (this.props.selectedKey) {
+      selectedKeys = [this.props.selectedKey];
+      allSelectedClass = 'all-items';
     }
 
     // TODO: Implement folder expansion with override correctly.
@@ -48,7 +48,7 @@ export default class FolderFeedList extends React.Component {
     return (
         <div>
           <div
-              onClick={() => this.handleSelect(null, EnclosingType.All)}
+              onClick={() => this.handleSelect(KeyAll, EnclosingType.All)}
               className={allSelectedClass}>
             <Icon type='inbox' />
             <div className='all-items-text'>

@@ -21,11 +21,14 @@ export const Status = {
 };
 
 export const EnclosingType = {
-  All: 'all',
-  Folder: 'folder',
-  Feed: 'feed',
-  Article: 'article',
+  All: 0,
+  Folder: 1,
+  Feed: 2,
+  Article: 3,
 };
+
+// Special-case ID for root folder.
+export const KeyAll = 0;
 
 export default class App extends React.Component {
   constructor(props) {
@@ -34,14 +37,13 @@ export default class App extends React.Component {
       articles: new Map(),
       buildTimestamp: "",
       buildHash: "",
-      enclosingKey: null,
+      enclosingKey: KeyAll,
       enclosingType: EnclosingType.All,
       favicons: new Map(),
       feeds: new Map(),
       folderToFeeds: new Map(),
       folders: new Map(),
       readBuffer: [],
-      selectedKey: null,
       shownArticles: [],
       status: Status.Start,
       structure: new Map(),
@@ -287,7 +289,7 @@ export default class App extends React.Component {
         let articles = new Map(prevState.articles);
         let ids = [];
         articles.forEach((v, k) => {
-          if (v.feed_id === entity) {
+          if (!v.is_read && v.feed_id === entity) {
             ids.push(k);
           }
         });
@@ -302,7 +304,50 @@ export default class App extends React.Component {
       }, this.buildStructure);
       break;
     case EnclosingType.Folder:
-      // TODO: Implement.
+      fetch('/fever/?api&mark=group&as=' + mark + '&id=' + entity, {
+        credentials: 'include'
+      }).catch((e) => console.log(e));
+      this.setState((prevState) => {
+        const feeds = prevState.folderToFeeds.get(entity) || [];
+        let articles = new Map(prevState.articles);
+        let ids = new Map();
+        articles.forEach((v, k) => {
+          if (!v.is_read && feeds.indexOf(v.feed_id) >= 0) {
+            ids.set(k, (ids.get(k) || 0) + 1);
+          }
+        });
+
+        let readBuffer = [...prevState.readBuffer, ...Array.from(ids.keys())];
+        let unreadCountMap = new Map(prevState.unreadCountMap);
+        ids.forEach((v, k) => {
+          unreadCountMap.set(k, unreadCountMap.get(k) - v);
+        });
+        return {
+          readBuffer: readBuffer,
+          unreadCountMap: unreadCountMap
+        }
+      }, this.buildStructure);
+      break;
+    case EnclosingType.All:
+      fetch('/fever/?api&mark=group&as=' + mark + '&id=' + entity, {
+        credentials: 'include'
+      }).catch((e) => console.log(e));
+
+      this.setState((prevState) => {
+        let articles = new Map(prevState.articles);
+        let ids = [];
+        articles.forEach((v, k) => { if (!v.is_read) { ids.push(k); } });
+
+        let readBuffer = [...prevState.readBuffer, ...ids];
+        let unreadCountMap = new Map(prevState.unreadCountMap);
+        unreadCountMap.forEach((v, k) => {
+          unreadCountMap.set(k, 0);
+        });
+        return {
+          readBuffer: readBuffer,
+          unreadCountMap: unreadCountMap
+        }
+      }, this.buildStructure);
       break;
     }
   };
@@ -315,22 +360,20 @@ export default class App extends React.Component {
       var shownArticles = Array.from(articles.values());
 
       // TODO: Consider having a "read" list too.
-      const checkUnread = (e) => !e.is_read;
-
       switch (type) {
       case EnclosingType.All:
-        shownArticles = shownArticles.filter(checkUnread);
+        shownArticles = shownArticles.filter(this.checkUnread);
         break;
       case EnclosingType.Feed:
         shownArticles = shownArticles.filter(
-            (e) => e.feed_id === key && checkUnread(e));
+            (e) => e.feed_id === key && this.checkUnread(e));
         break;
       case EnclosingType.Folder:
         // Some folder may not have feeds.
         const feeds = prevState.folderToFeeds.get(key) || [];
         // Consider using a Set() polyfill to speed this up.
         shownArticles = shownArticles.filter(
-            (e) => feeds.indexOf(e.feed_id) > -1 && checkUnread(e));
+            (e) => feeds.indexOf(e.feed_id) > -1 && this.checkUnread(e));
         break;
       }
 
@@ -340,10 +383,13 @@ export default class App extends React.Component {
         enclosingType: type,
         readBuffer: [],
         shownArticles: shownArticles,
-        selectedKey: key
       }
     });
   };
+
+  checkUnread(article) {
+    return !article.is_read;
+  }
 
   sortArticles(articles) {
     // Sort by descending time.
@@ -370,7 +416,7 @@ export default class App extends React.Component {
             <FolderFeedList
               tree={this.state.structure}
               unreadCount={this.state.unreadCount}
-              selectedKey={this.state.selectedKey}
+              selectedKey={this.state.enclosingKey}
               handleSelect={this.handleSelect} />
           </Menu>
         </Sider>
@@ -378,6 +424,8 @@ export default class App extends React.Component {
           <Content>
             <ArticleList
                 articles={this.sortArticles(this.state.shownArticles)}
+                enclosingKey={this.state.enclosingKey}
+                enclosingType={this.state.enclosingType}
                 feeds={this.state.feeds}
                 handleMark={this.handleMark}
                 handleSelect={this.handleSelect} />

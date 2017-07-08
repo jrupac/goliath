@@ -1,7 +1,7 @@
 import Article from './Article.js';
 import React from 'react';
 import ReactList from 'react-list';
-import { EnclosingType } from '../App';
+import {EnclosingType, KeyAll} from '../App';
 
 const goToAllSequence = ['g', 'a'];
 const markAllRead = ['Shift', 'I'];
@@ -12,7 +12,6 @@ export default class ArticleList extends React.Component {
     super(props);
     this.state = {
       articles: Array.from(this.props.articles),
-      enclosingFeeds: this.getEnclosingFeeds(this.props.articles),
       scrollIndex: -1,
       keypressBuffer: new Array(keyBufLength)
     };
@@ -36,7 +35,6 @@ export default class ArticleList extends React.Component {
     }
     this.setState({
       articles: Array.from(nextProps.articles),
-      enclosingFeeds: this.getEnclosingFeeds(nextProps.articles),
       scrollIndex: -1,
       keypressBuffer: new Array(keyBufLength)
     });
@@ -68,15 +66,6 @@ export default class ArticleList extends React.Component {
     }
   }
 
-  getEnclosingFeeds(articles) {
-    // TODO: Optimize this away by figuring this out one level higher.
-    let enclosingFeeds = new Map();
-    articles.forEach((e) => {
-      enclosingFeeds.set(e.feed_id, true);
-    });
-    return Array.from(enclosingFeeds.keys());
-  }
-
   handleKeyDown = (event) => {
     this.setState((prevState) => {
       let scrollIndex = prevState.scrollIndex;
@@ -87,13 +76,11 @@ export default class ArticleList extends React.Component {
 
       // If this sequence is fulfilled, reset the buffer and handle it.
       if (goToAllSequence.every((e, i) => e === keypressBuffer[i])) {
-        this.props.handleSelect(EnclosingType.All, null);
+        this.props.handleSelect(EnclosingType.All, KeyAll);
         keypressBuffer = new Array(keyBufLength);
       } else if (markAllRead.every((e, i) => e === keypressBuffer[i])) {
-        // TODO: See if this can optimized to a single enclosing folder.
-        prevState.enclosingFeeds.forEach((e) => {
-          this.props.handleMark('read', e, EnclosingType.Feed);
-        });
+        this.props.handleMark(
+            'read', this.props.enclosingKey, this.props.enclosingType);
         articles.forEach((e) => { e.is_read = true });
         keypressBuffer = new Array(keyBufLength);
       } else {
