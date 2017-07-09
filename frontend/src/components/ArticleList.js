@@ -68,6 +68,13 @@ export default class ArticleList extends React.Component {
   }
 
   handleKeyDown = (event) => {
+    // Ignore keypress events when some modifiers are also enabled to avoid
+    // triggering on (e.g.) browser shortcuts. Shift is the exception here since
+    // we do care about Shift+I.
+    if (event.altKey || event.metaKey || event.ctrlKey) {
+      return;
+    }
+
     this.setState((prevState) => {
       let scrollIndex = prevState.scrollIndex;
       let articles = Array.from(prevState.articles);
