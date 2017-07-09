@@ -61,6 +61,7 @@ export default class ArticleList extends React.Component {
               ref={this.handleMounted}
               itemRenderer={(e) => renderArticle(e)}
               length={articles.length}
+              minSize={3}
               type='variable'/>
       )
     }

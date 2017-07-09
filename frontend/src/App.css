@@ -43,7 +43,6 @@
 
 .ant-layout-content {
   background: #ececec;
-  margin-top: 24px;
   padding: 0 24px;
 }
 
@@ -113,7 +112,8 @@
 }
 
 .ant-card-outer {
-  padding-bottom: 5px;
+  /* Needed to get correct offsetTop for react-list */
+  border-top: 24px solid transparent;
 }
 
 .ant-card-head {
@@ -238,6 +238,7 @@
   color: #ababab;
   font-size: 24px;
   margin-top: 20%;
+  margin-bottom: 30%;
   margin-left: 35%;
   width: 30%;
 }
