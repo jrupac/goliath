@@ -7,8 +7,8 @@ import (
 )
 
 type Feed struct {
-	Id          int64
-	FolderId    int64
+	Id       int64
+	FolderId int64
 
 	Title       string
 	Description string

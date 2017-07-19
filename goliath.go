@@ -2,31 +2,31 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/auth"
 	"github.com/jrupac/goliath/fetch"
 	"github.com/jrupac/goliath/opml"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
-	"github.com/jrupac/goliath/auth"
-	"time"
-	"encoding/json"
 	"strconv"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"syscall"
+	"time"
 )
 
 const VERSION = "0.01"
 
 var (
-	dbPath   = flag.String("dbPath", "", "The address of the database.")
-	opmlPath = flag.String("opmlPath", "", "Path of OPML file to import.")
-	port = flag.Int("port", 9999, "Port of HTTP server.")
-	metricsPort = flag.Int("metricsPort", 9998, "Port to expose Prometheus metrics.")
+	dbPath       = flag.String("dbPath", "", "The address of the database.")
+	opmlPath     = flag.String("opmlPath", "", "Path of OPML file to import.")
+	port         = flag.Int("port", 9999, "Port of HTTP server.")
+	metricsPort  = flag.Int("metricsPort", 9998, "Port to expose Prometheus metrics.")
 	publicFolder = flag.String("publicFolder", "public", "Location of static content to serve.")
 )
 
@@ -104,16 +104,16 @@ func installSignalHandler(cancel context.CancelFunc) {
 func ServeMetrics(ctx context.Context) error {
 	mux := http.NewServeMux()
 	srv := &http.Server{
-		Addr: fmt.Sprintf(":%d", *metricsPort),
-		ReadTimeout: 10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Addr:           fmt.Sprintf(":%d", *metricsPort),
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 10,
-		Handler: mux,
+		Handler:        mux,
 	}
 
 	go func(srv *http.Server) {
 		select {
-		case <- ctx.Done():
+		case <-ctx.Done():
 			log.Infof("Shutting down metrics server.")
 			if err := srv.Shutdown(nil); err != nil {
 				log.Infof("Failed to cleanly shutdown metrics server: %s", err)
@@ -129,16 +129,16 @@ func ServeMetrics(ctx context.Context) error {
 func Serve(ctx context.Context, d *storage.Database) error {
 	mux := http.NewServeMux()
 	srv := &http.Server{
-		Addr: fmt.Sprintf(":%d", *port),
-		ReadTimeout: 10 * time.Second,
-		WriteTimeout: 10 * time.Second,
+		Addr:           fmt.Sprintf(":%d", *port),
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 10,
-		Handler: mux,
+		Handler:        mux,
 	}
 
 	go func(srv *http.Server) {
 		select {
-		case <- ctx.Done():
+		case <-ctx.Done():
 			log.Infof("Shutting down HTTP server.")
 			if err := srv.Shutdown(nil); err != nil {
 				log.Infof("Failed to cleanly shutdown HTTP server: %s", err)
@@ -146,8 +146,8 @@ func Serve(ctx context.Context, d *storage.Database) error {
 		}
 	}(srv)
 
-	mux.HandleFunc("/auth", auth.HandleLogin(d));
-	mux.HandleFunc("/logout", auth.HandleLogout);
+	mux.HandleFunc("/auth", auth.HandleLogin(d))
+	mux.HandleFunc("/logout", auth.HandleLogout)
 	mux.HandleFunc("/fever/", HandleFever(d))
 	mux.HandleFunc("/version", HandleVersion)
 	mux.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))
@@ -161,7 +161,7 @@ func HandleVersion(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	resp := map[string]string{
 		"build_timestamp": buildTimestamp,
-		"build_hash": buildHash,
+		"build_hash":      buildHash,
 	}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		log.Warningf("Failed to encode response JSON: %s", err)

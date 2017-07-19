@@ -2,17 +2,17 @@ package fetch
 
 import (
 	"context"
+	"errors"
 	"github.com/SlyMarbo/rss"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
+	"github.com/mat/besticon/besticon"
+	"io/ioutil"
+	"net/url"
 	"sync"
 	"time"
-	"github.com/mat/besticon/besticon"
-	"net/url"
-	"errors"
-	"io/ioutil"
 )
 
 type imagePair struct {
@@ -106,14 +106,14 @@ func handleItems(feed *models.Feed, d *storage.Database, items []*rss.Item, send
 	latest := feed.Latest
 	for _, item := range items {
 		a := models.Article{
-			FeedId:   feed.Id,
-			FolderId: feed.FolderId,
-			Title:    item.Title,
-			Summary:  item.Summary,
-			Content:  item.Content,
-			Link:     item.Link,
-			Date:     item.Date,
-			Read:     item.Read,
+			FeedId:    feed.Id,
+			FolderId:  feed.FolderId,
+			Title:     item.Title,
+			Summary:   item.Summary,
+			Content:   item.Content,
+			Link:      item.Link,
+			Date:      item.Date,
+			Read:      item.Read,
 			Retrieved: time.Now(),
 		}
 		if a.Date.After(latest) {
@@ -163,7 +163,7 @@ func tryIconFetch(link string) (besticon.Icon, error) {
 
 	finder := besticon.IconFinder{}
 
-	icons, err := finder.FetchIcons(link);
+	icons, err := finder.FetchIcons(link)
 	if err != nil {
 		return icon, err
 	}

@@ -2,7 +2,7 @@ package models
 
 type User struct {
 	Username string
-	Key string
+	Key      string
 }
 
 func (u *User) Valid() bool {

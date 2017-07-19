@@ -1,15 +1,14 @@
 package auth
 
 import (
-	"github.com/jrupac/goliath/storage"
-	"net/http"
+	"crypto/md5"
 	"encoding/json"
+	"errors"
 	"fmt"
 	log "github.com/golang/glog"
-	"crypto/md5"
-	"errors"
+	"github.com/jrupac/goliath/storage"
+	"net/http"
 )
-
 
 type auth struct {
 	Username string `json:"username"`
@@ -48,7 +47,7 @@ func HandleLogin(d *storage.Database) func(http.ResponseWriter, *http.Request) {
 			return
 		} else {
 			c := http.Cookie{
-				Name: AUTH_COOKIE,
+				Name:  AUTH_COOKIE,
 				Value: u.Key,
 			}
 			http.SetCookie(w, &c)

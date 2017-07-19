@@ -15,13 +15,13 @@ import (
 )
 
 const (
-	DIALECT = "postgres"
-	FOLDER_TABLE = "Folder"
+	DIALECT               = "postgres"
+	FOLDER_TABLE          = "Folder"
 	FOLDER_CHILDREN_TABLE = "FolderChildren"
-	FEED_TABLE = "Feed"
-	ARTICLE_TABLE = "Article"
-	USER_TABLE = "UserTable"
-	MAX_FETCHED_ROWS = 10000
+	FEED_TABLE            = "Feed"
+	ARTICLE_TABLE         = "Article"
+	USER_TABLE            = "UserTable"
+	MAX_FETCHED_ROWS      = 10000
 )
 
 type Database struct {
@@ -55,7 +55,7 @@ func (d *Database) InsertArticle(a models.Article) error {
 	var articleId int64
 	var count int
 	err := d.db.QueryRow(
-		`SELECT COUNT(*) FROM ` + ARTICLE_TABLE + ` WHERE hash = $1`, a.Hash()).Scan(&count)
+		`SELECT COUNT(*) FROM `+ARTICLE_TABLE+` WHERE hash = $1`, a.Hash()).Scan(&count)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (d *Database) InsertArticle(a models.Article) error {
 	}
 
 	err = d.db.QueryRow(
-		`INSERT INTO ` + ARTICLE_TABLE + `
+		`INSERT INTO `+ARTICLE_TABLE+`
 		(feed, folder, hash, title, summary, content, link, read, date, retrieved)
 		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
 		a.FeedId, a.FolderId, a.Hash(), a.Title, a.Summary, a.Content, a.Link, a.Read, a.Date, a.Retrieved).Scan(&articleId)
@@ -79,7 +79,7 @@ func (d *Database) InsertArticle(a models.Article) error {
 func (d *Database) InsertFavicon(feedId int64, mime string, img []byte) error {
 	var count int
 	err := d.db.QueryRow(
-		`SELECT COUNT(*) FROM ` + FEED_TABLE + ` WHERE id = $1`, feedId).Scan(&count)
+		`SELECT COUNT(*) FROM `+FEED_TABLE+` WHERE id = $1`, feedId).Scan(&count)
 	if err != nil {
 		return err
 	}
@@ -91,19 +91,19 @@ func (d *Database) InsertFavicon(feedId int64, mime string, img []byte) error {
 	h := base64.StdEncoding.EncodeToString(img)
 
 	_, err = d.db.Exec(
-		`UPDATE ` + FEED_TABLE + ` SET favicon = $1, mime = $2 WHERE id = $3`,
+		`UPDATE `+FEED_TABLE+` SET favicon = $1, mime = $2 WHERE id = $3`,
 		h, mime, feedId)
 	return err
 }
 
 func (d *Database) InsertUser(u models.User) error {
-	_, err := d.db.Exec(`INSERT INTO ` + USER_TABLE + `(username, key) VALUES($1, $2)`, u.Username, u.Key)
+	_, err := d.db.Exec(`INSERT INTO `+USER_TABLE+`(username, key) VALUES($1, $2)`, u.Username, u.Key)
 	return err
 }
 
 func (d *Database) DeleteArticles(minTimestamp time.Time) (int64, error) {
 	r, err := d.db.Exec(
-		`DELETE FROM ` + ARTICLE_TABLE + ` WHERE read AND (retrieved IS NULL OR retrieved < $1) RETURNING id`, minTimestamp)
+		`DELETE FROM `+ARTICLE_TABLE+` WHERE read AND (retrieved IS NULL OR retrieved < $1) RETURNING id`, minTimestamp)
 	if err != nil {
 		return 0, err
 	}
@@ -120,7 +120,7 @@ func (d *Database) MarkArticle(id int64, status string) error {
 		return err
 	}
 
-	_, err = d.db.Exec(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE id = $2`, state, id)
+	_, err = d.db.Exec(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE id = $2`, state, id)
 	return err
 }
 
@@ -130,7 +130,7 @@ func (d *Database) MarkFeed(id int64, status string) error {
 		return err
 	}
 
-	_, err = d.db.Exec(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE feed = $2`, state, id)
+	_, err = d.db.Exec(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE feed = $2`, state, id)
 	return err
 }
 
@@ -142,11 +142,11 @@ func (d *Database) MarkFolder(id int64, status string) error {
 
 	// Special-case id=0 to mean everything (the root folder).
 	if id == 0 {
-		_, err = d.db.Exec(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1`, state)
+		_, err = d.db.Exec(`UPDATE `+ARTICLE_TABLE+` SET read = $1`, state)
 		return err
 	}
 
-	_, err = d.db.Exec(`UPDATE ` + ARTICLE_TABLE + ` SET read = $1 WHERE folder = $2`, state, id)
+	_, err = d.db.Exec(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE folder = $2`, state, id)
 	if err != nil {
 		return err
 	}
@@ -163,7 +163,7 @@ func (d *Database) MarkFolder(id int64, status string) error {
 }
 
 func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
-	_, err := d.db.Exec(`UPDATE ` + FEED_TABLE + ` SET latest = $1 WHERE id = $2`, latest, id)
+	_, err := d.db.Exec(`UPDATE `+FEED_TABLE+` SET latest = $1 WHERE id = $2`, latest, id)
 	return err
 }
 
@@ -173,7 +173,7 @@ func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
 
 func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
 	children := []int64{}
-	rows, err := d.db.Query(`SELECT child FROM ` + FOLDER_CHILDREN_TABLE + ` WHERE parent = $1`, id)
+	rows, err := d.db.Query(`SELECT child FROM `+FOLDER_CHILDREN_TABLE+` WHERE parent = $1`, id)
 	defer rows.Close()
 	if err != nil {
 		return children, err
@@ -288,7 +288,7 @@ func (d *Database) GetUnreadArticles(limit int, sinceId int64) ([]models.Article
 	}
 
 	rows, err = d.db.Query(
-		`SELECT id, feed, folder, title, summary, content, link, date FROM ` + ARTICLE_TABLE + `
+		`SELECT id, feed, folder, title, summary, content, link, date FROM `+ARTICLE_TABLE+`
 		WHERE NOT read AND id > $1 ORDER BY id LIMIT $2`, sinceId, limit)
 	defer rows.Close()
 	if err != nil {
@@ -309,7 +309,7 @@ func (d *Database) GetUnreadArticles(limit int, sinceId int64) ([]models.Article
 func (d *Database) GetUserByKey(key string) (models.User, error) {
 	var u models.User
 	err := d.db.QueryRow(
-		`SELECT username, key FROM ` + USER_TABLE + ` WHERE key = $1`, key).Scan(
+		`SELECT username, key FROM `+USER_TABLE+` WHERE key = $1`, key).Scan(
 		&u.Username, &u.Key)
 	if !u.Valid() {
 		return models.User{}, errors.New("Could not find user.")
@@ -325,12 +325,12 @@ func (d *Database) ImportOpml(opml *models.Opml) error {
 	root := opml.Folders
 	// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
 	_, err := d.db.Exec(
-		`INSERT INTO ` + FOLDER_TABLE + `(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, root.Name)
+		`INSERT INTO `+FOLDER_TABLE+`(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, root.Name)
 	if err != nil {
 		return err
 	}
 	err = d.db.QueryRow(
-		`SELECT id FROM ` + FOLDER_TABLE + ` WHERE name = $1`, root.Name).Scan(&root.Id)
+		`SELECT id FROM `+FOLDER_TABLE+` WHERE name = $1`, root.Name).Scan(&root.Id)
 	if err != nil {
 		return err
 	}
@@ -342,14 +342,14 @@ func (d *Database) importChildren(parent models.Folder) error {
 	for _, f := range parent.Feed {
 		// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
 		_, err = d.db.Exec(
-			`INSERT INTO ` + FEED_TABLE + `(folder, hash, title, description, url)
+			`INSERT INTO `+FEED_TABLE+`(folder, hash, title, description, url)
 			VALUES($1, $2, $3, $4, $5) ON CONFLICT(hash) DO NOTHING`,
 			parent.Id, f.Hash(), f.Title, f.Description, f.Url)
 		if err != nil {
 			return err
 		}
 		err = d.db.QueryRow(
-			`SELECT id FROM ` + FEED_TABLE + ` WHERE hash = $1`, f.Hash()).Scan(&f.Id)
+			`SELECT id FROM `+FEED_TABLE+` WHERE hash = $1`, f.Hash()).Scan(&f.Id)
 		if err != nil {
 			return err
 		}
@@ -359,18 +359,18 @@ func (d *Database) importChildren(parent models.Folder) error {
 	for _, child := range parent.Folders {
 		// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
 		_, err := d.db.Exec(
-			`INSERT INTO ` + FOLDER_TABLE + `(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, child.Name)
+			`INSERT INTO `+FOLDER_TABLE+`(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, child.Name)
 		if err != nil {
 			return err
 		}
 		err = d.db.QueryRow(
-			`SELECT id FROM ` + FOLDER_TABLE + ` WHERE name = $1`, child.Name).Scan(&child.Id)
+			`SELECT id FROM `+FOLDER_TABLE+` WHERE name = $1`, child.Name).Scan(&child.Id)
 		if err != nil {
 			return err
 		}
 
 		_, err = d.db.Exec(
-			`UPSERT INTO ` + FOLDER_CHILDREN_TABLE + `(parent, child) VALUES($1, $2)`, parent.Id, child.Id)
+			`UPSERT INTO `+FOLDER_CHILDREN_TABLE+`(parent, child) VALUES($1, $2)`, parent.Id, child.Id)
 		if err != nil {
 			return err
 		}

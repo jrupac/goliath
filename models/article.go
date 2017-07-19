@@ -11,12 +11,12 @@ type Article struct {
 	FeedId   int64
 	FolderId int64
 
-	Title   string
-	Summary string
-	Content string
-	Link    string
-	Read    bool
-	Date    time.Time
+	Title     string
+	Summary   string
+	Content   string
+	Link      string
+	Read      bool
+	Date      time.Time
 	Retrieved time.Time
 }
 

@@ -1,14 +1,14 @@
 package auth
 
 import (
-	"net/http"
-	"github.com/jrupac/goliath/storage"
 	"fmt"
+	"github.com/jrupac/goliath/storage"
+	"net/http"
 )
 
 const (
 	AUTH_COOKIE = "goliath"
-	LOGIN_PATH = "/login"
+	LOGIN_PATH  = "/login"
 )
 
 type authMiddleware struct {

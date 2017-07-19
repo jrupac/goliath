@@ -1,15 +1,15 @@
 package storage
 
 import (
-	"flag"
-	"time"
 	"context"
+	"flag"
 	log "github.com/golang/glog"
+	"time"
 )
 
 var (
-	gcInterval = flag.Duration("gcInterval", 24 * time.Hour, "Duration between GC runs against the articles table.")
-	gcKeepDuration = flag.Duration("gcKeepDuration", 7 * 24 * time.Hour, "Duration to keep read articles.")
+	gcInterval     = flag.Duration("gcInterval", 24*time.Hour, "Duration between GC runs against the articles table.")
+	gcKeepDuration = flag.Duration("gcKeepDuration", 7*24*time.Hour, "Duration to keep read articles.")
 )
 
 func StartGc(ctx context.Context, d *Database) {
@@ -20,11 +20,11 @@ func StartGc(ctx context.Context, d *Database) {
 
 	for {
 		select {
-		case <- tick:
+		case <-tick:
 			log.Infof("Starting GC run.")
 			PerformGcRun(d)
 			tick = time.After(*gcInterval)
-		case <- ctx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}
