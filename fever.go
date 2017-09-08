@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const API_VERSION = 1
+const API_VERSION = 3
 
 type item struct {
 	Id          int64  `json:"id"`
