@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const API_VERSION = "1.0"
+const API_VERSION = 1
 
 type item struct {
 	Id          int64  `json:"id"`
@@ -269,7 +269,7 @@ func handleAuth(d *storage.Database, r *http.Request) int {
 		log.Warningf("Failed because: %s", err)
 		return 0
 	} else {
-		log.V(2).Infof("Sucessfully authenticated by key: %+v", r)
+		log.V(2).Infof("Successfully authenticated by key: %+v", r)
 		return 1
 	}
 }
