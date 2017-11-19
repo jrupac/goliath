@@ -14,6 +14,7 @@ type Article struct {
 	Title     string
 	Summary   string
 	Content   string
+	Parsed    string
 	Link      string
 	Read      bool
 	Date      time.Time
@@ -25,6 +26,7 @@ func (a *Article) Hash() string {
 	h.Write([]byte(a.Title))
 	h.Write([]byte(a.Summary))
 	h.Write([]byte(a.Content))
+	h.Write([]byte(a.Parsed))
 	h.Write([]byte(a.Link))
 	h.Write([]byte(a.Date.String()))
 	return fmt.Sprintf("%x", h.Sum(nil))

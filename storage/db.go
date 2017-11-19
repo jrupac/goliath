@@ -66,9 +66,9 @@ func (d *Database) InsertArticle(a models.Article) error {
 
 	err = d.db.QueryRow(
 		`INSERT INTO `+ARTICLE_TABLE+`
-		(feed, folder, hash, title, summary, content, link, read, date, retrieved)
-		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-		a.FeedId, a.FolderId, a.Hash(), a.Title, a.Summary, a.Content, a.Link, a.Read, a.Date, a.Retrieved).Scan(&articleId)
+		(feed, folder, hash, title, summary, content, parsed, link, read, date, retrieved)
+		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+		a.FeedId, a.FolderId, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Date, a.Retrieved).Scan(&articleId)
 	if err != nil {
 		return err
 	}
@@ -288,7 +288,7 @@ func (d *Database) GetUnreadArticles(limit int, sinceId int64) ([]models.Article
 	}
 
 	rows, err = d.db.Query(
-		`SELECT id, feed, folder, title, summary, content, link, date FROM `+ARTICLE_TABLE+`
+		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM `+ARTICLE_TABLE+`
 		WHERE NOT read AND id > $1 ORDER BY id LIMIT $2`, sinceId, limit)
 	defer rows.Close()
 	if err != nil {
@@ -298,7 +298,7 @@ func (d *Database) GetUnreadArticles(limit int, sinceId int64) ([]models.Article
 	for rows.Next() {
 		a := models.Article{}
 		if err = rows.Scan(
-			&a.Id, &a.FeedId, &a.FolderId, &a.Title, &a.Summary, &a.Content, &a.Link, &a.Date); err != nil {
+			&a.Id, &a.FeedId, &a.FolderId, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Date); err != nil {
 			return articles, err
 		}
 		articles = append(articles, a)

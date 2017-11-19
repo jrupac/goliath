@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS Article (
   title STRING,
   summary STRING,
   content STRING,
+  parsed STRING,
   link STRING,
   read BOOL,
   -- Publication timestamp

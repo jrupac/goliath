@@ -3,6 +3,7 @@ package fetch
 import (
 	"context"
 	"errors"
+	"flag"
 	"github.com/SlyMarbo/rss"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
@@ -13,6 +14,10 @@ import (
 	"net/url"
 	"sync"
 	"time"
+)
+
+var (
+	parseArticles = flag.Bool("parseArticles", false, "If true, parse article content via Mercury API.")
 )
 
 type imagePair struct {
@@ -105,12 +110,22 @@ func do(ctx context.Context, d *storage.Database, ac chan models.Article, ic cha
 func handleItems(feed *models.Feed, d *storage.Database, items []*rss.Item, send chan models.Article) {
 	latest := feed.Latest
 	for _, item := range items {
+		parsed := ""
+		if *parseArticles {
+			if p, err := parseArticleContent(item.Link); err != nil {
+				log.Warningf("Parsing content failed: %s", err)
+			} else {
+				parsed = p
+			}
+		}
+
 		a := models.Article{
 			FeedId:    feed.Id,
 			FolderId:  feed.FolderId,
 			Title:     item.Title,
 			Summary:   item.Summary,
 			Content:   item.Content,
+			Parsed:    parsed,
 			Link:      item.Link,
 			Date:      item.Date,
 			Read:      item.Read,
@@ -158,7 +173,7 @@ func tryIconFetch(link string) (besticon.Icon, error) {
 	icon := besticon.Icon{}
 
 	if link == "" {
-		return icon, errors.New("Invalid URL.")
+		return icon, errors.New("invalid URL")
 	}
 
 	finder := besticon.IconFinder{}
@@ -169,7 +184,7 @@ func tryIconFetch(link string) (besticon.Icon, error) {
 	}
 
 	if len(icons) == 0 {
-		return icon, errors.New("No icons found.")
+		return icon, errors.New("no icons found")
 	}
 
 	for _, i := range icons {
@@ -178,5 +193,5 @@ func tryIconFetch(link string) (besticon.Icon, error) {
 		}
 	}
 
-	return icon, errors.New("No suitable icons found.")
+	return icon, errors.New("no suitable icons found")
 }
