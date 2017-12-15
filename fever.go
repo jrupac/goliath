@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/auth"
 	"github.com/jrupac/goliath/storage"
@@ -12,6 +13,10 @@ import (
 )
 
 const API_VERSION = 3
+
+var (
+	serveParsedArticles = flag.Bool("serveParsedArticles", false, "If true, serve parsed article content.")
+)
 
 type item struct {
 	Id          int64  `json:"id"`
@@ -167,8 +172,11 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 		items := []item{}
 		var content string
 		for _, a := range articles {
-			// The "content" field usually has more text, but is not always set.
-			if a.Content != "" {
+			if *serveParsedArticles && a.Parsed != "" {
+				log.Infof("Serving parsed content for title: %s", a.Title)
+				content = a.Parsed
+			} else if a.Content != "" {
+				// The "content" field usually has more text, but is not always set.
 				content = a.Content
 			} else {
 				content = a.Summary
