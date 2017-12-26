@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	MERCURY_ENDPOINT = "https://mercury.postlight.com/parser"
-	TEMPLATE         = `
+	mercuryEndpoint = "https://mercury.postlight.com/parser"
+	contentTemplate = `
 		<div class="parsed-content">
 			{{.}}
 		</div>
@@ -21,9 +21,9 @@ const (
 )
 
 var (
-	mercuryApiKey = flag.String("mercuryApiKey", "", "API key for parsing content via Mercury.")
+	mercuryAPIKey = flag.String("mercuryApiKey", "", "API key for parsing content via Mercury.")
 
-	mercuryHttpClient = http.Client{Timeout: time.Duration(20 * time.Second)}
+	mercuryHTTPClient = http.Client{Timeout: time.Duration(20 * time.Second)}
 )
 
 type mercuryResponse struct {
@@ -31,22 +31,22 @@ type mercuryResponse struct {
 }
 
 func parseArticleContent(link string) (content string, err error) {
-	if *mercuryApiKey == "" {
+	if *mercuryAPIKey == "" {
 		return content, errors.New("no Mercury API provided")
 	}
 
-	req, err := http.NewRequest(http.MethodGet, MERCURY_ENDPOINT, nil)
+	req, err := http.NewRequest(http.MethodGet, mercuryEndpoint, nil)
 	if err != nil {
 		return
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", *mercuryApiKey)
+	req.Header.Set("x-api-key", *mercuryAPIKey)
 
 	q := req.URL.Query()
 	q.Add("url", link)
 	req.URL.RawQuery = q.Encode()
 
-	resp, err := mercuryHttpClient.Do(req)
+	resp, err := mercuryHTTPClient.Do(req)
 	if err != nil {
 		return
 	}
@@ -69,7 +69,7 @@ func parseArticleContent(link string) (content string, err error) {
 	}
 
 	var buf bytes.Buffer
-	t, err := template.New("parsedContent").Parse(TEMPLATE)
+	t, err := template.New("parsedContent").Parse(contentTemplate)
 	if err != nil {
 		return
 	}

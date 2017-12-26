@@ -7,23 +7,26 @@ import (
 )
 
 const (
-	AUTH_COOKIE = "goliath"
-	LOGIN_PATH  = "/login"
+	authCookie = "goliath"
+	loginPath  = "/login"
 )
 
-type authMiddleware struct {
+// Middleware is a wrapper around a http.Handler that contains a pointer to the database connection.
+type Middleware struct {
 	wrapped http.Handler
 	d       *storage.Database
 	root    string
 }
 
-func WithAuth(h http.Handler, d *storage.Database, root string) authMiddleware {
-	return authMiddleware{h, d, root}
+// WithAuth returns a Middleware that checks authentication before forwarding requests to the given handler.
+func WithAuth(h http.Handler, d *storage.Database, root string) Middleware {
+	return Middleware{h, d, root}
 }
 
-func (m authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP implements the http.Handler interface and checks authentication on each request.
+func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Special-case going to login page without cookies.
-	if r.URL.Path == LOGIN_PATH {
+	if r.URL.Path == loginPath {
 		// Further routing is handled client-side.
 		http.ServeFile(w, r, fmt.Sprintf("%s/index.html", m.root))
 		return
@@ -32,14 +35,15 @@ func (m authMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if VerifyCookie(m.d, r) {
 		m.wrapped.ServeHTTP(w, r)
 		return
-	} else {
-		returnRedirect(w, r)
-		return
 	}
+
+	returnRedirect(w, r)
+	return
 }
 
+// VerifyCookie checks a request for an auth cookie and authenticates it against the database.
 func VerifyCookie(d *storage.Database, r *http.Request) bool {
-	cookie, err := r.Cookie(AUTH_COOKIE)
+	cookie, err := r.Cookie(authCookie)
 	// Only ErrNoCookie can be returned here, which just means that the specified
 	// cookie doesn't exist.
 	if err != nil {
@@ -51,7 +55,7 @@ func VerifyCookie(d *storage.Database, r *http.Request) bool {
 }
 
 func returnRedirect(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, LOGIN_PATH, 302)
+	http.Redirect(w, r, loginPath, 302)
 }
 
 func returnError(w http.ResponseWriter, _ *http.Request) {

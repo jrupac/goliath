@@ -7,6 +7,8 @@ import (
 	"fmt"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
+	"github.com/jrupac/goliath/opml"
+
 	// PostgreSQL driver support
 	_ "github.com/lib/pq"
 	"strconv"
@@ -15,23 +17,25 @@ import (
 )
 
 const (
-	DIALECT               = "postgres"
-	FOLDER_TABLE          = "Folder"
-	FOLDER_CHILDREN_TABLE = "FolderChildren"
-	FEED_TABLE            = "Feed"
-	ARTICLE_TABLE         = "Article"
-	USER_TABLE            = "UserTable"
-	MAX_FETCHED_ROWS      = 10000
+	dialect             = "postgres"
+	folderTable         = "Folder"
+	folderChildrenTable = "FolderChildren"
+	feedTable           = "Feed"
+	articleTable        = "Article"
+	userTable           = "UserTable"
+	maxFetchedRows      = 10000
 )
 
+// Database is a wrapper type around a database connection.
 type Database struct {
 	db *sql.DB
 }
 
+// Open opens a connection to the given database path and tests connectivity.
 func Open(dbPath string) (*Database, error) {
 	db := new(Database)
 
-	d, err := sql.Open(DIALECT, dbPath)
+	d, err := sql.Open(dialect, dbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -43,6 +47,7 @@ func Open(dbPath string) (*Database, error) {
 	return db, nil
 }
 
+// Close closes the database connection.
 func (d *Database) Close() error {
 	return d.db.Close()
 }
@@ -51,11 +56,12 @@ func (d *Database) Close() error {
  * Insertion/deletion methods
  ******************************************************************************/
 
+// InsertArticle inserts the given article object into the database.
 func (d *Database) InsertArticle(a models.Article) error {
-	var articleId int64
+	var articleID int64
 	var count int
 	err := d.db.QueryRow(
-		`SELECT COUNT(*) FROM `+ARTICLE_TABLE+` WHERE hash = $1`, a.Hash()).Scan(&count)
+		`SELECT COUNT(*) FROM `+articleTable+` WHERE hash = $1`, a.Hash()).Scan(&count)
 	if err != nil {
 		return err
 	}
@@ -65,45 +71,49 @@ func (d *Database) InsertArticle(a models.Article) error {
 	}
 
 	err = d.db.QueryRow(
-		`INSERT INTO `+ARTICLE_TABLE+`
+		`INSERT INTO `+articleTable+`
 		(feed, folder, hash, title, summary, content, parsed, link, read, date, retrieved)
 		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-		a.FeedId, a.FolderId, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Date, a.Retrieved).Scan(&articleId)
+		a.FeedID, a.FolderID, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Date, a.Retrieved).Scan(&articleID)
 	if err != nil {
 		return err
 	}
-	a.Id = articleId
+	a.ID = articleID
 	return nil
 }
 
-func (d *Database) InsertFavicon(feedId int64, mime string, img []byte) error {
+// InsertFavicon inserts the given favicon and associated metadata into the database.
+func (d *Database) InsertFavicon(feedID int64, mime string, img []byte) error {
+	// TODO: Consider wrapping this into a Favicon model type.
 	var count int
 	err := d.db.QueryRow(
-		`SELECT COUNT(*) FROM `+FEED_TABLE+` WHERE id = $1`, feedId).Scan(&count)
+		`SELECT COUNT(*) FROM `+feedTable+` WHERE id = $1`, feedID).Scan(&count)
 	if err != nil {
 		return err
 	}
 	if count == 0 {
-		return fmt.Errorf("Original feed not in table: %d", feedId)
+		return fmt.Errorf("original feed not in table: %d", feedID)
 	}
 
 	// Convert to a base64 encoded string before inserting
 	h := base64.StdEncoding.EncodeToString(img)
 
 	_, err = d.db.Exec(
-		`UPDATE `+FEED_TABLE+` SET favicon = $1, mime = $2 WHERE id = $3`,
-		h, mime, feedId)
+		`UPDATE `+feedTable+` SET favicon = $1, mime = $2 WHERE id = $3`,
+		h, mime, feedID)
 	return err
 }
 
+// InsertUser inserts the given user into the database.
 func (d *Database) InsertUser(u models.User) error {
-	_, err := d.db.Exec(`INSERT INTO `+USER_TABLE+`(username, key) VALUES($1, $2)`, u.Username, u.Key)
+	_, err := d.db.Exec(`INSERT INTO `+userTable+`(username, key) VALUES($1, $2)`, u.Username, u.Key)
 	return err
 }
 
+// DeleteArticles deletes all articles earlier than the given timestamp and returns the number deleted.
 func (d *Database) DeleteArticles(minTimestamp time.Time) (int64, error) {
 	r, err := d.db.Exec(
-		`DELETE FROM `+ARTICLE_TABLE+` WHERE read AND (retrieved IS NULL OR retrieved < $1) RETURNING id`, minTimestamp)
+		`DELETE FROM `+articleTable+` WHERE read AND (retrieved IS NULL OR retrieved < $1) RETURNING id`, minTimestamp)
 	if err != nil {
 		return 0, err
 	}
@@ -114,27 +124,34 @@ func (d *Database) DeleteArticles(minTimestamp time.Time) (int64, error) {
  * Modification methods
  ******************************************************************************/
 
+// MarkArticle sets the read status of the given article to the given status.
 func (d *Database) MarkArticle(id int64, status string) error {
+	// TODO: Consider creating a type for the status string.
 	state, err := parseState(status)
 	if err != nil {
 		return err
 	}
 
-	_, err = d.db.Exec(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE id = $2`, state, id)
+	_, err = d.db.Exec(`UPDATE `+articleTable+` SET read = $1 WHERE id = $2`, state, id)
 	return err
 }
 
+// MarkFeed sets the read status of all articles in the given feed to the given status.
 func (d *Database) MarkFeed(id int64, status string) error {
+	// TODO: Consider creating a type for the status string.
 	state, err := parseState(status)
 	if err != nil {
 		return err
 	}
 
-	_, err = d.db.Exec(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE feed = $2`, state, id)
+	_, err = d.db.Exec(`UPDATE `+articleTable+` SET read = $1 WHERE feed = $2`, state, id)
 	return err
 }
 
+// MarkFolder sets the read status of all articles in the given folder to the given status.
+// An ID of 0 will mark all articles in all folders to the given status.
 func (d *Database) MarkFolder(id int64, status string) error {
+	// TODO: Consider creating a type for the status string.
 	state, err := parseState(status)
 	if err != nil {
 		return err
@@ -142,11 +159,11 @@ func (d *Database) MarkFolder(id int64, status string) error {
 
 	// Special-case id=0 to mean everything (the root folder).
 	if id == 0 {
-		_, err = d.db.Exec(`UPDATE `+ARTICLE_TABLE+` SET read = $1`, state)
+		_, err = d.db.Exec(`UPDATE `+articleTable+` SET read = $1`, state)
 		return err
 	}
 
-	_, err = d.db.Exec(`UPDATE `+ARTICLE_TABLE+` SET read = $1 WHERE folder = $2`, state, id)
+	_, err = d.db.Exec(`UPDATE `+articleTable+` SET read = $1 WHERE folder = $2`, state, id)
 	if err != nil {
 		return err
 	}
@@ -155,15 +172,16 @@ func (d *Database) MarkFolder(id int64, status string) error {
 		return err
 	}
 	for _, c := range children {
-		if err := d.MarkFolder(c, status); err != nil {
-			return err
+		if err2 := d.MarkFolder(c, status); err2 != nil {
+			return err2
 		}
 	}
 	return err
 }
 
+// UpdateLatestTimeForFeed sets the latest retrieval time for the given feed to the given timestamp.
 func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
-	_, err := d.db.Exec(`UPDATE `+FEED_TABLE+` SET latest = $1 WHERE id = $2`, latest, id)
+	_, err := d.db.Exec(`UPDATE `+feedTable+` SET latest = $1 WHERE id = $2`, latest, id)
 	return err
 }
 
@@ -171,27 +189,29 @@ func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
  * Getter methods
  ******************************************************************************/
 
+// GetFolderChildren returns a list of IDs corresponding to folders under the given folder ID.
 func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
-	children := []int64{}
-	rows, err := d.db.Query(`SELECT child FROM `+FOLDER_CHILDREN_TABLE+` WHERE parent = $1`, id)
+	var children []int64
+	rows, err := d.db.Query(`SELECT child FROM `+folderChildrenTable+` WHERE parent = $1`, id)
 	defer rows.Close()
 	if err != nil {
 		return children, err
 	}
 
-	var childId int64
+	var childID int64
 	for rows.Next() {
-		if err = rows.Scan(&childId); err != nil {
+		if err = rows.Scan(&childID); err != nil {
 			return children, err
 		}
-		children = append(children, childId)
+		children = append(children, childID)
 	}
 	return children, err
 }
 
+// GetAllFolders returns a list of all folders in the database.
 func (d *Database) GetAllFolders() ([]models.Folder, error) {
-	folders := []models.Folder{}
-	rows, err := d.db.Query(`SELECT id, name FROM ` + FOLDER_TABLE)
+	var folders []models.Folder
+	rows, err := d.db.Query(`SELECT id, name FROM ` + folderTable)
 	defer rows.Close()
 	if err != nil {
 		return folders, err
@@ -199,7 +219,7 @@ func (d *Database) GetAllFolders() ([]models.Folder, error) {
 
 	for rows.Next() {
 		f := models.Folder{}
-		if err = rows.Scan(&f.Id, &f.Name); err != nil {
+		if err = rows.Scan(&f.ID, &f.Name); err != nil {
 			return folders, err
 		}
 		folders = append(folders, f)
@@ -208,9 +228,10 @@ func (d *Database) GetAllFolders() ([]models.Folder, error) {
 	return folders, err
 }
 
+// GetAllFeeds returns a list of all feeds in the database.
 func (d *Database) GetAllFeeds() ([]models.Feed, error) {
-	feeds := []models.Feed{}
-	rows, err := d.db.Query(`SELECT id, folder, title, description, url, latest FROM ` + FEED_TABLE)
+	var feeds []models.Feed
+	rows, err := d.db.Query(`SELECT id, folder, title, description, url, latest FROM ` + feedTable)
 	defer rows.Close()
 	if err != nil {
 		return feeds, err
@@ -218,7 +239,7 @@ func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 
 	for rows.Next() {
 		f := models.Feed{}
-		if err = rows.Scan(&f.Id, &f.FolderId, &f.Title, &f.Description, &f.Url, &f.Latest); err != nil {
+		if err = rows.Scan(&f.ID, &f.FolderID, &f.Title, &f.Description, &f.URL, &f.Latest); err != nil {
 			return feeds, err
 		}
 		feeds = append(feeds, f)
@@ -227,6 +248,7 @@ func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 	return feeds, err
 }
 
+// GetFeedsPerFolder returns a map of folder ID to a comma-separated string of feed IDs.
 func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
 	// TODO: Make this method return map[int64][]int64.
 	// Right now this is encoding Fever API semantics into the DB function.
@@ -234,18 +256,18 @@ func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
 	resp := map[int64]string{}
 
 	// CockroachDB doesn't have a concat-with-separator aggregation function
-	rows, err := d.db.Query(`SELECT folder, id FROM ` + FEED_TABLE)
+	rows, err := d.db.Query(`SELECT folder, id FROM ` + feedTable)
 	defer rows.Close()
 	if err != nil {
 		return resp, err
 	}
 
-	var folderId, feedId int64
+	var folderID, feedID int64
 	for rows.Next() {
-		if err = rows.Scan(&folderId, &feedId); err != nil {
+		if err = rows.Scan(&folderID, &feedID); err != nil {
 			return resp, err
 		}
-		agg[folderId] = append(agg[folderId], strconv.FormatInt(feedId, 10))
+		agg[folderID] = append(agg[folderID], strconv.FormatInt(feedID, 10))
 	}
 
 	for k, v := range agg {
@@ -254,10 +276,13 @@ func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
 	return resp, err
 }
 
+// GetAllFavicons returns a map of feed ID to a base64 representation of its favicon.
+// Feeds with no favicons are not part of the returned map.
 func (d *Database) GetAllFavicons() (map[int64]string, error) {
+	// TODO: Consider returning a Favicon model type.
 	favicons := map[int64]string{}
 	rows, err := d.db.Query(
-		`SELECT id, mime, favicon FROM ` + FEED_TABLE + ` WHERE favicon IS NOT NULL`)
+		`SELECT id, mime, favicon FROM ` + feedTable + ` WHERE favicon IS NOT NULL`)
 	defer rows.Close()
 	if err != nil {
 		return favicons, err
@@ -275,21 +300,22 @@ func (d *Database) GetAllFavicons() (map[int64]string, error) {
 	return favicons, err
 }
 
-func (d *Database) GetUnreadArticles(limit int, sinceId int64) ([]models.Article, error) {
-	articles := []models.Article{}
+// GetUnreadArticles returns a list of at most the given limit of articles after the given ID.
+func (d *Database) GetUnreadArticles(limit int, sinceID int64) ([]models.Article, error) {
+	var articles []models.Article
 	var rows *sql.Rows
 	var err error
 
 	if limit == -1 {
-		limit = MAX_FETCHED_ROWS
+		limit = maxFetchedRows
 	}
-	if sinceId == -1 {
-		sinceId = 0
+	if sinceID == -1 {
+		sinceID = 0
 	}
 
 	rows, err = d.db.Query(
-		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM `+ARTICLE_TABLE+`
-		WHERE NOT read AND id > $1 ORDER BY id LIMIT $2`, sinceId, limit)
+		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM `+articleTable+`
+		WHERE NOT read AND id > $1 ORDER BY id LIMIT $2`, sinceID, limit)
 	defer rows.Close()
 	if err != nil {
 		return articles, err
@@ -298,7 +324,7 @@ func (d *Database) GetUnreadArticles(limit int, sinceId int64) ([]models.Article
 	for rows.Next() {
 		a := models.Article{}
 		if err = rows.Scan(
-			&a.Id, &a.FeedId, &a.FolderId, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Date); err != nil {
+			&a.ID, &a.FeedID, &a.FolderID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Date); err != nil {
 			return articles, err
 		}
 		articles = append(articles, a)
@@ -306,13 +332,14 @@ func (d *Database) GetUnreadArticles(limit int, sinceId int64) ([]models.Article
 	return articles, err
 }
 
+// GetUserByKey returns a user identified by the given key.
 func (d *Database) GetUserByKey(key string) (models.User, error) {
 	var u models.User
 	err := d.db.QueryRow(
-		`SELECT username, key FROM `+USER_TABLE+` WHERE key = $1`, key).Scan(
+		`SELECT username, key FROM `+userTable+` WHERE key = $1`, key).Scan(
 		&u.Username, &u.Key)
 	if !u.Valid() {
-		return models.User{}, errors.New("Could not find user.")
+		return models.User{}, errors.New("could not find user")
 	}
 	return u, err
 }
@@ -321,16 +348,17 @@ func (d *Database) GetUserByKey(key string) (models.User, error) {
  * Import methods
  ******************************************************************************/
 
-func (d *Database) ImportOpml(opml *models.Opml) error {
+// ImportOpml inserts folders from the given OPML object into the database.
+func (d *Database) ImportOpml(opml *opml.Opml) error {
 	root := opml.Folders
 	// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
 	_, err := d.db.Exec(
-		`INSERT INTO `+FOLDER_TABLE+`(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, root.Name)
+		`INSERT INTO `+folderTable+`(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, root.Name)
 	if err != nil {
 		return err
 	}
 	err = d.db.QueryRow(
-		`SELECT id FROM `+FOLDER_TABLE+` WHERE name = $1`, root.Name).Scan(&root.Id)
+		`SELECT id FROM `+folderTable+` WHERE name = $1`, root.Name).Scan(&root.ID)
 	if err != nil {
 		return err
 	}
@@ -342,35 +370,35 @@ func (d *Database) importChildren(parent models.Folder) error {
 	for _, f := range parent.Feed {
 		// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
 		_, err = d.db.Exec(
-			`INSERT INTO `+FEED_TABLE+`(folder, hash, title, description, url)
+			`INSERT INTO `+feedTable+`(folder, hash, title, description, url)
 			VALUES($1, $2, $3, $4, $5) ON CONFLICT(hash) DO NOTHING`,
-			parent.Id, f.Hash(), f.Title, f.Description, f.Url)
+			parent.ID, f.Hash(), f.Title, f.Description, f.URL)
 		if err != nil {
 			return err
 		}
 		err = d.db.QueryRow(
-			`SELECT id FROM `+FEED_TABLE+` WHERE hash = $1`, f.Hash()).Scan(&f.Id)
+			`SELECT id FROM `+feedTable+` WHERE hash = $1`, f.Hash()).Scan(&f.ID)
 		if err != nil {
 			return err
 		}
-		f.FolderId = parent.Id
+		f.FolderID = parent.ID
 	}
 
 	for _, child := range parent.Folders {
 		// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
-		_, err := d.db.Exec(
-			`INSERT INTO `+FOLDER_TABLE+`(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, child.Name)
+		_, err = d.db.Exec(
+			`INSERT INTO `+folderTable+`(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, child.Name)
 		if err != nil {
 			return err
 		}
 		err = d.db.QueryRow(
-			`SELECT id FROM `+FOLDER_TABLE+` WHERE name = $1`, child.Name).Scan(&child.Id)
+			`SELECT id FROM `+folderTable+` WHERE name = $1`, child.Name).Scan(&child.ID)
 		if err != nil {
 			return err
 		}
 
 		_, err = d.db.Exec(
-			`UPSERT INTO `+FOLDER_CHILDREN_TABLE+`(parent, child) VALUES($1, $2)`, parent.Id, child.Id)
+			`UPSERT INTO `+folderChildrenTable+`(parent, child) VALUES($1, $2)`, parent.ID, child.ID)
 		if err != nil {
 			return err
 		}

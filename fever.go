@@ -12,49 +12,50 @@ import (
 	"time"
 )
 
-const API_VERSION = 3
+const apiVersion = 3
 
 var (
 	serveParsedArticles = flag.Bool("serveParsedArticles", false, "If true, serve parsed article content.")
 )
 
-type item struct {
-	Id          int64  `json:"id"`
-	FeedId      int64  `json:"feed_id"`
+type itemType struct {
+	ID          int64  `json:"id"`
+	FeedID      int64  `json:"feed_id"`
 	Title       string `json:"title"`
 	Author      string `json:"author"`
-	Html        string `json:"html"`
-	Url         string `json:"url"`
+	HTML        string `json:"html"`
+	URL         string `json:"url"`
 	IsSaved     bool   `json:"is_saved"`
 	IsRead      bool   `json:"is_read"`
 	CreatedTime int64  `json:"created_on_time"`
 }
 
-type feed struct {
-	Id          int64  `json:"id"`
-	FaviconId   int64  `json:"favicon_id"`
+type feedType struct {
+	ID          int64  `json:"id"`
+	FaviconID   int64  `json:"favicon_id"`
 	Title       string `json:"title"`
-	Url         string `json:"url"`
-	SiteUrl     string `json:"site_url"`
+	URL         string `json:"url"`
+	SiteURL     string `json:"site_url"`
 	IsSpark     bool   `json:"is_spark"`
 	LastUpdated int64  `json:"last_updated_on_time"`
 }
 
-type group struct {
-	Id    int64  `json:"id"`
+type groupType struct {
+	ID    int64  `json:"id"`
 	Title string `json:"title"`
 }
 
-type favicon struct {
-	Id   int64  `json:"id"`
+type faviconType struct {
+	ID   int64  `json:"id"`
 	Data string `json:"data"`
 }
 
-type feedsGroup struct {
-	GroupId int64  `json:"group_id"`
-	FeedIds string `json:"feed_ids"`
+type feedsGroupType struct {
+	GroupID int64  `json:"group_id"`
+	FeedIDs string `json:"feed_ids"`
 }
 
+// HandleFever returns a handler function that implements the Fever API.
 func HandleFever(d *storage.Database) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		handleFever(d, w, r)
@@ -64,7 +65,7 @@ func HandleFever(d *storage.Database) func(w http.ResponseWriter, r *http.Reques
 func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 	// These two fields must always be set on responses.
 	resp := map[string]interface{}{
-		"api_version":            API_VERSION,
+		"api_version":            apiVersion,
 		"last_refreshed_on_time": time.Now().Unix(),
 	}
 
@@ -93,13 +94,13 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 			returnError(w, "Failed to fetch folders: %s", err)
 			return
 		}
-		groups := []group{}
+		var groups []groupType
 		for _, f := range folders {
-			group := group{
-				Id:    f.Id,
+			g := groupType{
+				ID:    f.ID,
 				Title: f.Name,
 			}
-			groups = append(groups, group)
+			groups = append(groups, g)
 		}
 		resp["groups"] = groups
 
@@ -115,14 +116,14 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 			returnError(w, "Failed to fetch feeds: %s", err)
 			return
 		}
-		feeds := []feed{}
+		var feeds []feedType
 		for _, ff := range fetchedFeeds {
-			f := feed{
-				Id:          ff.Id,
-				FaviconId:   ff.Id,
+			f := feedType{
+				ID:          ff.ID,
+				FaviconID:   ff.ID,
 				Title:       ff.Title,
-				Url:         ff.Url,
-				SiteUrl:     ff.Url,
+				URL:         ff.URL,
+				SiteURL:     ff.URL,
 				IsSpark:     false,
 				LastUpdated: time.Now().Unix(),
 			}
@@ -141,35 +142,35 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 			returnError(w, "Failed to fetch favicons: %s", err)
 			return
 		}
-		favicons := []favicon{}
+		var favicons []faviconType
 		for k, v := range faviconMap {
-			favicon := favicon{
-				Id:   k,
+			f := faviconType{
+				ID:   k,
 				Data: v,
 			}
-			favicons = append(favicons, favicon)
+			favicons = append(favicons, f)
 		}
 		resp["favicons"] = favicons
 	}
 	if _, ok := r.Form["items"]; ok {
 		// TODO: support "max_id" and "with_ids".
-		since_id := int64(-1)
+		sinceID := int64(-1)
 		var err error
 
-		if _, ok := r.Form["since_id"]; ok {
-			since_id, err = strconv.ParseInt(r.FormValue("since_id"), 10, 64)
+		if _, ok2 := r.Form["since_id"]; ok2 {
+			sinceID, err = strconv.ParseInt(r.FormValue("since_id"), 10, 64)
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 		}
 
-		articles, err := d.GetUnreadArticles(50, since_id)
+		articles, err := d.GetUnreadArticles(50, sinceID)
 		if err != nil {
 			returnError(w, "Failed to fetch unread articles: %s", err)
 			return
 		}
-		items := []item{}
+		var items []itemType
 		var content string
 		for _, a := range articles {
 			if *serveParsedArticles && a.Parsed != "" {
@@ -182,13 +183,13 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 				content = a.Summary
 			}
 
-			i := item{
-				Id:          a.Id,
-				FeedId:      a.FeedId,
+			i := itemType{
+				ID:          a.ID,
+				FeedID:      a.FeedID,
 				Title:       a.Title,
 				Author:      "",
-				Html:        content,
-				Url:         a.Link,
+				HTML:        content,
+				URL:         a.Link,
 				IsSaved:     false,
 				IsRead:      false,
 				CreatedTime: a.Date.Unix(),
@@ -207,11 +208,11 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 			returnError(w, "Failed to fetch unread articles: %s", err)
 			return
 		}
-		unread_item_ids := []string{}
+		var unreadItemIds []string
 		for _, a := range articles {
-			unread_item_ids = append(unread_item_ids, strconv.FormatInt(a.Id, 10))
+			unreadItemIds = append(unreadItemIds, strconv.FormatInt(a.ID, 10))
 		}
-		resp["unread_item_ids"] = strings.Join(unread_item_ids, ",")
+		resp["unread_item_ids"] = strings.Join(unreadItemIds, ",")
 	}
 	if _, ok := r.Form["saved_item_ids"]; ok {
 		// Perhaps add support for saving items in the future.
@@ -235,16 +236,16 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 
 		switch r.FormValue("mark") {
 		case "item":
-			if err := d.MarkArticle(id, as); err != nil {
-				returnError(w, "Unable to mark article: %s", err)
+			if err2 := d.MarkArticle(id, as); err2 != nil {
+				returnError(w, "Unable to mark article: %s", err2)
 			}
 		case "feed":
-			if err := d.MarkFeed(id, as); err != nil {
-				returnError(w, "Unable to mark feed: %s", err)
+			if err2 := d.MarkFeed(id, as); err2 != nil {
+				returnError(w, "Unable to mark feed: %s", err2)
 			}
 		case "group":
-			if err := d.MarkFolder(id, as); err != nil {
-				returnError(w, "Unable to mark folder: %s", err)
+			if err2 := d.MarkFolder(id, as); err2 != nil {
+				returnError(w, "Unable to mark folder: %s", err2)
 			}
 		default:
 			w.WriteHeader(http.StatusBadRequest)
@@ -282,17 +283,17 @@ func handleAuth(d *storage.Database, r *http.Request) int {
 	}
 }
 
-func constructFeedsGroups(d *storage.Database) ([]feedsGroup, error) {
-	feedGroups := []feedsGroup{}
+func constructFeedsGroups(d *storage.Database) ([]feedsGroupType, error) {
+	var feedGroups []feedsGroupType
 	feedsPerFolder, err := d.GetFeedsPerFolder()
 	if err != nil {
 		log.Warningf("Failed to fetch feeds per folder: %s", err)
 		return feedGroups, err
 	}
 	for k, v := range feedsPerFolder {
-		feedGroup := feedsGroup{
-			GroupId: k,
-			FeedIds: v,
+		feedGroup := feedsGroupType{
+			GroupID: k,
+			FeedIDs: v,
 		}
 		feedGroups = append(feedGroups, feedGroup)
 	}

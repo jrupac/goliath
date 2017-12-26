@@ -10,8 +10,32 @@ import (
 	"io/ioutil"
 )
 
+type header struct {
+	Title string `xml:"title"`
+}
+
+type outline struct {
+	Title       string    `xml:"title,attr,omitempty"`
+	Description string    `xml:"description,attr,omitempty"`
+	URL         string    `xml:"xmlUrl,attr,omitempty"`
+	Text        string    `xml:"text,attr,omitempty"`
+	Folders     []outline `xml:"outline,omitempty"`
+}
+
+type internalOpmlType struct {
+	XMLName xml.Name  `xml:"opml"`
+	Header  header    `xml:"head"`
+	Body    []outline `xml:"body>outline"`
+}
+
+// Opml is a nested tree of folders.
+type Opml struct {
+	Header  header
+	Folders models.Folder
+}
+
 // ParseOpml open a file and returns a parsed OPML object.
-func ParseOpml(filename string) (*models.Opml, error) {
+func ParseOpml(filename string) (*Opml, error) {
 	log.Infof("Loading OPML file from %s", filename)
 
 	f, err := ioutil.ReadFile(filename)
@@ -23,7 +47,7 @@ func ParseOpml(filename string) (*models.Opml, error) {
 	d := xml.NewDecoder(r)
 	d.CharsetReader = charset.NewReaderLabel
 
-	oi := new(models.OpmlInternal)
+	oi := new(internalOpmlType)
 	err = d.Decode(&oi)
 	if err != nil {
 		return nil, err
@@ -32,21 +56,21 @@ func ParseOpml(filename string) (*models.Opml, error) {
 	return createOpmlObject(oi), nil
 }
 
-func createOpmlObject(oi *models.OpmlInternal) *models.Opml {
-	return &models.Opml{
+func createOpmlObject(oi *internalOpmlType) *Opml {
+	return &Opml{
 		Header:  oi.Header,
 		Folders: parseOutline(oi.Body),
 	}
 }
 
 // parseOutline converts "outline" objects into Folder and Feed objects.
-func parseOutline(children []models.Outline) models.Folder {
+func parseOutline(children []outline) models.Folder {
 	folder := models.Folder{
 		Name: "<root>",
 	}
 
 	for _, o := range children {
-		if o.Url != "" {
+		if o.URL != "" {
 			// This entity has a URL so we presume it is a Feed and has no children.
 			var name string
 			switch {
@@ -61,7 +85,7 @@ func parseOutline(children []models.Outline) models.Folder {
 			feed := models.Feed{
 				Title:       name,
 				Description: o.Description,
-				Url:         o.Url,
+				URL:         o.URL,
 			}
 			folder.Feed = append(folder.Feed, feed)
 		} else {

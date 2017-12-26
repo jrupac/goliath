@@ -6,10 +6,11 @@ import (
 	"time"
 )
 
+// Article is a single fetched article.
 type Article struct {
-	Id       int64
-	FeedId   int64
-	FolderId int64
+	ID       int64
+	FeedID   int64
+	FolderID int64
 
 	Title     string
 	Summary   string
@@ -21,6 +22,7 @@ type Article struct {
 	Retrieved time.Time
 }
 
+// Hash returns a SHA256 hash of this object.
 func (a *Article) Hash() string {
 	h := sha3.New256()
 	h.Write([]byte(a.Title))

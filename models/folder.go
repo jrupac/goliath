@@ -1,7 +1,8 @@
 package models
 
+// Folder is a collection of feeds and subfolders.
 type Folder struct {
-	Id int64
+	ID int64
 
 	Name    string
 	Feed    []Feed

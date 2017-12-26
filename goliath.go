@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-const VERSION = "0.01"
+const version = "0.01"
 
 var (
 	dbPath       = flag.String("dbPath", "", "The address of the database.")
@@ -40,7 +40,7 @@ func main() {
 	ctx := context.Background()
 
 	log.CopyStandardLogTo("INFO")
-	log.Infof("Goliath %s.", VERSION)
+	log.Infof("Goliath %s.", version)
 	t, err := strconv.ParseInt(buildTimestamp, 10, 64)
 	if err != nil {
 		log.V(2).Infof("Invalid build timestamp %s: %s", buildTimestamp, err)
@@ -60,16 +60,16 @@ func main() {
 	defer d.Close()
 
 	if *opmlPath != "" {
-		p, err := opml.ParseOpml(*opmlPath)
-		if err != nil {
-			log.Warningf("Error while parsing OPML: %s", err)
+		p, err2 := opml.ParseOpml(*opmlPath)
+		if err2 != nil {
+			log.Warningf("Error while parsing OPML: %s", err2)
 		}
 		log.Infof("Completed parsing OPML file %s", *opmlPath)
 		utils.DebugPrint("Parsed OPML file", *p)
 
-		err = d.ImportOpml(p)
-		if err != nil {
-			log.Warningf("Error while importing OPML: %s", err)
+		err2 = d.ImportOpml(p)
+		if err2 != nil {
+			log.Warningf("Error while importing OPML: %s", err2)
 		}
 	}
 
@@ -77,15 +77,15 @@ func main() {
 	installSignalHandler(cancel)
 
 	go fetch.Start(ctx, d)
-	go storage.StartGc(ctx, d)
+	go storage.StartGC(ctx, d)
 
 	go func() {
-		if err = ServeMetrics(ctx); err != nil {
+		if err = serveMetrics(ctx); err != nil {
 			log.Infof("%s", err)
 		}
 	}()
 
-	if err = Serve(ctx, d); err != nil {
+	if err = serve(ctx, d); err != nil {
 		log.Infof("%s", err)
 	}
 }
@@ -101,7 +101,7 @@ func installSignalHandler(cancel context.CancelFunc) {
 	}()
 }
 
-func ServeMetrics(ctx context.Context) error {
+func serveMetrics(ctx context.Context) error {
 	mux := http.NewServeMux()
 	srv := &http.Server{
 		Addr:           fmt.Sprintf(":%d", *metricsPort),
@@ -126,7 +126,7 @@ func ServeMetrics(ctx context.Context) error {
 	return srv.ListenAndServe()
 }
 
-func Serve(ctx context.Context, d *storage.Database) error {
+func serve(ctx context.Context, d *storage.Database) error {
 	mux := http.NewServeMux()
 	srv := &http.Server{
 		Addr:           fmt.Sprintf(":%d", *port),
@@ -149,14 +149,14 @@ func Serve(ctx context.Context, d *storage.Database) error {
 	mux.HandleFunc("/auth", auth.HandleLogin(d))
 	mux.HandleFunc("/logout", auth.HandleLogout)
 	mux.HandleFunc("/fever/", HandleFever(d))
-	mux.HandleFunc("/version", HandleVersion)
+	mux.HandleFunc("/version", handleVersion)
 	mux.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))
 	mux.Handle("/", auth.WithAuth(http.FileServer(http.Dir(*publicFolder)), d, *publicFolder))
 	log.Infof("Starting HTTP server on %s", srv.Addr)
 	return srv.ListenAndServe()
 }
 
-func HandleVersion(w http.ResponseWriter, _ *http.Request) {
+func handleVersion(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	resp := map[string]string{

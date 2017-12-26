@@ -6,20 +6,22 @@ import (
 	"time"
 )
 
+// Feed is a single source of articles.
 type Feed struct {
-	Id       int64
-	FolderId int64
+	ID       int64
+	FolderID int64
 
 	Title       string
 	Description string
-	Url         string
+	URL         string
 	Latest      time.Time
 }
 
+// Hash returns a SHA256 hash of this object.
 func (a *Feed) Hash() string {
 	h := sha3.New256()
 	h.Write([]byte(a.Title))
 	h.Write([]byte(a.Description))
-	h.Write([]byte(a.Url))
+	h.Write([]byte(a.URL))
 	return fmt.Sprintf("%x", h.Sum(nil))
 }

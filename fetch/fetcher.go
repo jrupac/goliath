@@ -26,6 +26,7 @@ type imagePair struct {
 	favicon []byte
 }
 
+// Start starts continuous feed fetching and writes fetched articles to the database.
 func Start(ctx context.Context, d *storage.Database) {
 	log.Infof("Starting continuous feed fetching.")
 
@@ -56,13 +57,13 @@ func Start(ctx context.Context, d *storage.Database) {
 		select {
 		case a := <-ac:
 			utils.DebugPrint("Received a new article:", a)
-			if err := d.InsertArticle(a); err != nil {
-				log.Warningf("Failed to persist article: %+v: %s", a, err)
+			if err2 := d.InsertArticle(a); err2 != nil {
+				log.Warningf("Failed to persist article: %+v: %s", a, err2)
 			}
 		case ip := <-ic:
 			utils.DebugPrint("Received a new image:", ip)
-			if err := d.InsertFavicon(ip.id, ip.mime, ip.favicon); err != nil {
-				log.Warningf("Failed to persist icon for feed %d: %s", ip.id, err)
+			if err2 := d.InsertFavicon(ip.id, ip.mime, ip.favicon); err2 != nil {
+				log.Warningf("Failed to persist icon for feed %d: %s", ip.id, err2)
 			}
 		case <-ctx.Done():
 			log.Infof("Stopping fetching feeds...")
@@ -74,32 +75,32 @@ func Start(ctx context.Context, d *storage.Database) {
 }
 
 func do(ctx context.Context, d *storage.Database, ac chan models.Article, ic chan imagePair, feed models.Feed) {
-	log.Infof("Fetching %s", feed.Url)
-	f, err := rss.Fetch(feed.Url)
+	log.Infof("Fetching %s", feed.URL)
+	f, err := rss.Fetch(feed.URL)
 	if err != nil {
-		log.Warningf("Error fetching %s: %s", feed.Url, err)
+		log.Warningf("Error fetching %s: %s", feed.URL, err)
 		return
 	}
 	handleItems(&feed, d, f.Items, ac)
 	handleImage(feed, f, ic)
 
 	tick := time.After(time.Until(f.Refresh))
-	log.Infof("Waiting to fetch %s until %s\n", feed.Url, f.Refresh)
+	log.Infof("Waiting to fetch %s until %s\n", feed.URL, f.Refresh)
 
 	for {
 		select {
 		case <-tick:
-			log.Infof("Fetching feed %s", feed.Url)
+			log.Infof("Fetching feed %s", feed.URL)
 			var refresh time.Time
-			if f, err = rss.Fetch(feed.Url); err != nil {
-				log.Warningf("Error fetching %s: %s", feed.Url, err)
+			if f, err = rss.Fetch(feed.URL); err != nil {
+				log.Warningf("Error fetching %s: %s", feed.URL, err)
 				// If the request transiently fails, try again after a fixed interval.
 				refresh = time.Now().Add(10 * time.Minute)
 			} else {
 				handleItems(&feed, d, f.Items, ac)
 				refresh = f.Refresh
 			}
-			log.Infof("Waiting to fetch %s until %s\n", feed.Url, refresh)
+			log.Infof("Waiting to fetch %s until %s\n", feed.URL, refresh)
 			tick = time.After(time.Until(refresh))
 		case <-ctx.Done():
 			return
@@ -120,8 +121,8 @@ func handleItems(feed *models.Feed, d *storage.Database, items []*rss.Item, send
 		}
 
 		a := models.Article{
-			FeedId:    feed.Id,
-			FolderId:  feed.FolderId,
+			FeedID:    feed.ID,
+			FolderID:  feed.FolderID,
 			Title:     item.Title,
 			Summary:   item.Summary,
 			Content:   item.Content,
@@ -139,7 +140,7 @@ func handleItems(feed *models.Feed, d *storage.Database, items []*rss.Item, send
 		}
 	}
 
-	err := d.UpdateLatestTimeForFeed(feed.Id, latest)
+	err := d.UpdateLatestTimeForFeed(feed.ID, latest)
 	if err != nil {
 		log.Warningf("Failed to update latest feed time: %s", err)
 	} else {
@@ -156,17 +157,17 @@ func handleImage(feed models.Feed, f *rss.Feed, send chan imagePair) {
 		feedHost = u.Hostname()
 	}
 
-	if i, err := tryIconFetch(f.Image.URL); err == nil {
+	if i, err2 := tryIconFetch(f.Image.URL); err2 == nil {
 		icon = i
-	} else if i, err := tryIconFetch(f.Link); err == nil {
+	} else if i, err2 = tryIconFetch(f.Link); err2 == nil {
 		icon = i
-	} else if i, err = tryIconFetch(feedHost); err == nil {
+	} else if i, err2 = tryIconFetch(feedHost); err2 == nil {
 		icon = i
 	} else {
 		return
 	}
 
-	send <- imagePair{feed.Id, "image/" + icon.Format, icon.ImageData}
+	send <- imagePair{feed.ID, "image/" + icon.Format, icon.ImageData}
 }
 
 func tryIconFetch(link string) (besticon.Icon, error) {
