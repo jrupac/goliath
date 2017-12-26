@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"flag"
+	"fmt"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/auth"
 	"github.com/jrupac/goliath/storage"
@@ -55,6 +56,17 @@ type feedsGroupType struct {
 	FeedIDs string `json:"feed_ids"`
 }
 
+type responseType map[string]interface{}
+
+type feverError struct {
+	wrapped  error
+	internal bool
+}
+
+func (e *feverError) Error() string {
+	return e.wrapped.Error()
+}
+
 // HandleFever returns a handler function that implements the Fever API.
 func HandleFever(d *storage.Database) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -64,7 +76,7 @@ func HandleFever(d *storage.Database) func(w http.ResponseWriter, r *http.Reques
 
 func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 	// These two fields must always be set on responses.
-	resp := map[string]interface{}{
+	resp := responseType{
 		"api_version":            apiVersion,
 		"last_refreshed_on_time": time.Now().Unix(),
 	}
@@ -89,166 +101,58 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, ok := r.Form["groups"]; ok {
-		folders, err := d.GetAllFolders()
+		err := handleGroups(d, &resp)
 		if err != nil {
-			returnError(w, "Failed to fetch folders: %s", err)
-			return
-		}
-		var groups []groupType
-		for _, f := range folders {
-			g := groupType{
-				ID:    f.ID,
-				Title: f.Name,
-			}
-			groups = append(groups, g)
-		}
-		resp["groups"] = groups
-
-		resp["feeds_groups"], err = constructFeedsGroups(d)
-		if err != nil {
-			returnError(w, "Failed to fetch feeds per folder: %s", err)
+			returnError(w, "Failed request 'groups': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["feeds"]; ok {
-		fetchedFeeds, err := d.GetAllFeeds()
+		err := handleFeeds(d, &resp)
 		if err != nil {
-			returnError(w, "Failed to fetch feeds: %s", err)
-			return
-		}
-		var feeds []feedType
-		for _, ff := range fetchedFeeds {
-			f := feedType{
-				ID:          ff.ID,
-				FaviconID:   ff.ID,
-				Title:       ff.Title,
-				URL:         ff.URL,
-				SiteURL:     ff.URL,
-				IsSpark:     false,
-				LastUpdated: time.Now().Unix(),
-			}
-			feeds = append(feeds, f)
-		}
-		resp["feeds"] = feeds
-		resp["feeds_groups"], err = constructFeedsGroups(d)
-		if err != nil {
-			returnError(w, "Failed to fetch feeds per folder: %s", err)
+			returnError(w, "Failed request 'feeds': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["favicons"]; ok {
-		faviconMap, err := d.GetAllFavicons()
+		err := handleFavicons(d, &resp)
 		if err != nil {
-			returnError(w, "Failed to fetch favicons: %s", err)
+			returnError(w, "Failed request 'favicons': %s", err)
 			return
 		}
-		var favicons []faviconType
-		for k, v := range faviconMap {
-			f := faviconType{
-				ID:   k,
-				Data: v,
-			}
-			favicons = append(favicons, f)
-		}
-		resp["favicons"] = favicons
 	}
 	if _, ok := r.Form["items"]; ok {
-		// TODO: support "max_id" and "with_ids".
-		sinceID := int64(-1)
-		var err error
-
-		if _, ok2 := r.Form["since_id"]; ok2 {
-			sinceID, err = strconv.ParseInt(r.FormValue("since_id"), 10, 64)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				return
-			}
-		}
-
-		articles, err := d.GetUnreadArticles(50, sinceID)
+		err := handleItems(d, &resp, r)
 		if err != nil {
-			returnError(w, "Failed to fetch unread articles: %s", err)
+			returnError(w, "Failed request 'items': %s", err)
 			return
 		}
-		var items []itemType
-		var content string
-		for _, a := range articles {
-			if *serveParsedArticles && a.Parsed != "" {
-				log.Infof("Serving parsed content for title: %s", a.Title)
-				content = a.Parsed
-			} else if a.Content != "" {
-				// The "content" field usually has more text, but is not always set.
-				content = a.Content
-			} else {
-				content = a.Summary
-			}
-
-			i := itemType{
-				ID:          a.ID,
-				FeedID:      a.FeedID,
-				Title:       a.Title,
-				Author:      "",
-				HTML:        content,
-				URL:         a.Link,
-				IsSaved:     false,
-				IsRead:      false,
-				CreatedTime: a.Date.Unix(),
-			}
-			items = append(items, i)
-		}
-		resp["items"] = items
 	}
 	if _, ok := r.Form["links"]; ok {
-		// Perhaps add support for Hot Links in the future.
-		resp["links"] = ""
+		err := handleLinks(d, &resp)
+		if err != nil {
+			returnError(w, "Failed request 'links': %s", err)
+			return
+		}
 	}
 	if _, ok := r.Form["unread_item_ids"]; ok {
-		articles, err := d.GetUnreadArticles(-1, -1)
+		err := handleUnreadItemIDs(d, &resp)
 		if err != nil {
-			returnError(w, "Failed to fetch unread articles: %s", err)
+			returnError(w, "Failed request 'unread_item_ids': %s", err)
 			return
 		}
-		var unreadItemIds []string
-		for _, a := range articles {
-			unreadItemIds = append(unreadItemIds, strconv.FormatInt(a.ID, 10))
-		}
-		resp["unread_item_ids"] = strings.Join(unreadItemIds, ",")
 	}
 	if _, ok := r.Form["saved_item_ids"]; ok {
-		// Perhaps add support for saving items in the future.
-		resp["saved_item_ids"] = ""
+		err := handleSavedItemIDs(d, &resp)
+		if err != nil {
+			returnError(w, "Failed request 'saved_item_ids': %s", err)
+			return
+		}
 	}
 	if _, ok := r.Form["mark"]; ok {
-		// TODO: Support "before" argument.
-		var as string
-		switch r.FormValue("as") {
-		case "read", "unread", "saved", "unsaved":
-			as = r.FormValue("as")
-		default:
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+		err := handleMark(d, &resp, r)
 		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-		switch r.FormValue("mark") {
-		case "item":
-			if err2 := d.MarkArticle(id, as); err2 != nil {
-				returnError(w, "Unable to mark article: %s", err2)
-			}
-		case "feed":
-			if err2 := d.MarkFeed(id, as); err2 != nil {
-				returnError(w, "Unable to mark feed: %s", err2)
-			}
-		case "group":
-			if err2 := d.MarkFolder(id, as); err2 != nil {
-				returnError(w, "Unable to mark folder: %s", err2)
-			}
-		default:
-			w.WriteHeader(http.StatusBadRequest)
+			returnError(w, "Failed request 'mark': %s", err)
 			return
 		}
 	}
@@ -258,6 +162,14 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 
 func returnError(w http.ResponseWriter, msg string, err error) {
 	log.Warningf(msg, err)
+	if fe, ok := err.(*feverError); ok {
+		if fe.internal {
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusBadRequest)
+		}
+		return
+	}
 	w.WriteHeader(http.StatusInternalServerError)
 }
 
@@ -283,6 +195,174 @@ func handleAuth(d *storage.Database, r *http.Request) int {
 	}
 }
 
+func handleGroups(d *storage.Database, resp *responseType) error {
+	folders, err := d.GetAllFolders()
+	if err != nil {
+		return &feverError{err, true}
+	}
+	var groups []groupType
+	for _, f := range folders {
+		g := groupType{
+			ID:    f.ID,
+			Title: f.Name,
+		}
+		groups = append(groups, g)
+	}
+	(*resp)["groups"] = groups
+	(*resp)["feeds_groups"], err = constructFeedsGroups(d)
+	if err != nil {
+		return &feverError{err, true}
+	}
+	return nil
+}
+
+func handleFeeds(d *storage.Database, resp *responseType) error {
+	fetchedFeeds, err := d.GetAllFeeds()
+	if err != nil {
+		return &feverError{err, true}
+	}
+	var feeds []feedType
+	for _, ff := range fetchedFeeds {
+		f := feedType{
+			ID:          ff.ID,
+			FaviconID:   ff.ID,
+			Title:       ff.Title,
+			URL:         ff.URL,
+			SiteURL:     ff.URL,
+			IsSpark:     false,
+			LastUpdated: time.Now().Unix(),
+		}
+		feeds = append(feeds, f)
+	}
+	(*resp)["feeds"] = feeds
+	(*resp)["feeds_groups"], err = constructFeedsGroups(d)
+	if err != nil {
+		return &feverError{err, true}
+	}
+	return nil
+}
+
+func handleFavicons(d *storage.Database, resp *responseType) error {
+	faviconMap, err := d.GetAllFavicons()
+	if err != nil {
+		return &feverError{err, true}
+	}
+	var favicons []faviconType
+	for k, v := range faviconMap {
+		f := faviconType{
+			ID:   k,
+			Data: v,
+		}
+		favicons = append(favicons, f)
+	}
+	(*resp)["favicons"] = favicons
+	return nil
+}
+
+func handleItems(d *storage.Database, resp *responseType, r *http.Request) error {
+	// TODO: support "max_id" and "with_ids".
+	sinceID := int64(-1)
+	var err error
+
+	if _, ok := r.Form["since_id"]; ok {
+		sinceID, err = strconv.ParseInt(r.FormValue("since_id"), 10, 64)
+		if err != nil {
+			return &feverError{err, false}
+		}
+	}
+
+	articles, err := d.GetUnreadArticles(50, sinceID)
+	if err != nil {
+		return &feverError{err, true}
+	}
+	var items []itemType
+	var content string
+	for _, a := range articles {
+		if *serveParsedArticles && a.Parsed != "" {
+			log.Infof("Serving parsed content for title: %s", a.Title)
+			content = a.Parsed
+		} else if a.Content != "" {
+			// The "content" field usually has more text, but is not always set.
+			content = a.Content
+		} else {
+			content = a.Summary
+		}
+
+		i := itemType{
+			ID:          a.ID,
+			FeedID:      a.FeedID,
+			Title:       a.Title,
+			Author:      "",
+			HTML:        content,
+			URL:         a.Link,
+			IsSaved:     false,
+			IsRead:      false,
+			CreatedTime: a.Date.Unix(),
+		}
+		items = append(items, i)
+	}
+	(*resp)["items"] = items
+	return nil
+}
+
+func handleLinks(_ *storage.Database, resp *responseType) error {
+	// Perhaps add support for links in the future.
+	(*resp)["links"] = ""
+	return nil
+}
+
+func handleUnreadItemIDs(d *storage.Database, resp *responseType) error {
+	articles, err := d.GetUnreadArticles(-1, -1)
+	if err != nil {
+		return &feverError{err, true}
+	}
+	var unreadItemIds []string
+	for _, a := range articles {
+		unreadItemIds = append(unreadItemIds, strconv.FormatInt(a.ID, 10))
+	}
+	(*resp)["unread_item_ids"] = strings.Join(unreadItemIds, ",")
+	return nil
+}
+
+func handleSavedItemIDs(_ *storage.Database, resp *responseType) error {
+	// Perhaps add support for saving items in the future.
+	(*resp)["saved_item_ids"] = ""
+	return nil
+}
+
+func handleMark(d *storage.Database, _ *responseType, r *http.Request) error {
+	// TODO: Support "before" argument.
+	var as string
+	switch r.FormValue("as") {
+	case "read", "unread", "saved", "unsaved":
+		as = r.FormValue("as")
+	default:
+		return &feverError{fmt.Errorf("unknown 'as' value: %s", r.FormValue("as")), false}
+	}
+	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
+	if err != nil {
+		return err
+	}
+
+	switch r.FormValue("mark") {
+	case "item":
+		if err = d.MarkArticle(id, as); err != nil {
+			return &feverError{err, true}
+		}
+	case "feed":
+		if err = d.MarkFeed(id, as); err != nil {
+			return &feverError{err, true}
+		}
+	case "group":
+		if err = d.MarkFolder(id, as); err != nil {
+			return &feverError{err, true}
+		}
+	default:
+		return &feverError{fmt.Errorf("malformed 'mark' value: %s", r.FormValue("mark")), false}
+	}
+	return nil
+}
+
 func constructFeedsGroups(d *storage.Database) ([]feedsGroupType, error) {
 	var feedGroups []feedsGroupType
 	feedsPerFolder, err := d.GetFeedsPerFolder()
@@ -297,5 +377,5 @@ func constructFeedsGroups(d *storage.Database) ([]feedsGroupType, error) {
 		}
 		feedGroups = append(feedGroups, feedGroup)
 	}
-	return feedGroups, err
+	return feedGroups, nil
 }
