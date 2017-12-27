@@ -208,6 +208,8 @@ func returnSuccess(w http.ResponseWriter, resp map[string]interface{}) {
 }
 
 func handleAuth(d *storage.Database, r *http.Request) int {
+	defer utils.Elapsed(time.Now(), recordLatency("auth"))
+
 	// A request can be authenticated by cookie or api key in request.
 	if auth.VerifyCookie(d, r) {
 		log.V(2).Infof("Verified cookie: %+v", r)
