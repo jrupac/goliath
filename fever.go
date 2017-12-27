@@ -7,6 +7,8 @@ import (
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/auth"
 	"github.com/jrupac/goliath/storage"
+	"github.com/jrupac/goliath/utils"
+	"github.com/prometheus/client_golang/prometheus"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,6 +19,17 @@ const apiVersion = 3
 
 var (
 	serveParsedArticles = flag.Bool("serveParsedArticles", false, "If true, serve parsed article content.")
+)
+
+var (
+	latencyMetric = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name:       "fever_server_latency",
+			Help:       "Server-side latency of Fever API operations.",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		},
+		[]string{"method"},
+	)
 )
 
 type itemType struct {
@@ -67,6 +80,17 @@ func (e *feverError) Error() string {
 	return e.wrapped.Error()
 }
 
+func init() {
+	prometheus.MustRegister(latencyMetric)
+}
+
+func recordLatency(label string) func(time.Duration) {
+	return func(d time.Duration) {
+		// Record latency measurements in microseconds.
+		latencyMetric.WithLabelValues(label).Observe(float64(d) / float64(time.Microsecond))
+	}
+}
+
 // HandleFever returns a handler function that implements the Fever API.
 func HandleFever(d *storage.Database) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +99,9 @@ func HandleFever(d *storage.Database) func(w http.ResponseWriter, r *http.Reques
 }
 
 func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
+	// Record the total server latency of each Fever call.
+	defer utils.Elapsed(time.Now(), recordLatency("server"))
+
 	// These two fields must always be set on responses.
 	resp := responseType{
 		"api_version":            apiVersion,
@@ -196,6 +223,8 @@ func handleAuth(d *storage.Database, r *http.Request) int {
 }
 
 func handleGroups(d *storage.Database, resp *responseType) error {
+	defer utils.Elapsed(time.Now(), recordLatency("groups"))
+
 	folders, err := d.GetAllFolders()
 	if err != nil {
 		return &feverError{err, true}
@@ -217,6 +246,8 @@ func handleGroups(d *storage.Database, resp *responseType) error {
 }
 
 func handleFeeds(d *storage.Database, resp *responseType) error {
+	defer utils.Elapsed(time.Now(), recordLatency("feeds"))
+
 	fetchedFeeds, err := d.GetAllFeeds()
 	if err != nil {
 		return &feverError{err, true}
@@ -260,6 +291,8 @@ func handleFavicons(d *storage.Database, resp *responseType) error {
 }
 
 func handleItems(d *storage.Database, resp *responseType, r *http.Request) error {
+	defer utils.Elapsed(time.Now(), recordLatency("items"))
+
 	// TODO: support "max_id" and "with_ids".
 	sinceID := int64(-1)
 	var err error
@@ -306,12 +339,16 @@ func handleItems(d *storage.Database, resp *responseType, r *http.Request) error
 }
 
 func handleLinks(_ *storage.Database, resp *responseType) error {
+	defer utils.Elapsed(time.Now(), recordLatency("links"))
+
 	// Perhaps add support for links in the future.
 	(*resp)["links"] = ""
 	return nil
 }
 
 func handleUnreadItemIDs(d *storage.Database, resp *responseType) error {
+	defer utils.Elapsed(time.Now(), recordLatency("unread_item_ids"))
+
 	articles, err := d.GetUnreadArticles(-1, -1)
 	if err != nil {
 		return &feverError{err, true}
@@ -325,12 +362,16 @@ func handleUnreadItemIDs(d *storage.Database, resp *responseType) error {
 }
 
 func handleSavedItemIDs(_ *storage.Database, resp *responseType) error {
+	defer utils.Elapsed(time.Now(), recordLatency("saved_item_ids"))
+
 	// Perhaps add support for saving items in the future.
 	(*resp)["saved_item_ids"] = ""
 	return nil
 }
 
 func handleMark(d *storage.Database, _ *responseType, r *http.Request) error {
+	defer utils.Elapsed(time.Now(), recordLatency("mark"))
+
 	// TODO: Support "before" argument.
 	var as string
 	switch r.FormValue("as") {
