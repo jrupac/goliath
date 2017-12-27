@@ -310,7 +310,8 @@ func handleItems(d *storage.Database, resp *responseType, r *http.Request) error
 	if err != nil {
 		return &feverError{err, true}
 	}
-	var items []itemType
+	// Make an empty (not nil) slice because their JSON encodings are different.
+	items := make([]itemType, 0)
 	var content string
 	for _, a := range articles {
 		if *serveParsedArticles && a.Parsed != "" {
