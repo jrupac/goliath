@@ -120,7 +120,6 @@
   height: auto;
   line-height: initial;
   border: none;
-  padding-top: 15px;
 }
 
 .ant-card {
@@ -250,6 +249,7 @@
   align-items: stretch;
   flex-flow: row nowrap;
   justify-content:space-between;
+  padding-top: 15px;
 }
 
 .article-title {
