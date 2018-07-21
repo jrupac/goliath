@@ -193,10 +193,10 @@ func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
 func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
 	var children []int64
 	rows, err := d.db.Query(`SELECT child FROM `+folderChildrenTable+` WHERE parent = $1`, id)
-	defer rows.Close()
 	if err != nil {
 		return children, err
 	}
+	defer rows.Close()
 
 	var childID int64
 	for rows.Next() {
@@ -212,10 +212,10 @@ func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
 func (d *Database) GetAllFolders() ([]models.Folder, error) {
 	var folders []models.Folder
 	rows, err := d.db.Query(`SELECT id, name FROM ` + folderTable)
-	defer rows.Close()
 	if err != nil {
 		return folders, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		f := models.Folder{}
@@ -232,10 +232,10 @@ func (d *Database) GetAllFolders() ([]models.Folder, error) {
 func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 	var feeds []models.Feed
 	rows, err := d.db.Query(`SELECT id, folder, title, description, url, latest FROM ` + feedTable)
-	defer rows.Close()
 	if err != nil {
 		return feeds, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		f := models.Feed{}
@@ -257,10 +257,10 @@ func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
 
 	// CockroachDB doesn't have a concat-with-separator aggregation function
 	rows, err := d.db.Query(`SELECT folder, id FROM ` + feedTable)
-	defer rows.Close()
 	if err != nil {
 		return resp, err
 	}
+	defer rows.Close()
 
 	var folderID, feedID int64
 	for rows.Next() {
@@ -283,10 +283,10 @@ func (d *Database) GetAllFavicons() (map[int64]string, error) {
 	favicons := map[int64]string{}
 	rows, err := d.db.Query(
 		`SELECT id, mime, favicon FROM ` + feedTable + ` WHERE favicon IS NOT NULL`)
-	defer rows.Close()
 	if err != nil {
 		return favicons, err
 	}
+	defer rows.Close()
 
 	var id int64
 	var mime string
@@ -316,10 +316,10 @@ func (d *Database) GetUnreadArticles(limit int, sinceID int64) ([]models.Article
 	rows, err = d.db.Query(
 		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM `+articleTable+`
 		WHERE NOT read AND id > $1 ORDER BY id LIMIT $2`, sinceID, limit)
-	defer rows.Close()
 	if err != nil {
 		return articles, err
 	}
+	defer rows.Close()
 
 	for rows.Next() {
 		a := models.Article{}
