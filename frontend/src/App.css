@@ -25,6 +25,7 @@
 /* antd elements */
 
 .ant-layout-sider {
+  background-color: #404040;
   width: 300px;
   border-right: 1px solid #aaa;
   overflow: auto;
@@ -52,28 +53,15 @@
 }
 
 .ant-tree {
+  background: #404040;
   line-height: 16px;
   padding-right: 1px;
+  font-family: 'Muli', sans-serif;
 }
 
 .ant-tree li span.ant-tree-switcher {
   padding-top: 2px;
-}
-
-.ant-tree li span.ant-tree-switcher.ant-tree-roots_open:after,
-.ant-tree li span.ant-tree-switcher.ant-tree-center_open:after,
-.ant-tree li span.ant-tree-switcher.ant-tree-bottom_open:after,
-.ant-tree li span.ant-tree-switcher.ant-tree-noline_open:after {
   color: #ececec;
-  content: "\E61D";
-}
-
-.ant-tree li span.ant-tree-switcher.ant-tree-roots_close:after,
-.ant-tree li span.ant-tree-switcher.ant-tree-center_close:after,
-.ant-tree li span.ant-tree-switcher.ant-tree-bottom_close:after,
-.ant-tree li span.ant-tree-switcher.ant-tree-noline_close:after {
-  color: #ececec;
-  content: "\E61D";
 }
 
 .ant-tree li {
@@ -105,10 +93,12 @@
 
 .ant-tree li .ant-tree-node-content-wrapper:hover {
   background-color: #383838;
+  line-height: 16px;
 }
 
 .ant-tree li .ant-tree-node-content-wrapper.ant-tree-node-selected {
   background-color: #222;
+  line-height: 16px;
 }
 
 .ant-card-outer {
@@ -120,6 +110,10 @@
   height: auto;
   line-height: initial;
   border: none;
+}
+
+.ant-card-head-title {
+  padding: 0;
 }
 
 .ant-card {
@@ -142,6 +136,7 @@
 /* Goliath elements */
 
 /* Login Page */
+
 .login-page {
   display: flex;
   height: 100%;
@@ -184,7 +179,10 @@
 }
 
 /* Sidebar */
+
 .all-items, .all-items-selected {
+  font-family: 'Muli', sans-serif;
+  background-color: #404040;
   padding-right: 15px;
   padding-left: 30px;
   display: inline-block;
@@ -193,6 +191,7 @@
   font-size: 14px;
   width: 100%;
   cursor: pointer;
+  line-height: 46px;
   border-top: 1px solid #222;
   border-bottom: 1px solid #222;
 }
@@ -208,6 +207,7 @@
 .all-items-text {
   display: inline;
   padding-left: 8px;
+  line-height: 46px;
 }
 
 .feed-row {
@@ -290,6 +290,7 @@
 }
 
 .article-date {
+  font-family: 'et-book', serif;
   width: 150px;
   min-width: 150px;
   font-size: 16px;

@@ -2,7 +2,7 @@
   "rules": {
     "default-case": "off",
     "id-length": "off",
-    "indent": [2, 2],
+    "indent": ["error", 2],
     "func-style": 0,
     "max-lines": "off",
     "no-bitwise": "off",

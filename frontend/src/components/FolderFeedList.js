@@ -32,7 +32,7 @@ export default class FolderFeedList extends React.Component {
 
   render() {
     const tree = this.props.tree;
-    var selectedKeys, allSelectedClass;
+    let selectedKeys, allSelectedClass;
     if (!this.props.selectedKey || this.props.selectedKey === KeyAll) {
       selectedKeys = [];
       allSelectedClass = 'all-items-selected';
@@ -46,28 +46,28 @@ export default class FolderFeedList extends React.Component {
     //     ([k, v]) => ( (v.unread_count > 0) ? k : null));
 
     return (
-        <div>
-          <div
-              onClick={() => this.handleSelect(KeyAll, EnclosingType.All)}
-              className={allSelectedClass}>
-            <Icon type='inbox' />
-            <div className='all-items-text'>
-              {this.renderAllItemsTitle()}
-            </div>
+      <div>
+        <div
+          onClick={() => this.handleSelect(KeyAll, EnclosingType.All)}
+          className={allSelectedClass}>
+          <Icon type='inbox'/>
+          <div className='all-items-text'>
+            {this.renderAllItemsTitle()}
           </div>
-          <Tree
-              defaultExpandAll
-              selectedKeys={selectedKeys}
-              onSelect={this.handleSelect}>
-            {
-              Array.from(tree.entries(), ([k, v]) => (
-                <TreeNode key={k} title={this.renderFolderTitle(v)}>
-                  {v.feeds.map(this.renderFeed)}
-                </TreeNode>
-              ))
-            }
-          </Tree>
         </div>
+        <Tree
+          defaultExpandAll
+          selectedKeys={selectedKeys}
+          onSelect={this.handleSelect}>
+          {
+            Array.from(tree.entries(), ([k, v]) => (
+              <TreeNode key={k} title={renderFolderTitle(v)}>
+                {v.feeds.map(renderFeed)}
+              </TreeNode>
+            ))
+          }
+        </Tree>
+      </div>
     )
   }
 
@@ -79,40 +79,40 @@ export default class FolderFeedList extends React.Component {
       return <b>{`(${unreadCount})  All items`}</b>;
     }
   }
+}
 
-  renderFolderTitle(folder) {
-    if (folder.unread_count === 0) {
-      return folder.title;
-    } else {
-      return <b>{`(${folder.unread_count})  ${folder.title}`}</b>;
-    }
+function renderFolderTitle(folder) {
+  if (folder.unread_count === 0) {
+    return folder.title;
+  } else {
+    return <b>{`(${folder.unread_count})  ${folder.title}`}</b>;
+  }
+}
+
+function renderFeed(feed) {
+  let img;
+  if (feed.favicon === '') {
+    img = <img src={defaultFavicon} height={16} width={16} alt=''/>
+  } else {
+    img = <img src={`data:${feed.favicon}`} height={16} width={16} alt=''/>
   }
 
-  renderFeed(f) {
-    var img;
-    if (f.favicon === '') {
-      img = <img src={defaultFavicon} height={16} width={16} alt=''/>
-    } else {
-      img = <img src={`data:${f.favicon}`} height={16} width={16} alt=''/>
-    }
+  let title;
+  if (feed.unread_count === 0) {
+    title = feed.title;
+  } else {
+    title = <b>{`(${feed.unread_count})  ${feed.title}`}</b>
+  }
 
-    var title;
-    if (f.unread_count === 0) {
-      title = f.title;
-    } else {
-      title = <b>{`(${f.unread_count})  ${f.title}`}</b>
-    }
-
-    var elem = (
-      <div className='feed-row'>
-        <div className='feed-icon'>
-          {img}
-        </div>
-        <div className='feed-title'>
-          {title}
-        </div>
+  const elem = (
+    <div className='feed-row'>
+      <div className='feed-icon'>
+        {img}
       </div>
-    );
-    return <TreeNode key={f.id} title={elem} isLeaf />;
-  }
+      <div className='feed-title'>
+        {title}
+      </div>
+    </div>
+  );
+  return <TreeNode key={feed.id} title={elem} isLeaf/>;
 }

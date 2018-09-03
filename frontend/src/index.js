@@ -1,15 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { Router, Route, browserHistory } from 'react-router';
+import {BrowserRouter, Route, Switch} from 'react-router-dom';
 import App from './App';
 import Login from './components/Login';
 
-ReactDOM.render((
-    <Router history={browserHistory}>
-      <div className="App">
-        <Route path='/login' component={Login} />
-        <Route path='/' component={App} />
-      </div>
-    </Router>),
-    document.getElementById('root')
+ReactDOM.render(
+  <BrowserRouter>
+    <div className="App">
+      <Switch>
+        <Route exact path='/login' component={Login}/>
+        <Route path='/' component={App}/>
+      </Switch>
+    </div>
+  </BrowserRouter>,
+  document.getElementById('root')
 );

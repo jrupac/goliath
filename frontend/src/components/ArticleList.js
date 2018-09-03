@@ -43,27 +43,27 @@ export default class ArticleList extends React.Component {
   render() {
     if (this.state.articles.length === 0) {
       return (
-          <div className="article-list-empty">
-            No unread articles.
-          </div>
+        <div className="article-list-empty">
+          No unread articles.
+        </div>
       )
     } else {
       const articles = this.state.articles;
       const feeds = this.props.feeds;
       const renderArticle = (index) => (
-          <Article
-              key={articles[index].id}
-              article={articles[index]}
-              feed={feeds.get(articles[index].feed_id)}
-              isSelected={index === this.state.scrollIndex} />);
+        <Article
+          key={articles[index].id}
+          article={articles[index]}
+          feed={feeds.get(articles[index].feed_id)}
+          isSelected={index === this.state.scrollIndex}/>);
       return (
-          <ReactList
-              ref={this.handleMounted}
-              itemRenderer={(e) => renderArticle(e)}
-              length={articles.length}
-              minSize={5}
-              threshold={1000}
-              type='variable'/>
+        <ReactList
+          ref={this.handleMounted}
+          itemRenderer={(e) => renderArticle(e)}
+          length={articles.length}
+          minSize={5}
+          threshold={1000}
+          type='variable'/>
       )
     }
   }
@@ -89,8 +89,10 @@ export default class ArticleList extends React.Component {
         keypressBuffer = new Array(keyBufLength);
       } else if (markAllRead.every((e, i) => e === keypressBuffer[i])) {
         this.props.handleMark(
-            'read', this.props.enclosingKey, this.props.enclosingType);
-        articles.forEach((e) => { e.is_read = true });
+          'read', this.props.enclosingKey, this.props.enclosingType);
+        articles.forEach((e) => {
+          e.is_read = true
+        });
         keypressBuffer = new Array(keyBufLength);
       } else {
         switch (event.key) {
@@ -98,7 +100,7 @@ export default class ArticleList extends React.Component {
           event.preventDefault(); // fallthrough
         case 'j':
           scrollIndex = Math.min(
-              prevState.scrollIndex + 1, this.state.articles.length - 1);
+            prevState.scrollIndex + 1, this.state.articles.length - 1);
           break;
         case 'ArrowUp':
           event.preventDefault(); // fallthrough
@@ -108,6 +110,9 @@ export default class ArticleList extends React.Component {
         case 'v':
           const article = this.state.articles[prevState.scrollIndex];
           window.open(article.url, '_blank');
+          break;
+        default:
+          // No known key pressed, just ignore.
           break;
         }
       }
