@@ -19,46 +19,52 @@ export default class Article extends React.Component {
     }
     const feedTitle = this.props.feed.title;
     return (
-        <div className="ant-card-outer">
-          <Card
-              className={cardClass}
-              ref={(ref) => {this.ref = ref}}
-              title={
-                <div className={headerClass}>
-                  <div className="article-title">
-                    <a
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        href={this.props.article.url}>
-                      {this.props.article.title}
-                    </a>
-                    <br />
-                    <div className="article-feed">
-                      {this.renderFavicon()}
-                      <p className="article-feed-title">{feedTitle}</p>
-                    </div>
-                  </div>
-                  <div className="article-date">
-                    <Tooltip title={Article.formatFullDate(date)} overlay="">
-                      {Article.formatDate(date)}
-                    </Tooltip>
-                    {this.renderReadIcon()}
-                  </div>
+      <div className="ant-card-outer">
+        <Card
+          className={cardClass}
+          ref={(ref) => {
+            this.ref = ref
+          }}
+          title={
+            <div className={headerClass}>
+              <div className="article-title">
+                <a
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  href={this.props.article.url}>
+                  {this.props.article.title}
+                </a>
+                <br/>
+                <div className="article-feed">
+                  {this.renderFavicon()}
+                  <p className="article-feed-title">{feedTitle}</p>
                 </div>
-              } >
-            <div className="article-content">
-              <div dangerouslySetInnerHTML={{__html: this.props.article.html}} />
+              </div>
+              <div className="article-date">
+                <Tooltip title={formatFullDate(date)} overlay="">
+                  {formatDate(date)}
+                </Tooltip>
+                {this.renderReadIcon()}
+              </div>
             </div>
-          </Card>
-        </div>
+          }>
+          <div className="article-content">
+            <div dangerouslySetInnerHTML={{__html: this.props.article.html}}/>
+          </div>
+        </Card>
+      </div>
     )
   }
 
   renderReadIcon() {
     if (this.props.article.is_read) {
-      return <i className="fa fa-circle-thin article-status-read" aria-hidden="true" />
+      return <i
+        className="fa fa-circle-thin article-status-read"
+        aria-hidden="true"/>
     } else {
-      return <i className="fa fa-circle article-status-unread" aria-hidden="true" />
+      return <i
+        className="fa fa-circle article-status-unread"
+        aria-hidden="true"/>
     }
   }
 
@@ -71,18 +77,20 @@ export default class Article extends React.Component {
     }
   }
 
-  static formatFullDate(date) {
-    return moment(date).format('dddd, MMMM Do YYYY, h:mm:ss A');
-  }
 
-  static formatDate(date) {
-    const now = moment();
-    const before = moment(now).subtract(1, 'days');
-    const then = moment(date);
-    if (then.isBetween(before, now)) {
-      return then.fromNow();
-    } else {
-      return then.format("ddd, MMM D, h:mm A");
-    }
+}
+
+function formatFullDate(date) {
+  return moment(date).format('dddd, MMMM Do YYYY, h:mm:ss A');
+}
+
+function formatDate(date) {
+  const now = moment();
+  const before = moment(now).subtract(1, 'days');
+  const then = moment(date);
+  if (then.isBetween(before, now)) {
+    return then.fromNow();
+  } else {
+    return then.format("ddd, MMM D, h:mm A");
   }
 }
