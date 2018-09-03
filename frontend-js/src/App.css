@@ -1,0 +1,321 @@
+#root {
+  height: 100%;
+}
+
+@font-face {
+  font-family: "et-book";
+  src: url("https://cdn.jsdelivr.net/font-et-book/0.1/et-book/et-book-roman-line-figures/et-book-roman-line-figures.woff") format("woff");
+  font-weight: normal;
+  font-style: normal
+}
+
+.App {
+  font-family: 'et-book', serif;
+  height: 100%;
+}
+
+/* Inertial scrolling on mobile devices */
+@media only screen and (max-width: 1024px) {
+  .App {
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* antd elements */
+
+.ant-layout-sider {
+  background-color: #404040;
+  width: 300px;
+  border-right: 1px solid #aaa;
+  overflow: auto;
+  overflow-x: hidden;
+  font-family: 'Muli', sans-serif;
+}
+
+.ant-layout-sider .logo {
+  text-align: center;
+  font-family: 'Pacifico', cursive;
+  color: #ececec;
+  font-size: 48px;
+  padding-top: 24px;
+  padding-bottom: 20px;
+}
+
+.ant-layout-content {
+  background: #ececec;
+  padding: 0 24px;
+}
+
+.ant-layout-footer {
+  text-align: center;
+  font-family: 'Muli', sans-serif;
+}
+
+.ant-tree {
+  background: #404040;
+  line-height: 16px;
+  padding-right: 1px;
+  font-family: 'Muli', sans-serif;
+}
+
+.ant-tree li span.ant-tree-switcher {
+  padding-top: 2px;
+  color: #ececec;
+}
+
+.ant-tree li {
+  padding: 0 15px 0 0;
+}
+
+.ant-tree li .ant-tree-node-content-wrapper {
+  display: inline;
+  padding-top: 3px;
+  padding-bottom: 6px;
+}
+
+.ant-tree li ul {
+  padding-left: 10px;
+}
+
+.ant-tree-title, .ant-tree li a {
+  display: inline-block;
+  transition: all 0.1s ease;
+  color: #ececec;
+  font-size: 14px;
+  width: 100%;
+}
+
+.ant-tree-title {
+  line-height: initial;
+  padding: 0 0 0 2px;
+}
+
+.ant-tree li .ant-tree-node-content-wrapper:hover {
+  background-color: #383838;
+  line-height: 16px;
+}
+
+.ant-tree li .ant-tree-node-content-wrapper.ant-tree-node-selected {
+  background-color: #222;
+  line-height: 16px;
+}
+
+.ant-card-outer {
+  /* Needed to get correct offsetTop for react-list */
+  border-top: 24px solid transparent;
+}
+
+.ant-card-head {
+  height: auto;
+  line-height: initial;
+  border: none;
+}
+
+.ant-card-head-title {
+  padding: 0;
+}
+
+.ant-card {
+  box-shadow: none;
+  border-color: transparent;
+  border-radius: 0;
+}
+
+.card-selected,
+.card-selected .ant-card:hover {
+  box-shadow: none;
+  border: 1px solid #404040;
+}
+
+.ant-card:hover {
+  box-shadow: none;
+  border: 1px solid #aaa;
+}
+
+/* Goliath elements */
+
+/* Login Page */
+
+.login-page {
+  display: flex;
+  height: 100%;
+}
+
+.login-page-logo, .login-page-form-background {
+  display: flex;
+  align-items: center;
+}
+
+.login-page-logo {
+  background: #404040;
+  justify-content: flex-end;
+  padding-right: 20px;
+  font-family: 'Pacifico', cursive;
+  color: #ececec;
+  font-size: 48px;
+  width: 40%;
+}
+
+.login-page-form-background {
+  background: #ececec;
+  justify-content: flex-start;
+  padding-left: 20px;
+  width: 60%;
+  height: 100%;
+}
+
+.login-page-form {
+  max-width: 200px;
+}
+
+.login-page-form-button {
+  width: 100%;
+}
+
+.login-failed {
+  color: #f04134;
+  padding-bottom: 5px;
+}
+
+/* Sidebar */
+
+.all-items, .all-items-selected {
+  font-family: 'Muli', sans-serif;
+  background-color: #404040;
+  padding-right: 15px;
+  padding-left: 30px;
+  display: inline-block;
+  transition: all 0.1s ease;
+  color: #ececec;
+  font-size: 14px;
+  width: 100%;
+  cursor: pointer;
+  line-height: 46px;
+  border-top: 1px solid #222;
+  border-bottom: 1px solid #222;
+}
+
+.all-items:hover {
+  background-color: #383838;
+}
+
+.all-items-selected {
+  background-color: #222;
+}
+
+.all-items-text {
+  display: inline;
+  padding-left: 8px;
+  line-height: 46px;
+}
+
+.feed-row {
+  display: flex;
+  align-items: center;
+  flex-flow: row nowrap;
+}
+
+.feed-icon {
+  height: 16px;
+  width: 16px;
+}
+
+.feed-title {
+  padding-left: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Article list */
+
+.article-list {
+}
+
+.article-list-empty {
+  text-align: center;
+  color: #ababab;
+  font-size: 24px;
+  margin-top: 20%;
+  margin-bottom: 30%;
+  margin-left: 35%;
+  width: 30%;
+}
+
+/* Article */
+
+.article-header, .article-header-read {
+  display: flex;
+  align-items: stretch;
+  flex-flow: row nowrap;
+  justify-content:space-between;
+  padding-top: 15px;
+}
+
+.article-title {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'et-book', serif;
+  font-size: 24px;
+  padding-left: 10px;
+}
+
+.article-header a {
+  color: #222;
+}
+
+.article-header-read {
+  color: #aaa;
+}
+
+.article-header-read a {
+  color: #aaa;
+}
+
+.article-status-read,
+.article-status-unread {
+  font-size: 12px;
+  padding-left: 7px;
+}
+
+.article-feed {
+  font-size: 16px;
+  display: flex;
+  padding-top: 5px;
+}
+
+.article-feed-title {
+  padding-left: 5px;
+}
+
+.article-date {
+  font-family: 'et-book', serif;
+  width: 150px;
+  min-width: 150px;
+  font-size: 16px;
+  text-align: right;
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+}
+
+.article-content {
+  font-size: 18px;
+  font-family: 'et-book', serif;
+  color: black;
+}
+
+.article-content img {
+  max-width: 50%;
+  height: auto;
+  /* Center images */
+  display: flex;
+  margin: 0 auto;
+}
+
+/* Hide some elements that clutter article display. */
+.share_submission,
+.feedflare {
+  display: none;
+}
