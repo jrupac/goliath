@@ -1,5 +1,9 @@
 import React from 'react';
-import {Form, Icon, Input, Button} from 'antd';
+import Form from 'antd/lib/form';
+import Icon from 'antd/lib/icon';
+import Input from 'antd/lib/input';
+import Button from 'antd/lib/button';
+import {withRouter} from "react-router-dom";
 
 const FormItem = Form.Item;
 
@@ -70,7 +74,7 @@ class WrappedLogin extends React.Component {
             console.log(res);
           } else {
             this.setState({loginFailed: false});
-            this.props.router.push({
+            this.props.history.push({
               pathname: '/'
             });
           }
@@ -83,4 +87,4 @@ class WrappedLogin extends React.Component {
   }
 }
 
-export default Form.create()(WrappedLogin);
+export default withRouter(Form.create()(WrappedLogin));
