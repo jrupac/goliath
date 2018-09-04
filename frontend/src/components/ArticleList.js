@@ -44,7 +44,8 @@ export default class ArticleList extends React.Component {
     if (this.state.articles.length === 0) {
       return (
         <div className="article-list-empty">
-          No unread articles.
+          <i className="fas fa-check article-list-empty-icon" />
+          <p className="article-list-empty-text">No unread articles.</p>
         </div>
       )
     } else {

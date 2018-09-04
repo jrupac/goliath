@@ -1,6 +1,5 @@
 import React from 'react';
 import Form from 'antd/lib/form';
-import Icon from 'antd/lib/icon';
 import Input from 'antd/lib/input';
 import Button from 'antd/lib/button';
 import {withRouter} from "react-router-dom";
@@ -29,14 +28,18 @@ class WrappedLogin extends React.Component {
               {getFieldDecorator('username', {
                 rules: [{required: true, message: 'Empty username!'}],
               })(<Input
-                prefix={<Icon type="user" style={{fontSize: 13}}/>}
+                prefix={<i
+                  className="fas fa-user"
+                  aria-hidden="true"/>}
                 placeholder="username"/>)}
             </FormItem>
             <FormItem>
               {getFieldDecorator('password', {
                 rules: [{required: true, message: 'Empty password!'}],
               })(<Input
-                prefix={<Icon type="lock" style={{fontSize: 13}}/>}
+                prefix={<i
+                  className="fas fa-lock"
+                  aria-hidden="true"/>}
                 type="password"
                 placeholder="password"/>)}
             </FormItem>

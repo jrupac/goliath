@@ -1,5 +1,4 @@
 import Card from 'antd/lib/card';
-import defaultFavicon from '../favicon.ico';
 import moment from 'moment';
 import React from 'react';
 import Tooltip from 'antd/lib/tooltip';
@@ -71,7 +70,7 @@ export default class Article extends React.Component {
   renderFavicon() {
     const favicon = this.props.feed.favicon;
     if (!favicon) {
-      return <img src={defaultFavicon} height={16} width={16} alt=''/>
+      return <i className="fas fa-rss-square" />
     } else {
       return <img src={`data:${favicon}`} height={16} width={16} alt=''/>
     }

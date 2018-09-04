@@ -1,6 +1,4 @@
-import defaultFavicon from '../favicon.ico';
 import React from 'react';
-import Icon from 'antd/lib/icon';
 import Tree from 'antd/lib/tree';
 import {EnclosingType, KeyAll} from '../App';
 
@@ -50,7 +48,9 @@ export default class FolderFeedList extends React.Component {
         <div
           onClick={() => this.handleSelect(KeyAll, EnclosingType.All)}
           className={allSelectedClass}>
-          <Icon type='inbox'/>
+          <i
+            className="fas fa-inbox"
+            aria-hidden="true"/>
           <div className='all-items-text'>
             {this.renderAllItemsTitle()}
           </div>
@@ -92,7 +92,7 @@ function renderFolderTitle(folder) {
 function renderFeed(feed) {
   let img;
   if (feed.favicon === '') {
-    img = <img src={defaultFavicon} height={16} width={16} alt=''/>
+    img = <i className="fas fa-rss-square" />
   } else {
     img = <img src={`data:${feed.favicon}`} height={16} width={16} alt=''/>
   }

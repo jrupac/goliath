@@ -50,6 +50,7 @@
 .ant-layout-footer {
   text-align: center;
   font-family: 'Muli', sans-serif;
+  background-color: #ececec;
 }
 
 .ant-tree {
@@ -89,6 +90,10 @@
 .ant-tree-title {
   line-height: initial;
   padding: 0 0 0 2px;
+}
+
+.ant-tree li span.ant-tree-switcher {
+  line-height: 0;
 }
 
 .ant-tree li .ant-tree-node-content-wrapper:hover {
@@ -192,8 +197,6 @@
   width: 100%;
   cursor: pointer;
   line-height: 46px;
-  border-top: 1px solid #222;
-  border-bottom: 1px solid #222;
 }
 
 .all-items:hover {
@@ -233,13 +236,24 @@
 }
 
 .article-list-empty {
+  display: inline-block;
   text-align: center;
   color: #ababab;
   font-size: 24px;
   margin-top: 20%;
-  margin-bottom: 30%;
+  margin-bottom: 25%;
   margin-left: 35%;
   width: 30%;
+}
+
+.article-list-empty-icon {
+  vertical-align: middle;
+  font-size: 120px;
+}
+
+.article-list-empty-text {
+  vertical-align: middle;
+  font-family: 'Muli', sans-serif;
 }
 
 /* Article */
