@@ -23,6 +23,7 @@
             <outline type="rss" text="Extra Ordinary" xmlUrl="http://www.exocomics.com/feed/" htmlUrl="http://www.exocomics.com"/>
             <outline type="rss" text="Nothing Suspicious" xmlUrl="https://nothingsuspicio.us/comic?format=RSS" htmlUrl="https://nothingsuspicio.us"/>
             <outline type="rss" text="xkcd.com" xmlUrl="http://xkcd.com/rss.xml" htmlUrl="http://xkcd.com/"/>
+            <outline type="rss" text="Rustled Jimmies" xmlUrl="https://www.rustledjimmies.net/index.xml" htmlUrl="https://www.rustledjimmies.net/"/>
         </outline>
         <outline text="Personal Development">
             <outline type="rss" text="Barking Up The Wrong Tree" xmlUrl="http://www.bakadesuyo.com/feed/" htmlUrl="http://www.bakadesuyo.com"/>
