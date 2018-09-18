@@ -30,6 +30,9 @@ type imagePair struct {
 func Start(ctx context.Context, d *storage.Database) {
 	log.Infof("Starting continuous feed fetching.")
 
+	// Add an additional time layout that sometimes appears in feeds.
+	rss.TimeLayouts = append(rss.TimeLayouts, "2006-01-02")
+
 	// Turn off logging of HTTP icon requests.
 	besticon.SetLogOutput(ioutil.Discard)
 
@@ -110,6 +113,7 @@ func do(ctx context.Context, d *storage.Database, ac chan models.Article, ic cha
 
 func handleItems(feed *models.Feed, d *storage.Database, items []*rss.Item, send chan models.Article) {
 	latest := feed.Latest
+	newLatest := latest
 	for _, item := range items {
 		parsed := ""
 		if *parseArticles {
@@ -132,19 +136,22 @@ func handleItems(feed *models.Feed, d *storage.Database, items []*rss.Item, send
 			Read:      item.Read,
 			Retrieved: time.Now(),
 		}
+
 		if a.Date.After(latest) {
 			send <- a
-			latest = a.Date
+			if a.Date.After(newLatest) {
+				newLatest = a.Date
+			}
 		} else {
 			log.V(2).Infof("Not persisting too old article: %+v", a)
 		}
 	}
 
-	err := d.UpdateLatestTimeForFeed(feed.ID, latest)
+	err := d.UpdateLatestTimeForFeed(feed.ID, newLatest)
 	if err != nil {
 		log.Warningf("Failed to update latest feed time: %s", err)
 	} else {
-		feed.Latest = latest
+		feed.Latest = newLatest
 	}
 }
 
