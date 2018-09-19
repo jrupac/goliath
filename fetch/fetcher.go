@@ -30,8 +30,9 @@ type imagePair struct {
 func Start(ctx context.Context, d *storage.Database) {
 	log.Infof("Starting continuous feed fetching.")
 
-	// Add an additional time layout that sometimes appears in feeds.
+	// Add additional time layouts that sometimes appear in feeds.
 	rss.TimeLayouts = append(rss.TimeLayouts, "2006-01-02")
+	rss.TimeLayouts = append(rss.TimeLayouts, "Monday, 02 Jan 2006 15:04:05 MST")
 
 	// Turn off logging of HTTP icon requests.
 	besticon.SetLogOutput(ioutil.Discard)
