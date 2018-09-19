@@ -24,6 +24,7 @@
             <outline type="rss" text="Nothing Suspicious" xmlUrl="https://nothingsuspicio.us/comic?format=RSS" htmlUrl="https://nothingsuspicio.us"/>
             <outline type="rss" text="xkcd.com" xmlUrl="http://xkcd.com/rss.xml" htmlUrl="http://xkcd.com/"/>
             <outline type="rss" text="Rustled Jimmies" xmlUrl="https://www.rustledjimmies.net/index.xml" htmlUrl="https://www.rustledjimmies.net/"/>
+            <outline type="rss" text="RaphComic" xmlUrl="https://www.webtoons.com/en/challenge/raphcomic/rss?title_no=107409" htmlUrl="https://www.webtoons.com/en/challenge/raphcomic/list?title_no=107409"/>
         </outline>
         <outline text="Personal Development">
             <outline type="rss" text="Barking Up The Wrong Tree" xmlUrl="http://www.bakadesuyo.com/feed/" htmlUrl="http://www.bakadesuyo.com"/>
