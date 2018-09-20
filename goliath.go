@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/admin"
 	"github.com/jrupac/goliath/auth"
 	"github.com/jrupac/goliath/fetch"
 	"github.com/jrupac/goliath/opml"
@@ -78,12 +79,8 @@ func main() {
 
 	go fetch.Start(ctx, d)
 	go storage.StartGC(ctx, d)
-
-	go func() {
-		if err = serveMetrics(ctx); err != nil {
-			log.Infof("%s", err)
-		}
-	}()
+	go admin.Start(ctx)
+	go serveMetrics(ctx)
 
 	if err = serve(ctx, d); err != nil {
 		log.Infof("%s", err)
@@ -101,7 +98,7 @@ func installSignalHandler(cancel context.CancelFunc) {
 	}()
 }
 
-func serveMetrics(ctx context.Context) error {
+func serveMetrics(ctx context.Context) {
 	mux := http.NewServeMux()
 	srv := &http.Server{
 		Addr:           fmt.Sprintf(":%d", *metricsPort),
@@ -123,7 +120,10 @@ func serveMetrics(ctx context.Context) error {
 
 	mux.Handle("/metrics", promhttp.Handler())
 	log.Infof("Starting metrics server on %s", srv.Addr)
-	return srv.ListenAndServe()
+
+	if err := srv.ListenAndServe(); err != nil {
+		log.Infof("%s", err)
+	}
 }
 
 func serve(ctx context.Context, d *storage.Database) error {

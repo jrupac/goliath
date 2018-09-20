@@ -5,6 +5,9 @@
 set -euxo pipefail
 
 echo "Building Goliath core."
+
+protoc -I admin/ admin/admin.proto --go_out=plugins=grpc:admin
+
 buildTimestamp=`date +%s`
 buildHash=`git rev-parse HEAD`
 ldFlags="-X main.buildTimestamp=$buildTimestamp -X main.buildHash=$buildHash"

@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package admin;
+
+message AddUserRequest {
+  // Required. String value of username. Exact values (including capitalization)
+  // are persisted.
+  string Username = 1;
+
+  // Required. Key used in Fever API operations. This is defined as:
+  //   md5sum($username:$password)
+  // Note the ":" (colon) between the user-supplied username and password.
+  string Key = 2;
+}
+
+// Empty response. Success is indicated by gRPC-level status code.
+message AddUserResponse {
+}
+
+message AddFeedRequest {
+  // Required. Logical title of feed. It is possible to have multiple feeds of
+  // the same title, so this is not checked for uniqueness.
+  string Title = 1;
+
+  // Optional. Description of feed, typically a few words in length.
+  string Description = 2;
+
+  // Required. URL should point to the logical homepage for the feed.
+  string URL = 3;
+
+  // Optional. If set, this new feed will be placed under the folder of the
+  // supplied name. In the event of multiple folders of the same name, this
+  // feed will be placed into the first one found (sorted by insertion order).
+  string Folder = 4;
+}
+
+// Empty response. Success is indicated by gRPC-level status code.
+message AddFeedResponse {
+}
+
+service AdminService {
+  // Add a new user into the system. This is currently a single-user system.
+  rpc AddUser (AddUserRequest) returns (AddUserResponse);
+
+  // Add a new feed. Currently, this is a single-user system, so feeds are
+  // stored in a global namespace.
+  rpc AddFeed (AddFeedRequest) returns (AddFeedResponse);
+}
