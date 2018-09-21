@@ -20,11 +20,11 @@ type server struct {
 }
 
 func (s *server) AddUser(ctx context.Context, req *AddUserRequest) (*AddUserResponse, error) {
-	return nil, status.New(codes.Unimplemented, "not yet implemented").Err()
+	return nil, status.Error(codes.Unimplemented, "not yet implemented")
 }
 
 func (s *server) AddFeed(ctx context.Context, req *AddFeedRequest) (*AddFeedResponse, error) {
-	return nil, status.New(codes.Unimplemented, "not yet implemented").Err()
+	return nil, status.Error(codes.Unimplemented, "not yet implemented")
 }
 
 func newServer() AdminServiceServer {
