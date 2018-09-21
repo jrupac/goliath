@@ -1,7 +1,7 @@
 import 'antd/dist/antd.css';
 import './App.css';
 import ArticleList from './components/ArticleList.js';
-import Decimal from 'decimal.js-light';
+import {Decimal} from 'decimal.js-light';
 import FolderFeedList from './components/FolderFeedList';
 import Layout from 'antd/lib/layout';
 import Loading from './components/Loading';
@@ -110,17 +110,33 @@ export default class App extends React.Component {
       if (v && v.isLosslessNumber) {
         return String(v);
       }
-
       return v;
     });
   }
 
+  /**
+   * @typedef {Object} FeedGroupType
+   * @property {String} group_id
+   * @property {String} feed_ids
+   */
+
+  /**
+   * @typedef {Object} GroupType
+   * @property {String} id
+   * @property {String} title
+   */
+
+  /**
+   * @typedef {Object} FetchFolderType
+   * @property {Array<FeedGroupType>} feeds_groups
+   * @property {Array<GroupType>} groups
+   */
   fetchFolders() {
-    fetch('/fever/?api&groups', {
+    return fetch('/fever/?api&groups', {
       credentials: 'include'
     }).then((result) => result.text())
       .then((result) => this.parseJson(result))
-      .then((body) => {
+      .then((/** FetchFolderType */ body) => {
         this.setState((prevState) => {
           const folderToFeeds = prevState.folderToFeeds;
           const folders = prevState.folders;
@@ -141,7 +157,7 @@ export default class App extends React.Component {
   }
 
   fetchFeeds() {
-    fetch('/fever/?api&feeds', {
+    return fetch('/fever/?api&feeds', {
       credentials: 'include'
     }).then((result) => result.text())
       .then((result) => this.parseJson(result))
@@ -178,7 +194,8 @@ export default class App extends React.Component {
       since = new Decimal(0);
       itemUri = '/fever/?api&items';
     }
-    fetch(itemUri, {
+
+    return fetch(itemUri, {
       credentials: 'include'
     }).then((result) => result.text())
       .then((result) => this.parseJson(result))
@@ -224,7 +241,7 @@ export default class App extends React.Component {
   }
 
   fetchFavicons() {
-    fetch('/fever/?api&favicons', {
+    return fetch('/fever/?api&favicons', {
       credentials: 'include'
     }).then((result) => result.text())
       .then((result) => this.parseJson(result))
@@ -242,12 +259,15 @@ export default class App extends React.Component {
       }).catch((e) => console.log(e));
   }
 
+  /**
+   * @typedef {{build_timestamp: String, build_hash: String}} VersionType
+   */
   fetchVersion() {
-    fetch('/version', {
+    return fetch('/version', {
       credentials: 'include'
     }).then((result) => result.text())
       .then((result) => this.parseJson(result))
-      .then((body) => {
+      .then((/** VersionType */ body) => {
         this.setState({
           buildTimestamp: body.build_timestamp,
           buildHash: body.build_hash
