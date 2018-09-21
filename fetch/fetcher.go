@@ -20,6 +20,11 @@ var (
 	parseArticles = flag.Bool("parseArticles", false, "If true, parse article content via Mercury API.")
 )
 
+var (
+	PauseChan   = make(chan struct{})
+	RestartChan = make(chan struct{})
+)
+
 type imagePair struct {
 	id      int64
 	mime    string
@@ -37,9 +42,36 @@ func Start(ctx context.Context, d *storage.Database) {
 	// Turn off logging of HTTP icon requests.
 	besticon.SetLogOutput(ioutil.Discard)
 
+	ctx, cancel := context.WithCancel(ctx)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go start(ctx, wg, d)
+
+	for {
+		select {
+		case <-PauseChan:
+			cancel()
+			wg.Wait()
+			log.Info("Fetcher paused.")
+		case <-RestartChan:
+			ctx, cancel = context.WithCancel(ctx)
+			wg.Add(1)
+			go start(ctx, wg, d)
+			log.Info("Fetcher restarted.")
+		case <-ctx.Done():
+			wg.Wait()
+			return
+		}
+	}
+}
+
+func start(ctx context.Context, parent *sync.WaitGroup, d *storage.Database) {
+	defer parent.Done()
+
 	feeds, err := d.GetAllFeeds()
 	if err != nil {
-		log.Infof("Failed to fetch all feeds: %s", err)
+		log.Errorf("Failed to fetch all feeds: %s", err)
 	}
 	utils.DebugPrint("Feed list", feeds)
 
