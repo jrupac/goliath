@@ -82,7 +82,8 @@ func (d *Database) InsertArticle(a models.Article) error {
 	return nil
 }
 
-// InsertFavicon inserts the given favicon and associated metadata into the database.
+// InsertFavicon inserts the given favicon and associated metadata into the
+// database.
 func (d *Database) InsertFavicon(feedID int64, mime string, img []byte) error {
 	// TODO: Consider wrapping this into a Favicon model type.
 	var count int
@@ -104,13 +105,60 @@ func (d *Database) InsertFavicon(feedID int64, mime string, img []byte) error {
 	return err
 }
 
+// InsertFeed inserts a new feed into the database. If `pID` is 0, the feed
+// is assumed to be a top-level entry. Otherwise, the feed will be nested under
+// the folder with that ID.
+func (d *Database) InsertFeed(f models.Feed, pID int64) (int64, error) {
+	var feedID int64
+
+	if pID == 0 {
+		err := d.db.QueryRow(`SELECT id FROM `+folderTable+` WHERE name = $1`, models.RootFolder).Scan(&pID)
+		if err != nil {
+			return feedID, nil
+		}
+	}
+
+	err := d.db.QueryRow(
+		`INSERT INTO `+feedTable+`(folder, hash, title, description, url)
+			VALUES($1, $2, $3, $4, $5)
+			ON CONFLICT(hash) DO UPDATE SET hash = excluded.hash RETURNING id`,
+		pID, f.Hash(), f.Title, f.Description, f.URL).Scan(&feedID)
+	return feedID, err
+}
+
+// InsertFolder inserts a new folder into the database. If `pID` is 0, the
+// folder is assumed to be the root folder. Otherwise, the folder will be
+// nested under the folder with that ID.
+func (d *Database) InsertFolder(f models.Folder, pID int64) (int64, error) {
+	var folderID int64
+
+	err := d.db.QueryRow(
+		`INSERT INTO `+folderTable+`(name) VALUES($1)
+    	 ON CONFLICT(name) DO UPDATE SET name = excluded.name RETURNING id`, f.Name).Scan(&folderID)
+	if err != nil {
+		return folderID, err
+	}
+
+	// TODO: Assert that there is not already a root folder.
+	if pID != 0 {
+		_, err = d.db.Exec(
+			`UPSERT INTO `+folderChildrenTable+`(parent, child) VALUES($1, $2)`, folderID, pID)
+		if err != nil {
+			return folderID, err
+		}
+	}
+
+	return folderID, nil
+}
+
 // InsertUser inserts the given user into the database.
 func (d *Database) InsertUser(u models.User) error {
 	_, err := d.db.Exec(`INSERT INTO `+userTable+`(username, key) VALUES($1, $2)`, u.Username, u.Key)
 	return err
 }
 
-// DeleteArticles deletes all articles earlier than the given timestamp and returns the number deleted.
+// DeleteArticles deletes all articles earlier than the given timestamp and
+// returns the number deleted.
 func (d *Database) DeleteArticles(minTimestamp time.Time) (int64, error) {
 	r, err := d.db.Exec(
 		`DELETE FROM `+articleTable+` WHERE read AND (retrieved IS NULL OR retrieved < $1) RETURNING id`, minTimestamp)
@@ -136,7 +184,8 @@ func (d *Database) MarkArticle(id int64, status string) error {
 	return err
 }
 
-// MarkFeed sets the read status of all articles in the given feed to the given status.
+// MarkFeed sets the read status of all articles in the given feed to the
+// given status.
 func (d *Database) MarkFeed(id int64, status string) error {
 	// TODO: Consider creating a type for the status string.
 	state, err := parseState(status)
@@ -148,8 +197,9 @@ func (d *Database) MarkFeed(id int64, status string) error {
 	return err
 }
 
-// MarkFolder sets the read status of all articles in the given folder to the given status.
-// An ID of 0 will mark all articles in all folders to the given status.
+// MarkFolder sets the read status of all articles in the given folder to the
+// given status. An ID of 0 will mark all articles in all folders to the given
+// status.
 func (d *Database) MarkFolder(id int64, status string) error {
 	// TODO: Consider creating a type for the status string.
 	state, err := parseState(status)
@@ -179,7 +229,8 @@ func (d *Database) MarkFolder(id int64, status string) error {
 	return err
 }
 
-// UpdateLatestTimeForFeed sets the latest retrieval time for the given feed to the given timestamp.
+// UpdateLatestTimeForFeed sets the latest retrieval time for the given feed to
+// the given timestamp.
 func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
 	_, err := d.db.Exec(`UPDATE `+feedTable+` SET latest = $1 WHERE id = $2`, latest, id)
 	return err
@@ -189,7 +240,8 @@ func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
  * Getter methods
  ******************************************************************************/
 
-// GetFolderChildren returns a list of IDs corresponding to folders under the given folder ID.
+// GetFolderChildren returns a list of IDs corresponding to folders under the
+// given folder ID.
 func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
 	var children []int64
 	rows, err := d.db.Query(`SELECT child FROM `+folderChildrenTable+` WHERE parent = $1`, id)
@@ -248,7 +300,8 @@ func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 	return feeds, err
 }
 
-// GetFeedsPerFolder returns a map of folder ID to a comma-separated string of feed IDs.
+// GetFeedsPerFolder returns a map of folder ID to a comma-separated string of
+// feed IDs.
 func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
 	// TODO: Make this method return map[int64][]int64.
 	// Right now this is encoding Fever API semantics into the DB function.
@@ -276,8 +329,8 @@ func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
 	return resp, err
 }
 
-// GetAllFavicons returns a map of feed ID to a base64 representation of its favicon.
-// Feeds with no favicons are not part of the returned map.
+// GetAllFavicons returns a map of feed ID to a base64 representation of its
+// favicon. Feeds with no favicons are not part of the returned map.
 func (d *Database) GetAllFavicons() (map[int64]string, error) {
 	// TODO: Consider returning a Favicon model type.
 	favicons := map[int64]string{}
@@ -300,7 +353,8 @@ func (d *Database) GetAllFavicons() (map[int64]string, error) {
 	return favicons, err
 }
 
-// GetUnreadArticles returns a list of at most the given limit of articles after the given ID.
+// GetUnreadArticles returns a list of at most the given limit of articles after
+// the given ID.
 func (d *Database) GetUnreadArticles(limit int, sinceID int64) ([]models.Article, error) {
 	var articles []models.Article
 	var rows *sql.Rows
@@ -351,42 +405,32 @@ func (d *Database) GetUserByKey(key string) (models.User, error) {
 // ImportOpml inserts folders from the given OPML object into the database.
 func (d *Database) ImportOpml(opml *opml.Opml) error {
 	root := opml.Folders
-	err := d.db.QueryRow(
-		`INSERT INTO `+folderTable+`(name) VALUES($1)
- 		 ON CONFLICT(name) DO UPDATE SET name = excluded.name RETURNING id`, root.Name).Scan(&root.ID)
+	rootID, err := d.InsertFolder(root, 0)
 	if err != nil {
 		return err
 	}
+	root.ID = rootID
+
 	return d.importChildren(root)
 }
 
 func (d *Database) importChildren(parent models.Folder) error {
 	var err error
 	for _, f := range parent.Feed {
-		err = d.db.QueryRow(
-			`INSERT INTO `+feedTable+`(folder, hash, title, description, url)
-			VALUES($1, $2, $3, $4, $5)
-			ON CONFLICT(hash) DO UPDATE SET hash = excluded.hash RETURNING id`,
-			parent.ID, f.Hash(), f.Title, f.Description, f.URL).Scan(&f.ID)
+		feedID, err := d.InsertFeed(f, parent.ID)
 		if err != nil {
 			return err
 		}
-		f.FolderID = parent.ID
+		f.ID = feedID
 	}
 
 	for _, child := range parent.Folders {
-		err = d.db.QueryRow(
-			`INSERT INTO `+folderTable+`(name) VALUES($1)
-    	 ON CONFLICT(name) DO UPDATE SET name = excluded.name RETURNING id`, child.Name).Scan(&child.ID)
+		childID, err := d.InsertFolder(child, parent.ID)
 		if err != nil {
 			return err
 		}
+		child.ID = childID
 
-		_, err = d.db.Exec(
-			`UPSERT INTO `+folderChildrenTable+`(parent, child) VALUES($1, $2)`, parent.ID, child.ID)
-		if err != nil {
-			return err
-		}
 		if err = d.importChildren(child); err != nil {
 			return err
 		}

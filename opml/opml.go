@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
-
 	"golang.org/x/net/html/charset"
 	"io/ioutil"
 )
@@ -66,7 +65,7 @@ func createOpmlObject(oi *internalOpmlType) *Opml {
 // parseOutline converts "outline" objects into Folder and Feed objects.
 func parseOutline(children []outline) models.Folder {
 	folder := models.Folder{
-		Name: "<root>",
+		Name: models.RootFolder,
 	}
 
 	for _, o := range children {
