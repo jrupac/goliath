@@ -29,8 +29,7 @@ message AddFeedRequest {
   string URL = 3;
 
   // Optional. If set, this new feed will be placed under the folder of the
-  // supplied name. In the event of multiple folders of the same name, this
-  // feed will be placed into the first one found (sorted by insertion order).
+  // supplied name.
   string Folder = 4;
 }
 
@@ -39,10 +38,11 @@ message AddFeedResponse {
 }
 
 service AdminService {
-  // Add a new user into the system. This is currently a single-user system.
+  // Add a new user into the system. Though there may be multiple users, all
+  // content is stored in a global namespace.
   rpc AddUser (AddUserRequest) returns (AddUserResponse);
 
-  // Add a new feed. Currently, this is a single-user system, so feeds are
-  // stored in a global namespace.
+  // Add a new feed. Currently, this is logically a single-user system, so feeds
+  // are stored in a global namespace.
   rpc AddFeed (AddFeedRequest) returns (AddFeedResponse);
 }
