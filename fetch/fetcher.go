@@ -21,8 +21,9 @@ var (
 )
 
 var (
-	PauseChan   = make(chan struct{})
-	RestartChan = make(chan struct{})
+	pauseChan     = make(chan struct{})
+	pauseChanDone = make(chan struct{})
+	resumeChan    = make(chan struct{})
 )
 
 type imagePair struct {
@@ -31,7 +32,22 @@ type imagePair struct {
 	favicon []byte
 }
 
-// Start starts continuous feed fetching and writes fetched articles to the database.
+// Pause stops all continuous feed fetching in a way that is resume-able.
+// This call will block until fetching is fully paused. If fetching has not
+// started yet, this call will block indefinitely.
+func Pause() {
+	pauseChan <- struct{}{}
+	<-pauseChanDone
+}
+
+// Resume resumes continuous feed fetching with a fresh read of feeds.
+// If fetching has not started yet, this call will block indefinitely.
+func Resume() {
+	resumeChan <- struct{}{}
+}
+
+// Start starts continuous feed fetching and writes fetched articles to the
+// database.
 func Start(ctx context.Context, d *storage.Database) {
 	log.Infof("Starting continuous feed fetching.")
 
@@ -50,15 +66,16 @@ func Start(ctx context.Context, d *storage.Database) {
 
 	for {
 		select {
-		case <-PauseChan:
+		case <-pauseChan:
 			cancel()
 			wg.Wait()
 			log.Info("Fetcher paused.")
-		case <-RestartChan:
+			pauseChanDone <- struct{}{}
+		case <-resumeChan:
 			fctx, cancel = context.WithCancel(ctx)
 			wg.Add(1)
 			go start(fctx, wg, d)
-			log.Info("Fetcher restarted.")
+			log.Info("Fetcher resumed.")
 		case <-ctx.Done():
 			wg.Wait()
 			return
@@ -85,7 +102,7 @@ func start(ctx context.Context, parent *sync.WaitGroup, d *storage.Database) {
 	for _, f := range feeds {
 		go func(f models.Feed) {
 			defer wg.Done()
-			do(ctx, d, ac, ic, f)
+			fetchLoop(ctx, d, ac, ic, f)
 		}(f)
 	}
 
@@ -110,7 +127,7 @@ func start(ctx context.Context, parent *sync.WaitGroup, d *storage.Database) {
 	}
 }
 
-func do(ctx context.Context, d *storage.Database, ac chan models.Article, ic chan imagePair, feed models.Feed) {
+func fetchLoop(ctx context.Context, d *storage.Database, ac chan models.Article, ic chan imagePair, feed models.Feed) {
 	log.Infof("Fetching %s", feed.URL)
 	f, err := rss.Fetch(feed.URL)
 	if err != nil {
