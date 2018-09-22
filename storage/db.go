@@ -142,7 +142,7 @@ func (d *Database) InsertFolder(f models.Folder, pID int64) (int64, error) {
 	// TODO: Assert that there is not already a root folder.
 	if pID != 0 {
 		_, err = d.db.Exec(
-			`UPSERT INTO `+folderChildrenTable+`(parent, child) VALUES($1, $2)`, folderID, pID)
+			`UPSERT INTO `+folderChildrenTable+`(parent, child) VALUES($1, $2)`, pID, folderID)
 		if err != nil {
 			return folderID, err
 		}

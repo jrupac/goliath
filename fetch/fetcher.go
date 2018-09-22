@@ -95,9 +95,7 @@ func start(ctx context.Context, parent *sync.WaitGroup, d *storage.Database) {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(feeds))
 	ac := make(chan models.Article)
-	defer close(ac)
 	ic := make(chan imagePair)
-	defer close(ic)
 
 	for _, f := range feeds {
 		go func(f models.Feed) {
@@ -128,29 +126,38 @@ func start(ctx context.Context, parent *sync.WaitGroup, d *storage.Database) {
 }
 
 func fetchLoop(ctx context.Context, d *storage.Database, ac chan models.Article, ic chan imagePair, feed models.Feed) {
-	log.Infof("Fetching %s", feed.URL)
-	f, err := rss.Fetch(feed.URL)
-	if err != nil {
-		log.Warningf("Error fetching %s: %s", feed.URL, err)
-		return
-	}
-	handleItems(&feed, d, f.Items, ac)
-	handleImage(feed, f, ic)
+	log.Infof("Fetching URL '%s'", feed.URL)
+	tick := make(<-chan time.Time)
+	initalFetch := make(chan struct{})
 
-	tick := time.After(time.Until(f.Refresh))
-	log.Infof("Waiting to fetch %s until %s\n", feed.URL, f.Refresh)
+	go func() {
+		f, err := rss.Fetch(feed.URL)
+		if err != nil {
+			log.Warningf("Error for feed %d fetching URL '%s': %s", feed.ID, feed.URL, err)
+			return
+		}
+		handleItems(ctx, &feed, d, f.Items, ac)
+		handleImage(ctx, feed, f, ic)
+
+		tick = time.After(time.Until(f.Refresh))
+		log.Infof("Initial waiting to fetch %s until %s\n", feed.URL, f.Refresh)
+		initalFetch <- struct{}{}
+	}()
 
 	for {
 		select {
+		case <-initalFetch:
+			// Block on initial fetch here so that we can return early if needed
+			continue
 		case <-tick:
 			log.Infof("Fetching feed %s", feed.URL)
 			var refresh time.Time
-			if f, err = rss.Fetch(feed.URL); err != nil {
+			if f, err := rss.Fetch(feed.URL); err != nil {
 				log.Warningf("Error fetching %s: %s", feed.URL, err)
 				// If the request transiently fails, try again after a fixed interval.
 				refresh = time.Now().Add(10 * time.Minute)
 			} else {
-				handleItems(&feed, d, f.Items, ac)
+				handleItems(ctx, &feed, d, f.Items, ac)
 				refresh = f.Refresh
 			}
 			log.Infof("Waiting to fetch %s until %s\n", feed.URL, refresh)
@@ -161,9 +168,11 @@ func fetchLoop(ctx context.Context, d *storage.Database, ac chan models.Article,
 	}
 }
 
-func handleItems(feed *models.Feed, d *storage.Database, items []*rss.Item, send chan models.Article) {
+func handleItems(ctx context.Context, feed *models.Feed, d *storage.Database, items []*rss.Item, send chan models.Article) {
 	latest := feed.Latest
 	newLatest := latest
+
+Loop:
 	for _, item := range items {
 		parsed := ""
 		if *parseArticles {
@@ -188,7 +197,13 @@ func handleItems(feed *models.Feed, d *storage.Database, items []*rss.Item, send
 		}
 
 		if a.Date.After(latest) {
-			send <- a
+			select {
+			case send <- a:
+				break
+			case <-ctx.Done():
+				// Break out of processing articles and just clean up.
+				break Loop
+			}
 			if a.Date.After(newLatest) {
 				newLatest = a.Date
 			}
@@ -205,7 +220,7 @@ func handleItems(feed *models.Feed, d *storage.Database, items []*rss.Item, send
 	}
 }
 
-func handleImage(feed models.Feed, f *rss.Feed, send chan imagePair) {
+func handleImage(ctx context.Context, feed models.Feed, f *rss.Feed, send chan imagePair) {
 	var icon besticon.Icon
 	var feedHost string
 
@@ -224,7 +239,12 @@ func handleImage(feed models.Feed, f *rss.Feed, send chan imagePair) {
 		return
 	}
 
-	send <- imagePair{feed.ID, "image/" + icon.Format, icon.ImageData}
+	select {
+	case send <- imagePair{feed.ID, "image/" + icon.Format, icon.ImageData}:
+		break
+	case <-ctx.Done():
+		break
+	}
 }
 
 func tryIconFetch(link string) (besticon.Icon, error) {

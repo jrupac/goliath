@@ -5,6 +5,9 @@ import (
 	"flag"
 	"fmt"
 	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/fetch"
+	"github.com/jrupac/goliath/models"
+	"github.com/jrupac/goliath/storage"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
@@ -17,6 +20,7 @@ var (
 )
 
 type server struct {
+	db *storage.Database
 }
 
 func (s *server) AddUser(ctx context.Context, req *AddUserRequest) (*AddUserResponse, error) {
@@ -24,20 +28,54 @@ func (s *server) AddUser(ctx context.Context, req *AddUserRequest) (*AddUserResp
 }
 
 func (s *server) AddFeed(ctx context.Context, req *AddFeedRequest) (*AddFeedResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not yet implemented")
+	resp := &AddFeedResponse{}
+	// Zero indicates the root folder.
+	parentID := int64(0)
+
+	feed := models.Feed{
+		Title:       req.Title,
+		Description: req.Description,
+	}
+
+	if req.Folder != "" {
+		folders, err := s.db.GetAllFolders()
+		if err != nil {
+			return nil, status.Error(codes.Internal, "internal error")
+		}
+
+		// TODO: Handle case where folder is not found.
+		for _, f := range folders {
+			if f.Name == req.Folder {
+				parentID = f.ID
+				break
+			}
+		}
+	}
+
+	fetch.Pause()
+	defer fetch.Resume()
+	feedID, err := s.db.InsertFeed(feed, parentID)
+
+	if err != nil {
+		return resp, status.Error(codes.DataLoss, "failed to persist feed")
+	}
+	resp.Id = feedID
+
+	// TODO: Indicate if feed already existed.
+	return resp, nil
 }
 
-func newServer() AdminServiceServer {
-	s := &server{}
+func newServer(d *storage.Database) AdminServiceServer {
+	s := &server{db: d}
 	return s
 }
 
-func Start(ctx context.Context) {
+func Start(ctx context.Context, d *storage.Database) {
 	log.Infof("Starting gRPC admin server.")
 
 	s := grpc.NewServer()
 
-	RegisterAdminServiceServer(s, newServer())
+	RegisterAdminServiceServer(s, newServer(d))
 	reflection.Register(s)
 
 	go func(s *grpc.Server) {

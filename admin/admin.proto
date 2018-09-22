@@ -35,6 +35,8 @@ message AddFeedRequest {
 
 // Empty response. Success is indicated by gRPC-level status code.
 message AddFeedResponse {
+  // Internal identifier for new feed object.
+  int64 Id = 1;
 }
 
 service AdminService {

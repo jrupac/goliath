@@ -79,7 +79,7 @@ func main() {
 
 	go fetch.Start(ctx, d)
 	go storage.StartGC(ctx, d)
-	go admin.Start(ctx)
+	go admin.Start(ctx, d)
 	go serveMetrics(ctx)
 
 	if err = serve(ctx, d); err != nil {
