@@ -351,14 +351,9 @@ func (d *Database) GetUserByKey(key string) (models.User, error) {
 // ImportOpml inserts folders from the given OPML object into the database.
 func (d *Database) ImportOpml(opml *opml.Opml) error {
 	root := opml.Folders
-	// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
-	_, err := d.db.Exec(
-		`INSERT INTO `+folderTable+`(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, root.Name)
-	if err != nil {
-		return err
-	}
-	err = d.db.QueryRow(
-		`SELECT id FROM `+folderTable+` WHERE name = $1`, root.Name).Scan(&root.ID)
+	err := d.db.QueryRow(
+		`INSERT INTO `+folderTable+`(name) VALUES($1)
+ 		 ON CONFLICT(name) DO UPDATE SET name = excluded.name RETURNING id`, root.Name).Scan(&root.ID)
 	if err != nil {
 		return err
 	}
@@ -368,16 +363,11 @@ func (d *Database) ImportOpml(opml *opml.Opml) error {
 func (d *Database) importChildren(parent models.Folder) error {
 	var err error
 	for _, f := range parent.Feed {
-		// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
-		_, err = d.db.Exec(
-			`INSERT INTO `+feedTable+`(folder, hash, title, description, url)
-			VALUES($1, $2, $3, $4, $5) ON CONFLICT(hash) DO NOTHING`,
-			parent.ID, f.Hash(), f.Title, f.Description, f.URL)
-		if err != nil {
-			return err
-		}
 		err = d.db.QueryRow(
-			`SELECT id FROM `+feedTable+` WHERE hash = $1`, f.Hash()).Scan(&f.ID)
+			`INSERT INTO `+feedTable+`(folder, hash, title, description, url)
+			VALUES($1, $2, $3, $4, $5)
+			ON CONFLICT(hash) DO UPDATE SET hash = excluded.hash RETURNING id`,
+			parent.ID, f.Hash(), f.Title, f.Description, f.URL).Scan(&f.ID)
 		if err != nil {
 			return err
 		}
@@ -385,14 +375,9 @@ func (d *Database) importChildren(parent models.Folder) error {
 	}
 
 	for _, child := range parent.Folders {
-		// TODO: Remove extra read after https://github.com/cockroachdb/cockroach/issues/6637 is closed.
-		_, err = d.db.Exec(
-			`INSERT INTO `+folderTable+`(name) VALUES($1) ON CONFLICT(name) DO NOTHING`, child.Name)
-		if err != nil {
-			return err
-		}
 		err = d.db.QueryRow(
-			`SELECT id FROM `+folderTable+` WHERE name = $1`, child.Name).Scan(&child.ID)
+			`INSERT INTO `+folderTable+`(name) VALUES($1)
+    	 ON CONFLICT(name) DO UPDATE SET name = excluded.name RETURNING id`, child.Name).Scan(&child.ID)
 		if err != nil {
 			return err
 		}
