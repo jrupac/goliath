@@ -1,7 +1,8 @@
 package models
 
 const (
-	// Name of unique root folder.
+	// RootFolder is the unique name of the root folder.
+	// Any folders imported with this name will get merged with this folder.
 	RootFolder = "<root>"
 )
 

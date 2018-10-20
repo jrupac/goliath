@@ -23,10 +23,14 @@ type server struct {
 	db *storage.Database
 }
 
+// AddUser adds a specified user into the database.
+// NOTE: This method is currently unimplemented.
 func (s *server) AddUser(ctx context.Context, req *AddUserRequest) (*AddUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "not yet implemented")
 }
 
+// AddFeed adds the specified feed into the database.
+// During the operation of adding a feed, fetching is paused and restarted.
 func (s *server) AddFeed(ctx context.Context, req *AddFeedRequest) (*AddFeedResponse, error) {
 	resp := &AddFeedResponse{}
 	// Zero indicates the root folder.
@@ -70,6 +74,7 @@ func newServer(d *storage.Database) AdminServiceServer {
 	return s
 }
 
+// Start starts the gRPC admin server.
 func Start(ctx context.Context, d *storage.Database) {
 	log.Infof("Starting gRPC admin server.")
 

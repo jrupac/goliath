@@ -301,6 +301,7 @@ func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 	return feeds, err
 }
 
+// GetFeedsInFolder returns a list of feeds directly under the given folder.
 func (d *Database) GetFeedsInFolder(folderId int64) ([]models.Feed, error) {
 	var feeds []models.Feed
 
@@ -349,6 +350,8 @@ func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
 	return resp, err
 }
 
+// GetFolderFeedTree returns a root Folder object with associated feeds and
+// recursively populated sub-folders.
 func (d *Database) GetFolderFeedTree() (*models.Folder, error) {
 	tree := &models.Folder{}
 	var rootId int64
