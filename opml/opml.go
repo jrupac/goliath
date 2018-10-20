@@ -18,10 +18,10 @@ type header struct {
 }
 
 type outline struct {
+	Text        string    `xml:"text,attr,omitempty"`
 	Title       string    `xml:"title,attr,omitempty"`
 	Description string    `xml:"description,attr,omitempty"`
 	URL         string    `xml:"xmlUrl,attr,omitempty"`
-	Text        string    `xml:"text,attr,omitempty"`
 	Folders     []outline `xml:"outline,omitempty"`
 }
 
@@ -145,6 +145,7 @@ func ExportOpml(tree *models.Folder, filename string) error {
 	}
 	defer f.Close()
 
+	f.WriteString(xml.Header)
 	e := xml.NewEncoder(f)
 	e.Indent("", "  ")
 	return e.Encode(export)
