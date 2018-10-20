@@ -1,66 +1,66 @@
-<?xml version="1.0" encoding="utf-8"?>
-<opml version="1.0">
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
     <head>
-        <dateCreated>Sat, 07 Apr 2018 23:49:48 +0000</dateCreated>
-        <title>Goliath Feed Import</title>
+        <title>Goliath Feed Export</title>
+        <dateCreated>20 Oct 18 18:00 EDT</dateCreated>
     </head>
     <body>
         <outline text="Comics">
-            <outline type="rss" text="Cyanide and Happiness" xmlUrl="http://feeds.feedburner.com/Explosm" htmlUrl="http://www.explosm.net/rss.php"/>
-            <outline type="rss" text="Toonhole" xmlUrl="http://feeds.feedburner.com/Toonhole" htmlUrl="http://toonhole.com"/>
-            <outline type="rss" text="Mr. Lovestein" xmlUrl="http://www.mrlovenstein.com/rss.xml" htmlUrl="http://www.mrlovenstein.com"/>
-            <outline type="rss" text="Extra Fabulous Comics" xmlUrl="http://extrafabulouscomics.com/feed/" htmlUrl="http://extrafabulouscomics.com"/>
-            <outline type="rss" text="Hot Paper Comics" xmlUrl="https://hotpapercomics.com/feed/" htmlUrl="https://hotpapercomics.com"/>
-            <outline type="rss" text="Saturday Morning Breakfast Cereal" xmlUrl="http://www.smbc-comics.com/rss.php" htmlUrl="http://www.smbc-comics.com/"/>
-            <outline type="rss" text="Things in Squares" xmlUrl="http://feeds.feedburner.com/ThingsInSquares" htmlUrl="http://www.thingsinsquares.com"/>
-            <outline type="rss" text="The Perry Bible Fellowship" xmlUrl="http://pbfcomics.com/feed/" htmlUrl="http://pbfcomics.com/feed/"/>
-            <outline type="rss" text="The Gentlemans Armchair" xmlUrl="http://thegentlemansarmchair.com/feed/" htmlUrl="http://thegentlemansarmchair.com"/>
-            <outline type="rss" text="Poorly Drawn Lines" xmlUrl="http://feeds.feedburner.com/PoorlyDrawnLines" htmlUrl="http://poorlydrawnlines.com"/>
-            <outline type="rss" text="channelate" xmlUrl="http://feeds2.feedburner.com/channelATE" htmlUrl="http://www.channelate.com"/>
-            <outline type="rss" text="Skeleton Claw" xmlUrl="http://skeletonclaw.com/rss" htmlUrl="http://skeletonclaw.com"/>
-            <outline type="rss" text="Good Bear Comics" xmlUrl="https://goodbearcomics.com/feed/" htmlUrl="https://goodbearcomics.com"/>
-            <outline type="rss" text="Extra Ordinary" xmlUrl="http://www.exocomics.com/feed/" htmlUrl="http://www.exocomics.com"/>
-            <outline type="rss" text="Nothing Suspicious" xmlUrl="https://nothingsuspicio.us/comic?format=RSS" htmlUrl="https://nothingsuspicio.us"/>
-            <outline type="rss" text="xkcd.com" xmlUrl="http://xkcd.com/rss.xml" htmlUrl="http://xkcd.com/"/>
-            <outline type="rss" text="Rustled Jimmies" xmlUrl="https://www.rustledjimmies.net/index.xml" htmlUrl="https://www.rustledjimmies.net/"/>
-            <outline type="rss" text="RaphComic" xmlUrl="https://www.webtoons.com/en/challenge/raphcomic/rss?title_no=107409" htmlUrl="https://www.webtoons.com/en/challenge/raphcomic/list?title_no=107409"/>
+            <outline type="rss" text="Cyanide and Happiness" xmlUrl="http://feeds.feedburner.com/Explosm"></outline>
+            <outline type="rss" text="Toonhole" xmlUrl="http://feeds.feedburner.com/Toonhole"></outline>
+            <outline type="rss" text="Mr. Lovestein" xmlUrl="http://www.mrlovenstein.com/rss.xml"></outline>
+            <outline type="rss" text="Extra Fabulous Comics" xmlUrl="http://extrafabulouscomics.com/feed/"></outline>
+            <outline type="rss" text="Hot Paper Comics" xmlUrl="https://hotpapercomics.com/feed/"></outline>
+            <outline type="rss" text="Saturday Morning Breakfast Cereal" xmlUrl="http://www.smbc-comics.com/rss.php"></outline>
+            <outline type="rss" text="Things in Squares" xmlUrl="http://feeds.feedburner.com/ThingsInSquares"></outline>
+            <outline type="rss" text="The Perry Bible Fellowship" xmlUrl="http://pbfcomics.com/feed/"></outline>
+            <outline type="rss" text="The Gentlemans Armchair" xmlUrl="http://thegentlemansarmchair.com/feed/"></outline>
+            <outline type="rss" text="Poorly Drawn Lines" xmlUrl="http://feeds.feedburner.com/PoorlyDrawnLines"></outline>
+            <outline type="rss" text="channelate" xmlUrl="http://feeds2.feedburner.com/channelATE"></outline>
+            <outline type="rss" text="Skeleton Claw" xmlUrl="http://skeletonclaw.com/rss"></outline>
+            <outline type="rss" text="Good Bear Comics" xmlUrl="https://goodbearcomics.com/feed/"></outline>
+            <outline type="rss" text="Extra Ordinary" xmlUrl="http://www.exocomics.com/feed/"></outline>
+            <outline type="rss" text="Nothing Suspicious" xmlUrl="https://nothingsuspicio.us/comic?format=RSS"></outline>
+            <outline type="rss" text="xkcd.com" xmlUrl="http://xkcd.com/rss.xml"></outline>
+            <outline type="rss" text="Rustled Jimmies" xmlUrl="https://www.rustledjimmies.net/index.xml"></outline>
+            <outline type="rss" text="RaphComic" xmlUrl="https://www.webtoons.com/en/challenge/raphcomic/rss?title_no=107409"></outline>
         </outline>
         <outline text="Personal Development">
-            <outline type="rss" text="Barking Up The Wrong Tree" xmlUrl="http://www.bakadesuyo.com/feed/" htmlUrl="http://www.bakadesuyo.com"/>
-            <outline type="rss" text="Todoist Blog" xmlUrl="https://blog.todoist.com/feed/" htmlUrl="https://blog.todoist.com"/>
+            <outline type="rss" text="Barking Up The Wrong Tree" xmlUrl="http://www.bakadesuyo.com/feed/"></outline>
+            <outline type="rss" text="Todoist Blog" xmlUrl="https://blog.todoist.com/feed/"></outline>
         </outline>
         <outline text="Google">
-            <outline type="rss" text="Android Developers Blog" xmlUrl="http://feeds.feedburner.com/blogspot/hsDu" htmlUrl="http://android-developers.blogspot.com/"/>
-            <outline type="rss" text="Android Police - Android News, Apps, Games, Phones, Tablets" xmlUrl="http://feeds.feedburner.com/AndroidPolice" htmlUrl="http://www.androidpolice.com"/>
-            <outline type="rss" text="Chromium Blog" xmlUrl="http://blog.chromium.org/feeds/posts/default?alt=rss" htmlUrl="http://blog.chromium.org/"/>
-            <outline type="rss" text="Google Chrome Blog" xmlUrl="http://feeds2.feedburner.com/blogspot/Egta" htmlUrl="http://chrome.blogspot.com/"/>
-            <outline type="rss" text="Google Research Blog" xmlUrl="http://googleresearch.blogspot.com/atom.xml" htmlUrl="http://googleresearch.blogspot.com/"/>
-            <outline type="rss" text="Google Student Blog" xmlUrl="http://googleforstudents.blogspot.com/feeds/posts/default" htmlUrl="http://googleforstudents.blogspot.com/"/>
-            <outline type="rss" text="Inside Search" xmlUrl="http://insidesearch.blogspot.com/feeds/posts/default" htmlUrl="http://insidesearch.blogspot.com/"/>
-            <outline type="rss" text="Official Gmail Blog" xmlUrl="http://gmailblog.blogspot.com/feeds/posts/default" htmlUrl="http://gmailblog.blogspot.com/"/>
-            <outline type="rss" text="The Official Google Blog" xmlUrl="http://googleblog.blogspot.com/feeds/posts/default" htmlUrl="http://googleblog.blogspot.com/"/>
+            <outline type="rss" text="Android Developers Blog" xmlUrl="http://feeds.feedburner.com/blogspot/hsDu"></outline>
+            <outline type="rss" text="Android Police - Android News, Apps, Games, Phones, Tablets" xmlUrl="http://feeds.feedburner.com/AndroidPolice"></outline>
+            <outline type="rss" text="Chromium Blog" xmlUrl="http://blog.chromium.org/feeds/posts/default?alt=rss"></outline>
+            <outline type="rss" text="Google Chrome Blog" xmlUrl="http://feeds2.feedburner.com/blogspot/Egta"></outline>
+            <outline type="rss" text="Google Research Blog" xmlUrl="http://googleresearch.blogspot.com/atom.xml"></outline>
+            <outline type="rss" text="Google Student Blog" xmlUrl="http://googleforstudents.blogspot.com/feeds/posts/default"></outline>
+            <outline type="rss" text="Inside Search" xmlUrl="http://insidesearch.blogspot.com/feeds/posts/default"></outline>
+            <outline type="rss" text="Official Gmail Blog" xmlUrl="http://gmailblog.blogspot.com/feeds/posts/default"></outline>
+            <outline type="rss" text="The Official Google Blog" xmlUrl="http://googleblog.blogspot.com/feeds/posts/default"></outline>
         </outline>
         <outline text="News">
-            <outline type="rss" text="Ars Technica" xmlUrl="http://feeds.arstechnica.com/arstechnica/index" htmlUrl="https://arstechnica.com"/>
-            <outline type="rss" text="Engadget" xmlUrl="http://www.engadget.com/rss.xml" htmlUrl="http://www.engadget.com/rss.xml"/>
-            <outline type="rss" text="Read It Later Blog" xmlUrl="http://feeds.feedburner.com/ReadItLaterBlog" htmlUrl="http://getpocket.com/blog"/>
-            <outline type="rss" text="Slashdot" xmlUrl="http://rss.slashdot.org/slashdot/classic" htmlUrl="http://slashdot.org/"/>
-            <outline type="rss" text="TechCrunch" xmlUrl="http://feedproxy.google.com/TechCrunch" htmlUrl="http://techcrunch.com"/>
-            <outline type="rss" text="What If?" xmlUrl="http://what-if.xkcd.com/feed.atom" htmlUrl="http://what-if.xkcd.com/"/>
+            <outline type="rss" text="Ars Technica" xmlUrl="http://feeds.arstechnica.com/arstechnica/index"></outline>
+            <outline type="rss" text="Engadget" xmlUrl="http://www.engadget.com/rss.xml"></outline>
+            <outline type="rss" text="Read It Later Blog" xmlUrl="http://feeds.feedburner.com/ReadItLaterBlog"></outline>
+            <outline type="rss" text="Slashdot" xmlUrl="http://rss.slashdot.org/slashdot/classic"></outline>
+            <outline type="rss" text="TechCrunch" xmlUrl="http://feedproxy.google.com/TechCrunch"></outline>
+            <outline type="rss" text="What If?" xmlUrl="http://what-if.xkcd.com/feed.atom"></outline>
         </outline>
         <outline text="Programming">
-            <outline type="rss" text="colah's blog" xmlUrl="http://colah.github.io/rss" htmlUrl="http://colah.github.io/"/>
-            <outline type="rss" text="33 Bits of Entropy" xmlUrl="http://33bits.org/feed/" htmlUrl="http://33bits.org"/>
-            <outline type="rss" text="Android Explorations" xmlUrl="http://nelenkov.blogspot.com/feeds/posts/default" htmlUrl="http://nelenkov.blogspot.com/"/>
-            <outline type="rss" text="jd:/dev/blog" xmlUrl="http://julien.danjou.info/blog/index.xml" htmlUrl="https://julien.danjou.info/blog/"/>
-            <outline type="rss" text="Jon Skeet: Coding Blog" xmlUrl="http://feeds.feedburner.com/JonSkeetCodingBlog" htmlUrl="http://codeblog.jonskeet.uk"/>
-            <outline type="rss" text="Romain Guy" xmlUrl="http://www.curious-creature.org/feed/" htmlUrl="http://www.curious-creature.com"/>
-            <outline type="rss" text="The GitHub Blog" xmlUrl="https://blog.github.com/blog.atom" htmlUrl="https://github.com/blog"/>
+            <outline type="rss" text="colah&#39;s blog" xmlUrl="http://colah.github.io/rss"></outline>
+            <outline type="rss" text="33 Bits of Entropy" xmlUrl="http://33bits.org/feed/"></outline>
+            <outline type="rss" text="Android Explorations" xmlUrl="http://nelenkov.blogspot.com/feeds/posts/default"></outline>
+            <outline type="rss" text="jd:/dev/blog" xmlUrl="http://julien.danjou.info/blog/index.xml"></outline>
+            <outline type="rss" text="Jon Skeet: Coding Blog" xmlUrl="http://feeds.feedburner.com/JonSkeetCodingBlog"></outline>
+            <outline type="rss" text="Romain Guy" xmlUrl="http://www.curious-creature.org/feed/"></outline>
+            <outline type="rss" text="The GitHub Blog" xmlUrl="https://blog.github.com/blog.atom"></outline>
         </outline>
         <outline text="JetBrains">
-            <outline type="rss" text="GoLand Blog" xmlUrl="https://blog.jetbrains.com/go/feed/" htmlUrl="https://blog.jetbrains.com/go"/>
-            <outline type="rss" text="IntelliJ IDEA Blog" xmlUrl="http://feeds2.feedburner.com/jetbrains_intellijidea" htmlUrl="https://blog.jetbrains.com/idea"/>
-            <outline type="rss" text="YouTrack Blog" xmlUrl="https://blog.jetbrains.com/youtrack/feed/" htmlUrl="https://blog.jetbrains.com/youtrack"/>
+            <outline type="rss" text="GoLand Blog" xmlUrl="https://blog.jetbrains.com/go/feed/"></outline>
+            <outline type="rss" text="IntelliJ IDEA Blog" xmlUrl="http://feeds2.feedburner.com/jetbrains_intellijidea"></outline>
+            <outline type="rss" text="YouTrack Blog" xmlUrl="https://blog.jetbrains.com/youtrack/feed/"></outline>
         </outline>
     </body>
 </opml>
