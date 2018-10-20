@@ -18,6 +18,7 @@ type header struct {
 }
 
 type outline struct {
+	Type        string    `xml:"type,attr,omitempty"`
 	Text        string    `xml:"text,attr,omitempty"`
 	Title       string    `xml:"title,attr,omitempty"`
 	Description string    `xml:"description,attr,omitempty"`
@@ -27,6 +28,7 @@ type outline struct {
 
 type internalOpmlType struct {
 	XMLName xml.Name  `xml:"opml"`
+	Version string    `xml:"version,attr"`
 	Header  header    `xml:"head"`
 	Body    []outline `xml:"body>outline"`
 }
@@ -95,7 +97,7 @@ func parseFolders(folder models.Folder) []outline {
 	var outlines []outline
 
 	for _, feed := range folder.Feed {
-		outlines = append(outlines, outline{Text: feed.Title, URL: feed.URL})
+		outlines = append(outlines, outline{Type: "rss", Text: feed.Title, URL: feed.URL})
 	}
 
 	for _, child := range folder.Folders {
@@ -135,7 +137,7 @@ func ParseOpml(filename string) (*Opml, error) {
 func ExportOpml(tree *models.Folder, filename string) error {
 	// OPML specifies that time fields conform to RFC822.
 	exportTime := time.Now().Format(time.RFC822)
-	export := &internalOpmlType{}
+	export := &internalOpmlType{Version: "2.0"}
 	export.Header = header{Title: "Goliath Feed Export", DateCreated: exportTime}
 	export.Body = parseFolders(*tree)
 
