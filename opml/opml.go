@@ -7,10 +7,14 @@ import (
 	"github.com/jrupac/goliath/models"
 	"golang.org/x/net/html/charset"
 	"io/ioutil"
+	"os"
+	"syscall"
+	"time"
 )
 
 type header struct {
-	Title string `xml:"title"`
+	Title       string `xml:"title"`
+	DateCreated string `xml:"dateCreated"`
 }
 
 type outline struct {
@@ -31,28 +35,6 @@ type internalOpmlType struct {
 type Opml struct {
 	Header  header
 	Folders models.Folder
-}
-
-// ParseOpml open a file and returns a parsed OPML object.
-func ParseOpml(filename string) (*Opml, error) {
-	log.Infof("Loading OPML file from %s", filename)
-
-	f, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	r := bytes.NewReader(f)
-	d := xml.NewDecoder(r)
-	d.CharsetReader = charset.NewReaderLabel
-
-	oi := new(internalOpmlType)
-	err = d.Decode(&oi)
-	if err != nil {
-		return nil, err
-	}
-
-	return createOpmlObject(oi), nil
 }
 
 func createOpmlObject(oi *internalOpmlType) *Opml {
@@ -106,4 +88,64 @@ func parseOutline(children []outline) models.Folder {
 	}
 
 	return folder
+}
+
+// parseFolders converts a rooted folder into a list of outline objects.
+func parseFolders(folder models.Folder) []outline {
+	var outlines []outline
+
+	for _, feed := range folder.Feed {
+		outlines = append(outlines, outline{Text: feed.Title, URL: feed.URL})
+	}
+
+	for _, child := range folder.Folders {
+		o := outline{Text: child.Name}
+		o.Folders = parseFolders(child)
+		outlines = append(outlines, o)
+	}
+
+	return outlines
+}
+
+// ParseOpml open a file and returns a parsed OPML object.
+func ParseOpml(filename string) (*Opml, error) {
+	log.Infof("Loading OPML file from %s", filename)
+
+	f, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	r := bytes.NewReader(f)
+	d := xml.NewDecoder(r)
+	d.CharsetReader = charset.NewReaderLabel
+
+	oi := new(internalOpmlType)
+	err = d.Decode(&oi)
+	if err != nil {
+		return nil, err
+	}
+
+	return createOpmlObject(oi), nil
+}
+
+// ExportOpml exports the given folder (with associated feeds and child folders)
+// to a file of the given filename in OPML format.
+// The file is created with 0777 mode if it does not exist.
+func ExportOpml(tree *models.Folder, filename string) error {
+	// OPML specifies that time fields conform to RFC822.
+	exportTime := time.Now().Format(time.RFC822)
+	export := &internalOpmlType{}
+	export.Header = header{Title: "Goliath Feed Export", DateCreated: exportTime}
+	export.Body = parseFolders(*tree)
+
+	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, syscall.S_IRWXU|syscall.S_IRWXG|syscall.S_IRWXO)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	e := xml.NewEncoder(f)
+	e.Indent("", "  ")
+	return e.Encode(export)
 }

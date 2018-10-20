@@ -262,6 +262,7 @@ func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
 
 // GetAllFolders returns a list of all folders in the database.
 func (d *Database) GetAllFolders() ([]models.Folder, error) {
+	// TODO: Consider returning a map[int64]models.Folder instead.
 	var folders []models.Folder
 	rows, err := d.db.Query(`SELECT id, name FROM ` + folderTable)
 	if err != nil {
@@ -300,6 +301,25 @@ func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 	return feeds, err
 }
 
+func (d *Database) GetFeedsInFolder(folderId int64) ([]models.Feed, error) {
+	var feeds []models.Feed
+
+	rows, err := d.db.Query(`SELECT id, title, url FROM `+feedTable+` WHERE folder = $1`, folderId)
+	if err != nil {
+		return feeds, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		feed := models.Feed{}
+		if err := rows.Scan(&feed.ID, &feed.Title, &feed.URL); err != nil {
+			return feeds, err
+		}
+		feeds = append(feeds, feed)
+	}
+	return feeds, nil
+}
+
 // GetFeedsPerFolder returns a map of folder ID to a comma-separated string of
 // feed IDs.
 func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
@@ -327,6 +347,58 @@ func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
 		resp[k] = strings.Join(v, ",")
 	}
 	return resp, err
+}
+
+func (d *Database) GetFolderFeedTree() (*models.Folder, error) {
+	tree := &models.Folder{}
+	var rootId int64
+
+	err := d.db.QueryRow(`SELECT id from `+folderTable+` WHERE name = $1`, models.RootFolder).Scan(&rootId)
+	if err != nil {
+		return tree, err
+	}
+
+	tree.ID = rootId
+	tree.Name = "Root"
+
+	// Create map from ID to Folder
+	folders, err := d.GetAllFolders()
+	if err != nil {
+		return tree, err
+	}
+	folderMap := map[int64]models.Folder{}
+	for _, f := range folders {
+		folderMap[f.ID] = f
+	}
+
+	var buildTree func(*models.Folder) error
+
+	buildTree = func(node *models.Folder) error {
+		feeds, err := d.GetFeedsInFolder(node.ID)
+		if err != nil {
+			return err
+		}
+		node.Feed = feeds
+
+		childFolders, err := d.GetFolderChildren(node.ID)
+		if err != nil {
+			return err
+		}
+
+		for _, c := range childFolders {
+			ch := folderMap[c]
+			child := &models.Folder{ID: ch.ID, Name: ch.Name}
+			err := buildTree(child)
+			if err != nil {
+				return err
+			}
+			node.Folders = append(node.Folders, *child)
+		}
+		return nil
+	}
+
+	err = buildTree(tree)
+	return tree, err
 }
 
 // GetAllFavicons returns a map of feed ID to a base64 representation of its

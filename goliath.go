@@ -25,10 +25,12 @@ const version = "0.01"
 
 var (
 	dbPath       = flag.String("dbPath", "", "The address of the database.")
-	opmlPath     = flag.String("opmlPath", "", "Path of OPML file to import.")
 	port         = flag.Int("port", 9999, "Port of HTTP server.")
 	metricsPort  = flag.Int("metricsPort", 9998, "Port to expose Prometheus metrics.")
 	publicFolder = flag.String("publicFolder", "public", "Location of static content to serve.")
+	// Import/Export options
+	opmlImportPath = flag.String("opmlImportPath", "", "Path of OPML file to import.")
+	opmlExportPath = flag.String("opmlExportPath", "", "Path to file to export OPML.")
 )
 
 // Linker-overridden variables.
@@ -60,17 +62,29 @@ func main() {
 	}
 	defer d.Close()
 
-	if *opmlPath != "" {
-		p, err2 := opml.ParseOpml(*opmlPath)
-		if err2 != nil {
-			log.Warningf("Error while parsing OPML: %s", err2)
+	if *opmlImportPath != "" {
+		p, err := opml.ParseOpml(*opmlImportPath)
+		if err != nil {
+			log.Warningf("Error while parsing OPML: %s", err)
 		}
-		log.Infof("Completed parsing OPML file %s", *opmlPath)
+		log.Infof("Completed parsing OPML file %s", *opmlImportPath)
 		utils.DebugPrint("Parsed OPML file", *p)
 
-		err2 = d.ImportOpml(p)
-		if err2 != nil {
-			log.Warningf("Error while importing OPML: %s", err2)
+		if err = d.ImportOpml(p); err != nil {
+			log.Warningf("Error while importing OPML: %s", err)
+		}
+	}
+
+	if *opmlExportPath != "" {
+		folderTree, err := d.GetFolderFeedTree()
+		if err != nil {
+			log.Warningf("Error while fetching folder tree: %s", err)
+		}
+
+		if opml.ExportOpml(folderTree, *opmlExportPath); err != nil {
+			log.Warningf("Error while exporting OPML: %s", err)
+		} else {
+			log.Infof("Completed exporting OPML file to %s", *opmlExportPath)
 		}
 	}
 
