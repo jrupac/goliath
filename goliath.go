@@ -13,6 +13,7 @@ import (
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/vharitonsky/iniflags"
 	"net/http"
 	"os"
 	"os/signal"
@@ -38,7 +39,7 @@ var buildTimestamp = "<unknown>"
 var buildHash = "<unknown>"
 
 func main() {
-	flag.Parse()
+	iniflags.Parse()
 	defer log.Flush()
 	ctx := context.Background()
 
