@@ -202,7 +202,12 @@ func returnError(w http.ResponseWriter, msg string, err error) {
 
 func returnSuccess(w http.ResponseWriter, resp map[string]interface{}) {
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
+	enc := json.NewEncoder(w)
+	// HTML content is escaped already during fetch time (e.g., ' --> &#39;), so
+	// do not HTML escape it further (e.g., &#39; --> \u0026#39;), which would
+	// render incorrectly on a webpage.
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(resp); err != nil {
 		returnError(w, "Failed to encode response JSON: %s", err)
 	}
 }

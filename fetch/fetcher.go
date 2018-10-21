@@ -10,6 +10,7 @@ import (
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
 	"github.com/mat/besticon/besticon"
+	"github.com/microcosm-cc/bluemonday"
 	"io/ioutil"
 	"net/url"
 	"sync"
@@ -18,12 +19,15 @@ import (
 
 var (
 	parseArticles = flag.Bool("parseArticles", false, "If true, parse article content via Mercury API.")
+	sanitizeHTML  = flag.Bool("sanitizeHTML", false, "If true, sanitize HTML content with Bluemonday.")
 )
 
 var (
-	pauseChan     = make(chan struct{})
-	pauseChanDone = make(chan struct{})
-	resumeChan    = make(chan struct{})
+	pauseChan             = make(chan struct{})
+	pauseChanDone         = make(chan struct{})
+	resumeChan            = make(chan struct{})
+	bluemondayTitlePolicy = bluemonday.StrictPolicy()
+	bluemondayBodyPolicy  = bluemonday.UGCPolicy()
 )
 
 type imagePair struct {
@@ -174,6 +178,10 @@ func handleItems(ctx context.Context, feed *models.Feed, d *storage.Database, it
 
 Loop:
 	for _, item := range items {
+		title := item.Title
+		content := item.Content
+		summary := item.Summary
+
 		parsed := ""
 		if *parseArticles {
 			if p, err := parseArticleContent(item.Link); err != nil {
@@ -182,13 +190,19 @@ Loop:
 				parsed = p
 			}
 		}
+		if *sanitizeHTML {
+			title = bluemondayTitlePolicy.Sanitize(title)
+			content = bluemondayBodyPolicy.Sanitize(content)
+			summary = bluemondayBodyPolicy.Sanitize(summary)
+			parsed = bluemondayBodyPolicy.Sanitize(parsed)
+		}
 
 		a := models.Article{
 			FeedID:    feed.ID,
 			FolderID:  feed.FolderID,
-			Title:     item.Title,
-			Summary:   item.Summary,
-			Content:   item.Content,
+			Title:     title,
+			Summary:   summary,
+			Content:   content,
 			Parsed:    parsed,
 			Link:      item.Link,
 			Date:      item.Date,
