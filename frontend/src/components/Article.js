@@ -31,9 +31,10 @@ export default class Article extends React.Component {
                   target="_blank"
                   rel="noopener noreferrer"
                   href={this.props.article.url}>
-                  {this.props.article.title}
+                  <div
+                    dangerouslySetInnerHTML={
+                      {__html: this.props.article.title}}/>
                 </a>
-                <br/>
                 <div className="article-feed">
                   {this.renderFavicon()}
                   <p className="article-feed-title">{feedTitle}</p>
@@ -70,7 +71,7 @@ export default class Article extends React.Component {
   renderFavicon() {
     const favicon = this.props.feed.favicon;
     if (!favicon) {
-      return <i className="fas fa-rss-square" />
+      return <i className="fas fa-rss-square"/>
     } else {
       return <img src={`data:${favicon}`} height={16} width={16} alt=''/>
     }
