@@ -55,3 +55,6 @@
 [submodule "vendor/google.golang.org/genproto"]
 	path = vendor/google.golang.org/genproto
 	url = https://github.com/google/go-genproto
+[submodule "vendor/github.com/microcosm-cc/bluemonday"]
+	path = vendor/github.com/microcosm-cc/bluemonday
+	url = https://github.com/microcosm-cc/bluemonday
