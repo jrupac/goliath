@@ -11,8 +11,10 @@ import (
 	"github.com/jrupac/goliath/utils"
 	"github.com/mat/besticon/besticon"
 	"github.com/microcosm-cc/bluemonday"
+	"html"
 	"io/ioutil"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 )
@@ -179,8 +181,8 @@ func handleItems(ctx context.Context, feed *models.Feed, d *storage.Database, it
 Loop:
 	for _, item := range items {
 		title := item.Title
-		content := item.Content
-		summary := item.Summary
+		content := maybeUnescapeHtml(item.Content)
+		summary := maybeUnescapeHtml(item.Summary)
 
 		parsed := ""
 		if *parseArticles {
@@ -286,4 +288,24 @@ func tryIconFetch(link string) (besticon.Icon, error) {
 	}
 
 	return icon, errors.New("no suitable icons found")
+}
+
+// maybeUnescapeHtml looks for occurrences of escaped HTML characters. If more
+// than one is found in the given string, an HTML-unescaped string is returned.
+// Otherwise, the given input is unmodified.
+func maybeUnescapeHtml(content string) string {
+	occ := 0
+	// The HTML standard defines escape sequences for &, <, and >.
+	// Single and double quotes are also escaped in attribute values, represented
+	// here in two common forms each.
+	escapes := []string{"&amp;", "&lt;", "&gt;", "&#34;", "&apos;", "&#39;", "&quot;"}
+
+	for _, seq := range escapes {
+		occ += strings.Count(content, seq)
+	}
+
+	if occ > 1 {
+		return html.UnescapeString(content)
+	}
+	return content
 }
