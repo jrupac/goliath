@@ -4,15 +4,15 @@
   "private": true,
   "proxy": "http://localhost:9999",
   "dependencies": {
-    "antd": "^3.9.1",
-    "decimal.js-light": "^2.4.1",
+    "antd": "^3.10.7",
+    "decimal.js-light": "^2.5.0",
     "lossless-json": "^1.0.3",
     "moment": "^2.22.2",
-    "react": "^16.4.2",
-    "react-dom": "^16.4.2",
+    "react": "^16.6.3",
+    "react-dom": "^16.6.3",
     "react-list": "^0.8.10",
     "react-router-dom": "^4.3.1",
-    "react-scripts": "1.1.5"
+    "react-scripts": "2.0.3"
   },
   "scripts": {
     "analyze": "source-map-explorer build/static/js/main.*",
@@ -23,5 +23,11 @@
   },
   "devDependencies": {
     "source-map-explorer": "^1.6.0"
-  }
+  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not ie <= 11",
+    "not op_mini all"
+  ]
 }
