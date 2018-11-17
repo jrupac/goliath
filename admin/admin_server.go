@@ -39,6 +39,7 @@ func (s *server) AddFeed(ctx context.Context, req *AddFeedRequest) (*AddFeedResp
 	feed := models.Feed{
 		Title:       req.Title,
 		Description: req.Description,
+		URL:         req.URL,
 	}
 
 	if req.Folder != "" {
