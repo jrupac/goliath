@@ -2,6 +2,7 @@ import Article from './Article.js';
 import React from 'react';
 import ReactList from 'react-list';
 import {EnclosingType, KeyAll} from '../App';
+import {animateScroll as scroll} from 'react-scroll';
 
 const goToAllSequence = ['g', 'a'];
 const markAllRead = ['Shift', 'I'];
@@ -44,7 +45,7 @@ export default class ArticleList extends React.Component {
     if (this.state.articles.length === 0) {
       return (
         <div className="article-list-empty">
-          <i className="fas fa-check article-list-empty-icon" />
+          <i className="fas fa-check article-list-empty-icon"/>
           <p className="article-list-empty-text">No unread articles.</p>
         </div>
       )
@@ -136,7 +137,18 @@ export default class ArticleList extends React.Component {
       if (this.state.scrollIndex < 0) {
         return;
       }
-      this.list.scrollTo(this.state.scrollIndex);
+
+      // Animate scrolling using technique described by react-list author here:
+      // https://github.com/coderiety/react-list/issues/79
+      const scrollPos = this.list.getSpaceBefore(this.state.scrollIndex);
+      scroll.scrollTo(scrollPos, {
+        // The scrolling container is not trivial to figure out, but react-list
+        // has already done the work to figure it out, so use it directly.
+        container: this.list.scrollParent,
+        duration: 400,
+        smooth: "defaultEasing",
+      });
+
       this.setState((prevState) => {
         const articles = Array.from(prevState.articles);
         const article = articles[prevState.scrollIndex];
