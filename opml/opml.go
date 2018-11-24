@@ -147,7 +147,9 @@ func ExportOpml(tree *models.Folder, filename string) error {
 	}
 	defer f.Close()
 
-	f.WriteString(xml.Header)
+	if _, err = f.WriteString(xml.Header); err != nil {
+		return err
+	}
 	e := xml.NewEncoder(f)
 	e.Indent("", "  ")
 	return e.Encode(export)

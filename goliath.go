@@ -82,7 +82,7 @@ func main() {
 			log.Warningf("Error while fetching folder tree: %s", err)
 		}
 
-		if opml.ExportOpml(folderTree, *opmlExportPath); err != nil {
+		if err = opml.ExportOpml(folderTree, *opmlExportPath); err != nil {
 			log.Warningf("Error while exporting OPML: %s", err)
 		} else {
 			log.Infof("Completed exporting OPML file to %s", *opmlExportPath)
