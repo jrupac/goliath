@@ -84,6 +84,7 @@ func Start(ctx context.Context, d *storage.Database) {
 			log.Info("Fetcher resumed.")
 		case <-ctx.Done():
 			wg.Wait()
+			cancel()
 			return
 		}
 	}
