@@ -29,13 +29,19 @@ var (
 	pauseChanDone         = make(chan struct{})
 	resumeChan            = make(chan struct{})
 	bluemondayTitlePolicy = bluemonday.StrictPolicy()
-	bluemondayBodyPolicy  = bluemonday.UGCPolicy()
+	bluemondayBodyPolicy  = makeBodyPolicy()
 )
 
 type imagePair struct {
 	id      int64
 	mime    string
 	favicon []byte
+}
+
+func makeBodyPolicy() *bluemonday.Policy {
+	p := bluemonday.UGCPolicy()
+	p.AllowAttrs("title").OnElements("img")
+	return p
 }
 
 // Pause stops all continuous feed fetching in a way that is resume-able.
@@ -60,6 +66,7 @@ func Start(ctx context.Context, d *storage.Database) {
 	// Add additional time layouts that sometimes appear in feeds.
 	rss.TimeLayouts = append(rss.TimeLayouts, "2006-01-02")
 	rss.TimeLayouts = append(rss.TimeLayouts, "Monday, 02 Jan 2006 15:04:05 MST")
+	rss.TimeLayouts = append(rss.TimeLayouts, "Mon, 02 Jan 2006")
 
 	// Turn off logging of HTTP icon requests.
 	besticon.SetLogOutput(ioutil.Discard)
