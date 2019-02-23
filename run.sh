@@ -2,10 +2,12 @@
 
 set -euxo pipefail
 
-if [ ! -f ./out/goliath ] || [ ! -d ./out/public/ ]; then
+if [[ ! -f ./out/goliath ]] || [[ ! -d ./out/public/ ]]; then
     echo "Binary does not exist. Have you built with install.sh?"
     exit 1
 fi
+
+pkill goliath
 
 # Goliath logs to /tmp/goliath.{INFO|WARNING|ERROR}.
 # Redirect all logs related to nohup to /tmp/goliath.STDERR.
