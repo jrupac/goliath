@@ -3,62 +3,40 @@ package fetch
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"flag"
 	"html/template"
-	"io/ioutil"
-	"net/http"
-	"time"
+	"os/exec"
 )
 
 const (
-	mercuryEndpoint = "https://mercury.postlight.com/parser"
 	contentTemplate = `
 		<div class="parsed-content">
-			{{.}}
+			{{.HtmlContent}}
 		</div>
 	`
 )
 
 var (
-	mercuryAPIKey = flag.String("mercuryApiKey", "", "API key for parsing content via Mercury.")
-
-	mercuryHTTPClient = http.Client{Timeout: time.Duration(20 * time.Second)}
+	mercuryCli = flag.String("mercuryCli", "", "Path to CLI for invoking the Mercury Parser API.")
 )
 
 type mercuryResponse struct {
-	Content string `json:"content"`
+	Content     string `json:"content"`
+	HtmlContent template.HTML
 }
 
 func parseArticleContent(link string) (content string, err error) {
-	if *mercuryAPIKey == "" {
-		return content, errors.New("no Mercury API provided")
-	}
-
-	req, err := http.NewRequest(http.MethodGet, mercuryEndpoint, nil)
-	if err != nil {
+	if *mercuryCli == "" {
 		return
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-api-key", *mercuryAPIKey)
 
-	q := req.URL.Query()
-	q.Add("url", link)
-	req.URL.RawQuery = q.Encode()
-
-	resp, err := mercuryHTTPClient.Do(req)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
+	output, err := exec.Command(*mercuryCli, link).Output()
 	if err != nil {
 		return
 	}
 
 	parsedResp := mercuryResponse{}
-	err = json.Unmarshal(body, &parsedResp)
+	err = json.Unmarshal(output, &parsedResp)
 	if err != nil {
 		return
 	}
@@ -74,7 +52,9 @@ func parseArticleContent(link string) (content string, err error) {
 		return
 	}
 
-	if err = t.Execute(&buf, template.HTML(parsedResp.Content)); err != nil {
+	// This third-party HTML is sanitized at a large processing stage, so mark it safe here.
+	parsedResp.HtmlContent = template.HTML(parsedResp.Content)
+	if err = t.Execute(&buf, parsedResp); err != nil {
 		return
 	}
 

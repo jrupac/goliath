@@ -4,6 +4,7 @@
   "private": true,
   "proxy": "http://localhost:9999",
   "dependencies": {
+    "@postlight/mercury-parser": "^2.0.0",
     "antd": "^3.13.6",
     "decimal.js-light": "^2.5.0",
     "lossless-json": "^1.0.3",
