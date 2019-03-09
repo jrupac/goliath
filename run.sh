@@ -7,8 +7,9 @@ if [[ ! -f ./out/goliath ]] || [[ ! -d ./out/public/ ]]; then
     exit 1
 fi
 
-pkill goliath
+pkill goliath || true
 
+cd ./out/
 # Goliath logs to /tmp/goliath.{INFO|WARNING|ERROR}.
 # Redirect all logs related to nohup to /tmp/goliath.STDERR.
-nohup ./out/goliath --config=./config.ini >/tmp/goliath.STDERR 2>&1 </dev/null &
+nohup ./goliath --config=./config.ini >/tmp/goliath.STDERR 2>&1 </dev/null &
