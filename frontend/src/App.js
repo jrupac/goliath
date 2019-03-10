@@ -326,17 +326,18 @@ export default class App extends React.Component {
         this.setState((prevState) => {
           const feeds = prevState.folderToFeeds.get(entity) || [];
           let articles = new Map(prevState.articles);
-          let ids = new Map();
+          let articleIds = [];
           articles.forEach((v, k) => {
             if (!v.is_read && feeds.indexOf(v.feed_id) >= 0) {
-              ids.set(k, (ids.get(k) || 0) + 1);
+              articleIds.push(k)
             }
           });
 
-          let readBuffer = [...prevState.readBuffer, ...Array.from(ids.keys())];
+          let readBuffer = [
+            ...prevState.readBuffer, ...Array.from(articleIds.keys())];
           let unreadCountMap = new Map(prevState.unreadCountMap);
-          ids.forEach((v, k) => {
-            unreadCountMap.set(k, unreadCountMap.get(k) - v);
+          feeds.forEach((e) => {
+            unreadCountMap.set(e, 0);
           });
           return {
             readBuffer: readBuffer,
