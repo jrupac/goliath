@@ -24,6 +24,8 @@
 
 /* antd elements */
 
+/* antd Layout */
+
 .ant-layout-sider {
   background-color: #404040;
   width: 300px;
@@ -53,6 +55,8 @@
   background-color: #ececec;
 }
 
+/* antd Tree */
+
 .ant-tree {
   background: #404040;
   line-height: 16px;
@@ -60,26 +64,13 @@
   font-family: 'Muli', sans-serif;
 }
 
-.ant-tree li span.ant-tree-switcher {
-  padding-top: 2px;
-  color: #ececec;
+.ant-tree-title {
+  line-height: initial;
+  padding: 0 0 0 2px;
 }
 
-.ant-tree li {
-  padding: 0 15px 0 0;
-}
-
-.ant-tree li .ant-tree-node-content-wrapper {
-  display: inline;
-  padding-top: 3px;
-  padding-bottom: 6px;
-}
-
-.ant-tree li ul {
-  padding-left: 10px;
-}
-
-.ant-tree-title, .ant-tree li a {
+.ant-tree-title,
+.ant-tree li a {
   display: inline-block;
   transition: all 0.1s ease;
   color: #ececec;
@@ -87,13 +78,25 @@
   width: 100%;
 }
 
-.ant-tree-title {
-  line-height: initial;
-  padding: 0 0 0 2px;
+.ant-tree li {
+  padding: 0 15px 0 0;
 }
 
 .ant-tree li span.ant-tree-switcher {
+  padding-top: 2px;
+  color: #ececec;
   line-height: 0;
+}
+
+.ant-tree li.ant-tree-treenode-switcher-open,
+.ant-tree li.ant-tree-treenode-switcher-close {
+  padding-top: 10px;
+}
+
+.ant-tree li .ant-tree-node-content-wrapper {
+  display: inline;
+  padding-top: 3px;
+  padding-bottom: 6px;
 }
 
 .ant-tree li .ant-tree-node-content-wrapper:hover {
@@ -105,6 +108,12 @@
   background-color: #222;
   line-height: 16px;
 }
+
+.ant-tree li ul {
+  padding-left: 10px;
+}
+
+/* antd Card */
 
 .ant-card-outer {
   /* Needed to get correct offsetTop for react-list */
@@ -262,7 +271,7 @@
   display: flex;
   align-items: stretch;
   flex-flow: row nowrap;
-  justify-content:space-between;
+  justify-content: space-between;
   padding-top: 15px;
 }
 
