@@ -92,7 +92,7 @@ function renderFolderTitle(folder) {
 function renderFeed(feed) {
   let img;
   if (feed.favicon === '') {
-    img = <i className="fas fa-rss-square" />
+    img = <i className="fas fa-rss-square"/>
   } else {
     img = <img src={`data:${feed.favicon}`} height={16} width={16} alt=''/>
   }
@@ -109,7 +109,7 @@ function renderFeed(feed) {
       <div className='feed-icon'>
         {img}
       </div>
-      <div className='feed-title'>
+      <div className='feed-title' title={feed.title}>
         {title}
       </div>
     </div>
