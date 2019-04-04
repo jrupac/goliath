@@ -39,8 +39,8 @@ type itemType struct {
 	Author      string `json:"author"`
 	HTML        string `json:"html"`
 	URL         string `json:"url"`
-	IsSaved     bool   `json:"is_saved"`
-	IsRead      bool   `json:"is_read"`
+	IsSaved     int64  `json:"is_saved"`
+	IsRead      int64  `json:"is_read"`
 	CreatedTime int64  `json:"created_on_time"`
 }
 
@@ -50,7 +50,7 @@ type feedType struct {
 	Title       string `json:"title"`
 	URL         string `json:"url"`
 	SiteURL     string `json:"site_url"`
-	IsSpark     bool   `json:"is_spark"`
+	IsSpark     int64  `json:"is_spark"`
 	LastUpdated int64  `json:"last_updated_on_time"`
 }
 
@@ -108,7 +108,12 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 		"last_refreshed_on_time": time.Now().Unix(),
 	}
 
-	r.ParseForm()
+	err := r.ParseForm()
+	if err != nil {
+		returnError(w, "Failed to parse request: %s", err)
+		return
+	}
+
 	log.Infof("Fever request URL: %s", r.URL.String())
 	log.Infof("Fever request body: %s", r.PostForm.Encode())
 
@@ -267,7 +272,7 @@ func handleFeeds(d *storage.Database, resp *responseType) error {
 			Title:       ff.Title,
 			URL:         ff.URL,
 			SiteURL:     ff.URL,
-			IsSpark:     false,
+			IsSpark:     0,
 			LastUpdated: time.Now().Unix(),
 		}
 		feeds = append(feeds, f)
@@ -336,8 +341,8 @@ func handleItems(d *storage.Database, resp *responseType, r *http.Request) error
 			Author:      "",
 			HTML:        content,
 			URL:         a.Link,
-			IsSaved:     false,
-			IsRead:      false,
+			IsSaved:     0,
+			IsRead:      0,
 			CreatedTime: a.Date.Unix(),
 		}
 		items = append(items, i)
