@@ -303,7 +303,7 @@ export default class App extends React.Component {
           let articles = new Map(prevState.articles);
           let ids = [];
           articles.forEach((v, k) => {
-            if (!v.is_read && v.feed_id === entity) {
+            if (!(v.is_read === 1) && v.feed_id === entity) {
               ids.push(k);
             }
           });
@@ -328,7 +328,7 @@ export default class App extends React.Component {
           let articles = new Map(prevState.articles);
           let articleIds = [];
           articles.forEach((v, k) => {
-            if (!v.is_read && feeds.indexOf(v.feed_id) >= 0) {
+            if (!(v.is_read === 1) && feeds.indexOf(v.feed_id) >= 0) {
               articleIds.push(k)
             }
           });
@@ -355,7 +355,7 @@ export default class App extends React.Component {
           let articles = new Map(prevState.articles);
           let ids = [];
           articles.forEach((v, k) => {
-            if (!v.is_read) {
+            if (!(v.is_read === 1)) {
               ids.push(k);
             }
           });
@@ -381,7 +381,7 @@ export default class App extends React.Component {
     this.setState((prevState) => {
       // Apply read buffer to articles in state.
       const articles = new Map(prevState.articles);
-      prevState.readBuffer.forEach((e) => articles.get(e)['is_read'] = true);
+      prevState.readBuffer.forEach((e) => articles.get(e)['is_read'] = 1);
       let shownArticles = Array.from(articles.values());
 
       // TODO: Consider having a "read" list too.
@@ -469,7 +469,7 @@ function max(a, b) {
 }
 
 function checkUnread(article) {
-  return !article.is_read;
+  return !(article.is_read === 1);
 }
 
 function sortArticles(articles) {

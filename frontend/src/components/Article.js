@@ -11,7 +11,7 @@ export default class Article extends React.Component {
     let headerClass;
     if (this.props.isSelected) {
       headerClass = 'article-header';
-    } else if (this.props.article.is_read) {
+    } else if (this.props.article.is_read === 1) {
       headerClass = 'article-header-read';
     } else {
       headerClass = 'article-header';
@@ -57,7 +57,7 @@ export default class Article extends React.Component {
   }
 
   renderReadIcon() {
-    if (this.props.article.is_read) {
+    if (this.props.article.is_read === 1) {
       return <i
         className="fa fa-circle-thin article-status-read"
         aria-hidden="true"/>

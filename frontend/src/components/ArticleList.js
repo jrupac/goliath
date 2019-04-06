@@ -93,7 +93,7 @@ export default class ArticleList extends React.Component {
         this.props.handleMark(
           'read', this.props.enclosingKey, this.props.enclosingType);
         articles.forEach((e) => {
-          e.is_read = true
+          e.is_read = 1
         });
         keypressBuffer = new Array(keyBufLength);
       } else {
@@ -152,9 +152,9 @@ export default class ArticleList extends React.Component {
       this.setState((prevState) => {
         const articles = Array.from(prevState.articles);
         const article = articles[prevState.scrollIndex];
-        if (!article.is_read) {
+        if (!(article.is_read === 1)) {
           this.props.handleMark('read', article.id, EnclosingType.Article);
-          article.is_read = true;
+          article.is_read = 1;
         }
         return {
           articles: articles
