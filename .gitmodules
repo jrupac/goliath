@@ -61,3 +61,6 @@
 [submodule "vendor/github.com/disintegration/imaging"]
 	path = vendor/github.com/disintegration/imaging
 	url = https://github.com/disintegration/imaging
+[submodule "vendor/golang.org/x/image"]
+	path = vendor/golang.org/x/image
+	url = https://go.googlesource.com/image
