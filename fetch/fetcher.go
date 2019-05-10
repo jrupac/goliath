@@ -1,10 +1,12 @@
 package fetch
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
 	"github.com/SlyMarbo/rss"
+	"github.com/disintegration/imaging"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
@@ -12,6 +14,7 @@ import (
 	"github.com/mat/besticon/besticon"
 	"github.com/microcosm-cc/bluemonday"
 	"html"
+	"image/png"
 	"io/ioutil"
 	"net/url"
 	"strings"
@@ -20,8 +23,9 @@ import (
 )
 
 var (
-	parseArticles = flag.Bool("parseArticles", false, "If true, parse article content via Mercury API.")
-	sanitizeHTML  = flag.Bool("sanitizeHTML", false, "If true, sanitize HTML content with Bluemonday.")
+	parseArticles     = flag.Bool("parseArticles", false, "If true, parse article content via Mercury API.")
+	sanitizeHTML      = flag.Bool("sanitizeHTML", false, "If true, sanitize HTML content with Bluemonday.")
+	normalizeFavicons = flag.Bool("normalizeFavicons", true, "If true, resize favicons to 256x256 and encode as PNG.")
 )
 
 var (
@@ -264,7 +268,7 @@ func handleImage(ctx context.Context, feed models.Feed, f *rss.Feed, send chan i
 	}
 
 	select {
-	case send <- imagePair{feed.ID, "image/" + icon.Format, icon.ImageData}:
+	case send <- maybeResizeImage(feed.ID, icon):
 		break
 	case <-ctx.Done():
 		break
@@ -296,6 +300,32 @@ func tryIconFetch(link string) (besticon.Icon, error) {
 	}
 
 	return icon, errors.New("no suitable icons found")
+}
+
+func maybeResizeImage(feedId int64, bi besticon.Icon) (ip imagePair) {
+	ip = imagePair{feedId, "image/" + bi.Format, bi.ImageData}
+
+	if *normalizeFavicons {
+		var buff bytes.Buffer
+
+		i, err := bi.Image()
+		if err != nil {
+			log.Warningf("failed to convert besticon.Icon to image.Image: %s", err)
+			return
+		}
+
+		resized := imaging.Resize(*i, 256, 256, imaging.Lanczos)
+
+		err = png.Encode(&buff, resized)
+		if err != nil {
+			log.Warningf("failed to encode image as PNG: %s", err)
+			return
+		}
+
+		ip = imagePair{feedId, "image/png", buff.Bytes()}
+	}
+
+	return
 }
 
 // maybeUnescapeHtml looks for occurrences of escaped HTML characters. If more
