@@ -1,9 +1,14 @@
 import Progress from 'antd/lib/progress';
-import React from 'react';
+import * as React from "react";
 
-import {Status} from '../App.js';
+import {Status} from '../App';
 
-export default class Article extends React.Component {
+export interface LoadingProps {
+  // TODO: Make "status" a proper type.
+  status: number;
+}
+
+export default class Loading extends React.Component<LoadingProps, any> {
   render() {
     const progress = this.props.status / (
       Status.Folder | Status.Feed |
