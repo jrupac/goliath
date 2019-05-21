@@ -14,16 +14,15 @@ export default class Article extends React.Component<ArticleProps, any> {
   ref: any = null;
 
   setRef = (ref: Card | null) => {
-    if (ref !== null) {
-      this.ref = ref;
-    }
+    this.ref = ref;
   };
 
   render() {
     const date = new Date(this.props.article.created_on_time * 1000);
     const cardClass = this.props.isSelected ? 'card-selected' : 'card-normal';
+    const feedTitle = this.props.feed.title;
 
-    let headerClass;
+    let headerClass: string;
     if (this.props.isSelected) {
       headerClass = 'article-header';
     } else if (this.props.article.is_read === 1) {
@@ -31,7 +30,7 @@ export default class Article extends React.Component<ArticleProps, any> {
     } else {
       headerClass = 'article-header';
     }
-    const feedTitle = this.props.feed.title;
+
     return (
       <div className="ant-card-outer">
         <Card
