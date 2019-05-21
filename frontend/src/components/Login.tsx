@@ -1,26 +1,32 @@
-import React from 'react';
-import Form from 'antd/lib/form';
+import React, {FormEvent, ReactNode} from 'react';
+import Form, {FormComponentProps} from 'antd/lib/form';
 import Input from 'antd/lib/input';
 import Button from 'antd/lib/button';
-import {withRouter} from "react-router-dom";
+import {RouteComponentProps, withRouter} from "react-router-dom";
 
 const FormItem = Form.Item;
 
-class WrappedLogin extends React.Component {
-  constructor(props) {
+// WrappedLoginProps needs to extend FormComponentProps to get the "form" prop
+// and RouteComponentProps to get "history".
+export interface WrappedLoginProps extends FormComponentProps, RouteComponentProps {
+}
+
+class WrappedLogin extends React.Component<WrappedLoginProps, any> {
+  constructor(props: WrappedLoginProps) {
     super(props);
     this.state = {loginFailed: false};
   }
 
   render() {
     const {getFieldDecorator} = this.props.form;
+
     return (
       <div className='login-page'>
         <div className='login-page-logo'>Goliath</div>
         <div className='login-page-form-background'>
           <Form
             id="login-form"
-            onSubmit={(e) => this.handleSubmit(e)}
+            onSubmit={(e: FormEvent) => this.handleSubmit(e)}
             layout='vertical'
             className='login-page-form'>
             {this.showLoginFailedMessage()}
@@ -55,7 +61,7 @@ class WrappedLogin extends React.Component {
     )
   }
 
-  showLoginFailedMessage = () => {
+  showLoginFailedMessage = (): ReactNode => {
     if (this.state.loginFailed) {
       return <div className="login-failed">Invalid username or password!</div>
     } else {
@@ -63,15 +69,15 @@ class WrappedLogin extends React.Component {
     }
   };
 
-  handleSubmit(e) {
+  handleSubmit(e: FormEvent) {
     e.preventDefault();
-    this.props.form.validateFields((err, values) => {
-      if (!err) {
+    this.props.form.validateFields((errors: any, values: any) => {
+      if (!errors) {
         fetch('/auth', {
           method: 'POST',
           body: JSON.stringify(values),
           credentials: 'include'
-        }).then((res) => {
+        }).then((res: Response) => {
           if (!res.ok) {
             this.setState({loginFailed: true});
             console.log(res);
@@ -90,4 +96,4 @@ class WrappedLogin extends React.Component {
   }
 }
 
-export default withRouter(Form.create()(WrappedLogin));
+export default withRouter(Form.create<WrappedLoginProps>()(WrappedLogin));
