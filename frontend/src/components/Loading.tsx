@@ -8,7 +8,7 @@ export interface LoadingProps {
   status: number;
 }
 
-export default class Loading extends React.Component<LoadingProps, any> {
+export default class Loading extends React.Component<LoadingProps, never> {
   render() {
     const progress = this.props.status / (
       Status.Folder | Status.Feed |
