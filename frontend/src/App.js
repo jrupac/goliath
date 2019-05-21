@@ -1,6 +1,6 @@
 import 'antd/dist/antd.css';
 import './App.css';
-import ArticleList from './components/ArticleList.js';
+import ArticleList from './components/ArticleList';
 import {Decimal} from 'decimal.js-light';
 import FolderFeedList from './components/FolderFeedList';
 import Layout from 'antd/lib/layout';

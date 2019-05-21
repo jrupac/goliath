@@ -30,6 +30,8 @@
     "eject": "react-scripts eject"
   },
   "devDependencies": {
+    "@types/react-list": "^0.8.5",
+    "@types/react-scroll": "^1.5.4",
     "source-map-explorer": "^1.6.0"
   },
   "browserslist": [

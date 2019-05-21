@@ -1,5 +1,5 @@
-import Article from './Article.js';
-import React from 'react';
+import Article from './Article';
+import * as React from "react";
 import ReactList from 'react-list';
 import {EnclosingType, KeyAll} from '../App';
 import {animateScroll as scroll} from 'react-scroll';
@@ -8,8 +8,33 @@ const goToAllSequence = ['g', 'a'];
 const markAllRead = ['Shift', 'I'];
 const keyBufLength = 2;
 
-export default class ArticleList extends React.Component {
-  constructor(props) {
+// TODO: Add proper types for these.
+export type ArticleType = any;
+export type FeedType = any;
+
+export interface ArticleListProps {
+  articles: Array<ArticleType>;
+  feeds: Map<string, FeedType>;
+  is_read: any;
+
+  handleSelect: any;
+  handleMark: any;
+
+  enclosingKey: any;
+  enclosingType: any;
+}
+
+export interface ArticleListState {
+  articles: Array<ArticleType>;
+
+  scrollIndex: number;
+  keypressBuffer: Array<string>;
+}
+
+export default class ArticleList extends React.Component<ArticleListProps, ArticleListState> {
+  list : ReactList | null = null;
+
+  constructor(props: ArticleListProps) {
     super(props);
     this.state = {
       articles: Array.from(this.props.articles),
@@ -26,7 +51,7 @@ export default class ArticleList extends React.Component {
     window.removeEventListener('keydown', this.handleKeyDown);
   };
 
-  componentWillReceiveProps(nextProps) {
+  componentWillReceiveProps(nextProps: ArticleListProps) {
     // Reset scroll position when articles change.
     if (this.props.articles === nextProps.articles) {
       return;
@@ -52,7 +77,7 @@ export default class ArticleList extends React.Component {
     } else {
       const articles = this.state.articles;
       const feeds = this.props.feeds;
-      const renderArticle = (index) => (
+      const renderArticle = (index: number) => (
         <Article
           key={articles[index].id}
           article={articles[index]}
@@ -70,7 +95,7 @@ export default class ArticleList extends React.Component {
     }
   }
 
-  handleKeyDown = (event) => {
+  handleKeyDown = (event: KeyboardEvent) => {
     // Ignore keypress events when some modifiers are also enabled to avoid
     // triggering on (e.g.) browser shortcuts. Shift is the exception here since
     // we do care about Shift+I.
@@ -92,7 +117,7 @@ export default class ArticleList extends React.Component {
       } else if (markAllRead.every((e, i) => e === keypressBuffer[i])) {
         this.props.handleMark(
           'read', this.props.enclosingKey, this.props.enclosingType);
-        articles.forEach((e) => {
+        articles.forEach((e: any) => {
           e.is_read = 1
         });
         keypressBuffer = new Array(keyBufLength);
@@ -126,7 +151,7 @@ export default class ArticleList extends React.Component {
     }, this.handleScroll);
   };
 
-  handleMounted = (list) => {
+  handleMounted = (list: ReactList) => {
     this.list = list;
   };
 
@@ -140,16 +165,19 @@ export default class ArticleList extends React.Component {
 
       // Animate scrolling using technique described by react-list author here:
       // https://github.com/coderiety/react-list/issues/79
+      // @ts-ignore
       const scrollPos = this.list.getSpaceBefore(this.state.scrollIndex);
+
       scroll.scrollTo(scrollPos, {
         // The scrolling container is not trivial to figure out, but react-list
         // has already done the work to figure it out, so use it directly.
+        // @ts-ignore
         container: this.list.scrollParent,
         duration: 400,
         smooth: "defaultEasing",
       });
 
-      this.setState((prevState) => {
+      this.setState((prevState: ArticleListState) => {
         const articles = Array.from(prevState.articles);
         const article = articles[prevState.scrollIndex];
         if (!(article.is_read === 1)) {

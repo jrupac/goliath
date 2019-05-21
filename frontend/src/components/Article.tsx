@@ -1,9 +1,24 @@
 import Card from 'antd/lib/card';
 import moment from 'moment';
-import React from 'react';
+import * as React from "react";
 import Tooltip from 'antd/lib/tooltip';
+import {ArticleType, FeedType} from "./ArticleList";
 
-export default class Article extends React.Component {
+export interface ArticleProps {
+  article: ArticleType;
+  feed: FeedType;
+  isSelected: boolean;
+}
+
+export default class Article extends React.Component<ArticleProps, any> {
+  ref: any = null;
+
+  setRef = (ref: Card | null) => {
+    if (ref !== null) {
+      this.ref = ref;
+    }
+  };
+
   render() {
     const date = new Date(this.props.article.created_on_time * 1000);
     const cardClass = this.props.isSelected ? 'card-selected' : 'card-normal';
@@ -21,9 +36,7 @@ export default class Article extends React.Component {
       <div className="ant-card-outer">
         <Card
           className={cardClass}
-          ref={(ref) => {
-            this.ref = ref
-          }}
+          ref={this.setRef}
           title={
             <div className={headerClass}>
               <div className="article-title">
@@ -80,11 +93,11 @@ export default class Article extends React.Component {
 
 }
 
-function formatFullDate(date) {
+function formatFullDate(date: Date) {
   return moment(date).format('dddd, MMMM Do YYYY, h:mm:ss A');
 }
 
-function formatDate(date) {
+function formatDate(date: Date) {
   const now = moment();
   const before = moment(now).subtract(1, 'days');
   const then = moment(date);
