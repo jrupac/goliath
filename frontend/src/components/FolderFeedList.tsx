@@ -1,26 +1,41 @@
 import React from 'react';
 import Tree from 'antd/lib/tree';
 import {EnclosingType, KeyAll} from '../App';
+import {FeedType} from "./ArticleList";
 
 const TreeNode = Tree.TreeNode;
 
-export default class FolderFeedList extends React.Component {
-  constructor(props) {
+// TODO: Add proper type for this.
+export type FolderType = any;
+
+export interface FolderFeedListProps {
+  // TODO: Add proper types for these.
+  tree: any;
+  handleSelect: any;
+  selectedKey: any;
+
+  unreadCount: number;
+}
+
+export default class FolderFeedList extends React.Component<FolderFeedListProps, any> {
+  constructor(props: FolderFeedListProps) {
     super(props);
     this.handleSelect = this.handleSelect.bind(this);
   }
 
-  handleSelect = (key, type) => {
+  handleSelect = (keys: any, type: any) => {
+    let key: string;
+
     if (type === EnclosingType.All) {
-      this.props.handleSelect(EnclosingType.All, key);
+      this.props.handleSelect(EnclosingType.All, keys);
       return;
-    } else if (key && key.length === 1) {
-      key = key[0];
+    } else if (keys && keys.length === 1) {
+      key = keys[0];
     } else {
       return;
     }
 
-    if (this.props.tree.has(key)) {
+    if (this.props.tree.has(keys)) {
       type = EnclosingType.Folder;
     } else {
       type = EnclosingType.Feed;
@@ -30,11 +45,12 @@ export default class FolderFeedList extends React.Component {
 
   render() {
     const tree = this.props.tree;
-    let selectedKeys, allSelectedClass;
+    let selectedKeys: string[], allSelectedClass: string;
+
     if (!this.props.selectedKey || this.props.selectedKey === KeyAll) {
       selectedKeys = [];
       allSelectedClass = 'all-items-selected';
-    } else if (this.props.selectedKey) {
+    } else {
       selectedKeys = [this.props.selectedKey];
       allSelectedClass = 'all-items';
     }
@@ -81,7 +97,7 @@ export default class FolderFeedList extends React.Component {
   }
 }
 
-function renderFolderTitle(folder) {
+function renderFolderTitle(folder: FolderType) {
   if (folder.unread_count === 0) {
     return folder.title;
   } else {
@@ -89,7 +105,7 @@ function renderFolderTitle(folder) {
   }
 }
 
-function renderFeed(feed) {
+function renderFeed(feed: FeedType) {
   let img;
   if (feed.favicon === '') {
     img = <i className="fas fa-rss-square"/>
