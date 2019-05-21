@@ -1,5 +1,5 @@
 import Article from './Article';
-import * as React from "react";
+import React from "react";
 import ReactList from 'react-list';
 import {EnclosingType, KeyAll} from '../App';
 import {animateScroll as scroll} from 'react-scroll';

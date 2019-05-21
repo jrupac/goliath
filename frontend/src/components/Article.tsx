@@ -1,6 +1,6 @@
 import Card from 'antd/lib/card';
 import moment from 'moment';
-import * as React from "react";
+import React from "react";
 import Tooltip from 'antd/lib/tooltip';
 import {ArticleType, FeedType} from "./ArticleList";
 
