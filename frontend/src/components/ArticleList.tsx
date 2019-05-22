@@ -140,7 +140,13 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
           scrollIndex = Math.max(prevState.scrollIndex - 1, 0);
           break;
         case 'v':
-          const article = this.state.articles[prevState.scrollIndex];
+          // If trying to open an article before any articles are selected,
+          // treat it like a scroll to the first article.
+          if (scrollIndex === -1) {
+            scrollIndex = 0;
+          }
+
+          const article = this.state.articles[scrollIndex];
           window.open(article.url, '_blank');
           break;
         default:
