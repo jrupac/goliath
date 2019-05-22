@@ -1,12 +1,8 @@
 import React from 'react';
 import Tree from 'antd/lib/tree';
-import {EnclosingType, KeyAll} from '../App';
-import {FeedType} from "./ArticleList";
+import {EnclosingType, FeedType, KeyAll, StructureValue} from '../App';
 
 const TreeNode = Tree.TreeNode;
-
-// TODO: Add proper type for this.
-export type FolderType = any;
 
 export interface FolderFeedListProps {
   // TODO: Add proper types for these.
@@ -97,7 +93,7 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
   }
 }
 
-function renderFolderTitle(folder: FolderType) {
+function renderFolderTitle(folder: StructureValue) {
   if (folder.unread_count === 0) {
     return folder.title;
   } else {
@@ -130,5 +126,5 @@ function renderFeed(feed: FeedType) {
       </div>
     </div>
   );
-  return <TreeNode key={feed.id} title={elem} isLeaf/>;
+  return <TreeNode key={feed.id.toString()} title={elem} isLeaf/>;
 }

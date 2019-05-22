@@ -1,27 +1,22 @@
 import Article from './Article';
 import React from "react";
 import ReactList from 'react-list';
-import {EnclosingType, KeyAll} from '../App';
+import {ArticleType, EnclosingType, FeedId, FeedType, KeyAll} from '../App';
 import {animateScroll as scroll} from 'react-scroll';
 
 const goToAllSequence = ['g', 'a'];
 const markAllRead = ['Shift', 'I'];
 const keyBufLength = 2;
 
-// TODO: Add proper types for these.
-export type ArticleType = any;
-export type FeedType = any;
-
 export interface ArticleListProps {
   articles: Array<ArticleType>;
-  feeds: Map<string, FeedType>;
-  is_read: any;
+  feeds: Map<FeedId, FeedType>;
 
   handleSelect: any;
   handleMark: any;
 
   enclosingKey: any;
-  enclosingType: any;
+  enclosingType: EnclosingType;
 }
 
 export interface ArticleListState {
@@ -32,7 +27,7 @@ export interface ArticleListState {
 }
 
 export default class ArticleList extends React.Component<ArticleListProps, ArticleListState> {
-  list : ReactList | null = null;
+  list: ReactList | null = null;
 
   constructor(props: ArticleListProps) {
     super(props);
@@ -77,22 +72,32 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     } else {
       const articles = this.state.articles;
       const feeds = this.props.feeds;
-      const renderArticle = (index: number) => (
-        <Article
-          key={articles[index].id}
-          article={articles[index]}
-          feed={feeds.get(articles[index].feed_id)}
-          isSelected={index === this.state.scrollIndex}/>);
       return (
         <ReactList
           ref={this.handleMounted}
-          itemRenderer={(e) => renderArticle(e)}
+          itemRenderer={(e) => this.renderArticle(articles, feeds, e)}
           length={articles.length}
           minSize={5}
           threshold={1000}
           type='variable'/>
       )
     }
+  }
+
+  renderArticle(articles: Array<ArticleType>, feeds: Map<FeedId, FeedType>, index: number) {
+    const article = articles[index];
+    const feed = feeds.get(article.feed_id);
+
+    if (feed === undefined) {
+      throw new Error("Could not find feed " + article.feed_id +
+        " for article: " + article.id.toString());
+    }
+
+    return <Article
+      key={article.id.toString()}
+      article={articles[index]}
+      feed={feed}
+      isSelected={index === this.state.scrollIndex}/>
   }
 
   handleKeyDown = (event: KeyboardEvent) => {
