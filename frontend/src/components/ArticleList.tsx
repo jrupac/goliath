@@ -1,7 +1,13 @@
 import Article from './Article';
 import React from "react";
 import ReactList from 'react-list';
-import {ArticleType, EnclosingType, FeedId, FeedType, KeyAll} from '../App';
+import {
+  ArticleType,
+  FeedId,
+  FeedType,
+  SelectionKey,
+  SelectionType
+} from '../App';
 import {animateScroll as scroll} from 'react-scroll';
 
 const goToAllSequence = ['g', 'a'];
@@ -12,11 +18,12 @@ export interface ArticleListProps {
   articles: Array<ArticleType>;
   feeds: Map<FeedId, FeedType>;
 
-  handleSelect: any;
+  selectAllCallback: () => void;
+  // TODO: Add proper type here.
   handleMark: any;
 
-  enclosingKey: any;
-  enclosingType: EnclosingType;
+  enclosingKey: SelectionKey;
+  enclosingType: SelectionType;
 }
 
 export interface ArticleListState {
@@ -117,7 +124,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
 
       // If this sequence is fulfilled, reset the buffer and handle it.
       if (goToAllSequence.every((e, i) => e === keypressBuffer[i])) {
-        this.props.handleSelect(EnclosingType.All, KeyAll);
+        this.props.selectAllCallback();
         keypressBuffer = new Array(keyBufLength);
       } else if (markAllRead.every((e, i) => e === keypressBuffer[i])) {
         this.props.handleMark(
@@ -192,7 +199,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         const articles = Array.from(prevState.articles);
         const article = articles[prevState.scrollIndex];
         if (!(article.is_read === 1)) {
-          this.props.handleMark('read', article.id, EnclosingType.Article);
+          this.props.handleMark('read', article.id, SelectionType.Article);
           article.is_read = 1;
         }
         return {

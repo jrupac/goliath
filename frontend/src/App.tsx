@@ -22,15 +22,12 @@ export enum Status {
   Ready = 1 << 4,
 }
 
-export enum EnclosingType {
+export enum SelectionType {
   All = 0,
   Folder = 1,
   Feed = 2,
   Article = 3,
 }
-
-// Special-case ID for root folder.
-export const KeyAll = 0;
 
 export interface AppProps {
 }
@@ -52,7 +49,10 @@ export interface FaviconId extends String {
 export interface ArticleId extends String {
 }
 
-type MarkEntity = ArticleId | FeedId | FolderId;
+// Special-case ID for root folder.
+type SelectionKeyAll = string;
+export const KeyAll: SelectionKeyAll = "";
+export type SelectionKey = ArticleId | FeedId | FolderId | SelectionKeyAll;
 
 export interface FeedType {
   id: FeedId;
@@ -78,7 +78,6 @@ export interface ArticleType {
   created_on_time: number;
 }
 
-
 export type StructureValue = {
   feeds: FeedType[];
   title: string;
@@ -89,17 +88,14 @@ export interface AppState {
   articles: Map<ArticleId, ArticleType>;
   buildTimestamp: string;
   buildHash: string;
-  // TODO: Fixme
-  enclosingKey: any;
-  enclosingType: EnclosingType;
-  // TODO: Fixme
-  favicons: any;
+  selectionKey: SelectionKeyAll;
+  selectionType: SelectionType;
+  favicons: Map<FaviconId, string>;
   feeds: Map<FeedId, FeedType>;
   folderToFeeds: Map<FolderId, FeedId[]>;
   folders: Map<FolderId, string>;
   readBuffer: ArticleId[];
-  // TODO: Fixme
-  shownArticles: any;
+  shownArticles: ArticleType[];
   status: Status;
   structure: Map<FolderId, StructureValue>;
   unreadCount: number;
@@ -148,14 +144,14 @@ export default class App extends React.Component<AppProps, AppState> {
       articles: new Map<ArticleId, ArticleType>(),
       buildTimestamp: "",
       buildHash: "",
-      enclosingKey: KeyAll,
-      enclosingType: EnclosingType.All,
-      favicons: new Map(),
-      feeds: new Map(),
+      selectionKey: KeyAll,
+      selectionType: SelectionType.All,
+      favicons: new Map<FaviconId, string>(),
+      feeds: new Map<FeedId, FeedType>(),
       folderToFeeds: new Map<FolderId, FeedId[]>(),
       folders: new Map<FolderId, string>(),
-      readBuffer: [],
-      shownArticles: [],
+      readBuffer: [] as ArticleId[],
+      shownArticles: [] as ArticleType[],
       status: Status.Start,
       structure: new Map<FolderId, StructureValue>(),
       unreadCount: 0,
@@ -379,9 +375,9 @@ export default class App extends React.Component<AppProps, AppState> {
       }).catch((e) => console.log(e));
   }
 
-  handleMark = (mark: "read", entity: MarkEntity, type: EnclosingType) => {
+  handleMark = (mark: "read", entity: SelectionKey, type: SelectionType) => {
     switch (type) {
-      case EnclosingType.Article:
+      case SelectionType.Article:
         fetch('/fever/?api&mark=item&as=' + mark + '&id=' + entity, {
           credentials: 'include'
         }).then(() => {
@@ -411,7 +407,7 @@ export default class App extends React.Component<AppProps, AppState> {
           }, this.buildStructure);
         }).catch((e) => console.log(e));
         break;
-      case EnclosingType.Feed:
+      case SelectionType.Feed:
         fetch('/fever/?api&mark=feed&as=' + mark + '&id=' + entity, {
           credentials: 'include'
         }).then(() => {
@@ -439,7 +435,7 @@ export default class App extends React.Component<AppProps, AppState> {
           }, this.buildStructure);
         }).catch((e) => console.log(e));
         break;
-      case EnclosingType.Folder:
+      case SelectionType.Folder:
         fetch('/fever/?api&mark=group&as=' + mark + '&id=' + entity, {
           credentials: 'include'
         }).then(() => {
@@ -472,7 +468,7 @@ export default class App extends React.Component<AppProps, AppState> {
           }, this.buildStructure);
         }).catch((e) => console.log(e));
         break;
-      case EnclosingType.All:
+      case SelectionType.All:
         fetch('/fever/?api&mark=group&as=' + mark + '&id=' + entity, {
           credentials: 'include'
         }).then(() => {
@@ -507,7 +503,7 @@ export default class App extends React.Component<AppProps, AppState> {
     }
   };
 
-  handleSelect = (type: EnclosingType, key: any) => {
+  handleSelect = (type: SelectionType, key: SelectionKey) => {
     this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
       // Apply read buffer to articles in state.
       const articles = new Map(prevState.articles);
@@ -522,19 +518,19 @@ export default class App extends React.Component<AppProps, AppState> {
       // TODO: Consider having a "read" list too.
       let shownArticles = Array.from(articles.values());
       switch (type) {
-        case EnclosingType.All:
-          shownArticles = shownArticles.filter(isUnread);
-          break;
-        case EnclosingType.Feed:
+        case SelectionType.Feed:
           shownArticles = shownArticles.filter(
             (e: ArticleType) => e.feed_id === key && isUnread(e));
           break;
-        case EnclosingType.Folder:
+        case SelectionType.Folder:
           // Some folder may not have feeds.
           const feeds = prevState.folderToFeeds.get(key) || [];
           // TODO: Consider using a Set() polyfill to speed this up.
           shownArticles = shownArticles.filter(
             (e: ArticleType) => feeds.indexOf(e.feed_id) > -1 && isUnread(e));
+          break;
+        case SelectionType.All:
+          shownArticles = shownArticles.filter(isUnread);
           break;
         default:
           console.log("Unexpected enclosing type: ", type)
@@ -542,8 +538,8 @@ export default class App extends React.Component<AppProps, AppState> {
 
       return {
         articles,
-        enclosingKey: key,
-        enclosingType: type,
+        selectionKey: key,
+        selectionType: type,
         // Empty out readBuffer as we've marked everything there as read.
         readBuffer: [] as ArticleId[],
         shownArticles,
@@ -571,7 +567,7 @@ export default class App extends React.Component<AppProps, AppState> {
             <FolderFeedList
               tree={this.state.structure}
               unreadCount={this.state.unreadCount}
-              selectedKey={this.state.enclosingKey}
+              selectedKey={this.state.selectionKey}
               handleSelect={this.handleSelect}/>
           </Menu>
         </Sider>
@@ -579,11 +575,11 @@ export default class App extends React.Component<AppProps, AppState> {
           <Content>
             <ArticleList
               articles={sortArticles(this.state.shownArticles)}
-              enclosingKey={this.state.enclosingKey}
-              enclosingType={this.state.enclosingType}
+              enclosingKey={this.state.selectionKey}
+              enclosingType={this.state.selectionType}
               feeds={this.state.feeds}
               handleMark={this.handleMark}
-              handleSelect={this.handleSelect}/>
+              selectAllCallback={() => this.handleSelect(SelectionType.All, KeyAll)}/>
             <Footer>
               Goliath RSS
               <br/>

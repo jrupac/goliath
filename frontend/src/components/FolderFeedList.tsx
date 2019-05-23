@@ -1,6 +1,6 @@
 import React from 'react';
-import Tree from 'antd/lib/tree';
-import {EnclosingType, FeedType, KeyAll, StructureValue} from '../App';
+import Tree, {AntTreeNodeSelectedEvent} from 'antd/lib/tree';
+import {FeedType, KeyAll, SelectionType, StructureValue} from '../App';
 
 const TreeNode = Tree.TreeNode;
 
@@ -19,11 +19,11 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     this.handleSelect = this.handleSelect.bind(this);
   }
 
-  handleSelect = (keys: any, type: any) => {
+  handleSelect = (keys: string[], type: SelectionType | AntTreeNodeSelectedEvent) => {
     let key: string;
 
-    if (type === EnclosingType.All) {
-      this.props.handleSelect(EnclosingType.All, keys);
+    if (type === SelectionType.All) {
+      this.props.handleSelect(SelectionType.All, keys);
       return;
     } else if (keys && keys.length === 1) {
       key = keys[0];
@@ -32,9 +32,9 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     }
 
     if (this.props.tree.has(keys)) {
-      type = EnclosingType.Folder;
+      type = SelectionType.Folder;
     } else {
-      type = EnclosingType.Feed;
+      type = SelectionType.Feed;
     }
     this.props.handleSelect(type, key);
   };
@@ -58,7 +58,7 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     return (
       <div>
         <div
-          onClick={() => this.handleSelect(KeyAll, EnclosingType.All)}
+          onClick={() => this.handleSelect([], SelectionType.All)}
           className={allSelectedClass}>
           <i
             className="fas fa-inbox"
