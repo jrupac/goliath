@@ -1,7 +1,7 @@
 import Progress from 'antd/lib/progress';
 import * as React from "react";
 
-import {Status} from '../App';
+import {Status} from "../utils/types";
 
 export interface LoadingProps {
   // TODO: Make "status" a proper type.

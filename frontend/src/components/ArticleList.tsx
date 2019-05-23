@@ -1,14 +1,14 @@
 import Article from './Article';
 import React from "react";
 import ReactList from 'react-list';
+import {animateScroll as scroll} from 'react-scroll';
 import {
   ArticleType,
   FeedId,
   FeedType,
   SelectionKey,
   SelectionType
-} from '../App';
-import {animateScroll as scroll} from 'react-scroll';
+} from "../utils/types";
 
 const goToAllSequence = ['g', 'a'];
 const markAllRead = ['Shift', 'I'];

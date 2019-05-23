@@ -1,6 +1,7 @@
 import React from 'react';
 import Tree, {AntTreeNodeSelectedEvent} from 'antd/lib/tree';
-import {FeedType, KeyAll, SelectionType, StructureValue} from '../App';
+import {StructureValue} from '../App';
+import {FeedType, KeyAll, SelectionType} from "../utils/types";
 
 const TreeNode = Tree.TreeNode;
 
