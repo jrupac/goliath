@@ -4,7 +4,6 @@ import {FolderData} from '../App';
 import {
   FeedType,
   FolderId,
-  FolderSelection,
   KeyAll,
   SelectionKey,
   SelectionType
@@ -20,14 +19,24 @@ export interface FolderFeedListProps {
   unreadCount: number;
 }
 
-export default class FolderFeedList extends React.Component<FolderFeedListProps, any> {
+export interface FolderFeedListState {
+  keyCache: Map<string, [SelectionType, SelectionKey]>;
+}
+
+export default class FolderFeedList extends React.Component<FolderFeedListProps, FolderFeedListState> {
   constructor(props: FolderFeedListProps) {
     super(props);
+
+    this.state = {
+      keyCache: precomputeIdToSelectionKey(this.props.tree)
+    };
+
     this.handleSelect = this.handleSelect.bind(this);
   }
 
   handleSelect = (keys: string[], type: SelectionType | AntTreeNodeSelectedEvent) => {
     let selectionKey: SelectionKey = KeyAll;
+    let selectionType: SelectionType;
     let key: string;
 
     if (type === SelectionType.All) {
@@ -39,25 +48,13 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
       return;
     }
 
-    if (this.props.tree.has(key)) {
-      type = SelectionType.Folder;
-      selectionKey = key as FolderSelection;
-    } else {
-      type = SelectionType.Feed;
-
-      // TODO: Make this faster.
-      this.props.tree.forEach(
-        (folder: FolderData, folderId: FolderId) => {
-          folder.feedMap.forEach(
-            (feed: FeedType) => {
-              if (feed.id === key) {
-                selectionKey = [feed.id, folderId];
-              }
-            }
-          )
-        });
+    let entry = this.state.keyCache.get(key);
+    if (entry === undefined) {
+      throw new Error("Unknown tree key: " + key);
     }
-    this.props.handleSelect(type, selectionKey);
+    [selectionType, selectionKey] = entry;
+
+    this.props.handleSelect(selectionType, selectionKey);
   };
 
   render() {
@@ -130,6 +127,22 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
       return <b>{`(${unreadCount})  All items`}</b>;
     }
   }
+}
+
+function precomputeIdToSelectionKey(structure: Map<FolderId, FolderData>): Map<string, [SelectionType, SelectionKey]> {
+  const cache = new Map<string, [SelectionType, SelectionKey]>();
+
+  structure.forEach(
+    (folder: FolderData, folderId: FolderId) => {
+      cache.set(folderId as string, [SelectionType.Folder, folderId]);
+      folder.feedMap.forEach(
+        (feed: FeedType) => {
+          cache.set(feed.id as string, [SelectionType.Feed, [feed.id, folderId]]);
+        }
+      )
+    });
+
+  return cache;
 }
 
 function renderFolderTitle(folder: FolderData) {
