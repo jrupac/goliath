@@ -351,8 +351,6 @@ export default class App extends React.Component<AppProps, AppState> {
         fetch('/fever/?api&mark=item&as=' + mark + '&id=' + feverId, {
           credentials: 'include'
         }).then(() => {
-          console.log("COMPLETED ARTICLE MARK!");
-
           this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
             const structure = new Map(prevState.structure);
 
