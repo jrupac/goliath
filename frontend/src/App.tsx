@@ -7,6 +7,7 @@ import Layout from 'antd/lib/layout';
 import Loading from './components/Loading';
 import Menu from 'antd/lib/menu';
 import React from 'react';
+import * as LosslessJSON from 'lossless-json';
 import {
   Article,
   ArticleId,
@@ -25,9 +26,6 @@ import {
   SelectionType,
   Status
 } from "./utils/types";
-
-// LosslessJSON needs require-style import.
-const LosslessJSON = require('lossless-json');
 
 const {Content, Footer, Sider} = Layout;
 
