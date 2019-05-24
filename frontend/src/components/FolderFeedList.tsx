@@ -1,16 +1,22 @@
-import React from 'react';
+import React, {ReactNode} from 'react';
 import Tree, {AntTreeNodeSelectedEvent} from 'antd/lib/tree';
-import {StructureValue} from '../App';
-import {FeedType, KeyAll, SelectionType} from "../utils/types";
+import {FolderData} from '../App';
+import {
+  FeedType,
+  FolderId,
+  FolderSelection,
+  KeyAll,
+  SelectionKey,
+  SelectionType
+} from "../utils/types";
 
 const TreeNode = Tree.TreeNode;
 
 export interface FolderFeedListProps {
-  // TODO: Add proper types for these.
-  tree: any;
-  handleSelect: any;
-  selectedKey: any;
-
+  tree: Map<FolderId, FolderData>;
+  handleSelect: (type: SelectionType, key: SelectionKey) => void;
+  selectedKey: SelectionKey;
+  selectionType: SelectionType;
   unreadCount: number;
 }
 
@@ -21,10 +27,11 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
   }
 
   handleSelect = (keys: string[], type: SelectionType | AntTreeNodeSelectedEvent) => {
+    let selectionKey: SelectionKey = KeyAll;
     let key: string;
 
     if (type === SelectionType.All) {
-      this.props.handleSelect(SelectionType.All, keys);
+      this.props.handleSelect(SelectionType.All, selectionKey);
       return;
     } else if (keys && keys.length === 1) {
       key = keys[0];
@@ -32,12 +39,25 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
       return;
     }
 
-    if (this.props.tree.has(keys)) {
+    if (this.props.tree.has(key)) {
       type = SelectionType.Folder;
+      selectionKey = key as FolderSelection;
     } else {
       type = SelectionType.Feed;
+
+      // TODO: Make this faster.
+      this.props.tree.forEach(
+        (folder: FolderData, folderId: FolderId) => {
+          folder.feedMap.forEach(
+            (feed: FeedType) => {
+              if (feed.id === key) {
+                selectionKey = [feed.id, folderId];
+              }
+            }
+          )
+        });
     }
-    this.props.handleSelect(type, key);
+    this.props.handleSelect(type, selectionKey);
   };
 
   render() {
@@ -48,8 +68,24 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
       selectedKeys = [];
       allSelectedClass = 'all-items-selected';
     } else {
-      selectedKeys = [this.props.selectedKey];
-      allSelectedClass = 'all-items';
+      switch (this.props.selectionType) {
+        case SelectionType.Article:
+          throw new Error(
+            "Cannot render folder feed list with article selection");
+        case SelectionType.Folder:
+          selectedKeys = [this.props.selectedKey as string];
+          allSelectedClass = 'all-items';
+          break;
+        case SelectionType.Feed:
+          const feedId = this.props.selectedKey[0];
+          selectedKeys = [feedId as string];
+          allSelectedClass = 'all-items';
+          break;
+        case SelectionType.All: // fallthrough
+        default:
+          selectedKeys = [];
+          allSelectedClass = 'all-items-selected';
+      }
     }
 
     // TODO: Implement folder expansion with override correctly.
@@ -74,8 +110,10 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
           onSelect={this.handleSelect}>
           {
             Array.from(tree.entries(), ([k, v]) => (
-              <TreeNode key={k} title={renderFolderTitle(v)}>
-                {v.feeds.map(renderFeed)}
+              <TreeNode
+                key={k.toString()}
+                title={renderFolderTitle(v)}>
+                {Array.from(v.feedMap.values()).map(renderFeed)}
               </TreeNode>
             ))
           }
@@ -94,7 +132,7 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
   }
 }
 
-function renderFolderTitle(folder: StructureValue) {
+function renderFolderTitle(folder: FolderData) {
   if (folder.unread_count === 0) {
     return folder.title;
   } else {
@@ -103,14 +141,14 @@ function renderFolderTitle(folder: StructureValue) {
 }
 
 function renderFeed(feed: FeedType) {
-  let img;
+  let img: ReactNode;
   if (feed.favicon === '') {
     img = <i className="fas fa-rss-square"/>
   } else {
     img = <img src={`data:${feed.favicon}`} height={16} width={16} alt=''/>
   }
 
-  let title;
+  let title: ReactNode;
   if (feed.unread_count === 0) {
     title = feed.title;
   } else {

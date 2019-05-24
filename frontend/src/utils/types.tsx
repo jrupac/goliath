@@ -29,9 +29,17 @@ export interface FaviconId extends String {
 export interface ArticleId extends String {
 }
 
-export type SelectionKeyAll = string;
-export const KeyAll: SelectionKeyAll = "";
-export type SelectionKey = ArticleId | FeedId | FolderId | SelectionKeyAll;
+export type ArticleSelection = [ArticleId, FeedId, FolderId];
+export type FeedSelection = [FeedId, FolderId];
+export type FolderSelection = FolderId;
+export type AllSelection = string;
+export const KeyAll: AllSelection = "ALL";
+
+export type SelectionKey =
+  ArticleSelection
+  | FeedSelection
+  | FolderSelection
+  | AllSelection;
 
 export interface FeedType {
   id: FeedId;
@@ -43,6 +51,7 @@ export interface FeedType {
   is_spark: 0 | 1,
   last_updated_on_time: number,
   unread_count: number;
+  articleMap: Map<ArticleId, ArticleType>
 }
 
 export interface ArticleType {
@@ -57,18 +66,11 @@ export interface ArticleType {
   created_on_time: number;
 }
 
+// Article data, feed title, feed favicon, feed ID, folder ID
+export type ArticleListEntry = [ArticleType, string, string, FeedId, FolderId];
+
 export function maxArticleId(a: Decimal | ArticleId, b: Decimal | ArticleId): Decimal {
   a = new Decimal(a.toString());
   b = new Decimal(b.toString());
   return a > b ? a : b;
-}
-
-export function isUnread(article: ArticleType) {
-  return !(article.is_read === 1);
-}
-
-export function sortArticles(articles: ArticleType[]) {
-  // Sort by descending time.
-  return articles.sort(
-    (a: ArticleType, b: ArticleType) => b.created_on_time - a.created_on_time);
 }

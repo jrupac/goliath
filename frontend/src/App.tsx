@@ -9,18 +9,19 @@ import Menu from 'antd/lib/menu';
 import React from 'react';
 import {
   ArticleId,
+  ArticleListEntry,
+  ArticleSelection,
   ArticleType,
   FaviconId,
   FeedId,
+  FeedSelection,
   FeedType,
   FolderId,
-  isUnread,
+  FolderSelection,
   KeyAll,
   maxArticleId,
   SelectionKey,
-  SelectionKeyAll,
   SelectionType,
-  sortArticles,
   Status
 } from "./utils/types";
 
@@ -37,28 +38,26 @@ interface Version {
   build_hash: string;
 }
 
-export type StructureValue = {
-  feeds: FeedType[];
+export type FolderData = {
+  // feeds: FeedType[];
   title: string;
   unread_count: number;
+  feedMap: Map<FeedId, FeedType>
 }
 
 export interface AppState {
-  articles: Map<ArticleId, ArticleType>;
   buildTimestamp: string;
   buildHash: string;
-  selectionKey: SelectionKeyAll;
+  selectionKey: SelectionKey;
   selectionType: SelectionType;
-  favicons: Map<FaviconId, string>;
-  feeds: Map<FeedId, FeedType>;
-  folderToFeeds: Map<FolderId, FeedId[]>;
-  folders: Map<FolderId, string>;
-  readBuffer: ArticleId[];
-  shownArticles: ArticleType[];
   status: Status;
-  structure: Map<FolderId, StructureValue>;
+  structure: Map<FolderId, FolderData>;
   unreadCount: number;
-  unreadCountMap: Map<FeedId, number>;
+  // Fever response types
+  feverFetchGroupsResponse: FeverFetchGroupsType;
+  feverFetchFeedsResponse: FeverFetchFeedsType;
+  feverFetchFaviconsResponse: FeverFetchFaviconsType;
+  feverFetchItemsResponse: FeverFetchItemsType;
 }
 
 // The following several interfaces conform to the Fever API.
@@ -100,21 +99,19 @@ export default class App extends React.Component<AppProps, AppState> {
   constructor(props: AppProps) {
     super(props);
     this.state = {
-      articles: new Map<ArticleId, ArticleType>(),
       buildTimestamp: "",
       buildHash: "",
       selectionKey: KeyAll,
       selectionType: SelectionType.All,
-      favicons: new Map<FaviconId, string>(),
-      feeds: new Map<FeedId, FeedType>(),
-      folderToFeeds: new Map<FolderId, FeedId[]>(),
-      folders: new Map<FolderId, string>(),
-      readBuffer: [] as ArticleId[],
-      shownArticles: [] as ArticleType[],
       status: Status.Start,
-      structure: new Map<FolderId, StructureValue>(),
+      structure: new Map<FolderId, FolderData>(),
       unreadCount: 0,
-      unreadCountMap: new Map<FeedId, number>(),
+      // Fever response types
+      feverFetchGroupsResponse: {groups: [], feeds_groups: []},
+      feverFetchFeedsResponse: {feeds: [], feeds_groups: []},
+      feverFetchFaviconsResponse: {favicons: []},
+      feverFetchItemsResponse: {items: [], total_items: 0}
+
     };
   }
 
@@ -136,43 +133,92 @@ export default class App extends React.Component<AppProps, AppState> {
     }
 
     this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-      const structure = new Map<FolderId, StructureValue>();
+      const structure = new Map<FolderId, FolderData>();
 
-      prevState.folders.forEach((title: string, folderId: FolderId) => {
-        const feedIds = prevState.folderToFeeds.get(folderId);
+      // Map of (Folder ID) -> (Feed ID).
+      const folderToFeeds = new Map<FolderId, FeedId[]>();
+      prevState.feverFetchGroupsResponse.feeds_groups.forEach(
+        (feedGroup: FeverFeedGroupType) => {
+          folderToFeeds.set(feedGroup.group_id, feedGroup.feed_ids.split(','));
+        });
 
-        if (feedIds === undefined) {
-          // Some folders may not have any feeds, which is not an error.
-          return;
-        } else {
-          const feeds = feedIds.map((feedId: FeedId): FeedType => {
-            const feed = prevState.feeds.get(feedId);
+      // Map of all (Feed ID) -> (Feed Data).
+      const globalFeedMap = new Map<FeedId, FeedType>();
+      prevState.feverFetchFeedsResponse.feeds.forEach(
+        (feed: FeedType) => globalFeedMap.set(feed.id, feed));
 
-            if (feed === undefined) {
-              throw new Error("BUG: Feed: " + feedId +
-                " not found in feed list.");
-            } else {
-              feed.favicon = prevState.favicons.get(feed.favicon_id) || '';
-              feed.unread_count = prevState.unreadCountMap.get(feedId) || 0;
-              return feed;
+      // Map of (Feed ID) -> (list of Article Data).
+      const feedToArticles = new Map<FeedId, ArticleType[]>();
+      prevState.feverFetchItemsResponse.items.forEach(
+        (article: ArticleType) => {
+          const entry = feedToArticles.get(article.feed_id) || [];
+          feedToArticles.set(article.feed_id, [...entry, article]);
+        });
+
+      // Map of (Favicon ID) -> (Favicon Data).
+      const globalFaviconMap = new Map<FaviconId, string>();
+      prevState.feverFetchFaviconsResponse.favicons.forEach(
+        (favicon: FeverFaviconType) => {
+          globalFaviconMap.set(favicon.id, favicon.data)
+        });
+
+      prevState.feverFetchGroupsResponse.groups.forEach(
+        (group: FeverGroupType) => {
+          const folderId = group.id as FolderId;
+
+          const feedIdList = folderToFeeds.get(folderId);
+          // Not all folders have feeds, so nothing more to be done here.
+          if (feedIdList === undefined) {
+            return;
+          }
+
+          // Populate feeds in this folder.
+          const feeds = new Map<FeedId, FeedType>();
+          feedIdList.forEach(
+            (feedId: FeedId) => {
+              const feed = globalFeedMap.get(feedId);
+              if (feed === undefined) {
+                throw new Error("Unknown feed ID: " + feedId);
+              }
+
+              // Populate articles in this feed.
+              const articles = feedToArticles.get(feedId) || [];
+              feed.articleMap = new Map<ArticleId, ArticleType>();
+              articles.forEach((article: ArticleType) => {
+                feed.articleMap.set(article.id, article);
+              });
+
+              // Compute other metadata about this feed.
+              feed.unread_count = articles.reduce(
+                (acc: number, a: ArticleType) => acc + (1 - a.is_read), 0);
+              feed.favicon = globalFaviconMap.get(feed.favicon_id) || "";
+
+              feeds.set(feedId, feed);
             }
-          });
-          const unread_count = feeds.reduce(
-            (a: number, b: FeedType): number => a + b.unread_count, 0);
+          );
 
-          structure.set(folderId, {
-            feeds: feeds,
-            title: title,
+          // Compute other metadata about this folder.
+          const unread_count = Array.from(feeds.values()).reduce(
+            (acc: number, f: FeedType) => acc + f.unread_count, 0);
+
+          const folderData: FolderData = {
+            feedMap: feeds,
+            title: group.title,
             unread_count: unread_count
-          });
+          };
+
+          structure.set(folderId, folderData);
         }
-      });
+      );
+
+      // Compute other global metadata.
       const unreadCount = Array.from(structure.values()).reduce(
-        (a, b) => a + b.unread_count, 0);
+        (acc: number, f: FolderData) => acc + f.unread_count, 0);
+
       return {
-        status: Status.Ready,
         structure,
         unreadCount,
+        status: Status.Ready,
       } as AppState;
     });
   }
@@ -195,21 +241,10 @@ export default class App extends React.Component<AppProps, AppState> {
       .then((result) => this.parseJson(result))
       .then((body: FeverFetchGroupsType) => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-          const folderToFeeds = prevState.folderToFeeds;
-          const folders = prevState.folders;
-
-          body.feeds_groups.forEach((e: FeverFeedGroupType) => {
-            folderToFeeds.set(e.group_id, e.feed_ids.split(','));
-          });
-          body.groups.forEach((group: FeverGroupType) => {
-            folders.set(group.id, group.title);
-          });
-
           return {
-            folders,
-            folderToFeeds,
+            feverFetchGroupsResponse: body,
             status: prevState.status | Status.Folder,
-          } as AppState;
+          } as AppState
         }, this.buildStructure);
       }).catch((e) => console.log(e));
   }
@@ -221,26 +256,10 @@ export default class App extends React.Component<AppProps, AppState> {
       .then((result) => this.parseJson(result))
       .then((body: FeverFetchFeedsType) => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-          const feeds = prevState.feeds;
-
-          body.feeds.forEach((feed: FeedType) => {
-            feeds.set(feed.id, {
-              id: feed.id,
-              favicon_id: feed.favicon_id,
-              favicon: "",
-              title: feed.title,
-              url: feed.url,
-              site_url: feed.site_url,
-              is_spark: feed.is_spark,
-              last_updated_on_time: feed.last_updated_on_time,
-              unread_count: 0
-            });
-          });
-
           return {
-            feeds,
+            feverFetchFeedsResponse: body,
             status: prevState.status | Status.Feed,
-          } as AppState;
+          } as AppState
         }, this.buildStructure);
       }).catch((e) => console.log(e));
   }
@@ -252,16 +271,10 @@ export default class App extends React.Component<AppProps, AppState> {
       .then((result) => this.parseJson(result))
       .then((body: FeverFetchFaviconsType) => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-          const favicons = prevState.favicons;
-
-          body.favicons.forEach((favicon: FeverFaviconType) => {
-            favicons.set(favicon.id, favicon.data);
-          });
-
           return {
-            favicons,
+            feverFetchFaviconsResponse: body,
             status: prevState.status | Status.Favicon,
-          } as AppState;
+          } as AppState
         }, this.buildStructure);
       }).catch((e) => console.log(e));
   }
@@ -284,37 +297,32 @@ export default class App extends React.Component<AppProps, AppState> {
       .then((body: FeverFetchItemsType) => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
           const itemCount = body.items.length;
-          const articles = prevState.articles;
-          const unreadCountMap = prevState.unreadCountMap;
-
-          body.items.forEach((item: ArticleType) => {
-            const feed_id = item.feed_id;
-
-            unreadCountMap.set(
-              feed_id, (unreadCountMap.get(feed_id) || 0) + 1);
-            articles.set(item.id, item);
-
-            // Update latest seen article ID.
-            since = maxArticleId(since, item.id);
-          });
+          const feverFetchItemsResponse: FeverFetchItemsType = {
+            total_items: itemCount,
+            items: [
+              ...prevState.feverFetchItemsResponse.items,
+              ...body.items
+            ]
+          };
 
           // Keep fetching until we see less than the max items returned.
           // Don't update the status field until we're done.
           if (itemCount === 50) {
+            body.items.forEach((item: ArticleType) => {
+              // Update latest seen article ID.
+              since = maxArticleId(since, item.id);
+            });
             // Kick off a recursive call asynchronously. Errors will be thrown
             // within the call, so ignore the result here.
             this.fetchItems(since).finally();
             return {
-              articles,
-              unreadCountMap,
+              feverFetchItemsResponse
             } as AppState;
           }
 
-          // If we get here, then we are at the last fetch call.
+          // If we're here, then this is the last fetch call so update status.
           return {
-            articles,
-            unreadCountMap,
-            shownArticles: Array.from(articles.values()),
+            feverFetchItemsResponse,
             status: prevState.status | Status.Article,
           } as AppState;
         }, this.buildStructure);
@@ -335,96 +343,79 @@ export default class App extends React.Component<AppProps, AppState> {
   }
 
   handleMark = (mark: "read", entity: SelectionKey, type: SelectionType) => {
+    let feverId: string;
+
     switch (type) {
       case SelectionType.Article:
-        fetch('/fever/?api&mark=item&as=' + mark + '&id=' + entity, {
+        feverId = (entity as ArticleSelection)[0] as string;
+        fetch('/fever/?api&mark=item&as=' + mark + '&id=' + feverId, {
           credentials: 'include'
         }).then(() => {
+          console.log("COMPLETED ARTICLE MARK!");
+
           this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-            const readBuffer = [...prevState.readBuffer, entity];
-            const unreadCountMap = new Map(prevState.unreadCountMap);
+            const structure = new Map(prevState.structure);
 
-            const article = prevState.articles.get(entity);
-            if (article === undefined) {
-              throw new Error("Could not find article with ID: " + entity);
-            }
+            const article = getArticleOrThrow(
+              structure, entity as ArticleSelection);
+            article.is_read = 1;
 
-            const feedId = article.feed_id;
-
-            const prevFeedUnreadCount = unreadCountMap.get(feedId);
-            if (prevFeedUnreadCount === undefined) {
-              throw new Error("Could not find unread count entry for feed: " +
-                feedId);
-            }
-
-            unreadCountMap.set(feedId, prevFeedUnreadCount - 1);
+            const unreadCount = updateUnreadCount(structure);
 
             return {
-              readBuffer,
-              unreadCountMap
+              structure,
+              unreadCount,
             } as AppState
-          }, this.buildStructure);
+          });
         }).catch((e) => console.log(e));
         break;
       case SelectionType.Feed:
-        fetch('/fever/?api&mark=feed&as=' + mark + '&id=' + entity, {
+        feverId = (entity as FeedSelection)[0] as string;
+        fetch('/fever/?api&mark=feed&as=' + mark + '&id=' + feverId, {
           credentials: 'include'
         }).then(() => {
           this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-            const articles = prevState.articles;
-            const newReadIds: ArticleId[] = [];
+            const structure = new Map(prevState.structure);
 
-            // Add all articles in the given feed that are not already marked
-            // as read to the read buffer.
-            articles.forEach((v: ArticleType, k: ArticleId) => {
-              if (v.feed_id === entity && isUnread(v)) {
-                newReadIds.push(k);
-              }
-            });
-            const readBuffer = [...prevState.readBuffer, ...newReadIds];
+            const feed = getFeedOrThrow(structure, entity as FeedSelection);
+            feed.articleMap.forEach(
+              (article: ArticleType) => article.is_read = 1);
 
-            // Directly mark the given feed as having no unread articles.
-            const unreadCountMap = new Map(prevState.unreadCountMap);
-            unreadCountMap.set(entity, 0);
+            const unreadCount = updateUnreadCount(structure);
 
             return {
-              readBuffer,
-              unreadCountMap
+              structure,
+              unreadCount,
             } as AppState
-          }, this.buildStructure);
+          });
         }).catch((e) => console.log(e));
         break;
       case SelectionType.Folder:
-        fetch('/fever/?api&mark=group&as=' + mark + '&id=' + entity, {
+        feverId = (entity as FolderSelection) as string;
+        fetch('/fever/?api&mark=group&as=' + mark + '&id=' + feverId, {
           credentials: 'include'
         }).then(() => {
           this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-            // Not all folders have feeds.
-            const feeds = prevState.folderToFeeds.get(entity) || [];
-            const articles = prevState.articles;
-            const newReadIds: ArticleId[] = [];
+            const structure = new Map(prevState.structure);
 
-            // Add all articles in the given folder that are not already marked
-            // as read to the read buffer.
-            articles.forEach((v: ArticleType, k: ArticleId) => {
-              if (feeds.indexOf(v.feed_id) > -1 && isUnread(v)) {
-                newReadIds.push(k)
-              }
-            });
-            const readBuffer = [...prevState.readBuffer, ...newReadIds];
+            const folder = getFolderOrThrow(
+              structure, entity as FolderSelection);
 
-            // Directly mark all feeds in the given folder as having no unread
-            // articles.
-            const unreadCountMap = new Map(prevState.unreadCountMap);
-            feeds.forEach((e) => {
-              unreadCountMap.set(e, 0);
-            });
+            folder.feedMap.forEach(
+              (feed: FeedType) => {
+                feed.articleMap.forEach(
+                  (article: ArticleType) => {
+                    article.is_read = 1;
+                  });
+              });
+
+            const unreadCount = updateUnreadCount(structure);
 
             return {
-              readBuffer,
-              unreadCountMap
+              structure,
+              unreadCount,
             } as AppState
-          }, this.buildStructure);
+          });
         }).catch((e) => console.log(e));
         break;
       case SelectionType.All:
@@ -433,28 +424,26 @@ export default class App extends React.Component<AppProps, AppState> {
         }).then(() => {
           // Update the read buffer and unread counts.
           this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-            const articles = prevState.articles;
-            const newReadIds: ArticleId[] = [];
+            const structure = new Map(prevState.structure);
 
-            // All all unread articles to the read buffer.
-            articles.forEach((v: ArticleType, k: ArticleId) => {
-              if (isUnread(v)) {
-                newReadIds.push(k);
-              }
-            });
-            const readBuffer = [...prevState.readBuffer, ...newReadIds];
+            structure.forEach(
+              (folder: FolderData) => {
+                folder.feedMap.forEach(
+                  (feed: FeedType) => {
+                    feed.articleMap.forEach(
+                      (article: ArticleType) => {
+                        article.is_read = 1;
+                      });
+                  });
+              });
 
-            // Directly mark all feeds as having no unread articles.
-            const unreadCountMap = new Map(prevState.unreadCountMap);
-            unreadCountMap.forEach((v, k) => {
-              unreadCountMap.set(k, 0);
-            });
+            const unreadCount = updateUnreadCount(structure);
 
             return {
-              readBuffer,
-              unreadCountMap
+              structure,
+              unreadCount,
             } as AppState
-          }, this.buildStructure);
+          });
         }).catch((e) => console.log(e));
         break;
       default:
@@ -463,46 +452,9 @@ export default class App extends React.Component<AppProps, AppState> {
   };
 
   handleSelect = (type: SelectionType, key: SelectionKey) => {
-    this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-      // Apply read buffer to articles in state.
-      const articles = new Map(prevState.articles);
-      prevState.readBuffer.forEach((e: ArticleId) => {
-        const article = articles.get(e);
-        if (article !== undefined) {
-          article.is_read = 1;
-        }
-      });
-
-      // Apply the given selector to the list of articles.
-      // TODO: Consider having a "read" list too.
-      let shownArticles = Array.from(articles.values());
-      switch (type) {
-        case SelectionType.Feed:
-          shownArticles = shownArticles.filter(
-            (e: ArticleType) => e.feed_id === key && isUnread(e));
-          break;
-        case SelectionType.Folder:
-          // Some folder may not have feeds.
-          const feeds = prevState.folderToFeeds.get(key) || [];
-          // TODO: Consider using a Set() polyfill to speed this up.
-          shownArticles = shownArticles.filter(
-            (e: ArticleType) => feeds.indexOf(e.feed_id) > -1 && isUnread(e));
-          break;
-        case SelectionType.All:
-          shownArticles = shownArticles.filter(isUnread);
-          break;
-        default:
-          console.log("Unexpected enclosing type: ", type)
-      }
-
-      return {
-        articles,
+    this.setState({
         selectionKey: key,
         selectionType: type,
-        // Empty out readBuffer as we've marked everything there as read.
-        readBuffer: [] as ArticleId[],
-        shownArticles,
-      } as AppState
     });
   };
 
@@ -527,16 +479,16 @@ export default class App extends React.Component<AppProps, AppState> {
               tree={this.state.structure}
               unreadCount={this.state.unreadCount}
               selectedKey={this.state.selectionKey}
+              selectionType={this.state.selectionType}
               handleSelect={this.handleSelect}/>
           </Menu>
         </Sider>
         <Layout>
           <Content>
             <ArticleList
-              articles={sortArticles(this.state.shownArticles)}
+              articleEntries={this.populateArticleListEntries()}
               enclosingKey={this.state.selectionKey}
               enclosingType={this.state.selectionType}
-              feeds={this.state.feeds}
               handleMark={this.handleMark}
               selectAllCallback={() => this.handleSelect(SelectionType.All, KeyAll)}/>
             <Footer>
@@ -551,5 +503,122 @@ export default class App extends React.Component<AppProps, AppState> {
       </Layout>
     );
   }
+
+  populateArticleListEntries(): ArticleListEntry[] {
+    let key: SelectionKey;
+    let feedId: FeedId, folderId: FolderId;
+    let folderData: FolderData, feed: FeedType, favicon: string, title: string,
+      article: ArticleType;
+    const entries = [] as ArticleListEntry[];
+
+    switch (this.state.selectionType) {
+      case SelectionType.Article:
+        key = this.state.selectionKey as ArticleSelection;
+        feedId = key[1];
+        folderId = key[2];
+
+        feed = getFeedOrThrow(this.state.structure, [feedId, folderId]);
+        title = feed.title;
+        favicon = feed.favicon;
+        article = getArticleOrThrow(this.state.structure, key);
+
+        entries.push([article, title, favicon, feedId, folderId]);
+        break;
+      case SelectionType.Feed:
+        [feedId, folderId] = this.state.selectionKey as FeedSelection;
+
+        feed = getFeedOrThrow(this.state.structure, [feedId, folderId]);
+        title = feed.title;
+        favicon = feed.favicon;
+
+        feed.articleMap.forEach((article: ArticleType) => {
+          entries.push([article, title, favicon, feedId, folderId]);
+        });
+        break;
+      case SelectionType.Folder:
+        folderId = this.state.selectionKey as FolderSelection;
+
+        folderData = getFolderOrThrow(this.state.structure, folderId);
+
+        folderData.feedMap.forEach(
+          (feed: FeedType) => {
+            feed.articleMap.forEach(
+              (article: ArticleType) => {
+                entries.push([article, feed.title, feed.favicon, feed.id, folderId])
+              });
+          });
+        break;
+      case SelectionType.All:
+        this.state.structure.forEach(
+          (folder: FolderData, folderId: FolderId) => {
+            folder.feedMap.forEach(
+              (feed: FeedType) => {
+                feed.articleMap.forEach(
+                  (article: ArticleType) => {
+                    entries.push([article, feed.title, feed.favicon, feed.id, folderId])
+                  });
+              });
+          });
+        break
+    }
+
+    return sortArticles(entries.filter(articleIsUnread));
+  }
 }
 
+function getFolderOrThrow(structure: Map<FolderId, FolderData>, folderId: FolderSelection): FolderData {
+  const folderData = structure.get(folderId);
+  if (folderData === undefined) {
+    throw new Error("Unknown group: " + folderId);
+  }
+  return folderData;
+}
+
+function getFeedOrThrow(structure: Map<FolderId, FolderData>, feedSelection: FeedSelection): FeedType {
+  const [feedId, folderId] = feedSelection;
+  const folder = getFolderOrThrow(structure, folderId);
+  const feed = folder.feedMap.get(feedId);
+  if (feed === undefined) {
+    throw new Error("Unknown feed: " + feedSelection);
+  }
+  return feed;
+}
+
+function getArticleOrThrow(structure: Map<FolderId, FolderData>, articleSelection: ArticleSelection): ArticleType {
+  const [articleId, feedId, folderId] = articleSelection;
+  const feed = getFeedOrThrow(structure, [feedId, folderId]);
+  const article = feed.articleMap.get(articleId);
+  if (article === undefined) {
+    throw new Error("Unknown feed: " + articleId + " in feed " + feed.id);
+  }
+  return article;
+}
+
+function articleIsUnread(articleEntry: ArticleListEntry): boolean {
+  const [article] = articleEntry;
+  return !(article.is_read === 1) as boolean;
+}
+
+function sortArticles(articles: ArticleListEntry[]) {
+  // Sort by descending time.
+  return articles.sort(
+    (a: ArticleListEntry, b: ArticleListEntry) =>
+      b[0].created_on_time - a[0].created_on_time);
+}
+
+function updateUnreadCount(structure: Map<FolderId, FolderData>): number {
+  structure.forEach((folder: FolderData) => {
+    folder.feedMap.forEach((feed: FeedType) => {
+      const articles = Array.from(feed.articleMap.values());
+      feed.unread_count = articles.reduce(
+        (acc: number, a: ArticleType) => acc + (1 - a.is_read), 0);
+    });
+
+    const feeds = Array.from(folder.feedMap.values());
+    folder.unread_count = Array.from(feeds.values()).reduce(
+      (acc: number, f: FeedType) => acc + f.unread_count, 0);
+  });
+
+  return Array.from(structure.values()).reduce(
+    (acc: number, f: FolderData) => acc + f.unread_count, 0);
+}

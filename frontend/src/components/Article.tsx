@@ -2,11 +2,12 @@ import Card from 'antd/lib/card';
 import moment from 'moment';
 import React from "react";
 import Tooltip from 'antd/lib/tooltip';
-import {ArticleType, FeedType} from "../utils/types";
+import {ArticleType} from "../utils/types";
 
 export interface ArticleProps {
   article: ArticleType;
-  feed: FeedType;
+  title: string;
+  favicon: string;
   isSelected: boolean;
 }
 
@@ -20,7 +21,7 @@ export default class Article extends React.Component<ArticleProps, any> {
   render() {
     const date = new Date(this.props.article.created_on_time * 1000);
     const cardClass = this.props.isSelected ? 'card-selected' : 'card-normal';
-    const feedTitle = this.props.feed.title;
+    const feedTitle = this.props.title;
 
     let headerClass: string;
     if (this.props.isSelected) {
@@ -81,7 +82,7 @@ export default class Article extends React.Component<ArticleProps, any> {
   }
 
   renderFavicon() {
-    const favicon = this.props.feed.favicon;
+    const favicon = this.props.favicon;
     if (!favicon) {
       return <i className="fas fa-rss-square"/>
     } else {

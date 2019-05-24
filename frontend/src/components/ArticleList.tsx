@@ -2,21 +2,14 @@ import Article from './Article';
 import React from "react";
 import ReactList from 'react-list';
 import {animateScroll as scroll} from 'react-scroll';
-import {
-  ArticleType,
-  FeedId,
-  FeedType,
-  SelectionKey,
-  SelectionType
-} from "../utils/types";
+import {ArticleListEntry, SelectionKey, SelectionType} from "../utils/types";
 
 const goToAllSequence = ['g', 'a'];
 const markAllRead = ['Shift', 'I'];
 const keyBufLength = 2;
 
 export interface ArticleListProps {
-  articles: Array<ArticleType>;
-  feeds: Map<FeedId, FeedType>;
+  articleEntries: ArticleListEntry[];
 
   selectAllCallback: () => void;
   // TODO: Add proper type here.
@@ -27,7 +20,7 @@ export interface ArticleListProps {
 }
 
 export interface ArticleListState {
-  articles: Array<ArticleType>;
+  articleEntries: ArticleListEntry[];
 
   scrollIndex: number;
   keypressBuffer: Array<string>;
@@ -39,7 +32,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
   constructor(props: ArticleListProps) {
     super(props);
     this.state = {
-      articles: Array.from(this.props.articles),
+      articleEntries: props.articleEntries,
       scrollIndex: -1,
       keypressBuffer: new Array(keyBufLength)
     };
@@ -54,22 +47,22 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
   };
 
   componentWillReceiveProps(nextProps: ArticleListProps) {
-    // Reset scroll position when articles change.
-    if (this.props.articles === nextProps.articles) {
+    // Reset scroll position when the enclosing key changes.
+    if (this.props.enclosingKey === nextProps.enclosingKey) {
       return;
     }
     if (this.list) {
       this.list.scrollTo(0);
     }
     this.setState({
-      articles: Array.from(nextProps.articles),
+      articleEntries: Array.from(nextProps.articleEntries),
       scrollIndex: -1,
       keypressBuffer: new Array(keyBufLength)
     });
   }
 
   render() {
-    if (this.state.articles.length === 0) {
+    if (this.state.articleEntries.length === 0) {
       return (
         <div className="article-list-empty">
           <i className="fas fa-check article-list-empty-icon"/>
@@ -77,12 +70,11 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         </div>
       )
     } else {
-      const articles = this.state.articles;
-      const feeds = this.props.feeds;
+      const articles = this.state.articleEntries;
       return (
         <ReactList
           ref={this.handleMounted}
-          itemRenderer={(e) => this.renderArticle(articles, feeds, e)}
+          itemRenderer={(e) => this.renderArticle(articles, e)}
           length={articles.length}
           minSize={5}
           threshold={1000}
@@ -91,19 +83,14 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     }
   }
 
-  renderArticle(articles: Array<ArticleType>, feeds: Map<FeedId, FeedType>, index: number) {
-    const article = articles[index];
-    const feed = feeds.get(article.feed_id);
-
-    if (feed === undefined) {
-      throw new Error("Could not find feed " + article.feed_id +
-        " for article: " + article.id.toString());
-    }
+  renderArticle(articles: ArticleListEntry[], index: number) {
+    const [article, title, favicon] = articles[index];
 
     return <Article
       key={article.id.toString()}
-      article={articles[index]}
-      feed={feed}
+      article={article}
+      title={title}
+      favicon={favicon}
       isSelected={index === this.state.scrollIndex}/>
   }
 
@@ -117,7 +104,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
 
     this.setState((prevState) => {
       let scrollIndex = prevState.scrollIndex;
-      let articles = Array.from(prevState.articles);
+      let articleEntries = Array.from(prevState.articleEntries);
 
       // Add new keypress to buffer, dropping the oldest entry.
       let keypressBuffer = [...prevState.keypressBuffer.slice(1), event.key];
@@ -129,8 +116,9 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       } else if (markAllRead.every((e, i) => e === keypressBuffer[i])) {
         this.props.handleMark(
           'read', this.props.enclosingKey, this.props.enclosingType);
-        articles.forEach((e: any) => {
-          e.is_read = 1
+        articleEntries.forEach((e: ArticleListEntry) => {
+          const [article] = e;
+          article.is_read = 1
         });
         keypressBuffer = new Array(keyBufLength);
       } else {
@@ -139,7 +127,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
           event.preventDefault(); // fallthrough
         case 'j':
           scrollIndex = Math.min(
-            prevState.scrollIndex + 1, this.state.articles.length - 1);
+            prevState.scrollIndex + 1, this.state.articleEntries.length - 1);
           break;
         case 'ArrowUp':
           event.preventDefault(); // fallthrough
@@ -153,7 +141,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
             scrollIndex = 0;
           }
 
-          const article = this.state.articles[scrollIndex];
+          const [article] = this.state.articleEntries[scrollIndex];
           window.open(article.url, '_blank');
           break;
         default:
@@ -162,9 +150,9 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         }
       }
       return {
-        articles: articles,
-        keypressBuffer: keypressBuffer,
-        scrollIndex: scrollIndex
+        articleEntries,
+        keypressBuffer,
+        scrollIndex
       };
     }, this.handleScroll);
   };
@@ -196,14 +184,17 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       });
 
       this.setState((prevState: ArticleListState) => {
-        const articles = Array.from(prevState.articles);
-        const article = articles[prevState.scrollIndex];
+        const articleEntries = Array.from(prevState.articleEntries);
+        const entry = articleEntries[prevState.scrollIndex];
+        const [article, , , feedId, folderId] = entry;
+
         if (!(article.is_read === 1)) {
-          this.props.handleMark('read', article.id, SelectionType.Article);
+          this.props.handleMark(
+            'read', [article.id, feedId, folderId], SelectionType.Article);
           article.is_read = 1;
         }
         return {
-          articles: articles
+          articleEntries
         };
       });
     }
