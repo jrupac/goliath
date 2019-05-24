@@ -1,8 +1,13 @@
-import Article from './Article';
+import Article from './ArticleCard';
 import React from "react";
 import ReactList from 'react-list';
 import {animateScroll as scroll} from 'react-scroll';
-import {ArticleListEntry, SelectionKey, SelectionType} from "../utils/types";
+import {
+  ArticleListEntry,
+  MarkState,
+  SelectionKey,
+  SelectionType
+} from "../utils/types";
 
 const goToAllSequence = ['g', 'a'];
 const markAllRead = ['Shift', 'I'];
@@ -10,13 +15,10 @@ const keyBufLength = 2;
 
 export interface ArticleListProps {
   articleEntries: ArticleListEntry[];
-
+  selectionKey: SelectionKey;
+  selectionType: SelectionType;
   selectAllCallback: () => void;
-  // TODO: Add proper type here.
-  handleMark: any;
-
-  enclosingKey: SelectionKey;
-  enclosingType: SelectionType;
+  handleMark: (mark: MarkState, entity: SelectionKey, type: SelectionType) => void;
 }
 
 export interface ArticleListState {
@@ -48,7 +50,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
 
   componentWillReceiveProps(nextProps: ArticleListProps) {
     // Reset scroll position when the enclosing key changes.
-    if (this.props.enclosingKey === nextProps.enclosingKey) {
+    if (this.props.selectionKey === nextProps.selectionKey) {
       return;
     }
     if (this.list) {
@@ -115,7 +117,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         keypressBuffer = new Array(keyBufLength);
       } else if (markAllRead.every((e, i) => e === keypressBuffer[i])) {
         this.props.handleMark(
-          'read', this.props.enclosingKey, this.props.enclosingType);
+          'read', this.props.selectionKey, this.props.selectionType);
         articleEntries.forEach((e: ArticleListEntry) => {
           const [article] = e;
           article.is_read = 1

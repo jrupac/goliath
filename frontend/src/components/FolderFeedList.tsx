@@ -1,8 +1,8 @@
 import React, {ReactNode} from 'react';
 import Tree from 'antd/lib/tree';
-import {FolderData} from '../App';
 import {
-  FeedType,
+  Feed,
+  Folder,
   FolderId,
   KeyAll,
   SelectionKey,
@@ -12,11 +12,11 @@ import {
 const TreeNode = Tree.TreeNode;
 
 export interface FolderFeedListProps {
-  tree: Map<FolderId, FolderData>;
-  handleSelect: (type: SelectionType, key: SelectionKey) => void;
+  tree: Map<FolderId, Folder>;
+  unreadCount: number;
   selectedKey: SelectionKey;
   selectionType: SelectionType;
-  unreadCount: number;
+  handleSelect: (type: SelectionType, key: SelectionKey) => void;
 }
 
 export interface FolderFeedListState {
@@ -108,7 +108,7 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
               <TreeNode
                 key={k.toString()}
                 title={renderFolderTitle(v)}>
-                {Array.from(v.feedMap.values()).map(renderFeed)}
+                {Array.from(v.feeds.values()).map(renderFeed)}
               </TreeNode>
             ))
           }
@@ -127,17 +127,17 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
   }
 }
 
-function precomputeIdToSelectionKey(structure: Map<FolderId, FolderData>): Map<string, [SelectionType, SelectionKey]> {
+function precomputeIdToSelectionKey(structure: Map<FolderId, Folder>): Map<string, [SelectionType, SelectionKey]> {
   const cache = new Map<string, [SelectionType, SelectionKey]>();
 
   // Add a special entry for selecting everything.
   cache.set(KeyAll, [SelectionType.All, KeyAll]);
 
   structure.forEach(
-    (folder: FolderData, folderId: FolderId) => {
+    (folder: Folder, folderId: FolderId) => {
       cache.set(folderId as string, [SelectionType.Folder, folderId]);
-      folder.feedMap.forEach(
-        (feed: FeedType) => {
+      folder.feeds.forEach(
+        (feed: Feed) => {
           cache.set(feed.id as string, [SelectionType.Feed, [feed.id, folderId]]);
         }
       )
@@ -146,7 +146,7 @@ function precomputeIdToSelectionKey(structure: Map<FolderId, FolderData>): Map<s
   return cache;
 }
 
-function renderFolderTitle(folder: FolderData) {
+function renderFolderTitle(folder: Folder) {
   if (folder.unread_count === 0) {
     return folder.title;
   } else {
@@ -154,7 +154,7 @@ function renderFolderTitle(folder: FolderData) {
   }
 }
 
-function renderFeed(feed: FeedType) {
+function renderFeed(feed: Feed) {
   let img: ReactNode;
   if (feed.favicon === '') {
     img = <i className="fas fa-rss-square"/>

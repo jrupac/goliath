@@ -1,6 +1,6 @@
-// Special-case ID for root folder.
-import {Decimal} from "decimal.js-light";
+/** Global types for Goliath RSS */
 
+/** Status describes which items have been fetched so far via the Fever API. */
 export enum Status {
   Start = 0,
   Folder = 1 << 0,
@@ -10,6 +10,7 @@ export enum Status {
   Ready = 1 << 4,
 }
 
+/** SelectionType is an indicator for the subset of entries being processed. */
 export enum SelectionType {
   All = 0,
   Folder = 1,
@@ -17,18 +18,7 @@ export enum SelectionType {
   Article = 3,
 }
 
-export interface FeedId extends String {
-}
-
-export interface FolderId extends String {
-}
-
-export interface FaviconId extends String {
-}
-
-export interface ArticleId extends String {
-}
-
+/** SelectionKey is a unique descriptor for a corresponding SelectionType. */
 export type ArticleSelection = [ArticleId, FeedId, FolderId];
 export type FeedSelection = [FeedId, FolderId];
 export type FolderSelection = FolderId;
@@ -41,20 +31,14 @@ export type SelectionKey =
   | FolderSelection
   | AllSelection;
 
-export interface FeedType {
-  id: FeedId;
-  favicon_id: FaviconId;
-  favicon: string;
-  title: string;
-  url: string;
-  site_url: string;
-  is_spark: 0 | 1,
-  last_updated_on_time: number,
-  unread_count: number;
-  articleMap: Map<ArticleId, ArticleType>
+/** MarkState describes the desired state of a mark operation. */
+export type MarkState = "read";
+
+/** Article is a single unit of content. */
+export interface ArticleId extends String {
 }
 
-export interface ArticleType {
+export interface Article {
   id: ArticleId;
   feed_id: FeedId;
   title: string;
@@ -66,11 +50,42 @@ export interface ArticleType {
   created_on_time: number;
 }
 
-// Article data, feed title, feed favicon, feed ID, folder ID
-export type ArticleListEntry = [ArticleType, string, string, FeedId, FolderId];
-
-export function maxArticleId(a: Decimal | ArticleId, b: Decimal | ArticleId): Decimal {
-  a = new Decimal(a.toString());
-  b = new Decimal(b.toString());
-  return a > b ? a : b;
+/** Favicon describes the image associated with a feed. */
+export interface FaviconId extends String {
 }
+
+// Favicon is described by a MIME type followed by a base64 encoding.
+export type Favicon = string;
+
+/** Feed is a content source which contains zero or more articles. */
+export interface FeedId extends String {
+}
+
+export type FeedTitle = string;
+
+export interface Feed {
+  id: FeedId;
+  favicon_id: FaviconId;
+  favicon: Favicon;
+  title: FeedTitle;
+  url: string;
+  site_url: string;
+  is_spark: 0 | 1,
+  last_updated_on_time: number,
+  unread_count: number;
+  articles: Map<ArticleId, Article>
+}
+
+/** Folder is a logical grouping of zero or more Feeds. */
+export interface FolderId extends String {
+}
+
+export type Folder = {
+  title: string;
+  unread_count: number;
+  feeds: Map<FeedId, Feed>
+}
+
+/** ArticleListEntry also holds metadata associated with a displayed Article. */
+export type ArticleListEntry = [Article, FeedTitle, Favicon, FeedId, FolderId];
+

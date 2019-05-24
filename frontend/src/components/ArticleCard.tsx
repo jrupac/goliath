@@ -2,16 +2,16 @@ import Card from 'antd/lib/card';
 import moment from 'moment';
 import React from "react";
 import Tooltip from 'antd/lib/tooltip';
-import {ArticleType} from "../utils/types";
+import {Article} from "../utils/types";
 
 export interface ArticleProps {
-  article: ArticleType;
+  article: Article;
   title: string;
   favicon: string;
   isSelected: boolean;
 }
 
-export default class Article extends React.Component<ArticleProps, any> {
+export default class ArticleCard extends React.Component<ArticleProps, any> {
   ref: any = null;
 
   setRef = (ref: Card | null) => {
