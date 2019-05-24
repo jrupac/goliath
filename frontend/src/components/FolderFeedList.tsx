@@ -64,22 +64,22 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
       allSelectedClass = 'all-items-selected';
     } else {
       switch (this.props.selectionType) {
-        case SelectionType.Article:
-          throw new Error(
-            "Cannot render folder feed list with article selection");
-        case SelectionType.Folder:
-          selectedKeys = [this.props.selectedKey as string];
-          allSelectedClass = 'all-items';
-          break;
-        case SelectionType.Feed:
-          const feedId = this.props.selectedKey[0];
-          selectedKeys = [feedId as string];
-          allSelectedClass = 'all-items';
-          break;
-        case SelectionType.All: // fallthrough
-        default:
-          selectedKeys = [];
-          allSelectedClass = 'all-items-selected';
+      case SelectionType.Article:
+        throw new Error(
+          "Cannot render folder feed list with article selection");
+      case SelectionType.Folder:
+        selectedKeys = [this.props.selectedKey as string];
+        allSelectedClass = 'all-items';
+        break;
+      case SelectionType.Feed:
+        const feedId = this.props.selectedKey[0];
+        selectedKeys = [feedId as string];
+        allSelectedClass = 'all-items';
+        break;
+      case SelectionType.All: // fallthrough
+      default:
+        selectedKeys = [];
+        allSelectedClass = 'all-items-selected';
       }
     }
 

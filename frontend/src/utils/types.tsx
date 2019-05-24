@@ -70,10 +70,10 @@ export interface Feed {
   title: FeedTitle;
   url: string;
   site_url: string;
-  is_spark: 0 | 1,
-  last_updated_on_time: number,
+  is_spark: 0 | 1;
+  last_updated_on_time: number;
   unread_count: number;
-  articles: Map<ArticleId, Article>
+  articles: Map<ArticleId, Article>;
 }
 
 /** Folder is a logical grouping of zero or more Feeds. */
@@ -83,7 +83,7 @@ export interface FolderId extends String {
 export type Folder = {
   title: string;
   unread_count: number;
-  feeds: Map<FeedId, Feed>
+  feeds: Map<FeedId, Feed>;
 }
 
 /** ArticleListEntry also holds metadata associated with a displayed Article. */

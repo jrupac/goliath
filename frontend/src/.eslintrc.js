@@ -1,4 +1,5 @@
-{
+module.exports = {
+  "extends": ["react-app"],
   "rules": {
     "default-case": "off",
     "id-length": "off",
@@ -24,6 +25,6 @@
   },
   "parser": "babel-eslint",
   "plugins": [
-      "react"
+    "@typescript-eslint", "react"
   ]
-}
+};

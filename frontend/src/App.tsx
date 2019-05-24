@@ -34,11 +34,6 @@ const {Content, Footer, Sider} = Layout;
 export interface AppProps {
 }
 
-interface Version {
-  build_timestamp: string;
-  build_hash: string;
-}
-
 export interface AppState {
   buildTimestamp: string;
   buildHash: string;
@@ -52,6 +47,12 @@ export interface AppState {
   feverFetchFeedsResponse: FeverFetchFeedsType;
   feverFetchFaviconsResponse: FeverFetchFaviconsType;
   feverFetchItemsResponse: FeverFetchItemsType;
+}
+
+// Version matches the response from a /version API call.
+interface Version {
+  build_timestamp: string;
+  build_hash: string;
 }
 
 // The following several interfaces conform to the Fever API.
@@ -71,21 +72,21 @@ interface FeverFaviconType {
 }
 
 interface FeverFetchGroupsType {
-  groups: Array<FeverGroupType>;
-  feeds_groups: Array<FeverFeedGroupType>;
+  groups: FeverGroupType[];
+  feeds_groups: FeverFeedGroupType[];
 }
 
 interface FeverFetchFeedsType {
-  feeds: Array<Feed>;
-  feeds_groups: Array<FeverFeedGroupType>;
+  feeds: Feed[];
+  feeds_groups: FeverFeedGroupType[];
 }
 
 interface FeverFetchFaviconsType {
-  favicons: Array<FeverFaviconType>;
+  favicons: FeverFaviconType[];
 }
 
 interface FeverFetchItemsType {
-  items: Array<Article>;
+  items: Article[];
   total_items: number;
 }
 
@@ -192,13 +193,13 @@ export default class App extends React.Component<AppProps, AppState> {
           );
 
           // Compute other metadata about this folder.
-          const unread_count = Array.from(feeds.values()).reduce(
+          const unreadCount = Array.from(feeds.values()).reduce(
             (acc: number, f: Feed) => acc + f.unread_count, 0);
 
           const folderData: Folder = {
             feeds: feeds,
             title: group.title,
-            unread_count: unread_count
+            unread_count: unreadCount
           };
 
           structure.set(folderId, folderData);
@@ -340,113 +341,113 @@ export default class App extends React.Component<AppProps, AppState> {
     let feverId: string;
 
     switch (type) {
-      case SelectionType.Article:
-        feverId = (entity as ArticleSelection)[0] as string;
-        fetch('/fever/?api&mark=item&as=' + mark + '&id=' + feverId, {
-          credentials: 'include'
-        }).then(() => {
-          this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-            const structure = new Map(prevState.structure);
+    case SelectionType.Article:
+      feverId = (entity as ArticleSelection)[0] as string;
+      fetch('/fever/?api&mark=item&as=' + mark + '&id=' + feverId, {
+        credentials: 'include'
+      }).then(() => {
+        this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
+          const structure = new Map(prevState.structure);
 
-            const article = getArticleOrThrow(
-              structure, entity as ArticleSelection);
-            article.is_read = 1;
+          const article = getArticleOrThrow(
+            structure, entity as ArticleSelection);
+          article.is_read = 1;
 
-            const unreadCount = updateUnreadCount(structure);
+          const unreadCount = updateUnreadCount(structure);
 
-            return {
-              structure,
-              unreadCount,
-            } as AppState
-          });
-        }).catch((e) => console.log(e));
-        break;
-      case SelectionType.Feed:
-        feverId = (entity as FeedSelection)[0] as string;
-        fetch('/fever/?api&mark=feed&as=' + mark + '&id=' + feverId, {
-          credentials: 'include'
-        }).then(() => {
-          this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-            const structure = new Map(prevState.structure);
+          return {
+            structure,
+            unreadCount,
+          } as AppState
+        });
+      }).catch((e) => console.log(e));
+      break;
+    case SelectionType.Feed:
+      feverId = (entity as FeedSelection)[0] as string;
+      fetch('/fever/?api&mark=feed&as=' + mark + '&id=' + feverId, {
+        credentials: 'include'
+      }).then(() => {
+        this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
+          const structure = new Map(prevState.structure);
 
-            const feed = getFeedOrThrow(structure, entity as FeedSelection);
-            feed.articles.forEach(
-              (article: Article) => article.is_read = 1);
+          const feed = getFeedOrThrow(structure, entity as FeedSelection);
+          feed.articles.forEach(
+            (article: Article) => article.is_read = 1);
 
-            const unreadCount = updateUnreadCount(structure);
+          const unreadCount = updateUnreadCount(structure);
 
-            return {
-              structure,
-              unreadCount,
-            } as AppState
-          });
-        }).catch((e) => console.log(e));
-        break;
-      case SelectionType.Folder:
-        feverId = (entity as FolderSelection) as string;
-        fetch('/fever/?api&mark=group&as=' + mark + '&id=' + feverId, {
-          credentials: 'include'
-        }).then(() => {
-          this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-            const structure = new Map(prevState.structure);
+          return {
+            structure,
+            unreadCount,
+          } as AppState
+        });
+      }).catch((e) => console.log(e));
+      break;
+    case SelectionType.Folder:
+      feverId = (entity as FolderSelection) as string;
+      fetch('/fever/?api&mark=group&as=' + mark + '&id=' + feverId, {
+        credentials: 'include'
+      }).then(() => {
+        this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
+          const structure = new Map(prevState.structure);
 
-            const folder = getFolderOrThrow(
-              structure, entity as FolderSelection);
+          const folder = getFolderOrThrow(
+            structure, entity as FolderSelection);
 
-            folder.feeds.forEach(
-              (feed: Feed) => {
-                feed.articles.forEach(
-                  (article: Article) => {
-                    article.is_read = 1;
-                  });
-              });
+          folder.feeds.forEach(
+            (feed: Feed) => {
+              feed.articles.forEach(
+                (article: Article) => {
+                  article.is_read = 1;
+                });
+            });
 
-            const unreadCount = updateUnreadCount(structure);
+          const unreadCount = updateUnreadCount(structure);
 
-            return {
-              structure,
-              unreadCount,
-            } as AppState
-          });
-        }).catch((e) => console.log(e));
-        break;
-      case SelectionType.All:
-        fetch('/fever/?api&mark=group&as=' + mark + '&id=' + entity, {
-          credentials: 'include'
-        }).then(() => {
-          // Update the read buffer and unread counts.
-          this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-            const structure = new Map(prevState.structure);
+          return {
+            structure,
+            unreadCount,
+          } as AppState
+        });
+      }).catch((e) => console.log(e));
+      break;
+    case SelectionType.All:
+      fetch('/fever/?api&mark=group&as=' + mark + '&id=' + entity, {
+        credentials: 'include'
+      }).then(() => {
+        // Update the read buffer and unread counts.
+        this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
+          const structure = new Map(prevState.structure);
 
-            structure.forEach(
-              (folder: Folder) => {
-                folder.feeds.forEach(
-                  (feed: Feed) => {
-                    feed.articles.forEach(
-                      (article: Article) => {
-                        article.is_read = 1;
-                      });
-                  });
-              });
+          structure.forEach(
+            (folder: Folder) => {
+              folder.feeds.forEach(
+                (feed: Feed) => {
+                  feed.articles.forEach(
+                    (article: Article) => {
+                      article.is_read = 1;
+                    });
+                });
+            });
 
-            const unreadCount = updateUnreadCount(structure);
+          const unreadCount = updateUnreadCount(structure);
 
-            return {
-              structure,
-              unreadCount,
-            } as AppState
-          });
-        }).catch((e) => console.log(e));
-        break;
-      default:
-        console.log("Unexpected enclosing type: ", type)
+          return {
+            structure,
+            unreadCount,
+          } as AppState
+        });
+      }).catch((e) => console.log(e));
+      break;
+    default:
+      console.log("Unexpected enclosing type: ", type)
     }
   };
 
   handleSelect = (type: SelectionType, key: SelectionKey) => {
     this.setState({
-        selectionKey: key,
-        selectionType: type,
+      selectionKey: key,
+      selectionType: type,
     });
   };
 
@@ -504,54 +505,54 @@ export default class App extends React.Component<AppProps, AppState> {
     const entries = [] as ArticleListEntry[];
 
     switch (this.state.selectionType) {
-      case SelectionType.Article:
-        key = this.state.selectionKey as ArticleSelection;
-        feedId = key[1];
-        folderId = key[2];
+    case SelectionType.Article:
+      key = this.state.selectionKey as ArticleSelection;
+      feedId = key[1];
+      folderId = key[2];
 
-        feed = getFeedOrThrow(this.state.structure, [feedId, folderId]);
-        title = feed.title;
-        favicon = feed.favicon;
-        article = getArticleOrThrow(this.state.structure, key);
+      feed = getFeedOrThrow(this.state.structure, [feedId, folderId]);
+      title = feed.title;
+      favicon = feed.favicon;
+      article = getArticleOrThrow(this.state.structure, key);
 
+      entries.push([article, title, favicon, feedId, folderId]);
+      break;
+    case SelectionType.Feed:
+      [feedId, folderId] = this.state.selectionKey as FeedSelection;
+
+      feed = getFeedOrThrow(this.state.structure, [feedId, folderId]);
+      title = feed.title;
+      favicon = feed.favicon;
+
+      feed.articles.forEach((article: Article) => {
         entries.push([article, title, favicon, feedId, folderId]);
-        break;
-      case SelectionType.Feed:
-        [feedId, folderId] = this.state.selectionKey as FeedSelection;
+      });
+      break;
+    case SelectionType.Folder:
+      folderId = this.state.selectionKey as FolderSelection;
 
-        feed = getFeedOrThrow(this.state.structure, [feedId, folderId]);
-        title = feed.title;
-        favicon = feed.favicon;
+      folderData = getFolderOrThrow(this.state.structure, folderId);
 
-        feed.articles.forEach((article: Article) => {
-          entries.push([article, title, favicon, feedId, folderId]);
+      folderData.feeds.forEach(
+        (feed: Feed) => {
+          feed.articles.forEach(
+            (article: Article) => {
+              entries.push([article, feed.title, feed.favicon, feed.id, folderId])
+            });
         });
-        break;
-      case SelectionType.Folder:
-        folderId = this.state.selectionKey as FolderSelection;
-
-        folderData = getFolderOrThrow(this.state.structure, folderId);
-
-        folderData.feeds.forEach(
-          (feed: Feed) => {
-            feed.articles.forEach(
-              (article: Article) => {
-                entries.push([article, feed.title, feed.favicon, feed.id, folderId])
-              });
-          });
-        break;
-      case SelectionType.All:
-        this.state.structure.forEach(
-          (folder: Folder, folderId: FolderId) => {
-            folder.feeds.forEach(
-              (feed: Feed) => {
-                feed.articles.forEach(
-                  (article: Article) => {
-                    entries.push([article, feed.title, feed.favicon, feed.id, folderId])
-                  });
-              });
-          });
-        break
+      break;
+    case SelectionType.All:
+      this.state.structure.forEach(
+        (folder: Folder, folderId: FolderId) => {
+          folder.feeds.forEach(
+            (feed: Feed) => {
+              feed.articles.forEach(
+                (article: Article) => {
+                  entries.push([article, feed.title, feed.favicon, feed.id, folderId])
+                });
+            });
+        });
+      break
     }
 
     return sortArticles(entries.filter(articleIsUnread));
