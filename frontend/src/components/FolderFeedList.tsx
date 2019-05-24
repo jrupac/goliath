@@ -1,5 +1,5 @@
 import React, {ReactNode} from 'react';
-import Tree, {AntTreeNodeSelectedEvent} from 'antd/lib/tree';
+import Tree from 'antd/lib/tree';
 import {FolderData} from '../App';
 import {
   FeedType,
@@ -34,18 +34,16 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     this.handleSelect = this.handleSelect.bind(this);
   }
 
-  handleSelect = (keys: string[], type: SelectionType | AntTreeNodeSelectedEvent) => {
-    let selectionKey: SelectionKey = KeyAll;
+  handleSelect = (keys: string[]) => {
+    let selectionKey: SelectionKey;
     let selectionType: SelectionType;
     let key: string;
 
-    if (type === SelectionType.All) {
-      this.props.handleSelect(SelectionType.All, selectionKey);
-      return;
-    } else if (keys && keys.length === 1) {
+    // This tree can only have one node selected at a time.
+    if (keys && keys.length === 1) {
       key = keys[0];
     } else {
-      return;
+      throw new Error("Unexpected tree node selection: " + keys.toString());
     }
 
     let entry = this.state.keyCache.get(key);
@@ -92,7 +90,7 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     return (
       <div>
         <div
-          onClick={() => this.handleSelect([], SelectionType.All)}
+          onClick={() => this.handleSelect([KeyAll])}
           className={allSelectedClass}>
           <i
             className="fas fa-inbox"
@@ -131,6 +129,9 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
 
 function precomputeIdToSelectionKey(structure: Map<FolderId, FolderData>): Map<string, [SelectionType, SelectionKey]> {
   const cache = new Map<string, [SelectionType, SelectionKey]>();
+
+  // Add a special entry for selecting everything.
+  cache.set(KeyAll, [SelectionType.All, KeyAll]);
 
   structure.forEach(
     (folder: FolderData, folderId: FolderId) => {
