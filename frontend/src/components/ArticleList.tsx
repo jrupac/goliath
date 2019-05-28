@@ -181,8 +181,9 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         // has already done the work to figure it out, so use it directly.
         // @ts-ignore
         container: this.list.scrollParent,
+        isDynamic: true,
         duration: 400,
-        smooth: "defaultEasing",
+        smooth: "easeInOutQuad",
       });
 
       this.setState((prevState: ArticleListState) => {
