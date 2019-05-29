@@ -8,6 +8,7 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
+import {Empty} from "antd";
 
 const goToAllSequence = ['g', 'a'];
 const markAllRead = ['Shift', 'I'];
@@ -66,10 +67,13 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
   render() {
     if (this.state.articleEntries.length === 0) {
       return (
-        <div className="article-list-empty">
-          <i className="fas fa-check article-list-empty-icon"/>
-          <p className="article-list-empty-text">No unread articles.</p>
-        </div>
+        <Empty
+          className="article-list-empty"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description={
+            <p className="article-list-empty-text">No unread articles</p>
+          }>
+        </Empty>
       )
     } else {
       const articles = this.state.articleEntries;
