@@ -44,7 +44,7 @@ type imagePair struct {
 
 func makeBodyPolicy() *bluemonday.Policy {
 	p := bluemonday.UGCPolicy()
-	p.AllowAttrs("title").OnElements("img")
+	p.AllowAttrs("title", "alt").OnElements("img")
 	return p
 }
 
@@ -193,6 +193,10 @@ func handleItems(ctx context.Context, feed *models.Feed, d *storage.Database, it
 Loop:
 	for _, item := range items {
 		title := item.Title
+		// Some feeds give back content that is HTML-escaped. When this happens,
+		// sanitization makes the content appear as raw, escaped text. There's not
+		// a canonical way of determining if the content is given here as escaped
+		// or not, so we use a heuristic.
 		content := maybeUnescapeHtml(item.Content)
 		summary := maybeUnescapeHtml(item.Summary)
 
@@ -332,17 +336,16 @@ func maybeResizeImage(feedId int64, bi besticon.Icon) (ip imagePair) {
 // than one is found in the given string, an HTML-unescaped string is returned.
 // Otherwise, the given input is unmodified.
 func maybeUnescapeHtml(content string) string {
+	occLimit := 1
 	occ := 0
 	// The HTML standard defines escape sequences for &, <, and >.
-	// Single and double quotes are also escaped in attribute values, represented
-	// here in two common forms each.
-	escapes := []string{"&amp;", "&lt;", "&gt;", "&#34;", "&apos;", "&#39;", "&quot;"}
+	escapes := []string{"&amp;", "&lt;", "&gt;", "&#34;", "&apos;"}
 
 	for _, seq := range escapes {
 		occ += strings.Count(content, seq)
 	}
 
-	if occ > 1 {
+	if occ > occLimit {
 		return html.UnescapeString(content)
 	}
 	return content
