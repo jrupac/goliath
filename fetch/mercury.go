@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	log "github.com/golang/glog"
 	"html/template"
+
 	"os/exec"
 )
 
@@ -17,7 +19,8 @@ const (
 )
 
 var (
-	mercuryCli = flag.String("mercuryCli", "", "Path to CLI for invoking the Mercury Parser API.")
+	mercuryCli    = flag.String("mercuryCli", "", "Path to CLI for invoking the Mercury Parser API.")
+	parseArticles = flag.Bool("parseArticles", false, "If true, parse article content via Mercury API.")
 )
 
 type mercuryResponse struct {
@@ -25,36 +28,45 @@ type mercuryResponse struct {
 	HtmlContent template.HTML
 }
 
-func parseArticleContent(link string) (content string, err error) {
+func maybeParseArticleContent(link string) (content string) {
+	if !*parseArticles {
+		return
+	}
+
 	if *mercuryCli == "" {
+		log.Fatalf("--mercuryCli must be set if --parseArticles is true.")
 		return
 	}
 
 	output, err := exec.Command(*mercuryCli, link).Output()
 	if err != nil {
+		log.Warningf("Failed to execute mercury CLI: %s", err)
 		return
 	}
 
 	parsedResp := mercuryResponse{}
 	err = json.Unmarshal(output, &parsedResp)
 	if err != nil {
+		log.Warningf("Failed to unmarshal mercury CLI response: %s", err)
 		return
 	}
 
 	// If the content is empty, return empty string to indicate that this field should not be preferred when displaying.
 	if parsedResp.Content == "" {
-		return content, nil
+		return
 	}
 
 	var buf bytes.Buffer
 	t, err := template.New("parsedContent").Parse(contentTemplate)
 	if err != nil {
+		log.Warningf("Failed to parse HTML template: %s", err)
 		return
 	}
 
-	// This third-party HTML is sanitized at a large processing stage, so mark it safe here.
+	// This third-party HTML is sanitized at a later processing stage, so mark it safe here.
 	parsedResp.HtmlContent = template.HTML(parsedResp.Content)
 	if err = t.Execute(&buf, parsedResp); err != nil {
+		log.Warningf("Failed to execute HTML template: %s", err)
 		return
 	}
 
