@@ -19,6 +19,10 @@ export default class Loading extends React.Component<LoadingProps, never> {
           percent={100 * progress}
           showInfo={false}
           status="active"
+          strokeColor={{
+            from: "#ececec",
+            to: "#222",
+          }}
           strokeWidth={5}/>
       </div>
     )
