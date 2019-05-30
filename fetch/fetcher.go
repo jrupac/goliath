@@ -203,6 +203,7 @@ Loop:
 			parsed = bluemondayBodyPolicy.Sanitize(parsed)
 		}
 
+		content = maybeRewriteImageSourceUrls(content)
 		summary = maybeRewriteImageSourceUrls(summary)
 
 		a := models.Article{
