@@ -225,7 +225,7 @@ func handleAuth(d *storage.Database, r *http.Request) int {
 		log.V(2).Infof("Verified cookie: %+v", r)
 		return 1
 	} else if _, err := d.GetUserByKey(r.FormValue("api_key")); err != nil {
-		log.Warningf("Rejected request: %+v", r)
+		utils.HttpRequestPrint("Received unauthenticated request", r)
 		log.Warningf("Failed because: %s", err)
 		return 0
 	} else {
