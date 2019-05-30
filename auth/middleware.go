@@ -11,16 +11,21 @@ const (
 	loginPath  = "/login"
 )
 
+// Redirector is the type of a custom HTTP handler to be called upon failed
+// cookie verification.
+type Redirector = func(http.ResponseWriter, *http.Request)
+
 // Middleware is a wrapper around a http.Handler that contains a pointer to the database connection.
 type Middleware struct {
-	wrapped http.Handler
-	d       *storage.Database
-	root    string
+	wrapped    http.Handler
+	d          *storage.Database
+	root       string
+	redirector Redirector
 }
 
 // WithAuth returns a Middleware that checks authentication before forwarding requests to the given handler.
-func WithAuth(h http.Handler, d *storage.Database, root string) Middleware {
-	return Middleware{h, d, root}
+func WithAuth(h http.Handler, d *storage.Database, root string, redirector Redirector) Middleware {
+	return Middleware{h, d, root, redirector}
 }
 
 // ServeHTTP implements the http.Handler interface and checks authentication on each request.
@@ -37,7 +42,11 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	returnRedirect(w, r)
+	if m.redirector != nil {
+		m.redirector(w, r)
+	} else {
+		returnRedirect(w, r)
+	}
 	return
 }
 

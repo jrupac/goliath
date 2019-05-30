@@ -61,7 +61,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to open DB: %s", err)
 	}
-	defer d.Close()
+	defer func() {
+		err := d.Close()
+		if err != nil {
+			log.Errorf("Failed to close database: %s", err)
+		}
+	}()
 
 	if *opmlImportPath != "" {
 		p, err := opml.ParseOpml(*opmlImportPath)
@@ -166,7 +171,7 @@ func serve(ctx context.Context, d *storage.Database) error {
 	mux.HandleFunc("/fever/", HandleFever(d))
 	mux.HandleFunc("/version", handleVersion)
 	mux.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))
-	mux.Handle("/", auth.WithAuth(http.FileServer(http.Dir(*publicFolder)), d, *publicFolder))
+	mux.Handle("/", auth.WithAuth(http.FileServer(http.Dir(*publicFolder)), d, *publicFolder, nil))
 	log.Infof("Starting HTTP server on %s", srv.Addr)
 	return srv.ListenAndServe()
 }
