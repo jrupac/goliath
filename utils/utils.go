@@ -3,6 +3,8 @@ package utils
 import (
 	"encoding/json"
 	log "github.com/golang/glog"
+	"net/http"
+	"net/http/httputil"
 	"time"
 )
 
@@ -16,4 +18,10 @@ func DebugPrint(prefix string, s interface{}) {
 func Elapsed(start time.Time, callback func(time.Duration)) {
 	elapsed := time.Since(start)
 	callback(elapsed)
+}
+
+// HttpRequestPrint pretty-prints a given http.Request object.
+func HttpRequestPrint(prefix string, r *http.Request) {
+	b, _ := httputil.DumpRequest(r, true)
+	log.Infof("%s:\n %s", prefix, string(b))
 }
