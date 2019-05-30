@@ -69,6 +69,12 @@ func maybeUnescapeHtml(content string) string {
 // maybeRewriteImageSourceUrls parses the given string as HTML, searches for
 // image source URLs and then rewrites them to point at the reverse image proxy.
 func maybeRewriteImageSourceUrls(s string) string {
+	// If we get an empty string, don't try to parse it. Doing so and then
+	// re-rendering will produce a non-empty but semantically empty HTML document.
+	if s == "" {
+		return s
+	}
+
 	if !*rewriteInsecureImageUrls {
 		return s
 	}
