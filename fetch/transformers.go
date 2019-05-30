@@ -2,12 +2,20 @@ package fetch
 
 import (
 	"bytes"
+	"flag"
+	"github.com/PuerkitoBio/goquery"
 	"github.com/disintegration/imaging"
 	"github.com/golang/glog"
 	"github.com/mat/besticon/besticon"
 	"html"
 	"image/png"
+	"net/url"
 	"strings"
+)
+
+var (
+	rewriteInsecureImageUrls = flag.Bool("rewriteInsecureImageUrls", false, "If true, image 'src' attributes are rewritten to be reverse proxied over HTTPS.")
+	rewriteSecureImageUrls   = flag.Bool("rewriteSecureImageUrls", false, "If true, also rewritten images served over HTTPS to a proxy server.")
 )
 
 // maybeResizeImage converts the provided besticon.Icon to a 256x256 PNG image
@@ -56,4 +64,53 @@ func maybeUnescapeHtml(content string) string {
 		return html.UnescapeString(content)
 	}
 	return content
+}
+
+// maybeRewriteImageSourceUrls parses the given string as HTML, searches for
+// image source URLs and then rewrites them to point at the reverse image proxy.
+func maybeRewriteImageSourceUrls(s string) string {
+	if !*rewriteInsecureImageUrls {
+		return s
+	}
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
+	if err != nil {
+		glog.Warningf("Failed to parse HTML: %s", err)
+		return s
+	}
+
+	doc.Find("img").Each(func(i int, s *goquery.Selection) {
+		for _, attr := range s.Nodes[0].Attr {
+			if attr.Key == "src" {
+
+				imgUrl, err := url.Parse(attr.Val)
+				if err != nil {
+					glog.Warningf("Could not parse img src %s: %s", attr.Val, err)
+				}
+
+				if imgUrl.Scheme == "https" && !*rewriteSecureImageUrls {
+					continue
+				}
+
+				newUrl := url.URL{
+					Path: "/cache",
+				}
+				q := newUrl.Query()
+				q.Add("url", attr.Val)
+				newUrl.RawQuery = q.Encode()
+
+				glog.V(2).Infof("Rewritten URL: %s", newUrl.String())
+
+				s.SetAttr(attr.Key, newUrl.String())
+			}
+		}
+	})
+
+	resp, err := doc.Html()
+	if err != nil {
+		glog.Warningf("Failed to render rewritten HTML: %s", err)
+		return s
+	}
+
+	return resp
 }
