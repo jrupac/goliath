@@ -44,7 +44,10 @@ export default class ArticleCard extends React.Component<ArticleProps, any> {
                   target="_blank"
                   rel="noopener noreferrer"
                   href={this.props.article.url}>
-                  {this.props.article.title}
+                  <div>
+                    <div
+                      dangerouslySetInnerHTML={{__html: this.props.article.title}}/>
+                  </div>
                 </a>
               </div>
               <div className="article-metadata">
