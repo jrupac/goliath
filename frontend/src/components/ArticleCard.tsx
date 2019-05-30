@@ -44,20 +44,22 @@ export default class ArticleCard extends React.Component<ArticleProps, any> {
                   target="_blank"
                   rel="noopener noreferrer"
                   href={this.props.article.url}>
-                  <div
-                    dangerouslySetInnerHTML={
-                      {__html: this.props.article.title}}/>
+                  {this.props.article.title}
                 </a>
+              </div>
+              <div className="article-metadata">
                 <div className="article-feed">
                   {this.renderFavicon()}
                   <p className="article-feed-title">{feedTitle}</p>
                 </div>
-              </div>
-              <div className="article-date">
-                <Tooltip title={formatFullDate(date)} overlay="">
-                  {formatDate(date)}
-                </Tooltip>
-                {this.renderReadIcon()}
+                <div className="article-date">
+                  <Tooltip
+                    title={formatFullDate(date)}
+                    overlayClassName="article-date-tooltip">
+                    {formatDate(date)}
+                  </Tooltip>
+                  {this.renderReadIcon()}
+                </div>
               </div>
             </div>
           }>

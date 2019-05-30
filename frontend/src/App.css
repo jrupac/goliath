@@ -128,6 +128,7 @@
 
 .ant-card-head-title {
   padding: 0;
+  white-space: initial;
 }
 
 .ant-card {
@@ -271,19 +272,21 @@
 
 .article-header, .article-header-read {
   display: flex;
+  flex-direction: column;
   align-items: stretch;
-  flex-flow: row nowrap;
   justify-content: space-between;
   padding-top: 15px;
 }
 
 .article-title {
   width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
   font-family: 'et-book', serif;
   font-size: 24px;
   padding-left: 10px;
+}
+
+.article-metadata {
+  display: flex;
 }
 
 .article-header a {
@@ -308,6 +311,7 @@
   font-size: 16px;
   display: flex;
   padding-top: 5px;
+  padding-left: 10px;
 }
 
 .article-feed-title {
@@ -315,14 +319,19 @@
 }
 
 .article-date {
+  color: #888;
+  padding-top: 5px;
   font-family: 'et-book', serif;
   width: 150px;
-  min-width: 150px;
+  padding-left: 10px;
   font-size: 16px;
   text-align: right;
   display: flex;
   align-items: baseline;
-  justify-content: flex-end;
+}
+
+.article-date-tooltip {
+  max-width: 400px;
 }
 
 .article-content {
