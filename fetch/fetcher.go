@@ -251,13 +251,14 @@ func handleImage(ctx context.Context, feed models.Feed, f *rss.Feed, send chan i
 		feedHost = u.Hostname()
 	}
 
-	if i, err2 := tryIconFetch(f.Image.URL); err2 == nil {
+	if i, err := tryIconFetch(f.Image.URL); err == nil {
 		icon = i
-	} else if i, err2 = tryIconFetch(f.Link); err2 == nil {
+	} else if i, err = tryIconFetch(f.Link); err == nil {
 		icon = i
-	} else if i, err2 = tryIconFetch(feedHost); err2 == nil {
+	} else if i, err = tryIconFetch(feedHost); err == nil {
 		icon = i
 	} else {
+		log.V(2).Infof("Could not find suitable icon for feed: %s", feedHost)
 		return
 	}
 
