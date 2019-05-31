@@ -8,6 +8,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/admin"
 	"github.com/jrupac/goliath/auth"
+	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/fetch"
 	"github.com/jrupac/goliath/opml"
 	"github.com/jrupac/goliath/storage"
@@ -170,6 +171,7 @@ func serve(ctx context.Context, d *storage.Database) error {
 	mux.HandleFunc("/logout", auth.HandleLogout)
 	mux.HandleFunc("/fever/", HandleFever(d))
 	mux.HandleFunc("/version", handleVersion)
+	mux.Handle("/cache", auth.WithAuth(cache.NewImageProxy(), d, *publicFolder, cache.AuthErrorRedirect))
 	mux.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))
 	mux.Handle("/", auth.WithAuth(http.FileServer(http.Dir(*publicFolder)), d, *publicFolder, nil))
 	log.Infof("Starting HTTP server on %s", srv.Addr)
