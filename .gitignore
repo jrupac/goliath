@@ -13,3 +13,6 @@ frontend/build/
 
 # User configuration
 config.ini
+
+# Go Vendor directories
+vendor/
