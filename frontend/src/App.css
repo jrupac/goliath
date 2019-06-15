@@ -16,6 +16,7 @@
 
 /* Inertial scrolling on mobile devices */
 @media only screen and (max-width: 1024px) {
+  /* TODO: Fix this. Currently, this makes the sidebar toggle not appear. */
   .App {
     overflow-y: scroll;
     -webkit-overflow-scrolling: touch;
@@ -30,8 +31,6 @@
   background-color: #404040;
   width: 300px;
   border-right: 1px solid #aaa;
-  overflow: auto;
-  overflow-x: hidden;
   font-family: 'Muli', sans-serif;
 }
 
@@ -42,11 +41,6 @@
   font-size: 48px;
   padding-top: 24px;
   padding-bottom: 20px;
-}
-
-.ant-layout-content {
-  background: #ececec;
-  padding: 0 24px;
 }
 
 .ant-layout-footer {
@@ -209,6 +203,12 @@
 
 /* Sidebar */
 
+.sider-container {
+  overflow-x: hidden;
+  overflow-y: scroll;
+  height: 100%;
+}
+
 .all-items, .all-items-selected {
   font-family: 'Muli', sans-serif;
   background-color: #404040;
@@ -255,6 +255,10 @@
 }
 
 /* Article list */
+
+.content-container {
+  margin: 0 24px;
+}
 
 .article-list {
 }

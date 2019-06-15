@@ -461,18 +461,23 @@ export default class App extends React.Component<AppProps, AppState> {
     }
     return (
       <Layout className="App">
-        <Sider width={300}>
-          <div className="logo">
-            Goliath
+        <Sider
+          width={300}
+          breakpoint="lg"
+          collapsedWidth="0">
+          <div className="sider-container">
+            <div className="logo">
+              Goliath
+            </div>
+            <Menu mode="inline" theme="dark">
+              <FolderFeedList
+                tree={this.state.structure}
+                unreadCount={this.state.unreadCount}
+                selectedKey={this.state.selectionKey}
+                selectionType={this.state.selectionType}
+                handleSelect={this.handleSelect}/>
+            </Menu>
           </div>
-          <Menu mode="inline" theme="dark">
-            <FolderFeedList
-              tree={this.state.structure}
-              unreadCount={this.state.unreadCount}
-              selectedKey={this.state.selectionKey}
-              selectionType={this.state.selectionType}
-              handleSelect={this.handleSelect}/>
-          </Menu>
         </Sider>
         <Layout>
           <Content>

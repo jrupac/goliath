@@ -78,13 +78,15 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     } else {
       const articles = this.state.articleEntries;
       return (
-        <ReactList
-          ref={this.handleMounted}
-          itemRenderer={(e) => this.renderArticle(articles, e)}
-          length={articles.length}
-          minSize={5}
-          threshold={1000}
-          type='variable'/>
+        <div className="content-container">
+          <ReactList
+            ref={this.handleMounted}
+            itemRenderer={(e) => this.renderArticle(articles, e)}
+            length={articles.length}
+            minSize={5}
+            threshold={1000}
+            type='variable'/>
+        </div>
       )
     }
   }
