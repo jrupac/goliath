@@ -3,9 +3,10 @@ package fetch
 import (
 	"bytes"
 	"flag"
+	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/disintegration/imaging"
-	"github.com/golang/glog"
+	log "github.com/golang/glog"
 	"github.com/mat/besticon/besticon"
 	"html"
 	"image/png"
@@ -13,9 +14,14 @@ import (
 	"strings"
 )
 
+const (
+	cacheEndpoint = "/cache"
+)
+
 var (
-	rewriteInsecureImageUrls = flag.Bool("rewriteInsecureImageUrls", false, "If true, image 'src' attributes are rewritten to be reverse proxied over HTTPS.")
-	rewriteSecureImageUrls   = flag.Bool("rewriteSecureImageUrls", false, "If true, also rewritten images served over HTTPS to a proxy server.")
+	proxyInsecureImages = flag.Bool("proxyInsecureImages", false, "If true, image 'src' attributes are rewritten to be reverse proxied over HTTPS.")
+	proxySecureImages   = flag.Bool("proxySecureImages", false, "If true, also rewritten images served over HTTPS to a proxy server.")
+	proxyUrlBase        = flag.String("proxyUrlBase", "", "Base URL to reverse image proxy server.")
 )
 
 // maybeResizeImage converts the provided besticon.Icon to a 256x256 PNG image
@@ -29,7 +35,7 @@ func maybeResizeImage(feedId int64, bi besticon.Icon) (ip imagePair) {
 
 		i, err := bi.Image()
 		if err != nil {
-			glog.Warningf("failed to convert besticon.Icon to image.Image: %s", err)
+			log.Warningf("failed to convert besticon.Icon to image.Image: %s", err)
 			return
 		}
 
@@ -37,7 +43,7 @@ func maybeResizeImage(feedId int64, bi besticon.Icon) (ip imagePair) {
 
 		err = png.Encode(&buff, resized)
 		if err != nil {
-			glog.Warningf("failed to encode image as PNG: %s", err)
+			log.Warningf("failed to encode image as PNG: %s", err)
 			return
 		}
 
@@ -75,13 +81,13 @@ func maybeRewriteImageSourceUrls(s string) string {
 		return s
 	}
 
-	if !*rewriteInsecureImageUrls {
+	if !*proxyInsecureImages {
 		return s
 	}
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
 	if err != nil {
-		glog.Warningf("Failed to parse HTML: %s", err)
+		log.Warningf("Failed to parse HTML: %s", err)
 		return s
 	}
 
@@ -91,21 +97,24 @@ func maybeRewriteImageSourceUrls(s string) string {
 
 				imgUrl, err := url.Parse(attr.Val)
 				if err != nil {
-					glog.Warningf("Could not parse img src %s: %s", attr.Val, err)
+					log.Warningf("Could not parse img src %s: %s", attr.Val, err)
 				}
 
-				if imgUrl.Scheme == "https" && !*rewriteSecureImageUrls {
+				if imgUrl.Scheme == "https" && !*proxySecureImages {
 					continue
 				}
 
-				newUrl := url.URL{
-					Path: "/cache",
+				newUrl, err := url.Parse(fmt.Sprintf("%s/%s", *proxyUrlBase, cacheEndpoint))
+				if err != nil {
+					log.Warningf("Invalid proxy base URL %s: %s", *proxyUrlBase, err)
+					break
 				}
+
 				q := newUrl.Query()
 				q.Add("url", attr.Val)
 				newUrl.RawQuery = q.Encode()
 
-				glog.V(2).Infof("Rewritten URL: %s", newUrl.String())
+				log.V(2).Infof("Rewritten URL: %s", newUrl.String())
 
 				s.SetAttr(attr.Key, newUrl.String())
 			}
@@ -114,7 +123,7 @@ func maybeRewriteImageSourceUrls(s string) string {
 
 	resp, err := doc.Html()
 	if err != nil {
-		glog.Warningf("Failed to render rewritten HTML: %s", err)
+		log.Warningf("Failed to render rewritten HTML: %s", err)
 		return s
 	}
 
