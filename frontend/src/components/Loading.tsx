@@ -14,9 +14,10 @@ export default class Loading extends React.Component<LoadingProps, never> {
       Status.Folder | Status.Feed |
       Status.Article | Status.Favicon);
     return (
-      <div className="article-list-empty">
+      <div className="loading-page-container">
         <Progress
           percent={100 * progress}
+          className="loading-page"
           showInfo={false}
           status="active"
           strokeColor={{
