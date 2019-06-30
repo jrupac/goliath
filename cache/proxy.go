@@ -24,10 +24,18 @@ func NewImageProxy() http.Handler {
 	}
 }
 
-// AuthErrorRedirect sets HTTP status of 407 ("Proxy Authentication Required").
+// AuthErrorRedirect redirects the user to the original proxied URL with a HTTP
+// status of 301 ("Moved Permanently").
 func AuthErrorRedirect(w http.ResponseWriter, r *http.Request) {
 	utils.HttpRequestPrint("Received unauthenticated request", r)
-	w.WriteHeader(http.StatusProxyAuthRequired)
+
+	val := r.URL.Query().Get("url")
+	if val == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	http.Redirect(w, r, html.UnescapeString(val), http.StatusMovedPermanently)
 }
 
 func (p *imageProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
