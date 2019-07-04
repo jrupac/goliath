@@ -14,6 +14,7 @@ type Feed struct {
 	Title       string
 	Description string
 	URL         string
+	Link        string
 	Latest      time.Time
 }
 
@@ -23,5 +24,6 @@ func (a *Feed) Hash() string {
 	h.Write([]byte(a.Title))
 	h.Write([]byte(a.Description))
 	h.Write([]byte(a.URL))
+	h.Write([]byte(a.Link))
 	return fmt.Sprintf("%x", h.Sum(nil))
 }
