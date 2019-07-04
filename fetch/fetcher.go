@@ -184,9 +184,15 @@ func fetchLoop(ctx context.Context, d *storage.Database, ac chan models.Article,
 }
 
 func updateFeedMetadata(d *storage.Database, f *models.Feed, rf *rss.Feed) {
-	f.Title = rf.Title
-	f.Description = rf.Description
-	f.Link = rf.Link
+	if rf.Title != "" {
+		f.Title = rf.Title
+	}
+	if rf.Description != "" {
+		f.Description = rf.Description
+	}
+	if rf.Link != "" {
+		f.Link = rf.Link
+	}
 
 	err := d.UpdateFeedMetadata(*f)
 	if err != nil {
