@@ -119,10 +119,10 @@ func (d *Database) InsertFeed(f models.Feed, pID int64) (int64, error) {
 	}
 
 	err := d.db.QueryRow(
-		`INSERT INTO `+feedTable+`(folder, hash, title, description, url)
-			VALUES($1, $2, $3, $4, $5)
+		`INSERT INTO `+feedTable+`(folder, hash, title, description, url, link)
+			VALUES($1, $2, $3, $4, $5, $6)
 			ON CONFLICT(hash) DO UPDATE SET hash = excluded.hash RETURNING id`,
-		pID, f.Hash(), f.Title, f.Description, f.URL).Scan(&feedID)
+		pID, f.Hash(), f.Title, f.Description, f.URL, f.Link).Scan(&feedID)
 	return feedID, err
 }
 
@@ -229,6 +229,15 @@ func (d *Database) MarkFolder(id int64, status string) error {
 	return err
 }
 
+// UpdateFeedMetadata updates various fields for the row corresponding to given
+// models.Feed object with the values in that object.
+func (d *Database) UpdateFeedMetadata(f models.Feed) error {
+	_, err := d.db.Exec(
+		`UPDATE `+feedTable+` SET hash = $1, title = $2, description = $3, link = $4 WHERE id = $5`,
+		f.Hash(), f.Title, f.Description, f.Link, f.ID)
+	return err
+}
+
 // UpdateLatestTimeForFeed sets the latest retrieval time for the given feed to
 // the given timestamp.
 func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
@@ -284,7 +293,7 @@ func (d *Database) GetAllFolders() ([]models.Folder, error) {
 // GetAllFeeds returns a list of all feeds in the database.
 func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 	var feeds []models.Feed
-	rows, err := d.db.Query(`SELECT id, folder, title, description, url, latest FROM ` + feedTable)
+	rows, err := d.db.Query(`SELECT id, folder, title, description, url, link, latest FROM ` + feedTable)
 	if err != nil {
 		return feeds, err
 	}
@@ -292,7 +301,7 @@ func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 
 	for rows.Next() {
 		f := models.Feed{}
-		if err = rows.Scan(&f.ID, &f.FolderID, &f.Title, &f.Description, &f.URL, &f.Latest); err != nil {
+		if err = rows.Scan(&f.ID, &f.FolderID, &f.Title, &f.Description, &f.URL, &f.Link, &f.Latest); err != nil {
 			return feeds, err
 		}
 		feeds = append(feeds, f)

@@ -148,6 +148,9 @@ func fetchLoop(ctx context.Context, d *storage.Database, ac chan models.Article,
 			log.Warningf("Error for feed %d fetching URL '%s': %s", feed.ID, feed.URL, err)
 			return
 		}
+
+		updateFeedMetadata(d, &feed, f)
+
 		handleItems(ctx, &feed, d, f.Items, ac)
 		handleImage(ctx, feed, f, ic)
 
@@ -177,6 +180,17 @@ func fetchLoop(ctx context.Context, d *storage.Database, ac chan models.Article,
 		case <-ctx.Done():
 			return
 		}
+	}
+}
+
+func updateFeedMetadata(d *storage.Database, f *models.Feed, rf *rss.Feed) {
+	f.Title = rf.Title
+	f.Description = rf.Description
+	f.Link = rf.Link
+
+	err := d.UpdateFeedMetadata(*f)
+	if err != nil {
+		log.Warningf("Error while updated feed metadata for feed %s: %s", f.ID, err)
 	}
 }
 
