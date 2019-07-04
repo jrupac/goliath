@@ -36,6 +36,16 @@ func (s *server) AddFeed(ctx context.Context, req *AddFeedRequest) (*AddFeedResp
 	// Zero indicates the root folder.
 	parentID := int64(0)
 
+	if req.Title == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Title")
+	}
+	if req.URL == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify URL")
+	}
+	if req.Link == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Link")
+	}
+
 	feed := models.Feed{
 		Title:       req.Title,
 		Description: req.Description,
