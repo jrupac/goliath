@@ -40,6 +40,7 @@ func (s *server) AddFeed(ctx context.Context, req *AddFeedRequest) (*AddFeedResp
 		Title:       req.Title,
 		Description: req.Description,
 		URL:         req.URL,
+		Link:        req.Link,
 	}
 
 	if req.Folder != "" {

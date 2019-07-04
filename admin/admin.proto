@@ -25,8 +25,11 @@ message AddFeedRequest {
   // Optional. Description of feed, typically a few words in length.
   string Description = 2;
 
-  // Required. URL should point to the logical homepage for the feed.
+  // Required. URL should point to the fetch URL for the feed.
   string URL = 3;
+
+  // Required. URL should point to the logical homepage for the feed.
+  string Link = 5;
 
   // Optional. If set, this new feed will be placed under the folder of the
   // supplied name.
