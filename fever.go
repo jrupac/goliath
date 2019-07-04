@@ -271,7 +271,7 @@ func handleFeeds(d *storage.Database, resp *responseType) error {
 			FaviconID:   ff.ID,
 			Title:       ff.Title,
 			URL:         ff.URL,
-			SiteURL:     ff.URL,
+			SiteURL:     ff.Link,
 			IsSpark:     0,
 			LastUpdated: time.Now().Unix(),
 		}
