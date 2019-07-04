@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS Feed (
   title STRING,
   description STRING,
   url STRING,
+  link STRING,
   -- MIME type of the favicon
   mime STRING,
   -- Base64 encoding of favicon

@@ -1,0 +1,5 @@
+SET DATABASE TO Goliath;
+
+ALTER TABLE IF EXISTS Feed ADD COLUMN link STRING;
+
+UPDATE Feed SET link = url;
