@@ -1,8 +1,10 @@
 import Card from 'antd/lib/card';
 import moment from 'moment';
-import React from "react";
+import React, {ReactNode} from "react";
 import Tooltip from 'antd/lib/tooltip';
 import {Article} from "../utils/types";
+import Mercury from '@postlight/mercury-parser';
+import {Skeleton} from "antd";
 
 export interface ArticleProps {
   article: Article;
@@ -11,11 +13,53 @@ export interface ArticleProps {
   isSelected: boolean;
 }
 
-export default class ArticleCard extends React.Component<ArticleProps, any> {
+export interface ArticleState {
+  parsed: string | null;
+  showParsed: boolean;
+  loading: boolean;
+}
+
+// Copied from @types/postlight__mercury-parser because this type is not
+// exported there.
+interface ParseResult {
+  title: string | null;
+  content: string | null;
+  author: string | null;
+  date_published: string | null;
+  lead_image_url: string | null;
+  dek: string | null;
+  next_page_url: string | null;
+  url: string;
+  domain: string;
+  excerpt: string | null;
+  word_count: number;
+  direction: 'ltr' | 'rtl';
+  total_pages: number;
+  rendered_pages: number;
+}
+
+export default class ArticleCard extends React.Component<ArticleProps, ArticleState> {
   ref: any = null;
+
+  constructor(props: ArticleProps) {
+    super(props);
+    this.state = {
+      parsed: null,
+      showParsed: false,
+      loading: false,
+    }
+  }
 
   setRef = (ref: Card | null) => {
     this.ref = ref;
+  };
+
+  componentWillMount() {
+    window.addEventListener('keydown', this.handleKeyDown);
+  };
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this.handleKeyDown);
   };
 
   render() {
@@ -67,7 +111,7 @@ export default class ArticleCard extends React.Component<ArticleProps, any> {
             </div>
           }>
           <div className="article-content">
-            <div dangerouslySetInnerHTML={{__html: this.props.article.html}}/>
+            {this.renderContent()}
           </div>
         </Card>
       </div>
@@ -95,7 +139,90 @@ export default class ArticleCard extends React.Component<ArticleProps, any> {
     }
   }
 
+  renderContent(): ReactNode {
+    if (this.state.loading) {
+      return <Skeleton active/>;
+    } else {
+      return <div
+        dangerouslySetInnerHTML={{__html: this.getArticleContent()}}/>;
+    }
+  }
 
+  getArticleContent(): string {
+    if (this.state.showParsed) {
+      // This field is checked for non-nullity before being set.
+      return this.state.parsed!;
+    }
+    return this.props.article.html;
+  }
+
+  toggleParseContent() {
+    // If already showing parsed content, disable showing it.
+    if (this.state.showParsed) {
+      this.setState({
+        showParsed: false
+      });
+      return;
+    }
+
+    // If already parsed before, just enabling showing it.
+    if (this.state.parsed !== null) {
+      this.setState({
+        showParsed: true
+      });
+      return;
+    }
+
+    // It's fine for this to be async. If parsing completes before this is set,
+    // it'll just get reset to false below.
+    this.setState({
+      loading: true
+    });
+
+    const url = makeAbsolute("/cache?url=" + encodeURI(this.props.article.url));
+
+    Mercury.parse(url)
+      .then((result: ParseResult) => {
+        if (result === null || result.content === null) {
+          return;
+        }
+        this.setState({
+          parsed: result.content,
+          showParsed: true
+        })
+      })
+      .catch((reason: any) => {
+        console.log("Mercury.parse failed: " + reason);
+      })
+      .finally(() => {
+        this.setState({
+          loading: false
+        });
+      })
+  }
+
+  handleKeyDown = (event: KeyboardEvent) => {
+    // Ignore all key events unless this is the selected article.
+    if (!this.props.isSelected) {
+      return;
+    }
+
+    // Ignore keypress events when some modifiers are also enabled to avoid
+    // triggering on (e.g.) browser shortcuts.
+    if (event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) {
+      return;
+    }
+
+    if (event.key === 'm') {
+      this.toggleParseContent();
+    }
+  }
+}
+
+function makeAbsolute(url: string): string {
+  const a = document.createElement('a');
+  a.href = url;
+  return a.href;
 }
 
 function formatFullDate(date: Date) {
