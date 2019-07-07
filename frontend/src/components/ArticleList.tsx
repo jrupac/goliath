@@ -99,7 +99,17 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       article={article}
       title={title}
       favicon={favicon}
-      isSelected={index === this.state.scrollIndex}/>
+      isSelected={index === this.state.scrollIndex}
+      shouldRerender={() => this.handleRerender()}/>
+  }
+
+  handleRerender() {
+    if (this.list !== null) {
+      // An element in the list has dynamically resized, so cached sizing
+      // calculations are incorrect. Forcibly trigger a render again so that
+      // the new size can be accounted for correctly.
+      this.list.forceUpdate();
+    }
   }
 
   handleKeyDown = (event: KeyboardEvent) => {

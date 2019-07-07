@@ -11,6 +11,7 @@ export interface ArticleProps {
   title: string;
   favicon: string;
   isSelected: boolean;
+  shouldRerender: () => void;
 }
 
 export interface ArticleState {
@@ -161,6 +162,8 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
     if (this.state.showParsed) {
       this.setState({
         showParsed: false
+      }, () => {
+        this.props.shouldRerender()
       });
       return;
     }
@@ -169,6 +172,8 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
     if (this.state.parsed !== null) {
       this.setState({
         showParsed: true
+      }, () => {
+        this.props.shouldRerender()
       });
       return;
     }
@@ -177,6 +182,8 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
     // it'll just get reset to false below.
     this.setState({
       loading: true
+    }, () => {
+      this.props.shouldRerender()
     });
 
     const url = makeAbsolute("/cache?url=" + encodeURI(this.props.article.url));
@@ -189,6 +196,8 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
         this.setState({
           parsed: result.content,
           showParsed: true
+        }, () => {
+          this.props.shouldRerender()
         })
       })
       .catch((reason: any) => {
@@ -197,6 +206,8 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
       .finally(() => {
         this.setState({
           loading: false
+        }, () => {
+          this.props.shouldRerender()
         });
       })
   }
