@@ -7,7 +7,8 @@ SET DATABASE TO Goliath;
 
 CREATE TABLE IF NOT EXISTS UserTable (
   -- Key columns
-  username STRING PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username STRING NOT NULL UNIQUE,
   -- Data columns
   key STRING NOT NULL UNIQUE
 );
