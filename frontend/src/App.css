@@ -94,12 +94,10 @@
 
 .ant-tree li .ant-tree-node-content-wrapper:hover {
   background-color: #383838;
-  line-height: 16px;
 }
 
 .ant-tree li .ant-tree-node-content-wrapper.ant-tree-node-selected {
   background-color: #222;
-  line-height: 16px;
 }
 
 .ant-tree li ul {
