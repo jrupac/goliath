@@ -9,6 +9,7 @@ import (
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/opml"
 	"github.com/jrupac/goliath/utils"
+	"github.com/prometheus/client_golang/prometheus"
 
 	// PostgreSQL driver support
 	_ "github.com/lib/pq"
@@ -25,6 +26,20 @@ const (
 	articleTable        = "Article"
 	userTable           = "UserTable"
 	maxFetchedRows      = 10000
+	slowOpLogThreshold  = 100 * time.Millisecond
+)
+
+var userCacheByKey map[string]models.User
+
+var (
+	latencyMetric = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name:       "db_op_latency",
+			Help:       "Server-side latency of database operations.",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		},
+		[]string{"method"},
+	)
 )
 
 // Database is a wrapper type around a database connection.
@@ -32,11 +47,13 @@ type Database struct {
 	db *sql.DB
 }
 
-var userCache map[string]models.User
+func init() {
+	prometheus.MustRegister(latencyMetric)
+}
 
 // Open opens a connection to the given database path and tests connectivity.
 func Open(dbPath string) (*Database, error) {
-	userCache = map[string]models.User{}
+	userCacheByKey = map[string]models.User{}
 
 	db := new(Database)
 
@@ -63,9 +80,13 @@ func (d *Database) Close() error {
 
 // InsertUser inserts the given user into the database.
 func (d *Database) InsertUser(u models.User) error {
-	_, err := d.db.Exec(`INSERT INTO `+userTable+`(id, username, key) VALUES($1, $2)`, u.UserId, u.Username, u.Key)
+	defer logElapsedTime(time.Now(), "InsertUser")
 
-	userCache[u.Key] = u
+	_, err := d.db.Exec(`INSERT INTO `+userTable+`(id, username, key) VALUES($1, $2, $3)`, u.UserId, u.Username, u.Key)
+
+	if err != nil {
+		userCacheByKey[u.Key] = u
+	}
 
 	return err
 }
@@ -87,6 +108,7 @@ func (d *Database) GetAllUsers() ([]models.User, error) {
 			return users, err
 		}
 		users = append(users, u)
+		userCacheByKey[u.Key] = u
 	}
 
 	return users, err
@@ -96,7 +118,7 @@ func (d *Database) GetAllUsers() ([]models.User, error) {
 func (d *Database) GetUserByKey(key string) (models.User, error) {
 	defer logElapsedTime(time.Now(), "GetUserByKey")
 
-	if u, ok := userCache[key]; ok {
+	if u, ok := userCacheByKey[key]; ok {
 		return u, nil
 	}
 
@@ -108,7 +130,7 @@ func (d *Database) GetUserByKey(key string) (models.User, error) {
 		return models.User{}, errors.New("could not find user")
 	}
 
-	userCache[u.Key] = u
+	userCacheByKey[u.Key] = u
 
 	return u, err
 }
@@ -657,9 +679,11 @@ func parseState(status string) (bool, error) {
 }
 
 func logElapsedTime(t time.Time, method string) {
-	utils.Elapsed(t, func(t time.Duration) {
-		if t > 100*time.Millisecond {
-			log.Warningf("Slow operation for method %s: %s", method, t)
+	utils.Elapsed(t, func(d time.Duration) {
+		// Record latency measurements in microseconds.
+		latencyMetric.WithLabelValues(method).Observe(float64(d) / float64(time.Microsecond))
+		if d > slowOpLogThreshold {
+			log.Warningf("Slow operation for method %s: %s", method, d)
 		}
 	})
 }
