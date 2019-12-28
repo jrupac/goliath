@@ -6,6 +6,7 @@ import (
 	"fmt"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/auth"
+	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
 	"github.com/prometheus/client_golang/prometheus"
@@ -126,63 +127,64 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp["auth"] = handleAuth(d, r)
+	user, authStatus := handleAuth(d, r)
+	resp["auth"] = authStatus
 	if resp["auth"] == 0 {
 		returnSuccess(w, resp)
 		return
 	}
 
 	if _, ok := r.Form["groups"]; ok {
-		err := handleGroups(d, &resp)
+		err := handleGroups(d, user, &resp)
 		if err != nil {
 			returnError(w, "Failed request 'groups': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["feeds"]; ok {
-		err := handleFeeds(d, &resp)
+		err := handleFeeds(d, user, &resp)
 		if err != nil {
 			returnError(w, "Failed request 'feeds': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["favicons"]; ok {
-		err := handleFavicons(d, &resp)
+		err := handleFavicons(d, user, &resp)
 		if err != nil {
 			returnError(w, "Failed request 'favicons': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["items"]; ok {
-		err := handleItems(d, &resp, r)
+		err := handleItems(d, user, &resp, r)
 		if err != nil {
 			returnError(w, "Failed request 'items': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["links"]; ok {
-		err := handleLinks(d, &resp)
+		err := handleLinks(d, user, &resp)
 		if err != nil {
 			returnError(w, "Failed request 'links': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["unread_item_ids"]; ok {
-		err := handleUnreadItemIDs(d, &resp)
+		err := handleUnreadItemIDs(d, user, &resp)
 		if err != nil {
 			returnError(w, "Failed request 'unread_item_ids': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["saved_item_ids"]; ok {
-		err := handleSavedItemIDs(d, &resp)
+		err := handleSavedItemIDs(d, user, &resp)
 		if err != nil {
 			returnError(w, "Failed request 'saved_item_ids': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["mark"]; ok {
-		err := handleMark(d, &resp, r)
+		err := handleMark(d, user, &resp, r)
 		if err != nil {
 			returnError(w, "Failed request 'mark': %s", err)
 			return
@@ -217,27 +219,27 @@ func returnSuccess(w http.ResponseWriter, resp map[string]interface{}) {
 	}
 }
 
-func handleAuth(d *storage.Database, r *http.Request) int {
+func handleAuth(d *storage.Database, r *http.Request) (models.User, int) {
 	defer utils.Elapsed(time.Now(), recordLatency("auth"))
 
 	// A request can be authenticated by cookie or api key in request.
-	if auth.VerifyCookie(d, r) {
+	if user, err := auth.VerifyCookie(d, r); err == nil {
 		log.V(2).Infof("Verified cookie: %+v", r)
-		return 1
-	} else if _, err := d.GetUserByKey(r.FormValue("api_key")); err != nil {
+		return user, 1
+	} else if user, err := d.GetUserByKey(r.FormValue("api_key")); err != nil {
 		utils.HttpRequestPrint("Received unauthenticated request", r)
 		log.Warningf("Failed because: %s", err)
-		return 0
+		return user, 0
 	} else {
 		log.V(2).Infof("Successfully authenticated by key: %+v", r)
-		return 1
+		return user, 1
 	}
 }
 
-func handleGroups(d *storage.Database, resp *responseType) error {
+func handleGroups(d *storage.Database, u models.User, resp *responseType) error {
 	defer utils.Elapsed(time.Now(), recordLatency("groups"))
 
-	folders, err := d.GetAllFolders()
+	folders, err := d.GetAllFoldersForUser(u)
 	if err != nil {
 		return &feverError{err, true}
 	}
@@ -250,17 +252,17 @@ func handleGroups(d *storage.Database, resp *responseType) error {
 		groups = append(groups, g)
 	}
 	(*resp)["groups"] = groups
-	(*resp)["feeds_groups"], err = constructFeedsGroups(d)
+	(*resp)["feeds_groups"], err = constructFeedsGroups(d, u)
 	if err != nil {
 		return &feverError{err, true}
 	}
 	return nil
 }
 
-func handleFeeds(d *storage.Database, resp *responseType) error {
+func handleFeeds(d *storage.Database, u models.User, resp *responseType) error {
 	defer utils.Elapsed(time.Now(), recordLatency("feeds"))
 
-	fetchedFeeds, err := d.GetAllFeeds()
+	fetchedFeeds, err := d.GetAllFeedsForUser(u)
 	if err != nil {
 		return &feverError{err, true}
 	}
@@ -278,15 +280,15 @@ func handleFeeds(d *storage.Database, resp *responseType) error {
 		feeds = append(feeds, f)
 	}
 	(*resp)["feeds"] = feeds
-	(*resp)["feeds_groups"], err = constructFeedsGroups(d)
+	(*resp)["feeds_groups"], err = constructFeedsGroups(d, u)
 	if err != nil {
 		return &feverError{err, true}
 	}
 	return nil
 }
 
-func handleFavicons(d *storage.Database, resp *responseType) error {
-	faviconMap, err := d.GetAllFavicons()
+func handleFavicons(d *storage.Database, u models.User, resp *responseType) error {
+	faviconMap, err := d.GetAllFaviconsForUser(u)
 	if err != nil {
 		return &feverError{err, true}
 	}
@@ -302,7 +304,7 @@ func handleFavicons(d *storage.Database, resp *responseType) error {
 	return nil
 }
 
-func handleItems(d *storage.Database, resp *responseType, r *http.Request) error {
+func handleItems(d *storage.Database, u models.User, resp *responseType, r *http.Request) error {
 	defer utils.Elapsed(time.Now(), recordLatency("items"))
 
 	// TODO: support "max_id" and "with_ids".
@@ -316,7 +318,7 @@ func handleItems(d *storage.Database, resp *responseType, r *http.Request) error
 		}
 	}
 
-	articles, err := d.GetUnreadArticles(50, sinceID)
+	articles, err := d.GetUnreadArticlesForUser(u, 50, sinceID)
 	if err != nil {
 		return &feverError{err, true}
 	}
@@ -351,7 +353,7 @@ func handleItems(d *storage.Database, resp *responseType, r *http.Request) error
 	return nil
 }
 
-func handleLinks(_ *storage.Database, resp *responseType) error {
+func handleLinks(_ *storage.Database, _ models.User, resp *responseType) error {
 	defer utils.Elapsed(time.Now(), recordLatency("links"))
 
 	// Perhaps add support for links in the future.
@@ -359,10 +361,10 @@ func handleLinks(_ *storage.Database, resp *responseType) error {
 	return nil
 }
 
-func handleUnreadItemIDs(d *storage.Database, resp *responseType) error {
+func handleUnreadItemIDs(d *storage.Database, u models.User, resp *responseType) error {
 	defer utils.Elapsed(time.Now(), recordLatency("unread_item_ids"))
 
-	articles, err := d.GetUnreadArticles(-1, -1)
+	articles, err := d.GetUnreadArticlesForUser(u, -1, -1)
 	if err != nil {
 		return &feverError{err, true}
 	}
@@ -374,7 +376,7 @@ func handleUnreadItemIDs(d *storage.Database, resp *responseType) error {
 	return nil
 }
 
-func handleSavedItemIDs(_ *storage.Database, resp *responseType) error {
+func handleSavedItemIDs(_ *storage.Database, _ models.User, resp *responseType) error {
 	defer utils.Elapsed(time.Now(), recordLatency("saved_item_ids"))
 
 	// Perhaps add support for saving items in the future.
@@ -382,7 +384,7 @@ func handleSavedItemIDs(_ *storage.Database, resp *responseType) error {
 	return nil
 }
 
-func handleMark(d *storage.Database, _ *responseType, r *http.Request) error {
+func handleMark(d *storage.Database, u models.User, _ *responseType, r *http.Request) error {
 	defer utils.Elapsed(time.Now(), recordLatency("mark"))
 
 	// TODO: Support "before" argument.
@@ -393,6 +395,7 @@ func handleMark(d *storage.Database, _ *responseType, r *http.Request) error {
 	default:
 		return &feverError{fmt.Errorf("unknown 'as' value: %s", r.FormValue("as")), false}
 	}
+
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		return err
@@ -400,15 +403,15 @@ func handleMark(d *storage.Database, _ *responseType, r *http.Request) error {
 
 	switch r.FormValue("mark") {
 	case "item":
-		if err = d.MarkArticle(id, as); err != nil {
+		if err = d.MarkArticleForUser(u, id, as); err != nil {
 			return &feverError{err, true}
 		}
 	case "feed":
-		if err = d.MarkFeed(id, as); err != nil {
+		if err = d.MarkFeedForUser(u, id, as); err != nil {
 			return &feverError{err, true}
 		}
 	case "group":
-		if err = d.MarkFolder(id, as); err != nil {
+		if err = d.MarkFolderForUser(u, id, as); err != nil {
 			return &feverError{err, true}
 		}
 	default:
@@ -417,9 +420,9 @@ func handleMark(d *storage.Database, _ *responseType, r *http.Request) error {
 	return nil
 }
 
-func constructFeedsGroups(d *storage.Database) ([]feedsGroupType, error) {
+func constructFeedsGroups(d *storage.Database, u models.User) ([]feedsGroupType, error) {
 	var feedGroups []feedsGroupType
-	feedsPerFolder, err := d.GetFeedsPerFolder()
+	feedsPerFolder, err := d.GetFeedsPerFolderForUser(u)
 	if err != nil {
 		log.Warningf("Failed to fetch feeds per folder: %s", err)
 		return feedGroups, err

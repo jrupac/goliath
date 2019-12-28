@@ -31,6 +31,7 @@ var (
 	metricsPort  = flag.Int("metricsPort", 9998, "Port to expose Prometheus metrics.")
 	publicFolder = flag.String("publicFolder", "public", "Location of static content to serve.")
 	// Import/Export options
+	opmlUsername   = flag.String("opmlUsername", "", "Username of user to import or export OPML.")
 	opmlImportPath = flag.String("opmlImportPath", "", "Path of OPML file to import.")
 	opmlExportPath = flag.String("opmlExportPath", "", "Path to file to export OPML.")
 )
@@ -69,31 +70,7 @@ func main() {
 		}
 	}()
 
-	if *opmlImportPath != "" {
-		p, err := opml.ParseOpml(*opmlImportPath)
-		if err != nil {
-			log.Warningf("Error while parsing OPML: %s", err)
-		}
-		log.Infof("Completed parsing OPML file %s", *opmlImportPath)
-		utils.DebugPrint("Parsed OPML file", *p)
-
-		if err = d.ImportOpml(p); err != nil {
-			log.Warningf("Error while importing OPML: %s", err)
-		}
-	}
-
-	if *opmlExportPath != "" {
-		folderTree, err := d.GetFolderFeedTree()
-		if err != nil {
-			log.Warningf("Error while fetching folder tree: %s", err)
-		}
-
-		if err = opml.ExportOpml(folderTree, *opmlExportPath); err != nil {
-			log.Warningf("Error while exporting OPML: %s", err)
-		} else {
-			log.Infof("Completed exporting OPML file to %s", *opmlExportPath)
-		}
-	}
+	processOpml(d)
 
 	ctx, cancel := context.WithCancel(ctx)
 	installSignalHandler(cancel)
@@ -105,6 +82,40 @@ func main() {
 
 	if err = serve(ctx, d); err != nil {
 		log.Infof("%s", err)
+	}
+}
+
+func processOpml(d *storage.Database) {
+	user, err := d.GetUserByUsername(*opmlUsername)
+	if err != nil {
+		log.Warningf("Error while retrieving user info for OPML: %s", err)
+		return
+	}
+
+	if *opmlImportPath != "" {
+		p, err := opml.ParseOpml(*opmlImportPath)
+		if err != nil {
+			log.Warningf("Error while parsing OPML: %s", err)
+		}
+		log.Infof("Completed parsing OPML file %s", *opmlImportPath)
+		utils.DebugPrint("Parsed OPML file", *p)
+
+		if err = d.ImportOpmlForUser(user, p); err != nil {
+			log.Warningf("Error while importing OPML: %s", err)
+		}
+	}
+
+	if *opmlExportPath != "" {
+		folderTree, err := d.GetFolderFeedTreeForUser(user)
+		if err != nil {
+			log.Warningf("Error while fetching folder tree: %s", err)
+		}
+
+		if err = opml.ExportOpml(folderTree, *opmlExportPath); err != nil {
+			log.Warningf("Error while exporting OPML: %s", err)
+		} else {
+			log.Infof("Completed exporting OPML file to %s", *opmlExportPath)
+		}
 	}
 }
 

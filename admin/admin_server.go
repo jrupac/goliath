@@ -25,13 +25,13 @@ type server struct {
 
 // AddUser adds a specified user into the database.
 // NOTE: This method is currently unimplemented.
-func (s *server) AddUser(ctx context.Context, req *AddUserRequest) (*AddUserResponse, error) {
+func (s *server) AddUser(_ context.Context, _ *AddUserRequest) (*AddUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "not yet implemented")
 }
 
 // AddFeed adds the specified feed into the database.
 // During the operation of adding a feed, fetching is paused and restarted.
-func (s *server) AddFeed(ctx context.Context, req *AddFeedRequest) (*AddFeedResponse, error) {
+func (s *server) AddFeed(_ context.Context, req *AddFeedRequest) (*AddFeedResponse, error) {
 	resp := &AddFeedResponse{}
 	// Zero indicates the root folder.
 	parentID := int64(0)
@@ -45,6 +45,9 @@ func (s *server) AddFeed(ctx context.Context, req *AddFeedRequest) (*AddFeedResp
 	if req.Link == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "must specify Link")
 	}
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
 
 	feed := models.Feed{
 		Title:       req.Title,
@@ -53,8 +56,13 @@ func (s *server) AddFeed(ctx context.Context, req *AddFeedRequest) (*AddFeedResp
 		Link:        req.Link,
 	}
 
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
 	if req.Folder != "" {
-		folders, err := s.db.GetAllFolders()
+		folders, err := s.db.GetAllFoldersForUser(user)
 		if err != nil {
 			return nil, status.Error(codes.Internal, "internal error")
 		}
@@ -70,7 +78,7 @@ func (s *server) AddFeed(ctx context.Context, req *AddFeedRequest) (*AddFeedResp
 
 	fetch.Pause()
 	defer fetch.Resume()
-	feedID, err := s.db.InsertFeed(feed, parentID)
+	feedID, err := s.db.InsertFeedForUser(user, feed, parentID)
 
 	if err != nil {
 		return resp, status.Error(codes.DataLoss, "failed to persist feed")

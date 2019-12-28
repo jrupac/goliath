@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
@@ -31,9 +32,10 @@ var (
 )
 
 type imagePair struct {
-	id      int64
-	mime    string
-	favicon []byte
+	folderId int64
+	id       int64
+	mime     string
+	favicon  []byte
 }
 
 func makeBodyPolicy() *bluemonday.Policy {
@@ -71,48 +73,70 @@ func Start(ctx context.Context, d *storage.Database) {
 
 	fctx, cancel := context.WithCancel(ctx)
 
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go start(fctx, wg, d)
+	// A WaitGroup of size 0 or 1 to wait on all fetching to complete.
+	loopCondition := &sync.WaitGroup{}
+	loopCondition.Add(1)
+	go startFetchLoop(fctx, loopCondition, d)
 
 	for {
 		select {
 		case <-pauseChan:
 			cancel()
-			wg.Wait()
+			loopCondition.Wait()
 			log.Info("Fetcher paused.")
 			pauseChanDone <- struct{}{}
 		case <-resumeChan:
 			fctx, cancel = context.WithCancel(ctx)
-			wg.Add(1)
-			go start(fctx, wg, d)
+			loopCondition.Add(1)
+			go startFetchLoop(fctx, loopCondition, d)
 			log.Info("Fetcher resumed.")
 		case <-ctx.Done():
-			wg.Wait()
 			cancel()
+			loopCondition.Wait()
 			return
 		}
 	}
 }
 
-func start(ctx context.Context, parent *sync.WaitGroup, d *storage.Database) {
+func startFetchLoop(ctx context.Context, parent *sync.WaitGroup, d *storage.Database) {
 	defer parent.Done()
 
-	feeds, err := d.GetAllFeeds()
+	users, err := d.GetAllUsers()
 	if err != nil {
-		log.Errorf("Failed to fetch all feeds: %s", err)
+		log.Fatalf("Cannot start fetcher because fetching users failed: %s", err)
 	}
-	utils.DebugPrint("Feed list", feeds)
 
-	wg := &sync.WaitGroup{}
-	wg.Add(len(feeds))
+	// A WaitGroup used to wait for all users' fetch loops to complete.
+	usersLoopWg := &sync.WaitGroup{}
+	usersLoopWg.Add(len(users))
+
+	for _, u := range users {
+		go func(u models.User) {
+			defer usersLoopWg.Done()
+			startFetchLoopForUser(d, ctx, u)
+		}(u)
+	}
+
+	usersLoopWg.Wait()
+}
+
+func startFetchLoopForUser(d *storage.Database, ctx context.Context, u models.User) {
+	feeds, err := d.GetAllFeedsForUser(u)
+	if err != nil {
+		log.Errorf("Failed to fetch all feeds for user %s: %s", u, err)
+	}
+	utils.DebugPrint(fmt.Sprintf("Feed list for user %s", u), feeds)
+
+	// A WaitGroup of size 0 or 1 to wait on fetching for one user to complete.
+	userLoopCondition := &sync.WaitGroup{}
+	userLoopCondition.Add(len(feeds))
 	ac := make(chan models.Article)
 	ic := make(chan imagePair)
 
 	for _, f := range feeds {
 		go func(f models.Feed) {
-			defer wg.Done()
-			fetchLoop(ctx, d, ac, ic, f)
+			defer userLoopCondition.Done()
+			fetchLoopForFeed(ctx, d, ac, ic, f, u)
 		}(f)
 	}
 
@@ -120,24 +144,24 @@ func start(ctx context.Context, parent *sync.WaitGroup, d *storage.Database) {
 		select {
 		case a := <-ac:
 			utils.DebugPrint("Received a new article:", a)
-			if err2 := d.InsertArticle(a); err2 != nil {
-				log.Warningf("Failed to persist article: %+v: %s", a, err2)
+			if err2 := d.InsertArticleForUser(u, a); err2 != nil {
+				log.Warningf("Failed to persist article for user %s: %+v: %s", u, a, err2)
 			}
 		case ip := <-ic:
 			utils.DebugPrint("Received a new image:", ip)
-			if err2 := d.InsertFavicon(ip.id, ip.mime, ip.favicon); err2 != nil {
-				log.Warningf("Failed to persist icon for feed %d: %s", ip.id, err2)
+			if err2 := d.InsertFaviconForUser(u, ip.folderId, ip.id, ip.mime, ip.favicon); err2 != nil {
+				log.Warningf("Failed to persist icon for user %s for feed %d: %s", u, ip.id, err2)
 			}
 		case <-ctx.Done():
-			log.Infof("Stopping fetching feeds...")
-			wg.Wait()
-			log.Infof("Stopped fetching feeds.")
+			log.Infof("Stopping fetching feeds for user %s...", u)
+			userLoopCondition.Wait()
+			log.Infof("Stopped fetching feeds for user %s.", u)
 			return
 		}
 	}
 }
 
-func fetchLoop(ctx context.Context, d *storage.Database, ac chan models.Article, ic chan imagePair, feed models.Feed) {
+func fetchLoopForFeed(ctx context.Context, d *storage.Database, ac chan models.Article, ic chan imagePair, feed models.Feed, u models.User) {
 	log.Infof("Fetching URL '%s'", feed.URL)
 	tick := make(<-chan time.Time)
 	initalFetch := make(chan struct{})
@@ -145,17 +169,17 @@ func fetchLoop(ctx context.Context, d *storage.Database, ac chan models.Article,
 	go func() {
 		f, err := rss.Fetch(feed.URL)
 		if err != nil {
-			log.Warningf("Error for feed %d fetching URL '%s': %s", feed.ID, feed.URL, err)
+			log.Warningf("Error for user %s feed %d fetching URL '%s': %s", u, feed.ID, feed.URL, err)
 			return
 		}
 
-		updateFeedMetadata(d, &feed, f)
+		updateFeedMetadataForUser(d, &feed, f, u)
 
-		handleItems(ctx, &feed, d, f.Items, ac)
+		handleItemsForUser(ctx, &feed, d, f.Items, ac, u)
 		handleImage(ctx, feed, f, ic)
 
 		tick = time.After(time.Until(f.Refresh))
-		log.Infof("Initial waiting to fetch %s until %s\n", feed.URL, f.Refresh)
+		log.Infof("Initial waiting to fetch %s until %s for user %s\n", feed.URL, f.Refresh, u)
 		initalFetch <- struct{}{}
 	}()
 
@@ -165,14 +189,14 @@ func fetchLoop(ctx context.Context, d *storage.Database, ac chan models.Article,
 			// Block on initial fetch here so that we can return early if needed
 			continue
 		case <-tick:
-			log.Infof("Fetching feed %s", feed.URL)
+			log.Infof("Fetching feed %s for user %s", feed.URL, u)
 			var refresh time.Time
 			if f, err := rss.Fetch(feed.URL); err != nil {
 				log.Warningf("Error fetching %s: %s", feed.URL, err)
 				// If the request transiently fails, try again after a fixed interval.
 				refresh = time.Now().Add(10 * time.Minute)
 			} else {
-				handleItems(ctx, &feed, d, f.Items, ac)
+				handleItemsForUser(ctx, &feed, d, f.Items, ac, u)
 				refresh = f.Refresh
 			}
 			log.Infof("Waiting to fetch %s until %s\n", feed.URL, refresh)
@@ -183,7 +207,7 @@ func fetchLoop(ctx context.Context, d *storage.Database, ac chan models.Article,
 	}
 }
 
-func updateFeedMetadata(d *storage.Database, f *models.Feed, rf *rss.Feed) {
+func updateFeedMetadataForUser(d *storage.Database, f *models.Feed, rf *rss.Feed, u models.User) {
 	if rf.Title != "" {
 		f.Title = rf.Title
 	}
@@ -194,13 +218,13 @@ func updateFeedMetadata(d *storage.Database, f *models.Feed, rf *rss.Feed) {
 		f.Link = rf.Link
 	}
 
-	err := d.UpdateFeedMetadata(*f)
+	err := d.UpdateFeedMetadataForUser(u, *f)
 	if err != nil {
 		log.Warningf("Error while updated feed metadata for feed %s: %s", f.ID, err)
 	}
 }
 
-func handleItems(ctx context.Context, feed *models.Feed, d *storage.Database, items []*rss.Item, send chan models.Article) {
+func handleItemsForUser(ctx context.Context, feed *models.Feed, d *storage.Database, items []*rss.Item, send chan models.Article, u models.User) {
 	latest := feed.Latest
 	newLatest := latest
 
@@ -255,7 +279,7 @@ Loop:
 		}
 	}
 
-	err := d.UpdateLatestTimeForFeed(feed.ID, newLatest)
+	err := d.UpdateLatestTimeForFeedForUser(u, feed.FolderID, feed.ID, newLatest)
 	if err != nil {
 		log.Warningf("Failed to update latest feed time: %s", err)
 	} else {
@@ -267,9 +291,9 @@ func handleImage(ctx context.Context, feed models.Feed, f *rss.Feed, send chan i
 	var icon besticon.Icon
 	var feedHost string
 
-	u, err := url.Parse(f.Link)
+	parsedUrl, err := url.Parse(f.Link)
 	if err == nil {
-		feedHost = u.Hostname()
+		feedHost = parsedUrl.Hostname()
 	}
 
 	if i, err := tryIconFetch(f.Image.URL); err == nil {
@@ -284,7 +308,7 @@ func handleImage(ctx context.Context, feed models.Feed, f *rss.Feed, send chan i
 	}
 
 	select {
-	case send <- maybeResizeImage(feed.ID, icon):
+	case send <- maybeResizeImage(feed.FolderID, feed.ID, icon):
 		break
 	case <-ctx.Done():
 		break

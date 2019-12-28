@@ -32,12 +32,21 @@ func StartGC(ctx context.Context, d *Database) {
 }
 
 func performGCRun(d *Database) {
+	users, err := d.GetAllUsers()
+	if err != nil {
+		log.Warningf("Failed to query all users: %s", err)
+		return
+	}
+
 	minTimestamp := time.Now().Add(-1 * *gcKeepDuration)
 	log.Infof("GC'ing all read articles older than: %s", minTimestamp)
-	count, err := d.DeleteArticles(minTimestamp)
-	if err != nil {
-		log.Warningf("GC run failed: %s", err)
-	} else {
-		log.Infof("GC complete; deleted %d articles.", count)
+
+	for _, user := range users {
+		count, err := d.DeleteArticlesForUser(user, minTimestamp)
+		if err != nil {
+			log.Warningf("GC run failed for user %s: %s", user, err)
+		} else {
+			log.Infof("GC complete for user %s; deleted %d articles.", user, count)
+		}
 	}
 }

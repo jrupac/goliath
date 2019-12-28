@@ -15,24 +15,28 @@ CREATE TABLE IF NOT EXISTS UserTable (
 
 CREATE TABLE IF NOT EXISTS Folder (
   -- Key columns
-  id SERIAL PRIMARY KEY,
+  userid UUID NOT NULL REFERENCES UserTable(id),
+  id SERIAL NOT NULL UNIQUE,
+  PRIMARY KEY (userid, id),
   -- Data columns
   name STRING UNIQUE
-);
+) INTERLEAVE IN PARENT UserTable (userid);
 
 CREATE TABLE IF NOT EXISTS FolderChildren (
   -- Key columns
+  userid UUID NOT NULL REFERENCES UserTable(id),
   parent INT NOT NULL REFERENCES Folder (id),
   child INT NOT NULL REFERENCES Folder (id),
-  PRIMARY KEY (parent, child)
-) INTERLEAVE IN PARENT Folder (parent);
+  PRIMARY KEY (userid, parent, child)
+) INTERLEAVE IN PARENT Folder (userid, parent);
 
 CREATE TABLE IF NOT EXISTS Feed (
   -- Key columns
-  id SERIAL NOT NULL UNIQUE,
+  userid UUID NOT NULL,
   folder INT NOT NULL,
-  PRIMARY KEY (folder, id),
-  CONSTRAINT fd_folder FOREIGN KEY (folder) REFERENCES Folder,
+  id SERIAL NOT NULL UNIQUE,
+  PRIMARY KEY (userid, folder, id),
+  CONSTRAINT fd_folder FOREIGN KEY (userid, folder) REFERENCES Folder,
   -- Metadata columns
   hash STRING UNIQUE,
   -- Data columns
@@ -46,15 +50,16 @@ CREATE TABLE IF NOT EXISTS Feed (
   favicon STRING,
   -- Latest timestamp of articles in this feed
   latest TIMESTAMPTZ DEFAULT CAST(0 AS TIMESTAMPTZ)
-) INTERLEAVE IN PARENT Folder (folder);
+) INTERLEAVE IN PARENT Folder (userid, folder);
 
 CREATE TABLE IF NOT EXISTS Article (
   -- Key columns
-  id SERIAL NOT NULL UNIQUE,
-  feed INT NOT NULL,
+  userid UUID NOT NULL,
   folder INT NOT NULL,
-  PRIMARY KEY (folder, feed, id),
-  CONSTRAINT fk_feed_folder FOREIGN KEY (folder, feed) REFERENCES Feed,
+  feed INT NOT NULL,
+  id SERIAL NOT NULL UNIQUE,
+  PRIMARY KEY (userid, folder, feed, id),
+  CONSTRAINT fk_feed_folder FOREIGN KEY (userid, folder, feed) REFERENCES Feed,
   -- Metadata columns
   hash STRING UNIQUE,
   -- Data columns
@@ -68,7 +73,7 @@ CREATE TABLE IF NOT EXISTS Article (
   date TIMESTAMPTZ,
   -- Retrieval timestamp
   retrieved TIMESTAMPTZ
-) INTERLEAVE IN PARENT Feed (folder, feed);
+) INTERLEAVE IN PARENT Feed (userid, folder, feed);
 
 CREATE UNIQUE INDEX IF NOT EXISTS article_idx_read_key
   ON Article (id) STORING (read);

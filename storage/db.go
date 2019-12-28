@@ -8,6 +8,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/opml"
+	"github.com/jrupac/goliath/utils"
 
 	// PostgreSQL driver support
 	_ "github.com/lib/pq"
@@ -31,8 +32,12 @@ type Database struct {
 	db *sql.DB
 }
 
+var userCache map[string]models.User
+
 // Open opens a connection to the given database path and tests connectivity.
 func Open(dbPath string) (*Database, error) {
+	userCache = map[string]models.User{}
+
 	db := new(Database)
 
 	d, err := sql.Open(dialect, dbPath)
@@ -53,15 +58,88 @@ func (d *Database) Close() error {
 }
 
 /*******************************************************************************
+ * User methods
+ ******************************************************************************/
+
+// InsertUser inserts the given user into the database.
+func (d *Database) InsertUser(u models.User) error {
+	_, err := d.db.Exec(`INSERT INTO `+userTable+`(id, username, key) VALUES($1, $2)`, u.UserId, u.Username, u.Key)
+
+	userCache[u.Key] = u
+
+	return err
+}
+
+// GetAllUsers returns a list of all models.User objects.
+func (d *Database) GetAllUsers() ([]models.User, error) {
+	defer logElapsedTime(time.Now(), "GetAllUsers")
+
+	var users []models.User
+	rows, err := d.db.Query(`SELECT id, username, key FROM ` + userTable)
+	if err != nil {
+		return users, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		u := models.User{}
+		if err = rows.Scan(&u.UserId, &u.Username, &u.Key); err != nil {
+			return users, err
+		}
+		users = append(users, u)
+	}
+
+	return users, err
+}
+
+// GetUserByKey returns a user identified by the given key.
+func (d *Database) GetUserByKey(key string) (models.User, error) {
+	defer logElapsedTime(time.Now(), "GetUserByKey")
+
+	if u, ok := userCache[key]; ok {
+		return u, nil
+	}
+
+	var u models.User
+	err := d.db.QueryRow(
+		`SELECT id, username, key FROM `+userTable+` WHERE key = $1`, key).Scan(
+		&u.UserId, &u.Username, &u.Key)
+	if !u.Valid() {
+		return models.User{}, errors.New("could not find user")
+	}
+
+	userCache[u.Key] = u
+
+	return u, err
+}
+
+// GetUserByUsername returns a user identified by the given username.
+func (d *Database) GetUserByUsername(username string) (models.User, error) {
+	defer logElapsedTime(time.Now(), "GetUserByUsername")
+
+	var u models.User
+	err := d.db.QueryRow(
+		`SELECT id, username, key FROM `+userTable+` WHERE username = $1`, username).Scan(
+		&u.UserId, &u.Username, &u.Key)
+	if !u.Valid() {
+		return models.User{}, errors.New("could not find user")
+	}
+	return u, err
+}
+
+/*******************************************************************************
  * Insertion/deletion methods
  ******************************************************************************/
 
-// InsertArticle inserts the given article object into the database.
-func (d *Database) InsertArticle(a models.Article) error {
+// InsertArticleForUser inserts the given article object into the database.
+func (d *Database) InsertArticleForUser(u models.User, a models.Article) error {
+	defer logElapsedTime(time.Now(), "InsertArticleForUser")
+
 	var articleID int64
 	var count int
 	err := d.db.QueryRow(
-		`SELECT COUNT(*) FROM `+articleTable+` WHERE hash = $1`, a.Hash()).Scan(&count)
+		`SELECT COUNT(*) FROM `+articleTable+` WHERE userid = $1 AND hash = $2`,
+		u.UserId, a.Hash()).Scan(&count)
 	if err != nil {
 		return err
 	}
@@ -72,9 +150,9 @@ func (d *Database) InsertArticle(a models.Article) error {
 
 	err = d.db.QueryRow(
 		`INSERT INTO `+articleTable+`
-		(feed, folder, hash, title, summary, content, parsed, link, read, date, retrieved)
-		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-		a.FeedID, a.FolderID, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Date, a.Retrieved).Scan(&articleID)
+		(userid, feed, folder, hash, title, summary, content, parsed, link, read, date, retrieved)
+		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+		u.UserId, a.FeedID, a.FolderID, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Date, a.Retrieved).Scan(&articleID)
 	if err != nil {
 		return err
 	}
@@ -82,67 +160,80 @@ func (d *Database) InsertArticle(a models.Article) error {
 	return nil
 }
 
-// InsertFavicon inserts the given favicon and associated metadata into the
-// database.
-func (d *Database) InsertFavicon(feedID int64, mime string, img []byte) error {
+// InsertFaviconForUser inserts the given favicon and associated metadata into
+// the database.
+func (d *Database) InsertFaviconForUser(u models.User, folderId int64, feedId int64, mime string, img []byte) error {
+	defer logElapsedTime(time.Now(), "InsertFaviconForUser")
+
 	// TODO: Consider wrapping this into a Favicon model type.
 	var count int
 	err := d.db.QueryRow(
-		`SELECT COUNT(*) FROM `+feedTable+` WHERE id = $1`, feedID).Scan(&count)
+		`SELECT COUNT(*) FROM `+feedTable+` WHERE userid = $1 AND folder = $2 AND id = $3`,
+		u.UserId, folderId, feedId).Scan(&count)
 	if err != nil {
 		return err
 	}
 	if count == 0 {
-		return fmt.Errorf("original feed not in table: %d", feedID)
+		return fmt.Errorf("original feed not in table: %d", feedId)
 	}
 
 	// Convert to a base64 encoded string before inserting
 	h := base64.StdEncoding.EncodeToString(img)
 
 	_, err = d.db.Exec(
-		`UPDATE `+feedTable+` SET favicon = $1, mime = $2 WHERE id = $3`,
-		h, mime, feedID)
+		`UPDATE `+feedTable+` SET favicon = $1, mime = $2 WHERE userid = $3 AND folder = $4 AND id = $5`,
+		h, mime, u.UserId, folderId, feedId)
 	return err
 }
 
-// InsertFeed inserts a new feed into the database. If `pID` is 0, the feed
-// is assumed to be a top-level entry. Otherwise, the feed will be nested under
-// the folder with that ID.
-func (d *Database) InsertFeed(f models.Feed, pID int64) (int64, error) {
+// InsertFeedForUser inserts a new feed into the database. If `folderId` is 0,
+// the feed is assumed to be a top-level entry. Otherwise, the feed will be
+// nested under the folder with that ID.
+func (d *Database) InsertFeedForUser(u models.User, f models.Feed, folderId int64) (int64, error) {
+	defer logElapsedTime(time.Now(), "InsertFeedForUser")
+
 	var feedID int64
 
-	if pID == 0 {
-		err := d.db.QueryRow(`SELECT id FROM `+folderTable+` WHERE name = $1`, models.RootFolder).Scan(&pID)
+	// If the feed is assumed to be a top-level entry, determine the ID of the
+	// root folder that it actually is under.
+	if folderId == 0 {
+		err := d.db.QueryRow(`SELECT id FROM `+folderTable+` WHERE userid = $1 AND name = $2`,
+			u.UserId, models.RootFolder).Scan(&folderId)
 		if err != nil {
 			return feedID, nil
 		}
 	}
 
 	err := d.db.QueryRow(
-		`INSERT INTO `+feedTable+`(folder, hash, title, description, url, link)
+		`INSERT INTO `+feedTable+`(userid, folder, hash, title, description, url, link)
 			VALUES($1, $2, $3, $4, $5, $6)
 			ON CONFLICT(hash) DO UPDATE SET hash = excluded.hash RETURNING id`,
-		pID, f.Hash(), f.Title, f.Description, f.URL, f.Link).Scan(&feedID)
+		u.UserId, folderId, f.Hash(), f.Title, f.Description, f.URL, f.Link).Scan(&feedID)
 	return feedID, err
 }
 
-// InsertFolder inserts a new folder into the database. If `pID` is 0, the
-// folder is assumed to be the root folder. Otherwise, the folder will be
+// InsertFolderForUser inserts a new folder into the database. If `parentId` is
+// 0, the folder is assumed to be the root folder. Otherwise, the folder will be
 // nested under the folder with that ID.
-func (d *Database) InsertFolder(f models.Folder, pID int64) (int64, error) {
+func (d *Database) InsertFolderForUser(u models.User, f models.Folder, parentId int64) (int64, error) {
+	defer logElapsedTime(time.Now(), "InsertFolderForUser")
+
 	var folderID int64
 
 	err := d.db.QueryRow(
-		`INSERT INTO `+folderTable+`(name) VALUES($1)
-    	 ON CONFLICT(name) DO UPDATE SET name = excluded.name RETURNING id`, f.Name).Scan(&folderID)
+		`INSERT INTO `+folderTable+`(name) VALUES($1, $2)
+    	 ON CONFLICT(name) DO UPDATE SET name = excluded.name RETURNING id`, u.UserId, f.Name).Scan(&folderID)
 	if err != nil {
 		return folderID, err
 	}
 
 	// TODO: Assert that there is not already a root folder.
-	if pID != 0 {
+
+	// If this is the root folder, then it has no parents, so no need to update
+	// the folder mapping table.
+	if parentId != 0 {
 		_, err = d.db.Exec(
-			`UPSERT INTO `+folderChildrenTable+`(parent, child) VALUES($1, $2)`, pID, folderID)
+			`UPSERT INTO `+folderChildrenTable+`(userid, parent, child) VALUES($1, $2, $3)`, u.UserId, parentId, folderID)
 		if err != nil {
 			return folderID, err
 		}
@@ -151,17 +242,14 @@ func (d *Database) InsertFolder(f models.Folder, pID int64) (int64, error) {
 	return folderID, nil
 }
 
-// InsertUser inserts the given user into the database.
-func (d *Database) InsertUser(u models.User) error {
-	_, err := d.db.Exec(`INSERT INTO `+userTable+`(username, key) VALUES($1, $2)`, u.Username, u.Key)
-	return err
-}
+// DeleteArticlesForUser deletes all articles earlier than the given timestamp
+// and returns the number deleted.
+func (d *Database) DeleteArticlesForUser(u models.User, minTimestamp time.Time) (int64, error) {
+	defer logElapsedTime(time.Now(), "DeleteArticlesForUser")
 
-// DeleteArticles deletes all articles earlier than the given timestamp and
-// returns the number deleted.
-func (d *Database) DeleteArticles(minTimestamp time.Time) (int64, error) {
 	r, err := d.db.Exec(
-		`DELETE FROM `+articleTable+` WHERE read AND (retrieved IS NULL OR retrieved < $1) RETURNING id`, minTimestamp)
+		`DELETE FROM `+articleTable+` WHERE userid = $1 AND read AND (retrieved IS NULL OR retrieved < $2) RETURNING id`,
+		u.UserId, minTimestamp)
 	if err != nil {
 		return 0, err
 	}
@@ -172,35 +260,44 @@ func (d *Database) DeleteArticles(minTimestamp time.Time) (int64, error) {
  * Modification methods
  ******************************************************************************/
 
-// MarkArticle sets the read status of the given article to the given status.
-func (d *Database) MarkArticle(id int64, status string) error {
-	// TODO: Consider creating a type for the status string.
-	state, err := parseState(status)
-	if err != nil {
-		return err
-	}
-
-	_, err = d.db.Exec(`UPDATE `+articleTable+` SET read = $1 WHERE id = $2`, state, id)
-	return err
-}
-
-// MarkFeed sets the read status of all articles in the given feed to the
-// given status.
-func (d *Database) MarkFeed(id int64, status string) error {
-	// TODO: Consider creating a type for the status string.
-	state, err := parseState(status)
-	if err != nil {
-		return err
-	}
-
-	_, err = d.db.Exec(`UPDATE `+articleTable+` SET read = $1 WHERE feed = $2`, state, id)
-	return err
-}
-
-// MarkFolder sets the read status of all articles in the given folder to the
-// given status. An ID of 0 will mark all articles in all folders to the given
+// MarkArticleForUser sets the read status of the given article to the given
 // status.
-func (d *Database) MarkFolder(id int64, status string) error {
+func (d *Database) MarkArticleForUser(u models.User, articleId int64, status string) error {
+	defer logElapsedTime(time.Now(), "MarkArticleForUser")
+
+	// TODO: Consider creating a type for the status string.
+	state, err := parseState(status)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.db.Exec(
+		`UPDATE `+articleTable+` SET read = $1 WHERE userid = $2 AND id = $3`, state, u.UserId, articleId)
+	return err
+}
+
+// MarkFeedForUser sets the read status of all articles in the given feed to the
+// given status.
+func (d *Database) MarkFeedForUser(u models.User, feedId int64, status string) error {
+	defer logElapsedTime(time.Now(), "MarkFeedForUser")
+
+	// TODO: Consider creating a type for the status string.
+	state, err := parseState(status)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.db.Exec(
+		`UPDATE `+articleTable+` SET read = $1 WHERE userid = $2 AND feed = $3`, state, u.UserId, feedId)
+	return err
+}
+
+// MarkFolderForUser sets the read status of all articles in the given folder to
+// the given status. An ID of 0 will mark all articles in all folders to the
+// given status.
+func (d *Database) MarkFolderForUser(u models.User, folderId int64, status string) error {
+	defer logElapsedTime(time.Now(), "MarkFolderForUser")
+
 	// TODO: Consider creating a type for the status string.
 	state, err := parseState(status)
 	if err != nil {
@@ -208,40 +305,49 @@ func (d *Database) MarkFolder(id int64, status string) error {
 	}
 
 	// Special-case id=0 to mean everything (the root folder).
-	if id == 0 {
-		_, err = d.db.Exec(`UPDATE `+articleTable+` SET read = $1`, state)
+	if folderId == 0 {
+		_, err = d.db.Exec(`UPDATE `+articleTable+` SET read = $1 WHERE userid = $2`, state, u.UserId)
 		return err
 	}
 
-	_, err = d.db.Exec(`UPDATE `+articleTable+` SET read = $1 WHERE folder = $2`, state, id)
+	_, err = d.db.Exec(
+		`UPDATE `+articleTable+` SET read = $1 WHERE userid = $2 AND folder = $3`, state, u.UserId, folderId)
 	if err != nil {
 		return err
 	}
-	children, err := d.GetFolderChildren(id)
+
+	// Recursively mark child folders also with the same status.
+	children, err := d.GetFolderChildrenForUser(u, folderId)
 	if err != nil {
 		return err
 	}
 	for _, c := range children {
-		if err2 := d.MarkFolder(c, status); err2 != nil {
+		if err2 := d.MarkFolderForUser(u, c, status); err2 != nil {
 			return err2
 		}
 	}
 	return err
 }
 
-// UpdateFeedMetadata updates various fields for the row corresponding to given
-// models.Feed object with the values in that object.
-func (d *Database) UpdateFeedMetadata(f models.Feed) error {
+// UpdateFeedMetadataForUser updates various fields for the row corresponding to
+// given models.Feed object with the values in that object.
+func (d *Database) UpdateFeedMetadataForUser(u models.User, f models.Feed) error {
+	defer logElapsedTime(time.Now(), "UpdateFeedMetadataForUser")
+
 	_, err := d.db.Exec(
-		`UPDATE `+feedTable+` SET hash = $1, title = $2, description = $3, link = $4 WHERE id = $5`,
-		f.Hash(), f.Title, f.Description, f.Link, f.ID)
+		`UPDATE `+feedTable+` SET hash = $1, title = $2, description = $3, link = $4 WHERE userid = $5 AND folder = $6 AND id = $7`,
+		f.Hash(), f.Title, f.Description, f.Link, u.UserId, f.FolderID, f.ID)
 	return err
 }
 
-// UpdateLatestTimeForFeed sets the latest retrieval time for the given feed to
-// the given timestamp.
-func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
-	_, err := d.db.Exec(`UPDATE `+feedTable+` SET latest = $1 WHERE id = $2`, latest, id)
+// UpdateLatestTimeForFeedForUser sets the latest retrieval time for the given
+// feed to the given timestamp.
+func (d *Database) UpdateLatestTimeForFeedForUser(u models.User, folderId int64, id int64, latest time.Time) error {
+	defer logElapsedTime(time.Now(), "UpdateLatestTimeForFeedForUser")
+
+	_, err := d.db.Exec(
+		`UPDATE `+feedTable+` SET latest = $1 WHERE userid = $2 AND folder = $3 AND id = $4`,
+		latest, u.UserId, folderId, id)
 	return err
 }
 
@@ -249,11 +355,14 @@ func (d *Database) UpdateLatestTimeForFeed(id int64, latest time.Time) error {
  * Getter methods
  ******************************************************************************/
 
-// GetFolderChildren returns a list of IDs corresponding to folders under the
-// given folder ID.
-func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
+// GetFolderChildrenForUser returns a list of IDs corresponding to folders
+// under the given folder ID.
+func (d *Database) GetFolderChildrenForUser(u models.User, id int64) ([]int64, error) {
+	defer logElapsedTime(time.Now(), "GetFolderChildrenForUser")
+
 	var children []int64
-	rows, err := d.db.Query(`SELECT child FROM `+folderChildrenTable+` WHERE parent = $1`, id)
+	rows, err := d.db.Query(
+		`SELECT child FROM `+folderChildrenTable+` WHERE userid = $1 AND parent = $2`, u.UserId, id)
 	if err != nil {
 		return children, err
 	}
@@ -269,11 +378,14 @@ func (d *Database) GetFolderChildren(id int64) ([]int64, error) {
 	return children, err
 }
 
-// GetAllFolders returns a list of all folders in the database.
-func (d *Database) GetAllFolders() ([]models.Folder, error) {
+// GetAllFoldersForUser returns a list of all folders in the database for the
+// given user.
+func (d *Database) GetAllFoldersForUser(u models.User) ([]models.Folder, error) {
+	defer logElapsedTime(time.Now(), "GetAllFoldersForUser")
+
 	// TODO: Consider returning a map[int64]models.Folder instead.
 	var folders []models.Folder
-	rows, err := d.db.Query(`SELECT id, name FROM ` + folderTable)
+	rows, err := d.db.Query(`SELECT id, name FROM `+folderTable+` WHERE userid = $1`, u.UserId)
 	if err != nil {
 		return folders, err
 	}
@@ -290,10 +402,14 @@ func (d *Database) GetAllFolders() ([]models.Folder, error) {
 	return folders, err
 }
 
-// GetAllFeeds returns a list of all feeds in the database.
-func (d *Database) GetAllFeeds() ([]models.Feed, error) {
+// GetAllFeedsForUser returns a list of all feeds in the database for the
+// given user.
+func (d *Database) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
+	defer logElapsedTime(time.Now(), "GetAllFeedsForUser")
+
 	var feeds []models.Feed
-	rows, err := d.db.Query(`SELECT id, folder, title, description, url, link, latest FROM ` + feedTable)
+	rows, err := d.db.Query(
+		`SELECT id, folder, title, description, url, link, latest FROM `+feedTable+` WHERE userid = $1`, u.UserId)
 	if err != nil {
 		return feeds, err
 	}
@@ -310,11 +426,15 @@ func (d *Database) GetAllFeeds() ([]models.Feed, error) {
 	return feeds, err
 }
 
-// GetFeedsInFolder returns a list of feeds directly under the given folder.
-func (d *Database) GetFeedsInFolder(folderId int64) ([]models.Feed, error) {
+// GetFeedsInFolderForUser returns a list of feeds directly under the given
+// folder for the given user.
+func (d *Database) GetFeedsInFolderForUser(u models.User, folderId int64) ([]models.Feed, error) {
+	defer logElapsedTime(time.Now(), "GetFeedsInFolderForUser")
+
 	var feeds []models.Feed
 
-	rows, err := d.db.Query(`SELECT id, title, url FROM `+feedTable+` WHERE folder = $1`, folderId)
+	rows, err := d.db.Query(
+		`SELECT id, title, url FROM `+feedTable+` WHERE userid = $1 AND folder = $2`, u.UserId, folderId)
 	if err != nil {
 		return feeds, err
 	}
@@ -330,16 +450,18 @@ func (d *Database) GetFeedsInFolder(folderId int64) ([]models.Feed, error) {
 	return feeds, nil
 }
 
-// GetFeedsPerFolder returns a map of folder ID to a comma-separated string of
-// feed IDs.
-func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
+// GetFeedsPerFolderForUser returns a map of folder ID to a comma-separated
+// string of feed IDs for the given user.
+func (d *Database) GetFeedsPerFolderForUser(u models.User) (map[int64]string, error) {
+	defer logElapsedTime(time.Now(), "GetFeedsPerFolderForUser")
+
 	// TODO: Make this method return map[int64][]int64.
 	// Right now this is encoding Fever API semantics into the DB function.
 	agg := map[int64][]string{}
 	resp := map[int64]string{}
 
 	// CockroachDB doesn't have a concat-with-separator aggregation function
-	rows, err := d.db.Query(`SELECT folder, id FROM ` + feedTable)
+	rows, err := d.db.Query(`SELECT folder, id FROM `+feedTable+` WHERE userid = $1`, u.UserId)
 	if err != nil {
 		return resp, err
 	}
@@ -359,40 +481,45 @@ func (d *Database) GetFeedsPerFolder() (map[int64]string, error) {
 	return resp, err
 }
 
-// GetFolderFeedTree returns a root Folder object with associated feeds and
-// recursively populated sub-folders.
-func (d *Database) GetFolderFeedTree() (*models.Folder, error) {
-	tree := &models.Folder{}
+// GetFolderFeedTreeForUser returns a root Folder object with associated feeds
+// and recursively populated sub-folders.
+func (d *Database) GetFolderFeedTreeForUser(u models.User) (*models.Folder, error) {
+	defer logElapsedTime(time.Now(), "GetFolderFeedTreeForUser")
+
+	rootFolder := &models.Folder{}
 	var rootId int64
 
-	err := d.db.QueryRow(`SELECT id from `+folderTable+` WHERE name = $1`, models.RootFolder).Scan(&rootId)
+	// First determine the root ID
+	err := d.db.QueryRow(
+		`SELECT id from `+folderTable+` WHERE userid = $1 AND name = $2`, u.UserId, models.RootFolder).Scan(&rootId)
 	if err != nil {
-		return tree, err
+		return rootFolder, err
 	}
-
-	tree.ID = rootId
-	tree.Name = "Root"
+	rootFolder.ID = rootId
+	rootFolder.Name = "Root"
 
 	// Create map from ID to Folder
-	folders, err := d.GetAllFolders()
+	folders, err := d.GetAllFoldersForUser(u)
 	if err != nil {
-		return tree, err
+		return rootFolder, err
 	}
 	folderMap := map[int64]models.Folder{}
 	for _, f := range folders {
 		folderMap[f.ID] = f
 	}
 
+	// Forward declaration so that this can be recursively invoked.
 	var buildTree func(*models.Folder) error
 
+	// Given a pointer to a folder, populate all feeds and folders within it.
 	buildTree = func(node *models.Folder) error {
-		feeds, err := d.GetFeedsInFolder(node.ID)
+		feeds, err := d.GetFeedsInFolderForUser(u, node.ID)
 		if err != nil {
 			return err
 		}
 		node.Feed = feeds
 
-		childFolders, err := d.GetFolderChildren(node.ID)
+		childFolders, err := d.GetFolderChildrenForUser(u, node.ID)
 		if err != nil {
 			return err
 		}
@@ -409,17 +536,19 @@ func (d *Database) GetFolderFeedTree() (*models.Folder, error) {
 		return nil
 	}
 
-	err = buildTree(tree)
-	return tree, err
+	err = buildTree(rootFolder)
+	return rootFolder, err
 }
 
-// GetAllFavicons returns a map of feed ID to a base64 representation of its
-// favicon. Feeds with no favicons are not part of the returned map.
-func (d *Database) GetAllFavicons() (map[int64]string, error) {
+// GetAllFaviconsForUser returns a map of feed ID to a base64 representation of
+// its favicon. Feeds with no favicons are not part of the returned map.
+func (d *Database) GetAllFaviconsForUser(u models.User) (map[int64]string, error) {
+	defer logElapsedTime(time.Now(), "GetAllFaviconsForUser")
+
 	// TODO: Consider returning a Favicon model type.
 	favicons := map[int64]string{}
 	rows, err := d.db.Query(
-		`SELECT id, mime, favicon FROM ` + feedTable + ` WHERE favicon IS NOT NULL`)
+		`SELECT id, mime, favicon FROM `+feedTable+` WHERE userid = $1 AND favicon IS NOT NULL`, u.UserId)
 	if err != nil {
 		return favicons, err
 	}
@@ -437,9 +566,11 @@ func (d *Database) GetAllFavicons() (map[int64]string, error) {
 	return favicons, err
 }
 
-// GetUnreadArticles returns a list of at most the given limit of articles after
-// the given ID.
-func (d *Database) GetUnreadArticles(limit int, sinceID int64) ([]models.Article, error) {
+// GetUnreadArticlesForUser returns a list of at most the given limit of
+// articles after the given ID.
+func (d *Database) GetUnreadArticlesForUser(u models.User, limit int, sinceID int64) ([]models.Article, error) {
+	defer logElapsedTime(time.Now(), "GetUnreadArticlesForUser")
+
 	var articles []models.Article
 	var rows *sql.Rows
 	var err error
@@ -453,7 +584,7 @@ func (d *Database) GetUnreadArticles(limit int, sinceID int64) ([]models.Article
 
 	rows, err = d.db.Query(
 		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM `+articleTable+`
-		WHERE NOT read AND id > $1 ORDER BY id LIMIT $2`, sinceID, limit)
+		WHERE userid = $1 AND id > $2 AND NOT read ORDER BY id LIMIT $3`, u.UserId, sinceID, limit)
 	if err != nil {
 		return articles, err
 	}
@@ -470,38 +601,27 @@ func (d *Database) GetUnreadArticles(limit int, sinceID int64) ([]models.Article
 	return articles, err
 }
 
-// GetUserByKey returns a user identified by the given key.
-func (d *Database) GetUserByKey(key string) (models.User, error) {
-	var u models.User
-	err := d.db.QueryRow(
-		`SELECT username, key FROM `+userTable+` WHERE key = $1`, key).Scan(
-		&u.Username, &u.Key)
-	if !u.Valid() {
-		return models.User{}, errors.New("could not find user")
-	}
-	return u, err
-}
-
 /*******************************************************************************
  * Import methods
  ******************************************************************************/
 
-// ImportOpml inserts folders from the given OPML object into the database.
-func (d *Database) ImportOpml(opml *opml.Opml) error {
+// ImportOpmlForUser inserts folders from the given OPML object into the
+// database for the given user.
+func (d *Database) ImportOpmlForUser(u models.User, opml *opml.Opml) error {
 	root := opml.Folders
-	rootID, err := d.InsertFolder(root, 0)
+	rootID, err := d.InsertFolderForUser(u, root, 0)
 	if err != nil {
 		return err
 	}
 	root.ID = rootID
 
-	return d.importChildren(root)
+	return d.importChildrenForUser(u, root)
 }
 
-func (d *Database) importChildren(parent models.Folder) error {
+func (d *Database) importChildrenForUser(u models.User, parent models.Folder) error {
 	var err error
 	for _, f := range parent.Feed {
-		feedID, err := d.InsertFeed(f, parent.ID)
+		feedID, err := d.InsertFeedForUser(u, f, parent.ID)
 		if err != nil {
 			return err
 		}
@@ -509,13 +629,13 @@ func (d *Database) importChildren(parent models.Folder) error {
 	}
 
 	for _, child := range parent.Folders {
-		childID, err := d.InsertFolder(child, parent.ID)
+		childID, err := d.InsertFolderForUser(u, child, parent.ID)
 		if err != nil {
 			return err
 		}
 		child.ID = childID
 
-		if err = d.importChildren(child); err != nil {
+		if err = d.importChildrenForUser(u, child); err != nil {
 			return err
 		}
 	}
@@ -534,4 +654,12 @@ func parseState(status string) (bool, error) {
 		state = false
 	}
 	return state, nil
+}
+
+func logElapsedTime(t time.Time, method string) {
+	utils.Elapsed(t, func(t time.Duration) {
+		if t > 100*time.Millisecond {
+			log.Warningf("Slow operation for method %s: %s", method, t)
+		}
+	})
 }

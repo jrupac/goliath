@@ -2,6 +2,7 @@ package auth
 
 import (
 	"fmt"
+	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 	"net/http"
 )
@@ -37,7 +38,7 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if VerifyCookie(m.d, r) {
+	if _, err := VerifyCookie(m.d, r); err == nil {
 		m.wrapped.ServeHTTP(w, r)
 		return
 	}
@@ -51,16 +52,15 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // VerifyCookie checks a request for an auth cookie and authenticates it against the database.
-func VerifyCookie(d *storage.Database, r *http.Request) bool {
+func VerifyCookie(d *storage.Database, r *http.Request) (models.User, error) {
 	cookie, err := r.Cookie(authCookie)
 	// Only ErrNoCookie can be returned here, which just means that the specified
 	// cookie doesn't exist.
 	if err != nil {
-		return false
+		return models.User{}, err
 	}
 
-	_, err = d.GetUserByKey(cookie.Value)
-	return err == nil
+	return d.GetUserByKey(cookie.Value)
 }
 
 func returnRedirect(w http.ResponseWriter, r *http.Request) {

@@ -34,6 +34,9 @@ message AddFeedRequest {
   // Optional. If set, this new feed will be placed under the folder of the
   // supplied name.
   string Folder = 4;
+
+  // Required. Username for user for whom this feed should be added.
+  string Username = 6;
 }
 
 // Empty response. Success is indicated by gRPC-level status code.

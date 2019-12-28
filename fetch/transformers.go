@@ -27,8 +27,8 @@ var (
 // maybeResizeImage converts the provided besticon.Icon to a 256x256 PNG image
 // and returns an imagePair struct containing the base64-encoded image and
 // metadata.
-func maybeResizeImage(feedId int64, bi besticon.Icon) (ip imagePair) {
-	ip = imagePair{feedId, "image/" + bi.Format, bi.ImageData}
+func maybeResizeImage(folderId int64, feedId int64, bi besticon.Icon) (ip imagePair) {
+	ip = imagePair{folderId, feedId, "image/" + bi.Format, bi.ImageData}
 
 	if *normalizeFavicons {
 		var buff bytes.Buffer
@@ -47,7 +47,7 @@ func maybeResizeImage(feedId int64, bi besticon.Icon) (ip imagePair) {
 			return
 		}
 
-		ip = imagePair{feedId, "image/png", buff.Bytes()}
+		ip = imagePair{folderId, feedId, "image/png", buff.Bytes()}
 	}
 
 	return
