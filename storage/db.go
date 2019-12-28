@@ -26,10 +26,8 @@ const (
 	articleTable        = "Article"
 	userTable           = "UserTable"
 	maxFetchedRows      = 10000
-	slowOpLogThreshold  = 100 * time.Millisecond
+	slowOpLogThreshold  = 50 * time.Millisecond
 )
-
-var userCacheByKey map[string]models.User
 
 var (
 	latencyMetric = prometheus.NewSummaryVec(
@@ -53,8 +51,6 @@ func init() {
 
 // Open opens a connection to the given database path and tests connectivity.
 func Open(dbPath string) (*Database, error) {
-	userCacheByKey = map[string]models.User{}
-
 	db := new(Database)
 
 	d, err := sql.Open(dialect, dbPath)
@@ -84,10 +80,6 @@ func (d *Database) InsertUser(u models.User) error {
 
 	_, err := d.db.Exec(`INSERT INTO `+userTable+`(id, username, key) VALUES($1, $2, $3)`, u.UserId, u.Username, u.Key)
 
-	if err != nil {
-		userCacheByKey[u.Key] = u
-	}
-
 	return err
 }
 
@@ -108,7 +100,6 @@ func (d *Database) GetAllUsers() ([]models.User, error) {
 			return users, err
 		}
 		users = append(users, u)
-		userCacheByKey[u.Key] = u
 	}
 
 	return users, err
@@ -118,10 +109,6 @@ func (d *Database) GetAllUsers() ([]models.User, error) {
 func (d *Database) GetUserByKey(key string) (models.User, error) {
 	defer logElapsedTime(time.Now(), "GetUserByKey")
 
-	if u, ok := userCacheByKey[key]; ok {
-		return u, nil
-	}
-
 	var u models.User
 	err := d.db.QueryRow(
 		`SELECT id, username, key FROM `+userTable+` WHERE key = $1`, key).Scan(
@@ -129,8 +116,6 @@ func (d *Database) GetUserByKey(key string) (models.User, error) {
 	if !u.Valid() {
 		return models.User{}, errors.New("could not find user")
 	}
-
-	userCacheByKey[u.Key] = u
 
 	return u, err
 }

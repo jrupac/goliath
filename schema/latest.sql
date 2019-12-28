@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS UserTable (
   key STRING NOT NULL UNIQUE
 );
 
+CREATE UNIQUE INDEX ON UserTable (username) STORING (key);
+CREATE UNIQUE INDEX ON UserTable (key) STORING (username);
+
 CREATE TABLE IF NOT EXISTS Folder (
   -- Key columns
   userid UUID NOT NULL REFERENCES UserTable(id),
@@ -52,6 +55,8 @@ CREATE TABLE IF NOT EXISTS Feed (
   latest TIMESTAMPTZ DEFAULT CAST(0 AS TIMESTAMPTZ)
 ) INTERLEAVE IN PARENT Folder (userid, folder);
 
+CREATE INDEX ON Feed (userid) STORING (title, description, url, link, latest);
+
 CREATE TABLE IF NOT EXISTS Article (
   -- Key columns
   userid UUID NOT NULL,
@@ -77,3 +82,6 @@ CREATE TABLE IF NOT EXISTS Article (
 
 CREATE UNIQUE INDEX IF NOT EXISTS article_idx_read_key
   ON Article (id) STORING (read);
+
+CREATE INDEX ON Article (userid, id, read)
+  STORING (title, summary, content, parsed, link, date);
