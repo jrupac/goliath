@@ -86,6 +86,15 @@ func main() {
 }
 
 func processOpml(d *storage.Database) {
+	if *opmlImportPath == "" && *opmlExportPath == "" {
+		return
+	}
+
+	if *opmlUsername == "" {
+		log.Warningf("No OPML username specified.")
+		return
+	}
+
 	user, err := d.GetUserByUsername(*opmlUsername)
 	if err != nil {
 		log.Warningf("Error while retrieving user info for OPML: %s", err)
