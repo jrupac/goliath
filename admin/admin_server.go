@@ -67,25 +67,98 @@ func (s *server) AddFeed(_ context.Context, req *AddFeedRequest) (*AddFeedRespon
 			return nil, status.Error(codes.Internal, "internal error")
 		}
 
-		// TODO: Handle case where folder is not found.
 		for _, f := range folders {
 			if f.Name == req.Folder {
 				parentID = f.ID
 				break
 			}
 		}
+
+		if parentID == 0 {
+			return nil, status.Error(codes.InvalidArgument, "could not find folder")
+		}
 	}
 
 	fetch.Pause()
 	defer fetch.Resume()
-	feedID, err := s.db.InsertFeedForUser(user, feed, parentID)
 
+	feedID, err := s.db.InsertFeedForUser(user, feed, parentID)
 	if err != nil {
 		return resp, status.Error(codes.DataLoss, "failed to persist feed")
 	}
+
 	resp.Id = feedID
 
 	// TODO: Indicate if feed already existed.
+	return resp, nil
+}
+
+// GetFeeds lists all the feeds belonging to the requested user.
+func (s *server) GetFeeds(_ context.Context, req *GetFeedsRequest) (*GetFeedsResponse, error) {
+	resp := &GetFeedsResponse{}
+
+	if req.Username == "" {
+		return nil, status.Error(codes.InvalidArgument, "must specify Username")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "could not find user")
+	}
+
+	feeds, err := s.db.GetAllFeedsForUser(user)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	for _, f := range feeds {
+		resp.Feeds = append(resp.Feeds, &GetFeedsResponse_Feed{Id: f.ID, Title: f.Title})
+	}
+
+	return resp, nil
+}
+
+// RemoveFeed removes the requested feed for the requested user.
+// During the operation of adding a feed, fetching is paused and restarted.
+func (s *server) RemoveFeed(_ context.Context, req *RemoveFeedRequest) (*RemoveFeedResponse, error) {
+	resp := &RemoveFeedResponse{}
+
+	if req.Username == "" {
+		return nil, status.Error(codes.InvalidArgument, "must specify Username")
+	}
+	if req.Id == 0 {
+		return nil, status.Error(codes.InvalidArgument, "must specify non-zero Id")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "could not find user")
+	}
+
+	feeds, err := s.db.GetAllFeedsForUser(user)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	var folderId int64 = -1
+	for _, f := range feeds {
+		if f.ID == req.Id {
+			folderId = f.FolderID
+			break
+		}
+	}
+	if folderId == -1 {
+		return nil, status.Error(codes.InvalidArgument, "could not find feed")
+	}
+
+	fetch.Pause()
+	defer fetch.Resume()
+
+	err = s.db.DeleteFeedForUser(user, req.Id, folderId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
 	return resp, nil
 }
 

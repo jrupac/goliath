@@ -92,7 +92,7 @@ func (d *Database) GetAllUsers() ([]models.User, error) {
 	if err != nil {
 		return users, err
 	}
-	defer rows.Close()
+	defer closeSilent(rows)
 
 	for rows.Next() {
 		u := models.User{}
@@ -213,7 +213,7 @@ func (d *Database) InsertFeedForUser(u models.User, f models.Feed, folderId int6
 
 	err := d.db.QueryRow(
 		`INSERT INTO `+feedTable+`(userid, folder, hash, title, description, url, link)
-			VALUES($1, $2, $3, $4, $5, $6)
+			VALUES($1, $2, $3, $4, $5, $6, $7)
 			ON CONFLICT(hash) DO UPDATE SET hash = excluded.hash RETURNING id`,
 		u.UserId, folderId, f.Hash(), f.Title, f.Description, f.URL, f.Link).Scan(&feedID)
 	return feedID, err
@@ -261,6 +261,25 @@ func (d *Database) DeleteArticlesForUser(u models.User, minTimestamp time.Time) 
 		return 0, err
 	}
 	return r.RowsAffected()
+}
+
+// DeleteFeedForUser deletes the specified feed and all articles under that feed.
+func (d *Database) DeleteFeedForUser(u models.User, feedId int64, folderId int64) error {
+	defer logElapsedTime(time.Now(), "DeleteFeedForUser")
+
+	// TODO: Make the following queries into a single transaction.
+	_, err := d.db.Exec(
+		`DELETE FROM `+articleTable+` WHERE userid = $1 AND folder = $2 AND feed = $3`,
+		u.UserId, folderId, feedId)
+	if err != nil {
+		return err
+	}
+
+	_, err = d.db.Exec(
+		`DELETE FROM `+feedTable+` WHERE userid = $1 AND folder = $2 AND id = $3`,
+		u.UserId, folderId, feedId)
+
+	return err
 }
 
 /*******************************************************************************
@@ -373,7 +392,7 @@ func (d *Database) GetFolderChildrenForUser(u models.User, id int64) ([]int64, e
 	if err != nil {
 		return children, err
 	}
-	defer rows.Close()
+	defer closeSilent(rows)
 
 	var childID int64
 	for rows.Next() {
@@ -396,7 +415,7 @@ func (d *Database) GetAllFoldersForUser(u models.User) ([]models.Folder, error) 
 	if err != nil {
 		return folders, err
 	}
-	defer rows.Close()
+	defer closeSilent(rows)
 
 	for rows.Next() {
 		f := models.Folder{}
@@ -420,7 +439,7 @@ func (d *Database) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
 	if err != nil {
 		return feeds, err
 	}
-	defer rows.Close()
+	defer closeSilent(rows)
 
 	for rows.Next() {
 		f := models.Feed{}
@@ -445,7 +464,7 @@ func (d *Database) GetFeedsInFolderForUser(u models.User, folderId int64) ([]mod
 	if err != nil {
 		return feeds, err
 	}
-	defer rows.Close()
+	defer closeSilent(rows)
 
 	for rows.Next() {
 		feed := models.Feed{}
@@ -472,7 +491,7 @@ func (d *Database) GetFeedsPerFolderForUser(u models.User) (map[int64]string, er
 	if err != nil {
 		return resp, err
 	}
-	defer rows.Close()
+	defer closeSilent(rows)
 
 	var folderID, feedID int64
 	for rows.Next() {
@@ -559,7 +578,7 @@ func (d *Database) GetAllFaviconsForUser(u models.User) (map[int64]string, error
 	if err != nil {
 		return favicons, err
 	}
-	defer rows.Close()
+	defer closeSilent(rows)
 
 	var id int64
 	var mime string
@@ -595,7 +614,7 @@ func (d *Database) GetUnreadArticlesForUser(u models.User, limit int, sinceID in
 	if err != nil {
 		return articles, err
 	}
-	defer rows.Close()
+	defer closeSilent(rows)
 
 	for rows.Next() {
 		a := models.Article{}
@@ -649,6 +668,10 @@ func (d *Database) importChildrenForUser(u models.User, parent models.Folder) er
 	return err
 }
 
+/*******************************************************************************
+ * Helper methods
+ ******************************************************************************/
+
 func parseState(status string) (bool, error) {
 	var state bool
 	switch status {
@@ -671,4 +694,11 @@ func logElapsedTime(t time.Time, method string) {
 			log.Warningf("Slow operation for method %s: %s", method, d)
 		}
 	})
+}
+
+func closeSilent(rows *sql.Rows) {
+	err := rows.Close()
+	if err != nil {
+		log.Warningf("Failed to close rows: %+v", rows)
+	}
 }

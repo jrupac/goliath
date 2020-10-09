@@ -45,12 +45,45 @@ message AddFeedResponse {
   int64 Id = 1;
 }
 
+message GetFeedsRequest {
+  // Required. Username for user for whom a list of feeds is returned.
+  string Username = 1;
+}
+
+message GetFeedsResponse {
+  message Feed {
+    // Internal identifier for new feed object.
+    int64 Id = 1;
+
+    // Logical title of feed.
+    string Title = 2;
+  }
+
+  repeated Feed feeds = 1;
+}
+
+message RemoveFeedRequest {
+  // Required. Username for user for whom this feed should be added.
+  string Username = 1;
+
+  // Required. Internal identifier for existing feed object.
+  int64 Id = 2;
+}
+
+// Empty response. Success is indicated by gRPC-level status code.
+message RemoveFeedResponse {
+}
+
 service AdminService {
-  // Add a new user into the system. Though there may be multiple users, all
-  // content is stored in a global namespace.
+  // Add a new user into the system.
   rpc AddUser (AddUserRequest) returns (AddUserResponse);
 
-  // Add a new feed. Currently, this is logically a single-user system, so feeds
-  // are stored in a global namespace.
+  // Return all feeds for a user.
+  rpc GetFeeds (GetFeedsRequest) returns (GetFeedsResponse);
+
+  // Add a new feed.
   rpc AddFeed (AddFeedRequest) returns (AddFeedResponse);
+
+  // Remove an existing feed.
+  rpc RemoveFeed (RemoveFeedRequest) returns (RemoveFeedResponse);
 }
