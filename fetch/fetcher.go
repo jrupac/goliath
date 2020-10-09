@@ -250,6 +250,15 @@ Loop:
 		content = maybeRewriteImageSourceUrls(content)
 		summary = maybeRewriteImageSourceUrls(summary)
 
+		retrieved := time.Now()
+		var date time.Time
+		if item.DateValid && !item.Date.IsZero() {
+			date = item.Date
+		} else {
+			log.V(2).Infof("Could not find date for item: %+v", item)
+			date = retrieved
+		}
+
 		a := models.Article{
 			FeedID:    feed.ID,
 			FolderID:  feed.FolderID,
@@ -258,9 +267,9 @@ Loop:
 			Content:   content,
 			Parsed:    parsed,
 			Link:      item.Link,
-			Date:      item.Date,
+			Date:      date,
 			Read:      item.Read,
-			Retrieved: time.Now(),
+			Retrieved: retrieved,
 		}
 
 		if a.Date.After(latest) {
