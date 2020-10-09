@@ -43,11 +43,13 @@ func HandleLogin(d *storage.Database) func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		u, err2 := d.GetUserByKey(key)
-		if err2 != nil {
-			returnError(w, r)
+		// Do actual login check here.
+		u, err := d.GetUserByKey(key)
+		if err != nil {
+			returnLoginFailed(w, r)
 			return
 		}
+
 		c := http.Cookie{
 			Name:  authCookie,
 			Value: u.Key,

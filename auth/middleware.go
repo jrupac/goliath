@@ -67,6 +67,10 @@ func returnRedirect(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, loginPath, 302)
 }
 
+func returnLoginFailed(w http.ResponseWriter, _ *http.Request) {
+	w.WriteHeader(http.StatusUnauthorized)
+}
+
 func returnError(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusBadRequest)
 }
