@@ -1,4 +1,4 @@
-import React, {ReactNode} from 'react';
+import React, {ReactNode, ReactText} from 'react';
 import Tree from 'antd/lib/tree';
 import {
   Feed,
@@ -20,7 +20,7 @@ export interface FolderFeedListProps {
 }
 
 export interface FolderFeedListState {
-  keyCache: Map<string, [SelectionType, SelectionKey]>;
+  keyCache: Map<ReactText, [SelectionType, SelectionKey]>;
 }
 
 export default class FolderFeedList extends React.Component<FolderFeedListProps, FolderFeedListState> {
@@ -34,10 +34,10 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     this.handleSelect = this.handleSelect.bind(this);
   }
 
-  handleSelect = (keys: string[]) => {
+  handleSelect = (keys: ReactText[]) => {
     let selectionKey: SelectionKey;
     let selectionType: SelectionType;
-    let key: string;
+    let key: ReactText;
 
     // This tree can only have one node selected at a time.
     if (keys && keys.length === 1) {

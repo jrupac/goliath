@@ -40,8 +40,6 @@ interface ParseResult {
 }
 
 export default class ArticleCard extends React.Component<ArticleProps, ArticleState> {
-  ref: any = null;
-
   constructor(props: ArticleProps) {
     super(props);
     this.state = {
@@ -50,10 +48,6 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
       loading: false,
     }
   }
-
-  setRef = (ref: Card | null) => {
-    this.ref = ref;
-  };
 
   componentWillMount() {
     window.addEventListener('keydown', this.handleKeyDown);
@@ -81,7 +75,6 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
       <div className="ant-card-outer">
         <Card
           className={cardClass}
-          ref={this.setRef}
           title={
             <div className={headerClass}>
               <div className="article-title">
