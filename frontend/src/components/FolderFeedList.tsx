@@ -160,7 +160,6 @@ function renderFolderTitle(folder: Folder) {
 }
 
 function titleRender(nodeData: any): ReactNode {
-  console.log(nodeData);
   return <span className="goliath-feed-title">{nodeData['title']}</span>;
 }
 
