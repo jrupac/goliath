@@ -5,6 +5,7 @@ type UserId string
 
 // User is a single user of the application.
 type User struct {
+	// Primary key
 	UserId   UserId
 	Username string
 	Key      string

@@ -250,6 +250,7 @@ Loop:
 		content = maybeRewriteImageSourceUrls(content)
 		summary = maybeRewriteImageSourceUrls(summary)
 
+		syntheticDate := false
 		retrieved := time.Now()
 		var date time.Time
 		if item.DateValid && !item.Date.IsZero() {
@@ -257,19 +258,21 @@ Loop:
 		} else {
 			log.V(2).Infof("Could not find date for item: %+v", item)
 			date = retrieved
+			syntheticDate = true
 		}
 
 		a := models.Article{
-			FeedID:    feed.ID,
-			FolderID:  feed.FolderID,
-			Title:     title,
-			Summary:   summary,
-			Content:   content,
-			Parsed:    parsed,
-			Link:      item.Link,
-			Date:      date,
-			Read:      item.Read,
-			Retrieved: retrieved,
+			FeedID:        feed.ID,
+			FolderID:      feed.FolderID,
+			Title:         title,
+			Summary:       summary,
+			Content:       content,
+			Parsed:        parsed,
+			Link:          item.Link,
+			Date:          date,
+			Read:          item.Read,
+			Retrieved:     retrieved,
+			SyntheticDate: syntheticDate,
 		}
 
 		if a.Date.After(latest) {

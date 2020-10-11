@@ -8,9 +8,10 @@ import (
 
 // Feed is a single source of articles.
 type Feed struct {
+	// Primary key
 	ID       int64
 	FolderID int64
-
+	// Data fields
 	Title       string
 	Description string
 	URL         string

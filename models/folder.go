@@ -8,8 +8,9 @@ const (
 
 // Folder is a collection of feeds and subfolders.
 type Folder struct {
+	// Primary key
 	ID int64
-
+	// Data fields
 	Name    string
 	Feed    []Feed
 	Folders []Folder
