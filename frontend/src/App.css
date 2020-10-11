@@ -50,58 +50,14 @@
 
 /* antd Tree */
 
-.ant-tree {
-  background: #404040;
-  line-height: 16px;
-  padding-right: 1px;
-  font-family: 'Muli', sans-serif;
-}
 
-.ant-tree-title {
-  line-height: initial;
-  padding: 0 0 0 2px;
-}
 
-.ant-tree-title,
-.ant-tree li a {
-  display: inline-block;
-  transition: all 0.1s ease;
-  color: #ececec;
-  font-size: 14px;
-  width: 100%;
-}
-
-.ant-tree li {
-  padding: 0 15px 0 0;
-}
-
-.ant-tree li span.ant-tree-switcher {
-  padding-top: 2px;
-  color: #ececec;
-  line-height: 0;
-}
-
-.ant-tree li.ant-tree-treenode-switcher-open,
-.ant-tree li.ant-tree-treenode-switcher-close {
-  padding-top: 10px;
-}
-
-.ant-tree li .ant-tree-node-content-wrapper {
-  display: inline;
-  padding-top: 3px;
-  padding-bottom: 6px;
-}
-
-.ant-tree li .ant-tree-node-content-wrapper:hover {
+.ant-tree .ant-tree-node-content-wrapper:hover {
   background-color: #383838;
 }
 
-.ant-tree li .ant-tree-node-content-wrapper.ant-tree-node-selected {
+.ant-tree .ant-tree-node-content-wrapper.ant-tree-node-selected {
   background-color: #222;
-}
-
-.ant-tree li ul {
-  padding-left: 10px;
 }
 
 /* antd Card */
@@ -234,21 +190,33 @@
   line-height: 46px;
 }
 
-.feed-row {
+.goliath-ant-tree {
+  background: #404040;
+  line-height: 16px;
+  font-family: 'Muli', sans-serif;
+  padding: 0 15px 0 0;
+}
+
+.goliath-tree-switcher {
+  color: #ececec;
+}
+
+.goliath-feed-row {
   display: flex;
   align-items: center;
   flex-flow: row nowrap;
 }
 
-.feed-icon {
+.goliath-feed-icon {
   height: 16px;
   width: 16px;
 }
 
-.feed-title {
+.goliath-feed-title {
   padding-left: 6px;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: #ececec;
 }
 
 /* Article list */

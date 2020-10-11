@@ -8,8 +8,7 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-
-const TreeNode = Tree.TreeNode;
+import {CaretDownOutlined} from '@ant-design/icons';
 
 export interface FolderFeedListProps {
   tree: Map<FolderId, Folder>;
@@ -87,6 +86,15 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     // const expandedKeys = Array.from(tree.entries()).map(
     //     ([k, v]) => ( (v.unread_count > 0) ? k : null));
 
+    const treeData = Array.from(
+      tree.entries(), ([k, v]) => (
+        {
+          key: k.toString(),
+          title: renderFolderTitle(v),
+          children: Array.from(v.feeds.values()).map(renderFeed),
+        })
+    );
+
     return (
       <div>
         <div
@@ -100,18 +108,14 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
           </div>
         </div>
         <Tree
+          className="goliath-ant-tree"
+          showIcon
+          switcherIcon={<CaretDownOutlined className="tree-switcher"/>}
+          titleRender={titleRender}
           defaultExpandAll
           selectedKeys={selectedKeys}
-          onSelect={this.handleSelect}>
-          {
-            Array.from(tree.entries(), ([k, v]) => (
-              <TreeNode
-                key={k.toString()}
-                title={renderFolderTitle(v)}>
-                {Array.from(v.feeds.values()).map(renderFeed)}
-              </TreeNode>
-            ))
-          }
+          onSelect={this.handleSelect}
+          treeData={treeData}>
         </Tree>
       </div>
     )
@@ -154,6 +158,11 @@ function renderFolderTitle(folder: Folder) {
   }
 }
 
+function titleRender(nodeData: any): ReactNode {
+  console.log(nodeData);
+  return <span className="goliath-feed-title">{nodeData['title']}</span>;
+}
+
 function renderFeed(feed: Feed) {
   let img: ReactNode;
   if (feed.favicon === '') {
@@ -161,6 +170,7 @@ function renderFeed(feed: Feed) {
   } else {
     img = <img src={`data:${feed.favicon}`} height={16} width={16} alt=''/>
   }
+  img = <span className="goliath-feed-icon">{img}</span>;
 
   let title: ReactNode;
   if (feed.unread_count === 0) {
@@ -169,15 +179,9 @@ function renderFeed(feed: Feed) {
     title = <b>{`(${feed.unread_count})  ${feed.title}`}</b>
   }
 
-  const elem = (
-    <div className='feed-row'>
-      <div className='feed-icon'>
-        {img}
-      </div>
-      <div className='feed-title' title={feed.title}>
-        {title}
-      </div>
-    </div>
-  );
-  return <TreeNode key={feed.id.toString()} title={elem} isLeaf/>;
+  return {
+    title: title,
+    key: feed.id.toString(),
+    icon: img,
+  };
 }
