@@ -108,13 +108,14 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
           </div>
         </div>
         <Tree
+          blockNode
           className="goliath-ant-tree"
-          showIcon
-          switcherIcon={<CaretDownOutlined className="tree-switcher"/>}
-          titleRender={titleRender}
           defaultExpandAll
-          selectedKeys={selectedKeys}
           onSelect={this.handleSelect}
+          selectedKeys={selectedKeys}
+          showIcon
+          switcherIcon={<CaretDownOutlined className="goliath-tree-switcher"/>}
+          titleRender={titleRender}
           treeData={treeData}>
         </Tree>
       </div>

@@ -50,8 +50,6 @@
 
 /* antd Tree */
 
-
-
 .ant-tree .ant-tree-node-content-wrapper:hover {
   background-color: #383838;
 }
@@ -194,7 +192,6 @@
   background: #404040;
   line-height: 16px;
   font-family: 'Muli', sans-serif;
-  padding: 0 15px 0 0;
 }
 
 .goliath-tree-switcher {
