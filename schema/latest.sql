@@ -75,13 +75,35 @@ CREATE TABLE IF NOT EXISTS Article (
   link STRING,
   read BOOL,
   -- Publication timestamp
-  date TIMESTAMPTZ,
-  -- Retrieval timestamp
-  retrieved TIMESTAMPTZ
-) INTERLEAVE IN PARENT Feed (userid, folder, feed);
+    date TIMESTAMPTZ,
+    -- Retrieval timestamp
+    retrieved TIMESTAMPTZ
+    ) INTERLEAVE IN PARENT Feed
+(
+    userid,
+    folder,
+    feed
+);
 
-CREATE UNIQUE INDEX IF NOT EXISTS article_idx_read_key
+CREATE
+UNIQUE INDEX IF NOT EXISTS article_idx_read_key
   ON Article (id) STORING (read);
 
-CREATE INDEX ON Article (userid, id, read)
+CREATE
+INDEX ON Article (userid, id, read)
   STORING (title, summary, content, parsed, link, date);
+
+CREATE TABLE IF NOT EXISTS RetrievalCache
+(
+    -- Key columns
+    userid
+    UUID
+    PRIMARY
+    KEY,
+    -- Data columns
+    cache
+    STRING
+) INTERLEAVE IN PARENT UserTable
+(
+    userid
+);
