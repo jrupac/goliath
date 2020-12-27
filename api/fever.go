@@ -1,8 +1,7 @@
-package main
+package api
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/auth"
@@ -19,11 +18,7 @@ import (
 const apiVersion = 3
 
 var (
-	serveParsedArticles = flag.Bool("serveParsedArticles", false, "If true, serve parsed article content.")
-)
-
-var (
-	latencyMetric = prometheus.NewSummaryVec(
+	feverLatencyMetric = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name:       "fever_server_latency",
 			Help:       "Server-side latency of Fever API operations.",
@@ -72,36 +67,36 @@ type feedsGroupType struct {
 
 type responseType map[string]interface{}
 
-type feverError struct {
-	wrapped  error
-	internal bool
-}
-
-func (e *feverError) Error() string {
-	return e.wrapped.Error()
-}
-
 func init() {
-	prometheus.MustRegister(latencyMetric)
+	prometheus.MustRegister(feverLatencyMetric)
 }
 
-func recordLatency(label string) func(time.Duration) {
-	return func(d time.Duration) {
-		// Record latency measurements in microseconds.
-		latencyMetric.WithLabelValues(label).Observe(float64(d) / float64(time.Microsecond))
-	}
+// Fever is an implementation of the Fever API.
+type Fever struct {
 }
 
-// HandleFever returns a handler function that implements the Fever API.
-func HandleFever(d *storage.Database) func(w http.ResponseWriter, r *http.Request) {
+// FeverHandler returns a new Fever handler.
+func FeverHandler(d *storage.Database) http.HandlerFunc {
+	return Fever{}.Handler(d)
+}
+
+// Handler returns a handler function that implements the Fever API.
+func (a Fever) Handler(d *storage.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		handleFever(d, w, r)
+		a.handle(d, w, r)
 	}
 }
 
-func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
-	// Record the total server latency of each Fever call.
-	defer utils.Elapsed(time.Now(), recordLatency("server"))
+func (a Fever) recordLatency(t time.Time, label string) {
+	utils.Elapsed(t, func(d time.Duration) {
+		// Record latency measurements in microseconds.
+		freshrssLatencyMetric.WithLabelValues(label).Observe(float64(d) / float64(time.Microsecond))
+	})
+}
+
+func (a Fever) handle(d *storage.Database, w http.ResponseWriter, r *http.Request) {
+	// Record the total server latency of each call.
+	defer a.recordLatency(time.Now(), "server")
 
 	// These two fields must always be set on responses.
 	resp := responseType{
@@ -111,7 +106,7 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 
 	err := r.ParseForm()
 	if err != nil {
-		returnError(w, "Failed to parse request: %s", err)
+		a.returnError(w, "Failed to parse request: %s", err)
 		return
 	}
 
@@ -127,76 +122,76 @@ func handleFever(d *storage.Database, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, authStatus := handleAuth(d, r)
+	user, authStatus := a.handleAuth(d, r)
 	resp["auth"] = authStatus
 	if resp["auth"] == 0 {
-		returnSuccess(w, resp)
+		a.returnSuccess(w, resp)
 		return
 	}
 
 	if _, ok := r.Form["groups"]; ok {
-		err := handleGroups(d, user, &resp)
+		err := a.handleGroups(d, user, &resp)
 		if err != nil {
-			returnError(w, "Failed request 'groups': %s", err)
+			a.returnError(w, "Failed request 'groups': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["feeds"]; ok {
-		err := handleFeeds(d, user, &resp)
+		err := a.handleFeeds(d, user, &resp)
 		if err != nil {
-			returnError(w, "Failed request 'feeds': %s", err)
+			a.returnError(w, "Failed request 'feeds': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["favicons"]; ok {
-		err := handleFavicons(d, user, &resp)
+		err := a.handleFavicons(d, user, &resp)
 		if err != nil {
-			returnError(w, "Failed request 'favicons': %s", err)
+			a.returnError(w, "Failed request 'favicons': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["items"]; ok {
-		err := handleItems(d, user, &resp, r)
+		err := a.handleItems(d, user, &resp, r)
 		if err != nil {
-			returnError(w, "Failed request 'items': %s", err)
+			a.returnError(w, "Failed request 'items': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["links"]; ok {
-		err := handleLinks(d, user, &resp)
+		err := a.handleLinks(d, user, &resp)
 		if err != nil {
-			returnError(w, "Failed request 'links': %s", err)
+			a.returnError(w, "Failed request 'links': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["unread_item_ids"]; ok {
-		err := handleUnreadItemIDs(d, user, &resp)
+		err := a.handleUnreadItemIDs(d, user, &resp)
 		if err != nil {
-			returnError(w, "Failed request 'unread_item_ids': %s", err)
+			a.returnError(w, "Failed request 'unread_item_ids': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["saved_item_ids"]; ok {
-		err := handleSavedItemIDs(d, user, &resp)
+		err := a.handleSavedItemIDs(d, user, &resp)
 		if err != nil {
-			returnError(w, "Failed request 'saved_item_ids': %s", err)
+			a.returnError(w, "Failed request 'saved_item_ids': %s", err)
 			return
 		}
 	}
 	if _, ok := r.Form["mark"]; ok {
-		err := handleMark(d, user, &resp, r)
+		err := a.handleMark(d, user, &resp, r)
 		if err != nil {
-			returnError(w, "Failed request 'mark': %s", err)
+			a.returnError(w, "Failed request 'mark': %s", err)
 			return
 		}
 	}
 
-	returnSuccess(w, resp)
+	a.returnSuccess(w, resp)
 }
 
-func returnError(w http.ResponseWriter, msg string, err error) {
+func (a Fever) returnError(w http.ResponseWriter, msg string, err error) {
 	log.Warningf(msg, err)
-	if fe, ok := err.(*feverError); ok {
+	if fe, ok := err.(*apiError); ok {
 		if fe.internal {
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {
@@ -207,7 +202,7 @@ func returnError(w http.ResponseWriter, msg string, err error) {
 	w.WriteHeader(http.StatusInternalServerError)
 }
 
-func returnSuccess(w http.ResponseWriter, resp map[string]interface{}) {
+func (a Fever) returnSuccess(w http.ResponseWriter, resp map[string]interface{}) {
 	w.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(w)
 	// HTML content is escaped already during fetch time (e.g., ' --> &#39;), so
@@ -215,12 +210,12 @@ func returnSuccess(w http.ResponseWriter, resp map[string]interface{}) {
 	// render incorrectly on a webpage.
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(resp); err != nil {
-		returnError(w, "Failed to encode response JSON: %s", err)
+		a.returnError(w, "Failed to encode response JSON: %s", err)
 	}
 }
 
-func handleAuth(d *storage.Database, r *http.Request) (models.User, int) {
-	defer utils.Elapsed(time.Now(), recordLatency("auth"))
+func (a Fever) handleAuth(d *storage.Database, r *http.Request) (models.User, int) {
+	defer a.recordLatency(time.Now(), "auth")
 
 	// A request can be authenticated by cookie or api key in request.
 	if user, err := auth.VerifyCookie(d, r); err == nil {
@@ -236,12 +231,12 @@ func handleAuth(d *storage.Database, r *http.Request) (models.User, int) {
 	}
 }
 
-func handleGroups(d *storage.Database, u models.User, resp *responseType) error {
-	defer utils.Elapsed(time.Now(), recordLatency("groups"))
+func (a Fever) handleGroups(d *storage.Database, u models.User, resp *responseType) error {
+	defer a.recordLatency(time.Now(), "groups")
 
 	folders, err := d.GetAllFoldersForUser(u)
 	if err != nil {
-		return &feverError{err, true}
+		return &apiError{err, true}
 	}
 	var groups []groupType
 	for _, f := range folders {
@@ -252,19 +247,19 @@ func handleGroups(d *storage.Database, u models.User, resp *responseType) error 
 		groups = append(groups, g)
 	}
 	(*resp)["groups"] = groups
-	(*resp)["feeds_groups"], err = constructFeedsGroups(d, u)
+	(*resp)["feeds_groups"], err = a.constructFeedsGroups(d, u)
 	if err != nil {
-		return &feverError{err, true}
+		return &apiError{err, true}
 	}
 	return nil
 }
 
-func handleFeeds(d *storage.Database, u models.User, resp *responseType) error {
-	defer utils.Elapsed(time.Now(), recordLatency("feeds"))
+func (a Fever) handleFeeds(d *storage.Database, u models.User, resp *responseType) error {
+	defer a.recordLatency(time.Now(), "feeds")
 
 	fetchedFeeds, err := d.GetAllFeedsForUser(u)
 	if err != nil {
-		return &feverError{err, true}
+		return &apiError{err, true}
 	}
 	var feeds []feedType
 	for _, ff := range fetchedFeeds {
@@ -280,17 +275,17 @@ func handleFeeds(d *storage.Database, u models.User, resp *responseType) error {
 		feeds = append(feeds, f)
 	}
 	(*resp)["feeds"] = feeds
-	(*resp)["feeds_groups"], err = constructFeedsGroups(d, u)
+	(*resp)["feeds_groups"], err = a.constructFeedsGroups(d, u)
 	if err != nil {
-		return &feverError{err, true}
+		return &apiError{err, true}
 	}
 	return nil
 }
 
-func handleFavicons(d *storage.Database, u models.User, resp *responseType) error {
+func (a Fever) handleFavicons(d *storage.Database, u models.User, resp *responseType) error {
 	faviconMap, err := d.GetAllFaviconsForUser(u)
 	if err != nil {
-		return &feverError{err, true}
+		return &apiError{err, true}
 	}
 	var favicons []faviconType
 	for k, v := range faviconMap {
@@ -304,8 +299,8 @@ func handleFavicons(d *storage.Database, u models.User, resp *responseType) erro
 	return nil
 }
 
-func handleItems(d *storage.Database, u models.User, resp *responseType, r *http.Request) error {
-	defer utils.Elapsed(time.Now(), recordLatency("items"))
+func (a Fever) handleItems(d *storage.Database, u models.User, resp *responseType, r *http.Request) error {
+	defer a.recordLatency(time.Now(), "items")
 
 	// TODO: support "max_id" and "with_ids".
 	sinceID := int64(-1)
@@ -314,13 +309,13 @@ func handleItems(d *storage.Database, u models.User, resp *responseType, r *http
 	if _, ok := r.Form["since_id"]; ok {
 		sinceID, err = strconv.ParseInt(r.FormValue("since_id"), 10, 64)
 		if err != nil {
-			return &feverError{err, false}
+			return &apiError{err, false}
 		}
 	}
 
 	articles, err := d.GetUnreadArticlesForUser(u, 50, sinceID)
 	if err != nil {
-		return &feverError{err, true}
+		return &apiError{err, true}
 	}
 	// Make an empty (not nil) slice because their JSON encodings are different.
 	items := make([]itemType, 0)
@@ -353,20 +348,20 @@ func handleItems(d *storage.Database, u models.User, resp *responseType, r *http
 	return nil
 }
 
-func handleLinks(_ *storage.Database, _ models.User, resp *responseType) error {
-	defer utils.Elapsed(time.Now(), recordLatency("links"))
+func (a Fever) handleLinks(_ *storage.Database, _ models.User, resp *responseType) error {
+	defer a.recordLatency(time.Now(), "links")
 
 	// Perhaps add support for links in the future.
 	(*resp)["links"] = ""
 	return nil
 }
 
-func handleUnreadItemIDs(d *storage.Database, u models.User, resp *responseType) error {
-	defer utils.Elapsed(time.Now(), recordLatency("unread_item_ids"))
+func (a Fever) handleUnreadItemIDs(d *storage.Database, u models.User, resp *responseType) error {
+	defer a.recordLatency(time.Now(), "unread_item_ids")
 
 	articles, err := d.GetUnreadArticlesForUser(u, -1, -1)
 	if err != nil {
-		return &feverError{err, true}
+		return &apiError{err, true}
 	}
 	var unreadItemIds []string
 	for _, a := range articles {
@@ -376,16 +371,16 @@ func handleUnreadItemIDs(d *storage.Database, u models.User, resp *responseType)
 	return nil
 }
 
-func handleSavedItemIDs(_ *storage.Database, _ models.User, resp *responseType) error {
-	defer utils.Elapsed(time.Now(), recordLatency("saved_item_ids"))
+func (a Fever) handleSavedItemIDs(_ *storage.Database, _ models.User, resp *responseType) error {
+	defer a.recordLatency(time.Now(), "saved_item_ids")
 
 	// Perhaps add support for saving items in the future.
 	(*resp)["saved_item_ids"] = ""
 	return nil
 }
 
-func handleMark(d *storage.Database, u models.User, _ *responseType, r *http.Request) error {
-	defer utils.Elapsed(time.Now(), recordLatency("mark"))
+func (a Fever) handleMark(d *storage.Database, u models.User, _ *responseType, r *http.Request) error {
+	defer a.recordLatency(time.Now(), "mark")
 
 	// TODO: Support "before" argument.
 	var as string
@@ -393,7 +388,7 @@ func handleMark(d *storage.Database, u models.User, _ *responseType, r *http.Req
 	case "read", "unread", "saved", "unsaved":
 		as = r.FormValue("as")
 	default:
-		return &feverError{fmt.Errorf("unknown 'as' value: %s", r.FormValue("as")), false}
+		return &apiError{fmt.Errorf("unknown 'as' value: %s", r.FormValue("as")), false}
 	}
 
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
@@ -404,23 +399,23 @@ func handleMark(d *storage.Database, u models.User, _ *responseType, r *http.Req
 	switch r.FormValue("mark") {
 	case "item":
 		if err = d.MarkArticleForUser(u, id, as); err != nil {
-			return &feverError{err, true}
+			return &apiError{err, true}
 		}
 	case "feed":
 		if err = d.MarkFeedForUser(u, id, as); err != nil {
-			return &feverError{err, true}
+			return &apiError{err, true}
 		}
 	case "group":
 		if err = d.MarkFolderForUser(u, id, as); err != nil {
-			return &feverError{err, true}
+			return &apiError{err, true}
 		}
 	default:
-		return &feverError{fmt.Errorf("malformed 'mark' value: %s", r.FormValue("mark")), false}
+		return &apiError{fmt.Errorf("malformed 'mark' value: %s", r.FormValue("mark")), false}
 	}
 	return nil
 }
 
-func constructFeedsGroups(d *storage.Database, u models.User) ([]feedsGroupType, error) {
+func (a Fever) constructFeedsGroups(d *storage.Database, u models.User) ([]feedsGroupType, error) {
 	var feedGroups []feedsGroupType
 	feedsPerFolder, err := d.GetFeedsPerFolderForUser(u)
 	if err != nil {

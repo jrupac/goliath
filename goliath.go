@@ -7,6 +7,7 @@ import (
 	"fmt"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/admin"
+	"github.com/jrupac/goliath/api"
 	"github.com/jrupac/goliath/auth"
 	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/fetch"
@@ -189,7 +190,8 @@ func serve(ctx context.Context, d *storage.Database) error {
 
 	mux.HandleFunc("/auth", auth.HandleLogin(d))
 	mux.HandleFunc("/logout", auth.HandleLogout)
-	mux.HandleFunc("/fever/", HandleFever(d))
+	mux.HandleFunc("/fever/", api.FeverHandler(d))
+	mux.HandleFunc("/freshrss/", api.FreshRSSHandler(d))
 	mux.HandleFunc("/version", handleVersion)
 	mux.Handle("/cache", auth.WithAuth(cache.NewImageProxy(), d, *publicFolder, cache.AuthErrorRedirect))
 	mux.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))
