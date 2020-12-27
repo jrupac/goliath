@@ -16,10 +16,11 @@ var (
 	retrievalCacheWriteInterval = flag.Duration("retrievalCacheWriteInterval", 1*time.Minute, "Period between retrieval cache writes.")
 )
 
+// RetrievalCache is a probabilistic cache to determine if an article has ever retrieved seen before.
 type RetrievalCache struct {
-	cache *cuckoo.ScalableCuckooFilter
-	lock  sync.Mutex
-	ready atomic.Value
+	caches map[string]*cuckoo.ScalableCuckooFilter
+	lock   sync.Mutex
+	ready  atomic.Value
 }
 
 func StartRetrievalCache(ctx context.Context, d *storage.Database) *RetrievalCache {
@@ -30,24 +31,58 @@ func StartRetrievalCache(ctx context.Context, d *storage.Database) *RetrievalCac
 	return &r
 }
 
+// Add adds a new a entry into the retrieval cache for the specified user.
 func (r *RetrievalCache) Add(u models.User, entry string) {
 	if r.ready.Load() == nil {
-		log.Errorf("Could not persist entry: %s", entry)
+		log.Errorf("could not persist entry: %s", entry)
 		return
 	}
 
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	log.Infof("Add entry for user %s and entry %s", u.UserId, entry)
-	r.cache.InsertUnique([]byte(entry))
+
+	if cache, ok := r.caches[u.Key]; !ok {
+		log.Errorf("unknown user: %s", u.Key)
+	} else {
+		cache.InsertUnique([]byte(entry))
+	}
+}
+
+// Lookup returns whether the specified entry is present in the retrieval cache for the specified user.
+func (r *RetrievalCache) Lookup(u models.User, entry string) bool {
+	if r.ready.Load() == nil {
+		log.Errorf("could not lookup entry: %s", entry)
+		return false
+	}
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	if cache, ok := r.caches[u.Key]; !ok {
+		log.Errorf("unknown user: %s", u.Key)
+		return false
+	} else {
+		return cache.Lookup([]byte(entry))
+	}
 }
 
 func (r *RetrievalCache) loadCache(d *storage.Database) {
 	// TODO: Read from DB.
 
+	// If the read above failed, initialize an empty retrieval cache for each user.
+	users, err := d.GetAllUsers()
+	if err != nil {
+		log.Errorf("could not load retrieval cache")
+		return
+	}
+
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	r.cache = cuckoo.NewScalableCuckooFilter()
+	for _, user := range users {
+		r.caches[user.Key] = cuckoo.NewScalableCuckooFilter()
+	}
+
 	r.ready.Store(true)
 }
 

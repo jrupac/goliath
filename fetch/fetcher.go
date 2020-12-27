@@ -137,7 +137,7 @@ func startFetchLoopForUser(d *storage.Database, ctx context.Context, r *cache.Re
 	for _, f := range feeds {
 		go func(f models.Feed) {
 			defer userLoopCondition.Done()
-			fetchLoopForFeed(ctx, d, ac, ic, f, u)
+			fetchLoopForFeed(ctx, d, r, ac, ic, f, u)
 		}(f)
 	}
 
@@ -163,7 +163,7 @@ func startFetchLoopForUser(d *storage.Database, ctx context.Context, r *cache.Re
 	}
 }
 
-func fetchLoopForFeed(ctx context.Context, d *storage.Database, ac chan models.Article, ic chan imagePair, feed models.Feed, u models.User) {
+func fetchLoopForFeed(ctx context.Context, d *storage.Database, r *cache.RetrievalCache, ac chan models.Article, ic chan imagePair, feed models.Feed, u models.User) {
 	log.Infof("Fetching URL '%s'", feed.URL)
 	tick := make(<-chan time.Time)
 	initalFetch := make(chan struct{})
@@ -177,7 +177,7 @@ func fetchLoopForFeed(ctx context.Context, d *storage.Database, ac chan models.A
 
 		updateFeedMetadataForUser(d, &feed, f, u)
 
-		handleItemsForUser(ctx, &feed, d, f.Items, ac, u)
+		handleItemsForUser(ctx, &feed, d, r, f.Items, ac, u)
 		handleImage(ctx, feed, f, ic)
 
 		tick = time.After(time.Until(f.Refresh))
@@ -198,7 +198,7 @@ func fetchLoopForFeed(ctx context.Context, d *storage.Database, ac chan models.A
 				// If the request transiently fails, try again after a fixed interval.
 				refresh = time.Now().Add(10 * time.Minute)
 			} else {
-				handleItemsForUser(ctx, &feed, d, f.Items, ac, u)
+				handleItemsForUser(ctx, &feed, d, r, f.Items, ac, u)
 				refresh = f.Refresh
 			}
 			log.Infof("Waiting to fetch %s until %s\n", feed.URL, refresh)
@@ -226,7 +226,7 @@ func updateFeedMetadataForUser(d *storage.Database, f *models.Feed, rf *rss.Feed
 	}
 }
 
-func handleItemsForUser(ctx context.Context, feed *models.Feed, d *storage.Database, items []*rss.Item, send chan models.Article, u models.User) {
+func handleItemsForUser(ctx context.Context, feed *models.Feed, d *storage.Database, r *cache.RetrievalCache, items []*rss.Item, send chan models.Article, u models.User) {
 	latest := feed.Latest
 	newLatest := latest
 
@@ -277,7 +277,11 @@ Loop:
 			SyntheticDate: syntheticDate,
 		}
 
-		if a.Date.After(latest) {
+		if r.Lookup(u, a.Hash()) {
+			log.V(2).Infof("Not persisting because present in retrieval cache: %+v", a)
+		} else if a.Date.Before(latest) {
+			log.V(2).Infof("Not persisting too old article: %+v", a)
+		} else {
 			select {
 			case send <- a:
 				break
@@ -288,8 +292,6 @@ Loop:
 			if a.Date.After(newLatest) {
 				newLatest = a.Date
 			}
-		} else {
-			log.V(2).Infof("Not persisting too old article: %+v", a)
 		}
 	}
 
