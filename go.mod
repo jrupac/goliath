@@ -13,6 +13,7 @@ require (
 	github.com/mat/besticon v3.9.0+incompatible
 	github.com/microcosm-cc/bluemonday v1.0.2
 	github.com/prometheus/client_golang v0.9.4
+	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c
 	github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de
 	golang.org/x/crypto v0.0.0-20190611184440-5c40567a22f8
 	golang.org/x/image v0.0.0-20190523035834-f03afa92d3ff // indirect

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
@@ -60,7 +61,7 @@ func Resume() {
 
 // Start starts continuous feed fetching and writes fetched articles to the
 // database.
-func Start(ctx context.Context, d *storage.Database) {
+func Start(ctx context.Context, d *storage.Database, r *cache.RetrievalCache) {
 	log.Infof("Starting continuous feed fetching.")
 
 	// Add additional time layouts that sometimes appear in feeds.
@@ -76,7 +77,7 @@ func Start(ctx context.Context, d *storage.Database) {
 	// A WaitGroup of size 0 or 1 to wait on all fetching to complete.
 	loopCondition := &sync.WaitGroup{}
 	loopCondition.Add(1)
-	go startFetchLoop(fctx, loopCondition, d)
+	go startFetchLoop(fctx, loopCondition, d, r)
 
 	for {
 		select {
@@ -88,7 +89,7 @@ func Start(ctx context.Context, d *storage.Database) {
 		case <-resumeChan:
 			fctx, cancel = context.WithCancel(ctx)
 			loopCondition.Add(1)
-			go startFetchLoop(fctx, loopCondition, d)
+			go startFetchLoop(fctx, loopCondition, d, r)
 			log.Info("Fetcher resumed.")
 		case <-ctx.Done():
 			cancel()
@@ -98,7 +99,7 @@ func Start(ctx context.Context, d *storage.Database) {
 	}
 }
 
-func startFetchLoop(ctx context.Context, parent *sync.WaitGroup, d *storage.Database) {
+func startFetchLoop(ctx context.Context, parent *sync.WaitGroup, d *storage.Database, r *cache.RetrievalCache) {
 	defer parent.Done()
 
 	users, err := d.GetAllUsers()
@@ -113,14 +114,14 @@ func startFetchLoop(ctx context.Context, parent *sync.WaitGroup, d *storage.Data
 	for _, u := range users {
 		go func(u models.User) {
 			defer usersLoopWg.Done()
-			startFetchLoopForUser(d, ctx, u)
+			startFetchLoopForUser(d, ctx, r, u)
 		}(u)
 	}
 
 	usersLoopWg.Wait()
 }
 
-func startFetchLoopForUser(d *storage.Database, ctx context.Context, u models.User) {
+func startFetchLoopForUser(d *storage.Database, ctx context.Context, r *cache.RetrievalCache, u models.User) {
 	feeds, err := d.GetAllFeedsForUser(u)
 	if err != nil {
 		log.Errorf("Failed to fetch all feeds for user %s: %s", u, err)
@@ -147,6 +148,7 @@ func startFetchLoopForUser(d *storage.Database, ctx context.Context, u models.Us
 			if err2 := d.InsertArticleForUser(u, a); err2 != nil {
 				log.Warningf("Failed to persist article for user %s: %+v: %s", u, a, err2)
 			}
+			r.Add(u, a.Hash())
 		case ip := <-ic:
 			utils.DebugPrint("Received a new image:", ip)
 			if err2 := d.InsertFaviconForUser(u, ip.folderId, ip.id, ip.mime, ip.favicon); err2 != nil {
