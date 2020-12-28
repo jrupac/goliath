@@ -25,6 +25,7 @@ const (
 	feedTable           = "Feed"
 	articleTable        = "Article"
 	userTable           = "UserTable"
+	retrievalCacheTable = "RetrievalCache"
 	maxFetchedRows      = 10000
 	slowOpLogThreshold  = 50 * time.Millisecond
 )
@@ -132,6 +133,45 @@ func (d *Database) GetUserByUsername(username string) (models.User, error) {
 		return models.User{}, errors.New("could not find user")
 	}
 	return u, err
+}
+
+// GetAllRetrievalCaches retrieves the cache for all users.
+func (d *Database) GetAllRetrievalCaches() (map[string]string, error) {
+	defer logElapsedTime(time.Now(), "GetAllRetrievalCaches")
+
+	rows, err := d.db.Query(`SELECT userid, cache FROM ` + retrievalCacheTable)
+	if err != nil {
+		return nil, err
+	}
+	defer closeSilent(rows)
+
+	ret := map[string]string{}
+
+	for rows.Next() {
+		var id string
+		var cache string
+		if err = rows.Scan(&id, &cache); err != nil {
+			return nil, err
+		}
+		ret[id] = cache
+	}
+
+	return ret, nil
+}
+
+// PersistAllRetrievalCaches writes the retrieval caches for all users.
+func (d *Database) PersistAllRetrievalCaches(entries map[string][]byte) error {
+	defer logElapsedTime(time.Now(), "PersistAllRetrievalCaches")
+
+	var values []string
+	for id, cache := range entries {
+		values = append(values, fmt.Sprintf("('%s', x'%x'::STRING)", id, cache))
+	}
+	valueStr := strings.Join(values, ",")
+
+	_, err := d.db.Exec(`UPSERT INTO ` + retrievalCacheTable + `(userid, cache) VALUES` + valueStr)
+
+	return err
 }
 
 /*******************************************************************************
