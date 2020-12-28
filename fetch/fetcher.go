@@ -277,10 +277,10 @@ Loop:
 			SyntheticDate: syntheticDate,
 		}
 
-		if r.Lookup(u, a.Hash()) {
-			log.V(2).Infof("Not persisting because present in retrieval cache: %+v", a)
-		} else if a.Date.Before(latest) {
+		if a.Date.Before(latest) {
 			log.V(2).Infof("Not persisting too old article: %+v", a)
+		} else if r.Lookup(u, a.Hash()) {
+			log.V(2).Infof("Not persisting because present in retrieval cache: %+v", a)
 		} else {
 			select {
 			case send <- a:
