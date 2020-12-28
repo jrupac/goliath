@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	retrievalCacheWriteInterval = flag.Duration("retrievalCacheWriteInterval", 1*time.Minute, "Period between retrieval cache writes.")
+	retrievalCacheWriteInterval = flag.Duration("retrievalCacheWriteInterval", 5*time.Minute, "Period between retrieval cache writes.")
 )
 
 // RetrievalCache is a probabilistic cache to determine if an article has ever retrieved seen before.
@@ -23,6 +23,7 @@ type RetrievalCache struct {
 	ready  atomic.Value
 }
 
+// StartRetrievalCache creates a new RetrievalCache and starts background processing.
 func StartRetrievalCache(ctx context.Context, d *storage.Database) *RetrievalCache {
 	r := RetrievalCache{}
 	r.loadCache(d)
@@ -34,7 +35,7 @@ func StartRetrievalCache(ctx context.Context, d *storage.Database) *RetrievalCac
 // Add adds a new a entry into the retrieval cache for the specified user.
 func (r *RetrievalCache) Add(u models.User, entry string) {
 	if r.ready.Load() == nil {
-		log.Errorf("could not persist entry: %s", entry)
+		log.Errorf("retrieval cache not ready: %s", entry)
 		return
 	}
 
@@ -42,8 +43,8 @@ func (r *RetrievalCache) Add(u models.User, entry string) {
 	defer r.lock.Unlock()
 	log.Infof("Add entry for user %s and entry %s", u.UserId, entry)
 
-	if cache, ok := r.caches[u.Key]; !ok {
-		log.Errorf("unknown user: %s", u.Key)
+	if cache, ok := r.caches[string(u.UserId)]; !ok {
+		log.Errorf("unknown user: %s", u.UserId)
 	} else {
 		cache.InsertUnique([]byte(entry))
 	}
@@ -52,37 +53,59 @@ func (r *RetrievalCache) Add(u models.User, entry string) {
 // Lookup returns whether the specified entry is present in the retrieval cache for the specified user.
 func (r *RetrievalCache) Lookup(u models.User, entry string) bool {
 	if r.ready.Load() == nil {
-		log.Errorf("could not lookup entry: %s", entry)
+		log.Errorf("retrieval cache not ready: %s", entry)
 		return false
 	}
 
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	if cache, ok := r.caches[u.Key]; !ok {
-		log.Errorf("unknown user: %s", u.Key)
+	if cache, ok := r.caches[string(u.UserId)]; !ok {
+		log.Errorf("unknown user: %s", u.UserId)
 		return false
 	} else {
-		return cache.Lookup([]byte(entry))
+		res := cache.Lookup([]byte(entry))
+		log.Infof("Lookup result for user %s and entry %s: %v", u.UserId, entry, res)
+		return res
 	}
 }
 
 func (r *RetrievalCache) loadCache(d *storage.Database) {
-	// TODO: Read from DB.
+	r.caches = map[string]*cuckoo.ScalableCuckooFilter{}
 
-	// If the read above failed, initialize an empty retrieval cache for each user.
-	users, err := d.GetAllUsers()
-	if err != nil {
+	retrievalCaches, err := d.GetAllRetrievalCaches()
+
+	// If there is an error or no entries, just initialize as empty.
+	if err != nil || len(retrievalCaches) == 0 {
 		log.Errorf("could not load retrieval cache")
-		return
+
+		users, err := d.GetAllUsers()
+		if err != nil {
+			log.Errorf("could not fetch users")
+			return
+		}
+
+		r.lock.Lock()
+		defer r.lock.Unlock()
+		for _, user := range users {
+			r.caches[string(user.UserId)] = cuckoo.NewScalableCuckooFilter()
+		}
+	} else {
+		r.lock.Lock()
+		defer r.lock.Unlock()
+		for id, encoded := range retrievalCaches {
+			cache, err := cuckoo.DecodeScalableFilter([]byte(encoded))
+
+			// If the cache is corrupt, just create an empty one.
+			if err != nil {
+				log.Errorf("could not load cache for user %s", id)
+				cache = cuckoo.NewScalableCuckooFilter()
+			}
+			r.caches[id] = cache
+		}
 	}
 
-	r.lock.Lock()
-	defer r.lock.Unlock()
-	for _, user := range users {
-		r.caches[user.Key] = cuckoo.NewScalableCuckooFilter()
-	}
-
+	log.Infof("Completed loading retrieval cache.")
 	r.ready.Store(true)
 }
 
@@ -114,5 +137,14 @@ func (r *RetrievalCache) persistCache(d *storage.Database) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	log.Infof("Persisting retrieval cache.")
-	// TODO: Write into DB.
+
+	entries := map[string][]byte{}
+	for id, cache := range r.caches {
+		entries[id] = cache.Encode()
+	}
+
+	err := d.PersistAllRetrievalCaches(entries)
+	if err != nil {
+		log.Errorf("failed to persist retrieval cache: %s", err)
+	}
 }
