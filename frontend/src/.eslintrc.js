@@ -15,15 +15,12 @@ module.exports = {
     "require-jsdoc": "off",
     "strict": "off"
   },
-  "ecmaFeatures": {
-    "jsx": true
-  },
   "env": {
     "node": true,
     "browser": true,
     "es6": true
   },
-  "parser": "babel-eslint",
+  "parser": "@typescript-eslint/parser",
   "plugins": [
     "@typescript-eslint", "react"
   ]
