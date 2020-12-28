@@ -90,7 +90,7 @@ func (a Fever) Handler(d *storage.Database) http.HandlerFunc {
 func (a Fever) recordLatency(t time.Time, label string) {
 	utils.Elapsed(t, func(d time.Duration) {
 		// Record latency measurements in microseconds.
-		freshrssLatencyMetric.WithLabelValues(label).Observe(float64(d) / float64(time.Microsecond))
+		feverLatencyMetric.WithLabelValues(label).Observe(float64(d) / float64(time.Microsecond))
 	})
 }
 
