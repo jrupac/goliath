@@ -277,7 +277,7 @@ Loop:
 			SyntheticDate: syntheticDate,
 		}
 
-		if a.Date.Before(latest) {
+		if !a.Date.After(latest) {
 			log.V(2).Infof("Not persisting too old article: %+v", a)
 		} else if r.Lookup(u, a.Hash()) {
 			log.V(2).Infof("Not persisting because present in retrieval cache: %+v", a)
