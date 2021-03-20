@@ -33,6 +33,7 @@ github.com/golang/protobuf v1.3.1/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5y
 github.com/google/go-cmp v0.2.0/go.mod h1:oXzfMopK8JAjlY9xF4vHSVASa0yLyX7SntLO5aqRK0M=
 github.com/jrupac/rss v1.0.2 h1:a6MOCLoFHnHhiggaWHmFakcQKXSxehAgJnpK7st6Alg=
 github.com/jrupac/rss v1.0.2/go.mod h1:NBIR5kmRZKjV5brH0P6dK6Lf8r3SXy2vvrlWvSGC2q8=
+github.com/jrupac/rss v1.0.3/go.mod h1:NBIR5kmRZKjV5brH0P6dK6Lf8r3SXy2vvrlWvSGC2q8=
 github.com/json-iterator/go v1.1.6/go.mod h1:+SdeFBvtyEkXs7REEP0seUULqWtbJapLOCVDaaPEHmU=
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
