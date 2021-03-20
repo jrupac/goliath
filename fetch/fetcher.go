@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/arbovm/levenshtein"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/models"
@@ -22,6 +23,8 @@ import (
 var (
 	sanitizeHTML      = flag.Bool("sanitizeHTML", false, "If true, sanitize HTML content with Bluemonday.")
 	normalizeFavicons = flag.Bool("normalizeFavicons", true, "If true, resize favicons to 256x256 and encode as PNG.")
+	maxEditDedup      = flag.Float64("maxEditDedup", 0.1,
+		"The maximum edit distance between articles to be de-duplicated, expressed as percent of edit distance and total length of content.")
 )
 
 var (
@@ -230,6 +233,12 @@ func handleItemsForUser(ctx context.Context, feed *models.Feed, d *storage.Datab
 	latest := feed.Latest
 	newLatest := latest
 
+	var existingArticles []models.Article
+	existingArticles, err := d.GetUnreadArticlesForFeedForUser(u, feed.ID)
+	if err != nil {
+		log.Warningf("Error while fetching existing articles for feed %s: %s", feed.ID, err)
+	}
+
 Loop:
 	for _, item := range items {
 		title := item.Title
@@ -282,6 +291,16 @@ Loop:
 		} else if r.Lookup(u, a.Hash()) {
 			log.V(2).Infof("Not persisting because present in retrieval cache: %+v", a)
 		} else {
+			// Remove existing articles that are similar to the newly fetched one.
+			ids := getSimilarExistingArticles(existingArticles, a)
+			if len(ids) > 0 {
+				log.Infof("Found %d similar articles to %s: %+v", len(ids), a.Title, ids)
+				err = d.DeleteArticlesByIdForUser(u, ids)
+				if err != nil {
+					log.Warningf("Failed to delete similar articles for feed %s: %s", feed.ID, err)
+				}
+			}
+
 			select {
 			case send <- a:
 				break
@@ -295,7 +314,7 @@ Loop:
 		}
 	}
 
-	err := d.UpdateLatestTimeForFeedForUser(u, feed.FolderID, feed.ID, newLatest)
+	err = d.UpdateLatestTimeForFeedForUser(u, feed.FolderID, feed.ID, newLatest)
 	if err != nil {
 		log.Warningf("Failed to update latest feed time: %s", err)
 	} else {
@@ -329,6 +348,26 @@ func handleImage(ctx context.Context, feed models.Feed, f *rss.Feed, send chan i
 	case <-ctx.Done():
 		break
 	}
+}
+
+func getSimilarExistingArticles(articles []models.Article, a models.Article) []int64 {
+	var ids []int64
+
+	editDistPercent := func(base string, comp string) float64 {
+		edit := float64(levenshtein.Distance(base, comp)) / float64(len(base))
+		return edit
+	}
+
+	for _, old := range articles {
+		if old.Link == a.Link {
+			if editDistPercent(old.Title, a.Title) < *maxEditDedup &&
+				editDistPercent(old.Summary, a.Summary) < *maxEditDedup {
+				ids = append(ids, old.ID)
+			}
+		}
+	}
+
+	return ids
 }
 
 func tryIconFetch(link string) (besticon.Icon, error) {

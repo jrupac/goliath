@@ -303,6 +303,18 @@ func (d *Database) DeleteArticlesForUser(u models.User, minTimestamp time.Time) 
 	return r.RowsAffected()
 }
 
+// DeleteArticlesByIdForUser deletes articles in the given list of IDs for the given user.
+func (d *Database) DeleteArticlesByIdForUser(u models.User, ids []int64) error {
+	defer logElapsedTime(time.Now(), "DeleteArticlesByIdForUser")
+
+	// This makes a comma-separated IDs as a string, e.g.: "[1, 2, 3]"
+	idStr := strings.Join(strings.Fields(fmt.Sprint(ids)), ",")
+
+	_, err := d.db.Exec(
+		`DELETE FROM `+articleTable+` WHERE userid = $1 AND id = ANY ARRAY `+idStr, u.UserId)
+	return err
+}
+
 // DeleteFeedForUser deletes the specified feed and all articles under that feed.
 func (d *Database) DeleteFeedForUser(u models.User, feedId int64, folderId int64) error {
 	defer logElapsedTime(time.Now(), "DeleteFeedForUser")
@@ -651,6 +663,34 @@ func (d *Database) GetUnreadArticlesForUser(u models.User, limit int, sinceID in
 	rows, err = d.db.Query(
 		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM `+articleTable+`
 		WHERE userid = $1 AND id > $2 AND NOT read ORDER BY id LIMIT $3`, u.UserId, sinceID, limit)
+	if err != nil {
+		return articles, err
+	}
+	defer closeSilent(rows)
+
+	for rows.Next() {
+		a := models.Article{}
+		if err = rows.Scan(
+			&a.ID, &a.FeedID, &a.FolderID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Date); err != nil {
+			return articles, err
+		}
+		articles = append(articles, a)
+	}
+	return articles, err
+}
+
+// GetUnreadArticlesForFeedForUser returns a list of unread articles for the
+// given feed ID and user.
+func (d *Database) GetUnreadArticlesForFeedForUser(u models.User, feedId int64) ([]models.Article, error) {
+	defer logElapsedTime(time.Now(), "GetUnreadArticlesForFeedForUser")
+
+	var articles []models.Article
+	var rows *sql.Rows
+	var err error
+
+	rows, err = d.db.Query(
+		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM `+articleTable+`
+		WHERE userid = $1 AND feed = $2 AND NOT read`, u.UserId, feedId)
 	if err != nil {
 		return articles, err
 	}
