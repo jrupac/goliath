@@ -41,7 +41,6 @@ func (r *RetrievalCache) Add(u models.User, entry string) {
 
 	r.lock.Lock()
 	defer r.lock.Unlock()
-	log.Infof("Add entry for user %s and entry %s", u.UserId, entry)
 
 	if cache, ok := r.caches[string(u.UserId)]; !ok {
 		log.Errorf("unknown user: %s", u.UserId)
@@ -65,7 +64,6 @@ func (r *RetrievalCache) Lookup(u models.User, entry string) bool {
 		return false
 	} else {
 		res := cache.Lookup([]byte(entry))
-		log.Infof("Lookup result for user %s and entry %s: %v", u.UserId, entry, res)
 		return res
 	}
 }
