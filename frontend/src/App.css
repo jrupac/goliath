@@ -87,6 +87,10 @@
   padding: 0;
 }
 
+.ant-card-type-inner .ant-card-body {
+  padding: 15px;
+}
+
 .card-selected {
   box-shadow: none;
   border: 1px solid #a6b1bd;
@@ -270,6 +274,8 @@
 
 .article-metadata {
   display: flex;
+  padding-top: 5px;
+  line-height: 16px;
 }
 
 .article-header a {
@@ -293,7 +299,6 @@
 .article-feed {
   font-size: 16px;
   display: flex;
-  padding-top: 5px;
   padding-left: 10px;
 }
 
@@ -304,7 +309,6 @@
 
 .article-date {
   color: #888;
-  padding-top: 5px;
   font-family: 'et-book', serif;
   padding-left: 10px;
   font-size: 16px;
