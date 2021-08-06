@@ -73,37 +73,35 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
 
     return (
       <div className="ant-card-outer">
-        <Card
-          className={cardClass}
-          title={
-            <div className={headerClass}>
-              <div className="article-title">
-                <a
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  href={this.props.article.url}>
-                  <div>
-                    <div
-                      dangerouslySetInnerHTML={{__html: this.props.article.title}}/>
-                  </div>
-                </a>
+        <Card className={cardClass}>
+          <Card type="inner" className={headerClass}>
+            <div className="article-title">
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href={this.props.article.url}>
+                <div>
+                  <div
+                    dangerouslySetInnerHTML={{__html: this.props.article.title}}/>
+                </div>
+              </a>
+            </div>
+            <div className="article-metadata">
+              <div className="article-feed">
+                {this.renderFavicon()}
+                <p className="article-feed-title">{feedTitle}</p>
               </div>
-              <div className="article-metadata">
-                <div className="article-feed">
-                  {this.renderFavicon()}
-                  <p className="article-feed-title">{feedTitle}</p>
-                </div>
-                <div className="article-date">
-                  <Tooltip
-                    title={formatFullDate(date)}
-                    overlayClassName="article-date-tooltip">
-                    {formatDate(date)}
-                  </Tooltip>
-                  {this.renderReadIcon()}
-                </div>
+              <div className="article-date">
+                <Tooltip
+                  title={formatFullDate(date)}
+                  overlayClassName="article-date-tooltip">
+                  {formatDate(date)}
+                </Tooltip>
+                {this.renderReadIcon()}
               </div>
             </div>
-          }>
+          </Card>
+
           <div className="article-content">
             {this.renderContent()}
           </div>
