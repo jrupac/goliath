@@ -21,7 +21,7 @@ export default class Loading extends React.Component<LoadingProps, never> {
           showInfo={false}
           status="active"
           strokeColor={{
-            from: "#ececec",
+            from: "#2c4650",
             to: "#222",
           }}
           strokeWidth={5}/>
