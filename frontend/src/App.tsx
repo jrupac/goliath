@@ -26,6 +26,8 @@ import {
   SelectionType,
   Status
 } from "./utils/types";
+import SimpleBar from 'simplebar-react';
+import 'simplebar/dist/simplebar.min.css';
 
 const {Content, Footer, Sider} = Layout;
 
@@ -465,7 +467,7 @@ export default class App extends React.Component<AppProps, AppState> {
           width={300}
           breakpoint="lg"
           collapsedWidth="0">
-          <div className="sider-container">
+          <SimpleBar className="sider-container">
             <div className="logo">
               Goliath
             </div>
@@ -477,25 +479,27 @@ export default class App extends React.Component<AppProps, AppState> {
                 selectionType={this.state.selectionType}
                 handleSelect={this.handleSelect}/>
             </Menu>
-          </div>
+          </SimpleBar>
         </Sider>
-        <Layout>
-          <Content>
-            <ArticleList
-              articleEntries={this.populateArticleListEntries()}
-              selectionKey={this.state.selectionKey}
-              selectionType={this.state.selectionType}
-              handleMark={this.handleMark}
-              selectAllCallback={() => this.handleSelect(SelectionType.All, KeyAll)}/>
-            <Footer>
-              Goliath RSS
-              <br/>
-              Built at: {this.state.buildTimestamp}
-              <br/>
-              {this.state.buildHash}
-            </Footer>
-          </Content>
-        </Layout>
+        <SimpleBar style={{width: "100%"}}>
+          <Layout>
+            <Content>
+              <ArticleList
+                articleEntries={this.populateArticleListEntries()}
+                selectionKey={this.state.selectionKey}
+                selectionType={this.state.selectionType}
+                handleMark={this.handleMark}
+                selectAllCallback={() => this.handleSelect(SelectionType.All, KeyAll)}/>
+              <Footer>
+                Goliath RSS
+                <br/>
+                Built at: {this.state.buildTimestamp}
+                <br/>
+                {this.state.buildHash}
+              </Footer>
+            </Content>
+          </Layout>
+        </SimpleBar>
       </Layout>
     );
   }

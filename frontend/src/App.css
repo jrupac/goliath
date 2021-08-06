@@ -1,5 +1,6 @@
 #root {
   height: 100%;
+  overflow-y: hidden;
 }
 
 @font-face {
@@ -85,12 +86,12 @@
 .card-selected,
 .card-selected .ant-card:hover {
   box-shadow: none;
-  border: 1px solid #404040;
+  border: 1px solid #aaa;
 }
 
 .ant-card:hover {
   box-shadow: none;
-  border: 1px solid #aaa;
+  border: 1px solid #404040;
 }
 
 /* Goliath elements */
@@ -157,7 +158,6 @@
 
 .sider-container {
   overflow-x: hidden;
-  overflow-y: scroll;
   height: 100%;
 }
 
