@@ -4,14 +4,15 @@
 }
 
 @font-face {
-  font-family: "et-book";
-  src: url("https://cdn.jsdelivr.net/font-et-book/0.1/et-book/et-book-roman-line-figures/et-book-roman-line-figures.woff") format("woff");
-  font-weight: normal;
-  font-style: normal
+  font-family: 'Adobe-Caslon-Pro';
+  src: local(Adobe-Caslon-Pro),
+  url(./fonts/Adobe-Caslon-Pro-Regular.ttf) format('ttf'),
+  url(./fonts/Adobe-Caslon-Pro-Regular.woff) format('woff'),
+  url(./fonts/Adobe-Caslon-Pro-Regular.woff2) format('woff2');
 }
 
 .App {
-  font-family: 'et-book', serif;
+  font-family: 'Adobe-Caslon-Pro', serif;
   height: 100%;
 }
 
@@ -32,7 +33,7 @@
   background-color: #2c4650;
   width: 300px;
   border-right: 1px solid #aaa;
-  font-family: 'Muli', sans-serif;
+  font-family: 'PT Sans Caption', sans-serif;
 }
 
 .ant-layout-sider .logo {
@@ -46,7 +47,7 @@
 
 .ant-layout-footer {
   text-align: center;
-  font-family: 'Muli', sans-serif;
+  font-family: 'PT Sans Caption', sans-serif;
 }
 
 /* antd Tree */
@@ -170,7 +171,6 @@
 }
 
 .all-items, .all-items-selected {
-  font-family: 'Muli', sans-serif;
   background-color: #2c4650;
   padding-right: 15px;
   padding-left: 30px;
@@ -200,7 +200,6 @@
 .goliath-ant-tree {
   background: #2c4650;
   line-height: 16px;
-  font-family: 'Muli', sans-serif;
   color: #e6f2f7;
 }
 
@@ -253,7 +252,7 @@
 .article-list-empty-text {
   color: #888;
   vertical-align: middle;
-  font-family: 'Muli', sans-serif;
+  font-family: 'PT Sans Caption', sans-serif;
 }
 
 /* Article */
@@ -268,7 +267,7 @@
 
 .article-title {
   width: 100%;
-  font-family: 'et-book', serif;
+  font-family: 'Adobe-Caslon-Pro', serif;
   font-size: 24px;
 }
 
@@ -309,7 +308,7 @@
 
 .article-date {
   color: #888;
-  font-family: 'et-book', serif;
+  font-family: 'Adobe-Caslon-Pro', serif;
   padding-left: 10px;
   font-size: 16px;
   text-align: right;
@@ -323,7 +322,7 @@
 
 .article-content {
   font-size: 18px;
-  font-family: 'et-book', serif;
+  font-family: 'Adobe-Caslon-Pro', serif;
   color: black;
   padding: 24px;
 }
