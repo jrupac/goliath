@@ -73,8 +73,8 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
 
     return (
       <div className="ant-card-outer">
-        <Card className={cardClass}>
-          <Card type="inner" className={headerClass}>
+        <Card bordered={false} className={cardClass}>
+          <Card type="inner" bordered={false} className={headerClass}>
             <div className="article-title">
               <a
                 target="_blank"
