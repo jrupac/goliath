@@ -503,7 +503,7 @@ export default class App extends React.Component<AppProps, AppState> {
             </Menu>
           </SimpleBar>
         </Sider>
-        <SimpleBar style={{width: "100%"}}>
+        <SimpleBar style={{width: "100%"}} className="content">
           <Layout className="article-list">
             <Content>
               <ArticleList
@@ -512,7 +512,7 @@ export default class App extends React.Component<AppProps, AppState> {
                 selectionType={this.state.selectionType}
                 handleMark={this.handleMark}
                 selectAllCallback={() => this.handleSelect(SelectionType.All, KeyAll)}/>
-              <Footer>
+              <Footer className="footer">
                 Goliath RSS
                 <br/>
                 Built at: {this.state.buildTimestamp}

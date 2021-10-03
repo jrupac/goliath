@@ -45,11 +45,6 @@
   padding-bottom: 20px;
 }
 
-.ant-layout-footer {
-  text-align: center;
-  font-family: 'PT Sans Caption', sans-serif;
-}
-
 /* antd Tree */
 
 .ant-tree .ant-tree-node-content-wrapper:hover {
@@ -229,6 +224,20 @@
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--primary-font-color);
+}
+
+/* Main Container */
+
+.content {
+}
+
+/* Footer */
+
+.footer {
+  text-align: center;
+  font-family: 'PT Sans Caption', sans-serif;
+  color: var(--article-list-empty-primary-font-color);
+  background-color: var(--article-list-background-color);
 }
 
 /* Article list */
