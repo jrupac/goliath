@@ -24,10 +24,14 @@ import {
   MarkState,
   SelectionKey,
   SelectionType,
-  Status
+  Status,
+  Theme
 } from "./utils/types";
 import SimpleBar from 'simplebar-react';
 import 'simplebar/dist/simplebar.min.css';
+
+import './themes/default.css';
+import './themes/dark.css';
 
 const {Content, Footer, Sider} = Layout;
 
@@ -42,6 +46,7 @@ export interface AppState {
   status: Status;
   structure: Map<FolderId, Folder>;
   unreadCount: number;
+  theme: Theme;
   // Fever response types
   feverFetchGroupsResponse: FeverFetchGroupsType;
   feverFetchFeedsResponse: FeverFetchFeedsType;
@@ -101,6 +106,7 @@ export default class App extends React.Component<AppProps, AppState> {
       status: Status.Start,
       structure: new Map<FolderId, Folder>(),
       unreadCount: 0,
+      theme: Theme.Default,
       // Fever response types
       feverFetchGroupsResponse: {groups: [], feeds_groups: []},
       feverFetchFeedsResponse: {feeds: [], feeds_groups: []},
@@ -109,6 +115,14 @@ export default class App extends React.Component<AppProps, AppState> {
 
     };
   }
+
+  componentWillMount() {
+    window.addEventListener('keydown', this.handleKeyDown);
+  };
+
+  componentWillUnmount() {
+    window.removeEventListener('keydown', this.handleKeyDown);
+  };
 
   componentDidMount() {
     Promise.all(
@@ -461,8 +475,16 @@ export default class App extends React.Component<AppProps, AppState> {
     } else {
       document.title = `(${this.state.unreadCount})  Goliath RSS`;
     }
+
+    let themeClasses: string;
+    if (this.state.theme === Theme.Default) {
+      themeClasses = 'default-theme';
+    } else {
+      themeClasses = 'dark-theme';
+    }
+
     return (
-      <Layout className="App">
+      <Layout className={`App ${themeClasses}`}>
         <Sider
           width={300}
           breakpoint="lg"
@@ -482,7 +504,7 @@ export default class App extends React.Component<AppProps, AppState> {
           </SimpleBar>
         </Sider>
         <SimpleBar style={{width: "100%"}}>
-          <Layout>
+          <Layout className="article-list">
             <Content>
               <ArticleList
                 articleEntries={this.populateArticleListEntries()}
@@ -563,6 +585,34 @@ export default class App extends React.Component<AppProps, AppState> {
     }
 
     return sortArticles(entries.filter(articleIsUnread));
+  }
+
+  handleKeyDown = (event: KeyboardEvent) => {
+    // Ignore keypress events when some modifiers are also enabled to avoid
+    // triggering on (e.g.) browser shortcuts. Shift is the exception here since
+    // we do care about Shift+I.
+    if (event.altKey || event.metaKey || event.ctrlKey) {
+      return;
+    }
+
+    this.setState((prevState) => {
+      let theme: Theme = prevState.theme;
+
+      switch (event.key) {
+      case 't':
+        console.log("THEME CHANGE");
+        if (theme === Theme.Default) {
+          theme = Theme.Dark;
+        } else {
+          theme = Theme.Default;
+        }
+        break;
+      }
+
+      return {
+        theme: theme
+      };
+    });
   }
 }
 

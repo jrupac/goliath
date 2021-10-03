@@ -1,0 +1,29 @@
+.dark-theme {
+  --primary-background-color: #243941;
+  --primary-selected-color: #1b292f;
+
+  --primary-font-color: #e6f2f7;
+
+  --login-failed-font-color: #f04134;
+
+  --sider-border-color: black;
+
+  --article-list-background-color: #111;
+
+  --article-list-empty-primary-font-color: #ababab;
+  --article-list-empty-text-font-color: #888;
+
+  --card-normal-border-color: #333;
+  --card-selected-border-color: #888;
+  --card-shadow-color: black;
+
+  --card-header-background-color: #333;
+  --article-header-unread-font-color: white;
+  --article-header-read-font-color: #888;
+
+  --article-feed-title-font-color: white;
+
+  --article-background-color: #211f1f;
+  --article-date-color: #888;
+  --article-font-color: white;
+}

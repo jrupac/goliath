@@ -1,5 +1,11 @@
 /** Global types for Goliath RSS */
 
+/** Theme is a list of possible theme values for the application. */
+export enum Theme {
+  Default = 0,
+  Dark = 1 << 0,
+}
+
 /** Status describes which items have been fetched so far via the Fever API. */
 export enum Status {
   Start = 0,
