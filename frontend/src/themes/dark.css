@@ -8,15 +8,18 @@
 
   --sider-border-color: black;
 
-  --article-list-background-color: #111;
+  --article-list-background-color: #1a1a1a;
 
   --article-list-empty-primary-font-color: #ababab;
   --article-list-empty-text-font-color: #888;
 
+  --card-normal-border-color: #211f1f;
   --card-selected-border-color: #333;
-  --card-shadow-color: black;
+  --card-shadow-color: #111111;
 
   --card-header-background-color: #333;
+  --card-header-selected-background-color: #525252;
+
   --article-header-unread-font-color: white;
   --article-header-read-font-color: #888;
 

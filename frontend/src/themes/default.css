@@ -13,10 +13,13 @@
   --article-list-empty-primary-font-color: #ababab;
   --article-list-empty-text-font-color: #888;
 
-  --card-selected-border-color: #a6b1bd;
-  --card-shadow-color: lightgrey;
+  --card-normal-border-color: white;
+  --card-selected-border-color: white;
+  --card-shadow-color: #d9d9d9;
 
   --card-header-background-color: #f3f3f3;
+  --card-header-selected-background-color: #e5e5e5;
+
   --article-header-unread-font-color: #222;
   --article-header-read-font-color: #aaa;
 

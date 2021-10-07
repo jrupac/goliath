@@ -64,7 +64,7 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
 
     let headerClass: string;
     if (this.props.isSelected) {
-      headerClass = 'article-header';
+      headerClass = 'article-header article-header-selected';
     } else if (this.props.article.is_read === 1) {
       headerClass = 'article-header-read';
     } else {

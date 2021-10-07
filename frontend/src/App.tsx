@@ -106,7 +106,7 @@ export default class App extends React.Component<AppProps, AppState> {
       status: Status.Start,
       structure: new Map<FolderId, Folder>(),
       unreadCount: 0,
-      theme: Theme.Default,
+      theme: Theme.Dark,
       // Fever response types
       feverFetchGroupsResponse: {groups: [], feeds_groups: []},
       feverFetchFeedsResponse: {feeds: [], feeds_groups: []},
