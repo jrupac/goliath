@@ -1,6 +1,8 @@
 module.exports = {
   "extends": ["react-app"],
   "rules": {
+    "no-use-before-define": "off",
+    "@typescript-eslint/no-use-before-define": ["error"],
     "default-case": "off",
     "id-length": "off",
     "indent": ["error", 2],
