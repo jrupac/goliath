@@ -1,10 +1,15 @@
-import Card from 'antd/lib/card';
 import moment from 'moment';
 import React, {ReactNode} from "react";
-import Tooltip from 'antd/lib/tooltip';
 import {Article} from "../utils/types";
 import Mercury from '@postlight/mercury-parser';
-import {Skeleton} from "antd";
+import {
+  Box,
+  Card,
+  CardContent,
+  CardHeader,
+  Skeleton,
+  Tooltip
+} from "@mui/material";
 
 export interface ArticleProps {
   article: Article;
@@ -59,67 +64,58 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
 
   render() {
     const date = new Date(this.props.article.created_on_time * 1000);
-    const cardClass = this.props.isSelected ? 'card-selected' : 'card-normal';
     const feedTitle = this.props.title;
 
-    let headerClass: string;
+    let headerClass = '';
+    let elevation;
+
     if (this.props.isSelected) {
-      headerClass = 'article-header article-header-selected';
+      elevation = 8;
     } else if (this.props.article.is_read === 1) {
       headerClass = 'article-header-read';
+      elevation = 1;
     } else {
-      headerClass = 'article-header';
+      elevation = 2;
     }
 
     return (
-      <div className="ant-card-outer">
-        <Card bordered={false} className={cardClass}>
-          <Card type="inner" bordered={false} className={headerClass}>
-            <div className="article-title">
-              <a
-                target="_blank"
-                rel="noopener noreferrer"
-                href={this.props.article.url}>
-                <div>
-                  <div
-                    dangerouslySetInnerHTML={{__html: this.props.article.title}}/>
-                </div>
-              </a>
-            </div>
-            <div className="article-metadata">
-              <div className="article-feed">
-                {this.renderFavicon()}
-                <p className="article-feed-title">{feedTitle}</p>
-              </div>
-              <div className="article-date">
+      <Box className="GoliathArticleOuter">
+        <Card elevation={elevation}>
+          <CardHeader
+            className={`GoliathArticleHeader ${headerClass}`}
+            title={
+              <Box className="GoliathArticleTitle">
+                <a
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  href={this.props.article.url}>
+                  <div>
+                    <div
+                      dangerouslySetInnerHTML={{__html: this.props.article.title}}/>
+                  </div>
+                </a>
+              </Box>
+            }
+            subheader={
+              <Box className="GoliathArticleMeta">
+                <Box className="GoliathArticleFeed">
+                  {this.renderFavicon()}
+                  <p className="GoliathArticleFeedTitle">{feedTitle}</p>
+                </Box>
                 <Tooltip
-                  title={formatFullDate(date)}
-                  overlayClassName="article-date-tooltip">
-                  {formatDate(date)}
+                  title={formatFullDate(date)}>
+                  <Box className="GoliathArticleDate">
+                    {formatDate(date)}
+                  </Box>
                 </Tooltip>
-                {this.renderReadIcon()}
-              </div>
-            </div>
-          </Card>
-
-          <div className="article-content">
+              </Box>
+            }/>
+          <CardContent className="GoliathArticleContent">
             {this.renderContent()}
-          </div>
+          </CardContent>
         </Card>
-      </div>
+      </Box>
     )
-  }
-
-  renderReadIcon() {
-    if (this.props.article.is_read === 1) {
-      return <i
-        className="fa fa-circle-thin article-status-read"
-        aria-hidden="true"/>
-    } else {
-      return <i
-        className="fa fa-circle article-status-unread"
-        aria-hidden="true"/>
-    }
   }
 
   renderFavicon() {
@@ -133,7 +129,11 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
 
   renderContent(): ReactNode {
     if (this.state.loading) {
-      return <Skeleton active/>;
+      return <Box>
+        <Skeleton variant="text" animation="wave"/>
+        <Skeleton variant="text" animation="wave"/>
+        <Skeleton variant="text" animation="wave"/>
+      </Box>;
     } else {
       return <div
         dangerouslySetInnerHTML={{__html: this.getArticleContent()}}/>;

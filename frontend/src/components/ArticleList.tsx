@@ -8,7 +8,8 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-import {Empty} from "antd";
+import {Box, Container, Typography} from "@mui/material";
+import InboxIcon from '@mui/icons-material/Inbox';
 
 const goToAllSequence = ['g', 'a'];
 const markAllRead = ['Shift', 'I'];
@@ -67,13 +68,14 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
   render() {
     if (this.state.articleEntries.length === 0) {
       return (
-        <Empty
-          className="article-list-empty"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            <p className="article-list-empty-text">No unread articles</p>
-          }>
-        </Empty>
+        <Container fixed className="GoliathArticleListContainer">
+          <Box className="GoliathArticleListEmpty">
+            <InboxIcon className="GoliathArticleListEmptyIcon"/>
+            <Typography className="GoliathArticleListEmptyText">
+              No unread articles
+            </Typography>
+          </Box>
+        </Container>
       )
     } else {
       const articles = this.state.articleEntries;

@@ -9,6 +9,8 @@ import {
   SelectionType
 } from "../utils/types";
 import {CaretDownOutlined} from '@ant-design/icons';
+import {Box} from "@mui/material";
+import InboxIcon from "@mui/icons-material/Inbox";
 
 export interface FolderFeedListProps {
   tree: Map<FolderId, Folder>;
@@ -60,7 +62,7 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
 
     if (!this.props.selectedKey || this.props.selectedKey === KeyAll) {
       selectedKeys = [];
-      allSelectedClass = 'all-items-selected';
+      allSelectedClass = 'GoliathAllItemsSelected';
     } else {
       switch (this.props.selectionType) {
       case SelectionType.Article:
@@ -68,17 +70,17 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
           "Cannot render folder feed list with article selection");
       case SelectionType.Folder:
         selectedKeys = [this.props.selectedKey as string];
-        allSelectedClass = 'all-items';
+        allSelectedClass = 'GoliathAllItems';
         break;
       case SelectionType.Feed:
         const feedId = this.props.selectedKey[0];
         selectedKeys = [feedId as string];
-        allSelectedClass = 'all-items';
+        allSelectedClass = 'GoliathAllItems';
         break;
       case SelectionType.All: // fallthrough
       default:
         selectedKeys = [];
-        allSelectedClass = 'all-items-selected';
+        allSelectedClass = 'GoliathAllItemsSelected';
       }
     }
 
@@ -96,17 +98,15 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     );
 
     return (
-      <div>
-        <div
+      <Box>
+        <Box
           onClick={() => this.handleSelect([KeyAll])}
           className={allSelectedClass}>
-          <i
-            className="fas fa-inbox"
-            aria-hidden="true"/>
-          <div className='all-items-text'>
+          <InboxIcon fontSize="small"/>
+          <Box className={allSelectedClass}>
             {this.renderAllItemsTitle()}
-          </div>
-        </div>
+          </Box>
+        </Box>
         <Tree
           blockNode
           className="goliath-ant-tree"
@@ -118,7 +118,7 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
           titleRender={titleRender}
           treeData={treeData}>
         </Tree>
-      </div>
+      </Box>
     )
   }
 

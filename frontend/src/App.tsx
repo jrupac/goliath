@@ -5,7 +5,6 @@ import {Decimal} from 'decimal.js-light';
 import FolderFeedList from './components/FolderFeedList';
 import Layout from 'antd/lib/layout';
 import Loading from './components/Loading';
-import Menu from 'antd/lib/menu';
 import React from 'react';
 import * as LosslessJSON from 'lossless-json';
 import {
@@ -27,14 +26,17 @@ import {
   Status,
   Theme
 } from "./utils/types";
-import SimpleBar from 'simplebar-react';
 import 'simplebar/dist/simplebar.min.css';
 
 import './themes/default.css';
 import './themes/dark.css';
 import {
+  Box,
   createTheme,
   CssBaseline,
+  darkScrollbar,
+  Divider,
+  Drawer,
   PaletteMode,
   ThemeProvider
 } from "@mui/material";
@@ -494,50 +496,67 @@ export default class App extends React.Component<AppProps, AppState> {
       palette: {
         mode: paletteMode,
       },
+      components: {
+        MuiCssBaseline: {
+          styleOverrides: {
+            body: paletteMode === 'dark' ? darkScrollbar() : null,
+          },
+        },
+      },
     });
 
     return (
       <ThemeProvider theme={theme}>
-        <CssBaseline/>
-        <Layout className={`App ${themeClasses}`}>
-          <Sider
-            width={300}
-            breakpoint="lg"
-            collapsedWidth="0">
-            <SimpleBar className="sider-container">
-              <div className="logo">
-                Goliath
-              </div>
-              <Menu mode="inline" theme="dark">
-                <FolderFeedList
-                  tree={this.state.structure}
-                  unreadCount={this.state.unreadCount}
-                  selectedKey={this.state.selectionKey}
-                  selectionType={this.state.selectionType}
-                  handleSelect={this.handleSelect}/>
-              </Menu>
-            </SimpleBar>
-          </Sider>
-          <SimpleBar style={{width: "100%"}} className="content">
+        {/* TODO: Is there a better way to inject overrides than this? */}
+        <Box sx={{display: 'flex'}} className={`${themeClasses}`}>
+          <CssBaseline/>
+          <Drawer
+            variant="permanent"
+            anchor="left"
+            className="GoliathDrawer"
+          >
+            <Box
+              className="GoliathLogo">
+              Goliath
+            </Box>
+            <Box>
+              <FolderFeedList
+                tree={this.state.structure}
+                unreadCount={this.state.unreadCount}
+                selectedKey={this.state.selectionKey}
+                selectionType={this.state.selectionType}
+                handleSelect={this.handleSelect}/>
+            </Box>
+            <Divider variant="middle"/>
+            <Box className="GoliathFooter">
+              Goliath RSS
+              <br/>
+              Built at: {this.state.buildTimestamp}
+              <br/>
+              {this.state.buildHash}
+            </Box>
+          </Drawer>
+
+          <Box
+            component="main"
+            className="GoliathMainContainer"
+          >
             <Layout className="article-list">
-              <Content>
+              <Box>
                 <ArticleList
                   articleEntries={this.populateArticleListEntries()}
                   selectionKey={this.state.selectionKey}
                   selectionType={this.state.selectionType}
                   handleMark={this.handleMark}
                   selectAllCallback={() => this.handleSelect(SelectionType.All, KeyAll)}/>
-                <Footer className="footer">
-                  Goliath RSS
-                  <br/>
-                  Built at: {this.state.buildTimestamp}
-                  <br/>
-                  {this.state.buildHash}
-                </Footer>
-              </Content>
+
+              </Box>
             </Layout>
-          </SimpleBar>
-        </Layout>
+
+          </Box>
+
+
+        </Box>
       </ThemeProvider>
     );
   }
