@@ -1,3 +1,7 @@
+/******************************************************************************
+ * Global Elements
+ ******************************************************************************/
+
 #root {
   height: 100%;
   overflow-y: hidden;
@@ -25,7 +29,10 @@
   }
 }
 
-/* antd elements */
+/******************************************************************************
+ * antd Elements
+ * TODO: Get rid of these.
+ ******************************************************************************/
 
 /* antd Layout */
 
@@ -53,6 +60,13 @@
 
 .ant-tree .ant-tree-node-content-wrapper.ant-tree-node-selected {
   background-color: var(--primary-selected-color);
+}
+
+/* antd Content */
+
+.ant-layout-content {
+  display: flex;
+  flex-direction: column;
 }
 
 /* antd Card */
@@ -105,7 +119,18 @@
   box-shadow: 0 0 5px 3px var(--card-shadow-color);
 }
 
-/* Goliath elements */
+/******************************************************************************
+ * Simplebar Elements
+ * TODO: Get rid of these.
+ ******************************************************************************/
+
+.simplebar-content-wrapper {
+  background-color: var(--article-list-background-color);
+}
+
+/******************************************************************************
+ * Goliath Elements
+ ******************************************************************************/
 
 /* Loading Page */
 
@@ -240,6 +265,7 @@
   font-family: 'PT Sans Caption', sans-serif;
   color: var(--article-list-empty-primary-font-color);
   background-color: var(--article-list-background-color);
+  flex-grow: 1;
 }
 
 /* Article list */
@@ -250,6 +276,7 @@
 
 .article-list {
   background-color: var(--article-list-background-color);
+  height: 100vh;
 }
 
 .article-list-empty {
@@ -260,6 +287,7 @@
   font-size: 24px;
   height: 80%;
   justify-content: center;
+  flex-grow: 8;
 }
 
 .article-list-empty-icon {
