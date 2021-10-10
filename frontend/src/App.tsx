@@ -41,8 +41,6 @@ import {
   ThemeProvider
 } from "@mui/material";
 
-const {Content, Footer, Sider} = Layout;
-
 export interface AppProps {
 }
 
@@ -473,16 +471,6 @@ export default class App extends React.Component<AppProps, AppState> {
   };
 
   render() {
-    if (this.state.status !== Status.Ready) {
-      return <Loading status={this.state.status}/>;
-    }
-
-    if (this.state.unreadCount === 0) {
-      document.title = 'Goliath RSS';
-    } else {
-      document.title = `(${this.state.unreadCount})  Goliath RSS`;
-    }
-
     let themeClasses: string, paletteMode: PaletteMode;
     if (this.state.theme === Theme.Default) {
       themeClasses = 'default-theme';
@@ -504,6 +492,20 @@ export default class App extends React.Component<AppProps, AppState> {
         },
       },
     });
+
+    if (this.state.status !== Status.Ready) {
+      return (
+        <ThemeProvider theme={theme}>
+          <CssBaseline/>
+          <Loading status={this.state.status}/>
+        </ThemeProvider>);
+    }
+
+    if (this.state.unreadCount === 0) {
+      document.title = 'Goliath RSS';
+    } else {
+      document.title = `(${this.state.unreadCount})  Goliath RSS`;
+    }
 
     return (
       <ThemeProvider theme={theme}>
@@ -552,10 +554,7 @@ export default class App extends React.Component<AppProps, AppState> {
 
               </Box>
             </Layout>
-
           </Box>
-
-
         </Box>
       </ThemeProvider>
     );

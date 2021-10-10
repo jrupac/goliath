@@ -40,15 +40,17 @@
 
 /* Loading Page */
 
-.loading-page-container {
+.GoliathLoadingPageContainer {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  color: var(--primary-background-color);
-  height: 100%;
+  background-color: var(--primary-background-color);
+  color: var(--primary-font-color);
+  height: 100vh;
+  align-items: center;
 }
 
-.loading-page {
+.GoliathLoadingProgress {
   padding: 0 25% 0 25%;
 }
 
@@ -196,12 +198,13 @@
 
 .GoliathMainContainer {
   flex-grow: 1;
+  background-color: var(--article-list-background-color);
 }
 
 /* Article list */
 
 .GoliathArticleListContainer {
-  height: 100vh;
+  min-height: 100vh;
 }
 
 .content-container {
@@ -210,7 +213,6 @@
 
 .article-list {
   background-color: var(--article-list-background-color);
-  height: 100vh;
 }
 
 .GoliathArticleListEmpty {
@@ -219,7 +221,7 @@
   text-align: center;
   color: var(--article-list-empty-primary-font-color);
   font-size: 24px;
-  height: 100%;
+  height: 100vh;
   justify-content: center;
 }
 

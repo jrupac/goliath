@@ -1,7 +1,7 @@
-import Progress from 'antd/lib/progress';
 import * as React from "react";
 
 import {Status} from "../utils/types";
+import {Box, LinearProgress} from "@mui/material";
 
 export interface LoadingProps {
   // TODO: Make "status" a proper type.
@@ -14,18 +14,12 @@ export default class Loading extends React.Component<LoadingProps, never> {
       Status.Folder | Status.Feed |
       Status.Article | Status.Favicon);
     return (
-      <div className="loading-page-container">
-        <Progress
-          percent={100 * progress}
-          className="loading-page"
-          showInfo={false}
-          status="active"
-          strokeColor={{
-            from: "#2c4650",
-            to: "#222",
-          }}
-          strokeWidth={5}/>
-      </div>
+      <Box className="GoliathLoadingPageContainer">
+        <LinearProgress
+          value={100 * progress}
+          className="GoliathLoadingProgress"
+          variant="determinate"/>
+      </Box>
     )
   }
 }
