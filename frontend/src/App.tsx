@@ -32,6 +32,12 @@ import 'simplebar/dist/simplebar.min.css';
 
 import './themes/default.css';
 import './themes/dark.css';
+import {
+  createTheme,
+  CssBaseline,
+  PaletteMode,
+  ThemeProvider
+} from "@mui/material";
 
 const {Content, Footer, Sider} = Layout;
 
@@ -112,7 +118,6 @@ export default class App extends React.Component<AppProps, AppState> {
       feverFetchFeedsResponse: {feeds: [], feeds_groups: []},
       feverFetchFaviconsResponse: {favicons: []},
       feverFetchItemsResponse: {items: [], total_items: 0}
-
     };
   }
 
@@ -476,53 +481,64 @@ export default class App extends React.Component<AppProps, AppState> {
       document.title = `(${this.state.unreadCount})  Goliath RSS`;
     }
 
-    let themeClasses: string;
+    let themeClasses: string, paletteMode: PaletteMode;
     if (this.state.theme === Theme.Default) {
       themeClasses = 'default-theme';
+      paletteMode = 'light';
     } else {
       themeClasses = 'dark-theme';
+      paletteMode = 'dark';
     }
 
+    const theme = createTheme({
+      palette: {
+        mode: paletteMode,
+      },
+    });
+
     return (
-      <Layout className={`App ${themeClasses}`}>
-        <Sider
-          width={300}
-          breakpoint="lg"
-          collapsedWidth="0">
-          <SimpleBar className="sider-container">
-            <div className="logo">
-              Goliath
-            </div>
-            <Menu mode="inline" theme="dark">
-              <FolderFeedList
-                tree={this.state.structure}
-                unreadCount={this.state.unreadCount}
-                selectedKey={this.state.selectionKey}
-                selectionType={this.state.selectionType}
-                handleSelect={this.handleSelect}/>
-            </Menu>
+      <ThemeProvider theme={theme}>
+        <CssBaseline/>
+        <Layout className={`App ${themeClasses}`}>
+          <Sider
+            width={300}
+            breakpoint="lg"
+            collapsedWidth="0">
+            <SimpleBar className="sider-container">
+              <div className="logo">
+                Goliath
+              </div>
+              <Menu mode="inline" theme="dark">
+                <FolderFeedList
+                  tree={this.state.structure}
+                  unreadCount={this.state.unreadCount}
+                  selectedKey={this.state.selectionKey}
+                  selectionType={this.state.selectionType}
+                  handleSelect={this.handleSelect}/>
+              </Menu>
+            </SimpleBar>
+          </Sider>
+          <SimpleBar style={{width: "100%"}} className="content">
+            <Layout className="article-list">
+              <Content>
+                <ArticleList
+                  articleEntries={this.populateArticleListEntries()}
+                  selectionKey={this.state.selectionKey}
+                  selectionType={this.state.selectionType}
+                  handleMark={this.handleMark}
+                  selectAllCallback={() => this.handleSelect(SelectionType.All, KeyAll)}/>
+                <Footer className="footer">
+                  Goliath RSS
+                  <br/>
+                  Built at: {this.state.buildTimestamp}
+                  <br/>
+                  {this.state.buildHash}
+                </Footer>
+              </Content>
+            </Layout>
           </SimpleBar>
-        </Sider>
-        <SimpleBar style={{width: "100%"}} className="content">
-          <Layout className="article-list">
-            <Content>
-              <ArticleList
-                articleEntries={this.populateArticleListEntries()}
-                selectionKey={this.state.selectionKey}
-                selectionType={this.state.selectionType}
-                handleMark={this.handleMark}
-                selectAllCallback={() => this.handleSelect(SelectionType.All, KeyAll)}/>
-              <Footer className="footer">
-                Goliath RSS
-                <br/>
-                Built at: {this.state.buildTimestamp}
-                <br/>
-                {this.state.buildHash}
-              </Footer>
-            </Content>
-          </Layout>
-        </SimpleBar>
-      </Layout>
+        </Layout>
+      </ThemeProvider>
     );
   }
 
@@ -595,18 +611,21 @@ export default class App extends React.Component<AppProps, AppState> {
       return;
     }
 
+    switch (event.key) {
+    case 't':
+      console.log("THEME CHANGE");
+      this.toggleColorMode();
+    }
+  }
+
+  toggleColorMode = () => {
     this.setState((prevState) => {
       let theme: Theme = prevState.theme;
 
-      switch (event.key) {
-      case 't':
-        console.log("THEME CHANGE");
-        if (theme === Theme.Default) {
-          theme = Theme.Dark;
-        } else {
-          theme = Theme.Default;
-        }
-        break;
+      if (theme === Theme.Default) {
+        theme = Theme.Dark;
+      } else {
+        theme = Theme.Default;
       }
 
       return {

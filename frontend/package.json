@@ -4,6 +4,8 @@
   "private": true,
   "proxy": "http://localhost:9999",
   "dependencies": {
+    "@emotion/react": "^11.4.1",
+    "@emotion/styled": "^11.3.0",
     "@mui/material": "^5.0.3",
     "@postlight/mercury-parser": "^2.2.1",
     "@types/jest": "^24.9.1",
