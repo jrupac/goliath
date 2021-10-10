@@ -80,7 +80,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     } else {
       const articles = this.state.articleEntries;
       return (
-        <div className="content-container">
+        <Box className="GoliathArticleListContainer">
           <ReactList
             ref={this.handleMounted}
             itemRenderer={(e) => this.renderArticle(articles, e)}
@@ -88,7 +88,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
             minSize={5}
             threshold={1000}
             type='variable'/>
-        </div>
+        </Box>
       )
     }
   }

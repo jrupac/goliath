@@ -72,7 +72,7 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
     if (this.props.isSelected) {
       elevation = 8;
     } else if (this.props.article.is_read === 1) {
-      headerClass = 'article-header-read';
+      headerClass = 'GoliathArticleHeaderRead';
       elevation = 1;
     } else {
       elevation = 2;

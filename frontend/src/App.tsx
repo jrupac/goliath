@@ -3,7 +3,6 @@ import './App.css';
 import ArticleList from './components/ArticleList';
 import {Decimal} from 'decimal.js-light';
 import FolderFeedList from './components/FolderFeedList';
-import Layout from 'antd/lib/layout';
 import Loading from './components/Loading';
 import React from 'react';
 import * as LosslessJSON from 'lossless-json';
@@ -543,17 +542,14 @@ export default class App extends React.Component<AppProps, AppState> {
             component="main"
             className="GoliathMainContainer"
           >
-            <Layout className="article-list">
-              <Box>
-                <ArticleList
-                  articleEntries={this.populateArticleListEntries()}
-                  selectionKey={this.state.selectionKey}
-                  selectionType={this.state.selectionType}
-                  handleMark={this.handleMark}
-                  selectAllCallback={() => this.handleSelect(SelectionType.All, KeyAll)}/>
-
-              </Box>
-            </Layout>
+            <Box>
+              <ArticleList
+                articleEntries={this.populateArticleListEntries()}
+                selectionKey={this.state.selectionKey}
+                selectionType={this.state.selectionType}
+                handleMark={this.handleMark}
+                selectAllCallback={() => this.handleSelect(SelectionType.All, KeyAll)}/>
+            </Box>
           </Box>
         </Box>
       </ThemeProvider>

@@ -151,8 +151,6 @@
   background-color: var(--primary-selected-color);
 }
 
-
-
 .goliath-ant-tree {
   background: var(--primary-background-color);
   line-height: 16px;
@@ -205,14 +203,7 @@
 
 .GoliathArticleListContainer {
   min-height: 100vh;
-}
-
-.content-container {
   margin: 0 24px;
-}
-
-.article-list {
-  background-color: var(--article-list-background-color);
 }
 
 .GoliathArticleListEmpty {
