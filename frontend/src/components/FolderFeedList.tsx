@@ -1,5 +1,4 @@
 import React, {ReactNode, ReactText} from 'react';
-import Tree from 'antd/lib/tree';
 import {
   Feed,
   Folder,
@@ -8,9 +7,12 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-import {CaretDownOutlined} from '@ant-design/icons';
 import {Box} from "@mui/material";
 import InboxIcon from "@mui/icons-material/Inbox";
+import TreeView from '@mui/lab/TreeView';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import {TreeItem} from "@mui/lab";
 
 export interface FolderFeedListProps {
   tree: Map<FolderId, Folder>;
@@ -35,16 +37,12 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     this.handleSelect = this.handleSelect.bind(this);
   }
 
-  handleSelect = (keys: ReactText[]) => {
+  handleSelect = (_: any, key: string[] | string) => {
     let selectionKey: SelectionKey;
     let selectionType: SelectionType;
-    let key: ReactText;
 
-    // This tree can only have one node selected at a time.
-    if (keys && keys.length === 1) {
-      key = keys[0];
-    } else {
-      throw new Error("Unexpected tree node selection: " + keys.toString());
+    if (typeof key !== 'string') {
+      throw new Error("Unexpected type: " + key)
     }
 
     let entry = this.state.keyCache.get(key);
@@ -84,40 +82,37 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
       }
     }
 
-    // TODO: Implement folder expansion with override correctly.
-    // const expandedKeys = Array.from(tree.entries()).map(
-    //     ([k, v]) => ( (v.unread_count > 0) ? k : null));
-
-    const treeData = Array.from(
-      tree.entries(), ([k, v]) => (
-        {
-          key: k.toString(),
-          title: renderFolderTitle(v),
-          children: Array.from(v.feeds.values()).map(renderFeed),
-        })
-    );
-
     return (
       <Box>
         <Box
-          onClick={() => this.handleSelect([KeyAll])}
+          onClick={() => this.handleSelect(null, KeyAll)}
           className={allSelectedClass}>
           <InboxIcon fontSize="small"/>
           <Box className={allSelectedClass}>
             {this.renderAllItemsTitle()}
           </Box>
         </Box>
-        <Tree
-          blockNode
+
+        {/* TODO: Enable collapsing? */}
+        <TreeView
           className="goliath-ant-tree"
-          defaultExpandAll
-          onSelect={this.handleSelect}
-          selectedKeys={selectedKeys}
-          showIcon
-          switcherIcon={<CaretDownOutlined className="goliath-tree-switcher"/>}
-          titleRender={titleRender}
-          treeData={treeData}>
-        </Tree>
+          onNodeSelect={this.handleSelect}
+          selected={selectedKeys}
+          expanded={Array.from(tree.keys(), (k) => k.toString())}
+          defaultExpandIcon={<ChevronRightIcon/>}
+          defaultCollapseIcon={<ExpandMoreIcon/>}
+        >
+          {
+            Array.from(
+              tree.entries(), ([k, v]) => (
+                <TreeItem
+                  nodeId={k.toString()}
+                  label={renderFolderTitle(v)}
+                >
+                  {Array.from(v.feeds.values()).map(makeFeedRow)}
+                </TreeItem>))
+          }
+        </TreeView>
       </Box>
     )
   }
@@ -159,11 +154,7 @@ function renderFolderTitle(folder: Folder) {
   }
 }
 
-function titleRender(nodeData: any): ReactNode {
-  return <span className="goliath-feed-title">{nodeData['title']}</span>;
-}
-
-function renderFeed(feed: Feed) {
+function makeFeedRow(feed: Feed) {
   let img: ReactNode;
   if (feed.favicon === '') {
     img = <i className="fas fa-rss-square"/>
@@ -179,9 +170,8 @@ function renderFeed(feed: Feed) {
     title = <b>{`(${feed.unread_count})  ${feed.title}`}</b>
   }
 
-  return {
-    title: title,
-    key: feed.id.toString(),
-    icon: img,
-  };
+  return <TreeItem
+    nodeId={feed.id.toString()}
+    label={<span className="goliath-feed-title">{title}</span>}
+    icon={img}/>
 }
