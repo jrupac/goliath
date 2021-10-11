@@ -25,7 +25,6 @@ import {
   Status,
   Theme
 } from "./utils/types";
-import 'simplebar/dist/simplebar.min.css';
 
 import './themes/default.css';
 import './themes/dark.css';

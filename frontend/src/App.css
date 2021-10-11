@@ -56,44 +56,61 @@
 
 /* Login Page */
 
-.login-page {
+.GoliathLoginPage {
   display: flex;
-  height: 100%;
+  height: 100vh;
 }
 
-.login-page-logo, .login-page-form-background {
+.GoliathLoginPageLogo,
+.GoliathLoginPageSecondary {
   display: flex;
   align-items: center;
 }
 
-.login-page-logo {
-  background: var(--primary-background-color);
+.GoliathLoginPageLogo {
+  background-color: #243941;
   justify-content: flex-end;
   padding-right: 20px;
   font-family: 'Pacifico', cursive;
-  color: var(--primary-font-color);
+  color: #e6f2f7;
   font-size: 48px;
   width: 40%;
 }
 
-.login-page-form-background {
-  background: var(--primary-font-color);
+.GoliathLoginPageSecondary {
+  background-color: #e6f2f7;
   justify-content: flex-start;
   padding-left: 20px;
   width: 60%;
   height: 100%;
 }
 
-.login-page-form {
+.GoliathLoginPageForm {
   max-width: 200px;
+  display: flex;
+  flex-direction: column;
 }
 
-.login-page-form-button {
+.GoliathLoginPageForm .MuiTextField-root {
+  margin: 8px 0 8px 0;
+}
+
+.GoliathLoginFormButton,
+.GoliathLoginFormButton.MuiButton-root {
+  margin-top: 8px;
   width: 100%;
+  background-color: #243941;
+  color: #e6f2f7;
 }
 
-.login-failed {
-  color: var(--login-failed-font-color);
+.GoliathLoginFormButton.MuiButton-root:hover {
+  width: 100%;
+  background-color: #537e8f;
+  color: #e6f2f7;
+}
+
+.GoliathLoginFailedMessage {
+  color: #f04134;
   padding-bottom: 5px;
 }
 
@@ -119,6 +136,7 @@
   width: inherit;
   box-sizing: border-box;
   background-color: var(--primary-background-color);
+  border: none;
 }
 
 .GoliathAllItems.MuiBox-root,
@@ -290,7 +308,6 @@
 .GoliathArticleContent {
   font-size: 18px;
   font-family: 'Adobe-Caslon-Pro', serif;
-  /*background-color: var(--article-background-color);*/
   color: var(--article-font-color);
   padding: 24px;
 }
