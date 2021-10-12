@@ -149,7 +149,7 @@ function precomputeIdToSelectionKey(structure: Map<FolderId, Folder>): Map<strin
 
 function renderFolder(folder: Folder) {
   if (folder.unread_count === 0) {
-    return <span className="GoliathFolderTitle">folder.title</span>;
+    return <span className="GoliathFolderTitle">{folder.title}</span>;
   } else {
     return <span className="GoliathFolderTitle">
       <b>{`(${folder.unread_count})  ${folder.title}`}</b>
