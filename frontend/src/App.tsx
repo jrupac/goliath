@@ -118,15 +118,13 @@ export default class App extends React.Component<AppProps, AppState> {
     };
   }
 
-  componentWillMount() {
-    window.addEventListener('keydown', this.handleKeyDown);
-  };
-
   componentWillUnmount() {
     window.removeEventListener('keydown', this.handleKeyDown);
   };
 
   componentDidMount() {
+    window.addEventListener('keydown', this.handleKeyDown);
+
     Promise.all(
       [this.fetchFolders(), this.fetchFeeds(), this.fetchItems(),
         this.fetchFavicons(), this.fetchVersion()])

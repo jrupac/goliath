@@ -105,6 +105,7 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
             Array.from(
               tree.entries(), ([k, v]) => (
                 <TreeItem
+                  key={k.toString()}
                   nodeId={k.toString()}
                   label={renderFolder(v)}
                   className="GoliathFolderRow"
@@ -173,6 +174,7 @@ function renderFeed(feed: Feed) {
   }
 
   return <TreeItem
+    key={feed.id.toString()}
     nodeId={feed.id.toString()}
     label={<span className="GoliathFeedTitle">{title}</span>}
     className="GoliathFeedRow"

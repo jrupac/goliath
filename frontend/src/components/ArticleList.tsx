@@ -42,7 +42,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     };
   }
 
-  componentWillMount() {
+  componentDidMount() {
     window.addEventListener('keydown', this.handleKeyDown);
   };
 
@@ -50,16 +50,16 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     window.removeEventListener('keydown', this.handleKeyDown);
   };
 
-  componentWillReceiveProps(nextProps: ArticleListProps) {
+  componentDidUpdate(prevProps: ArticleListProps) {
     // Reset scroll position when the enclosing key changes.
-    if (this.props.selectionKey === nextProps.selectionKey) {
+    if (prevProps.selectionKey === this.props.selectionKey) {
       return;
     }
     if (this.list) {
       this.list.scrollTo(0);
     }
     this.setState({
-      articleEntries: Array.from(nextProps.articleEntries),
+      articleEntries: Array.from(this.props.articleEntries),
       scrollIndex: -1,
       keypressBuffer: new Array(keyBufLength)
     });

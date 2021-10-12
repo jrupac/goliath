@@ -54,7 +54,7 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
     }
   }
 
-  componentWillMount() {
+  componentDidMount() {
     window.addEventListener('keydown', this.handleKeyDown);
   };
 
@@ -73,7 +73,7 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
       elevation = 8;
     } else if (this.props.article.is_read === 1) {
       headerClass = 'GoliathArticleHeaderRead';
-      elevation = 1;
+      elevation = 0;
     } else {
       elevation = 2;
     }

@@ -6,7 +6,7 @@
 
   --sider-border-color: black;
 
-  --article-list-background-color: #1a1a1a;
+  --article-list-background-color: #1f1f1f;
 
   --article-list-empty-primary-font-color: #ababab;
   --article-list-empty-text-font-color: #888;
@@ -15,8 +15,8 @@
   --card-selected-border-color: #333;
   --card-shadow-color: #111111;
 
-  --card-header-background-color: #333;
-  --card-header-selected-background-color: #525252;
+  --card-header-background-color: #282828;
+  --card-header-selected-background-color: #282828;
 
   --article-header-unread-font-color: white;
   --article-header-read-font-color: #888;
