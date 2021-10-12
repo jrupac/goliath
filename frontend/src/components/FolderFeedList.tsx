@@ -10,9 +10,9 @@ import {
 import {Box} from "@mui/material";
 import InboxIcon from "@mui/icons-material/Inbox";
 import TreeView from '@mui/lab/TreeView';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import {TreeItem} from "@mui/lab";
+import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
+import FolderIcon from '@mui/icons-material/Folder';
 
 export interface FolderFeedListProps {
   tree: Map<FolderId, Folder>;
@@ -41,8 +41,9 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     let selectionKey: SelectionKey;
     let selectionType: SelectionType;
 
+    // Since the tree is not multi-select, we should receive a single string.
     if (typeof key !== 'string') {
-      throw new Error("Unexpected type: " + key)
+      throw new Error("Unexpected selection key: " + key)
     }
 
     let entry = this.state.keyCache.get(key);
@@ -93,23 +94,22 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
           </Box>
         </Box>
 
-        {/* TODO: Enable collapsing? */}
         <TreeView
-          className="goliath-ant-tree"
+          className="GoliathFolderFeedList"
           onNodeSelect={this.handleSelect}
           selected={selectedKeys}
           expanded={Array.from(tree.keys(), (k) => k.toString())}
-          defaultExpandIcon={<ChevronRightIcon/>}
-          defaultCollapseIcon={<ExpandMoreIcon/>}
+          defaultCollapseIcon={<FolderIcon/>}
         >
           {
             Array.from(
               tree.entries(), ([k, v]) => (
                 <TreeItem
                   nodeId={k.toString()}
-                  label={renderFolderTitle(v)}
+                  label={renderFolder(v)}
+                  className="GoliathFolderRow"
                 >
-                  {Array.from(v.feeds.values()).map(makeFeedRow)}
+                  {Array.from(v.feeds.values()).map(renderFeed)}
                 </TreeItem>))
           }
         </TreeView>
@@ -146,22 +146,24 @@ function precomputeIdToSelectionKey(structure: Map<FolderId, Folder>): Map<strin
   return cache;
 }
 
-function renderFolderTitle(folder: Folder) {
+function renderFolder(folder: Folder) {
   if (folder.unread_count === 0) {
-    return folder.title;
+    return <span className="GoliathFolderTitle">folder.title</span>;
   } else {
-    return <b>{`(${folder.unread_count})  ${folder.title}`}</b>;
+    return <span className="GoliathFolderTitle">
+      <b>{`(${folder.unread_count})  ${folder.title}`}</b>
+    </span>;
   }
 }
 
-function makeFeedRow(feed: Feed) {
+function renderFeed(feed: Feed) {
   let img: ReactNode;
   if (feed.favicon === '') {
-    img = <i className="fas fa-rss-square"/>
+    img = <RssFeedOutlinedIcon fontSize="small"/>
   } else {
     img = <img src={`data:${feed.favicon}`} height={16} width={16} alt=''/>
   }
-  img = <span className="goliath-feed-icon">{img}</span>;
+  img = <span className="GoliathFeedIcon">{img}</span>;
 
   let title: ReactNode;
   if (feed.unread_count === 0) {
@@ -172,6 +174,7 @@ function makeFeedRow(feed: Feed) {
 
   return <TreeItem
     nodeId={feed.id.toString()}
-    label={<span className="goliath-feed-title">{title}</span>}
+    label={<span className="GoliathFeedTitle">{title}</span>}
+    className="GoliathFeedRow"
     icon={img}/>
 }
