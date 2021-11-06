@@ -169,6 +169,10 @@
   padding-top: 6px;
 }
 
+.GoliathFeedRow .MuiTreeItem-content .MuiTreeItem-label {
+  line-height: 1.4;
+}
+
 .GoliathFeedIcon {
   height: 16px;
   width: 16px;
