@@ -23,8 +23,9 @@ import (
 var (
 	sanitizeHTML      = flag.Bool("sanitizeHTML", false, "If true, sanitize HTML content with Bluemonday.")
 	normalizeFavicons = flag.Bool("normalizeFavicons", true, "If true, resize favicons to 256x256 and encode as PNG.")
+	strictDedup       = flag.Bool("strictDedup", true, "If true, only the link name is used to de-duplicate unread articles.")
 	maxEditDedup      = flag.Float64("maxEditDedup", 0.1,
-		"The maximum edit distance between articles to be de-duplicated, expressed as percent of edit distance and total length of content.")
+		"The max edit distance between articles to be de-duplicated, expressed as percent of content. If `strictDedup` is set, this is ignored.")
 )
 
 var (
@@ -360,8 +361,9 @@ func getSimilarExistingArticles(articles []models.Article, a models.Article) []i
 
 	for _, old := range articles {
 		if old.Link == a.Link {
-			if editDistPercent(old.Title, a.Title) < *maxEditDedup &&
-				editDistPercent(old.Summary, a.Summary) < *maxEditDedup {
+			if *strictDedup ||
+				(editDistPercent(old.Title, a.Title) < *maxEditDedup &&
+					editDistPercent(old.Summary, a.Summary) < *maxEditDedup) {
 				ids = append(ids, old.ID)
 			}
 		}
