@@ -240,6 +240,19 @@ func handleItemsForUser(ctx context.Context, feed *models.Feed, d *storage.Datab
 		log.Warningf("Error while fetching existing articles for feed %s: %s", feed.ID, err)
 	}
 
+	dupes := filterDupeArticles(existingArticles)
+	log.Infof("Found %d existing similar articles", len(dupes))
+	err = d.DeleteArticlesByIdForUser(u, dupes)
+	if err != nil {
+		log.Warningf("Failed to delete existing similar articles for feed %s: %s", feed.ID, err)
+	}
+
+	// Re-fetch existing articles after removing dupes
+	existingArticles, err = d.GetUnreadArticlesForFeedForUser(u, feed.ID)
+	if err != nil {
+		log.Warningf("Error while fetching existing articles for feed %s: %s", feed.ID, err)
+	}
+
 Loop:
 	for _, item := range items {
 		title := item.Title
@@ -365,6 +378,32 @@ func getSimilarExistingArticles(articles []models.Article, a models.Article) []i
 				(editDistPercent(old.Title, a.Title) < *maxEditDedup &&
 					editDistPercent(old.Summary, a.Summary) < *maxEditDedup) {
 				ids = append(ids, old.ID)
+			}
+		}
+	}
+
+	return ids
+}
+
+func filterDupeArticles(articles []models.Article) []int64 {
+	var ids []int64
+
+	type articleVal struct {
+		id   int64
+		date time.Time
+	}
+
+	linkMap := map[string]articleVal{}
+
+	for _, a := range articles {
+		if val, ok := linkMap[a.Link]; !ok {
+			linkMap[a.Link] = articleVal{a.ID, a.Date}
+		} else {
+			if val.date.Before(a.Date) {
+				ids = append(ids, val.id)
+				linkMap[a.Link] = articleVal{a.ID, a.Date}
+			} else {
+				ids = append(ids, a.ID)
 			}
 		}
 	}
