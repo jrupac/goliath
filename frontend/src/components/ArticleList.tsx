@@ -57,6 +57,8 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     }
     if (this.list) {
       this.list.scrollTo(0);
+      // @ts-ignore
+      this.list.forceUpdate();
     }
     this.setState({
       articleEntries: Array.from(this.props.articleEntries),
@@ -85,8 +87,6 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
             ref={this.handleMounted}
             itemRenderer={(e) => this.renderArticle(articles, e)}
             length={articles.length}
-            minSize={5}
-            threshold={1000}
             type='variable'/>
         </Box>
       )
