@@ -1,11 +1,8 @@
-import 'antd/dist/antd.css';
 import './App.css';
 import ArticleList from './components/ArticleList';
 import {Decimal} from 'decimal.js-light';
 import FolderFeedList from './components/FolderFeedList';
-import Layout from 'antd/lib/layout';
 import Loading from './components/Loading';
-import Menu from 'antd/lib/menu';
 import React from 'react';
 import * as LosslessJSON from 'lossless-json';
 import {
@@ -27,13 +24,19 @@ import {
   Status,
   Theme
 } from "./utils/types";
-import SimpleBar from 'simplebar-react';
-import 'simplebar/dist/simplebar.min.css';
 
 import './themes/default.css';
 import './themes/dark.css';
-
-const {Content, Footer, Sider} = Layout;
+import {
+  Box,
+  createTheme,
+  CssBaseline,
+  darkScrollbar,
+  Divider,
+  Drawer,
+  PaletteMode,
+  ThemeProvider
+} from "@mui/material";
 
 export interface AppProps {
 }
@@ -112,19 +115,16 @@ export default class App extends React.Component<AppProps, AppState> {
       feverFetchFeedsResponse: {feeds: [], feeds_groups: []},
       feverFetchFaviconsResponse: {favicons: []},
       feverFetchItemsResponse: {items: [], total_items: 0}
-
     };
   }
-
-  componentWillMount() {
-    window.addEventListener('keydown', this.handleKeyDown);
-  };
 
   componentWillUnmount() {
     window.removeEventListener('keydown', this.handleKeyDown);
   };
 
   componentDidMount() {
+    window.addEventListener('keydown', this.handleKeyDown);
+
     Promise.all(
       [this.fetchFolders(), this.fetchFeeds(), this.fetchItems(),
         this.fetchFavicons(), this.fetchVersion()])
@@ -466,8 +466,34 @@ export default class App extends React.Component<AppProps, AppState> {
   };
 
   render() {
+    let themeClasses: string, paletteMode: PaletteMode;
+    if (this.state.theme === Theme.Default) {
+      themeClasses = 'default-theme';
+      paletteMode = 'light';
+    } else {
+      themeClasses = 'dark-theme';
+      paletteMode = 'dark';
+    }
+
+    const theme = createTheme({
+      palette: {
+        mode: paletteMode,
+      },
+      components: {
+        MuiCssBaseline: {
+          styleOverrides: {
+            body: paletteMode === 'dark' ? darkScrollbar() : null,
+          },
+        },
+      },
+    });
+
     if (this.state.status !== Status.Ready) {
-      return <Loading status={this.state.status}/>;
+      return (
+        <ThemeProvider theme={theme}>
+          <CssBaseline/>
+          <Loading status={this.state.status}/>
+        </ThemeProvider>);
     }
 
     if (this.state.unreadCount === 0) {
@@ -476,53 +502,53 @@ export default class App extends React.Component<AppProps, AppState> {
       document.title = `(${this.state.unreadCount})  Goliath RSS`;
     }
 
-    let themeClasses: string;
-    if (this.state.theme === Theme.Default) {
-      themeClasses = 'default-theme';
-    } else {
-      themeClasses = 'dark-theme';
-    }
-
     return (
-      <Layout className={`App ${themeClasses}`}>
-        <Sider
-          width={300}
-          breakpoint="lg"
-          collapsedWidth="0">
-          <SimpleBar className="sider-container">
-            <div className="logo">
+      <ThemeProvider theme={theme}>
+        {/* TODO: Is there a better way to inject overrides than this? */}
+        <Box sx={{display: 'flex'}} className={`${themeClasses}`}>
+          <CssBaseline/>
+          <Drawer
+            variant="permanent"
+            anchor="left"
+            className="GoliathDrawer"
+          >
+            <Box
+              className="GoliathLogo">
               Goliath
-            </div>
-            <Menu mode="inline" theme="dark">
+            </Box>
+            <Box>
               <FolderFeedList
                 tree={this.state.structure}
                 unreadCount={this.state.unreadCount}
                 selectedKey={this.state.selectionKey}
                 selectionType={this.state.selectionType}
                 handleSelect={this.handleSelect}/>
-            </Menu>
-          </SimpleBar>
-        </Sider>
-        <SimpleBar style={{width: "100%"}} className="content">
-          <Layout className="article-list">
-            <Content>
+            </Box>
+            <Divider variant="middle"/>
+            <Box className="GoliathFooter">
+              Goliath RSS
+              <br/>
+              Built at: {this.state.buildTimestamp}
+              <br/>
+              {this.state.buildHash}
+            </Box>
+          </Drawer>
+
+          <Box
+            component="main"
+            className="GoliathMainContainer"
+          >
+            <Box>
               <ArticleList
                 articleEntries={this.populateArticleListEntries()}
                 selectionKey={this.state.selectionKey}
                 selectionType={this.state.selectionType}
                 handleMark={this.handleMark}
                 selectAllCallback={() => this.handleSelect(SelectionType.All, KeyAll)}/>
-              <Footer className="footer">
-                Goliath RSS
-                <br/>
-                Built at: {this.state.buildTimestamp}
-                <br/>
-                {this.state.buildHash}
-              </Footer>
-            </Content>
-          </Layout>
-        </SimpleBar>
-      </Layout>
+            </Box>
+          </Box>
+        </Box>
+      </ThemeProvider>
     );
   }
 
@@ -595,18 +621,21 @@ export default class App extends React.Component<AppProps, AppState> {
       return;
     }
 
+    switch (event.key) {
+    case 't':
+      console.log("THEME CHANGE");
+      this.toggleColorMode();
+    }
+  }
+
+  toggleColorMode = () => {
     this.setState((prevState) => {
       let theme: Theme = prevState.theme;
 
-      switch (event.key) {
-      case 't':
-        console.log("THEME CHANGE");
-        if (theme === Theme.Default) {
-          theme = Theme.Dark;
-        } else {
-          theme = Theme.Default;
-        }
-        break;
+      if (theme === Theme.Default) {
+        theme = Theme.Dark;
+      } else {
+        theme = Theme.Default;
       }
 
       return {

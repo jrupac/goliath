@@ -1,6 +1,11 @@
 module.exports = {
-  "extends": ["react-app"],
+  "extends": [
+    "eslint:recommended",
+    "plugin:react/recommended"
+  ],
   "rules": {
+    "no-use-before-define": "off",
+    "@typescript-eslint/no-use-before-define": ["error"],
     "default-case": "off",
     "id-length": "off",
     "indent": ["error", 2],

@@ -8,7 +8,8 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-import {Empty} from "antd";
+import {Box, Container, Typography} from "@mui/material";
+import InboxIcon from '@mui/icons-material/Inbox';
 
 const goToAllSequence = ['g', 'a'];
 const markAllRead = ['Shift', 'I'];
@@ -41,7 +42,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     };
   }
 
-  componentWillMount() {
+  componentDidMount() {
     window.addEventListener('keydown', this.handleKeyDown);
   };
 
@@ -49,16 +50,18 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     window.removeEventListener('keydown', this.handleKeyDown);
   };
 
-  componentWillReceiveProps(nextProps: ArticleListProps) {
+  componentDidUpdate(prevProps: ArticleListProps) {
     // Reset scroll position when the enclosing key changes.
-    if (this.props.selectionKey === nextProps.selectionKey) {
+    if (prevProps.selectionKey === this.props.selectionKey) {
       return;
     }
     if (this.list) {
       this.list.scrollTo(0);
+      // @ts-ignore
+      this.list.forceUpdate();
     }
     this.setState({
-      articleEntries: Array.from(nextProps.articleEntries),
+      articleEntries: Array.from(this.props.articleEntries),
       scrollIndex: -1,
       keypressBuffer: new Array(keyBufLength)
     });
@@ -67,26 +70,25 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
   render() {
     if (this.state.articleEntries.length === 0) {
       return (
-        <Empty
-          className="article-list-empty"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description={
-            <p className="article-list-empty-text">No unread articles</p>
-          }>
-        </Empty>
+        <Container fixed className="GoliathArticleListContainer">
+          <Box className="GoliathArticleListEmpty">
+            <InboxIcon className="GoliathArticleListEmptyIcon"/>
+            <Typography className="GoliathArticleListEmptyText">
+              No unread articles
+            </Typography>
+          </Box>
+        </Container>
       )
     } else {
       const articles = this.state.articleEntries;
       return (
-        <div className="content-container">
+        <Box className="GoliathArticleListContainer">
           <ReactList
             ref={this.handleMounted}
             itemRenderer={(e) => this.renderArticle(articles, e)}
             length={articles.length}
-            minSize={5}
-            threshold={1000}
             type='variable'/>
-        </div>
+        </Box>
       )
     }
   }

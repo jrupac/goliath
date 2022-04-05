@@ -2,11 +2,6 @@
  * Global Elements
  ******************************************************************************/
 
-#root {
-  height: 100%;
-  overflow-y: hidden;
-}
-
 @font-face {
   font-family: 'Adobe-Caslon-Pro';
   src: local(Adobe-Caslon-Pro),
@@ -15,188 +10,124 @@
   url(./fonts/Adobe-Caslon-Pro-Regular.woff2) format('woff2');
 }
 
-.App {
-  font-family: 'Adobe-Caslon-Pro', serif;
-  height: 100%;
-}
-
-/* Inertial scrolling on mobile devices */
-@media only screen and (max-width: 1024px) {
-  /* TODO: Fix this. Currently, this makes the sidebar toggle not appear. */
-  .App {
-    overflow-y: scroll;
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
 /******************************************************************************
- * antd Elements
- * TODO: Get rid of these.
+ * Loading Page
  ******************************************************************************/
 
-/* antd Layout */
-
-.ant-layout-sider {
-  background-color: var(--primary-background-color);
-  width: 300px;
-  border-right: 1px solid var(--sider-border-color);
-  font-family: 'PT Sans Caption', sans-serif;
-}
-
-.ant-layout-sider .logo {
-  text-align: center;
-  font-family: 'Pacifico', cursive;
-  color: var(--primary-font-color);
-  font-size: 48px;
-  padding-top: 24px;
-  padding-bottom: 20px;
-}
-
-/* antd Tree */
-
-.ant-tree .ant-tree-node-content-wrapper:hover {
-  background-color: var(--primary-selected-color);
-}
-
-.ant-tree .ant-tree-node-content-wrapper.ant-tree-node-selected {
-  background-color: var(--primary-selected-color);
-}
-
-/* antd Content */
-
-.ant-layout-content {
-  display: flex;
-  flex-direction: column;
-}
-
-/* antd Card */
-
-.ant-card-outer {
-  /* Needed to get correct offsetTop for react-list */
-  border-top: 24px solid transparent;
-}
-
-.ant-card-head {
-  height: auto;
-  line-height: initial;
-  border: none;
-}
-
-.ant-card-head-title {
-  padding: 0;
-  white-space: initial;
-}
-
-.ant-card {
-  box-shadow: none;
-  border-color: transparent;
-  border-top-left-radius: 7px;
-  border-top-right-radius: 7px;
-}
-
-.ant-card-body {
-  padding: 0;
-}
-
-.ant-card-type-inner .ant-card-body {
-  padding: 15px;
-}
-
-.card-normal, .card-selected {
-  border-top-left-radius: 7px;
-  border-top-right-radius: 7px;
-}
-
-.card-normal,
-.card-normal:hover {
-  background-color: var(--card-header-background-color);
-  box-shadow: 0 0 5px var(--card-shadow-color);
-}
-
-.card-selected,
-.card-selected:hover {
-  background-color: var(--card-header-background-color);
-  box-shadow: 0 0 5px 3px var(--card-shadow-color);
-}
-
-/******************************************************************************
- * Simplebar Elements
- * TODO: Get rid of these.
- ******************************************************************************/
-
-.simplebar-content-wrapper {
-  background-color: var(--article-list-background-color);
-}
-
-/******************************************************************************
- * Goliath Elements
- ******************************************************************************/
-
-/* Loading Page */
-
-.loading-page-container {
+.GoliathLoadingPageContainer {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  color: var(--primary-background-color);
-  height: 100%;
+  background-color: var(--primary-background-color);
+  color: var(--primary-font-color);
+  height: 100vh;
+  align-items: center;
 }
 
-.loading-page {
+.GoliathLoadingProgress {
   padding: 0 25% 0 25%;
 }
 
-/* Login Page */
+/******************************************************************************
+ * Login Page
+ ******************************************************************************/
 
-.login-page {
+.GoliathLoginPage {
   display: flex;
-  height: 100%;
+  height: 100vh;
 }
 
-.login-page-logo, .login-page-form-background {
+.GoliathLoginPageLogo,
+.GoliathLoginPageSecondary {
   display: flex;
   align-items: center;
 }
 
-.login-page-logo {
-  background: var(--primary-background-color);
+.GoliathLoginPageLogo {
+  background-color: #243941;
   justify-content: flex-end;
   padding-right: 20px;
   font-family: 'Pacifico', cursive;
-  color: var(--primary-font-color);
+  color: #e6f2f7;
   font-size: 48px;
   width: 40%;
 }
 
-.login-page-form-background {
-  background: var(--primary-font-color);
+.GoliathLoginPageSecondary {
+  background-color: #e6f2f7;
   justify-content: flex-start;
   padding-left: 20px;
   width: 60%;
   height: 100%;
 }
 
-.login-page-form {
+.GoliathLoginPageForm {
   max-width: 200px;
+  display: flex;
+  flex-direction: column;
 }
 
-.login-page-form-button {
+.GoliathLoginPageForm .MuiTextField-root {
+  margin: 8px 0 8px 0;
+}
+
+.GoliathLoginFormButton,
+.GoliathLoginFormButton.MuiButton-root {
+  margin-top: 8px;
   width: 100%;
+  background-color: #243941;
+  color: #e6f2f7;
 }
 
-.login-failed {
-  color: var(--login-failed-font-color);
+.GoliathLoginFormButton.MuiButton-root:hover {
+  width: 100%;
+  background-color: #537e8f;
+  color: #e6f2f7;
+}
+
+.GoliathLoginFailedMessage {
+  color: #f04134;
   padding-bottom: 5px;
 }
 
-/* Sidebar */
+/******************************************************************************
+ * Sidebar
+ ******************************************************************************/
 
-.sider-container {
-  overflow-x: hidden;
-  height: 100%;
+.GoliathLogo {
+  text-align: center;
+  font-family: 'Pacifico', cursive;
+  color: var(--primary-font-color);
+  background-color: var(--primary-background-color);
+  font-size: 48px;
+  padding-top: 24px;
+  padding-bottom: 20px;
 }
 
-.all-items, .all-items-selected {
+.GoliathDrawer {
+  width: 300px;
+  flex-shrink: 0;
+  font-family: 'PT Sans Caption', sans-serif;
+}
+
+.GoliathDrawer .MuiDrawer-paper {
+  width: inherit;
+  box-sizing: border-box;
+  background-color: var(--primary-background-color);
+  color: var(--primary-font-color);
+  border: none;
+}
+
+.GoliathAllItems.MuiBox-root,
+.GoliathAllItemsSelected.MuiBox-root {
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  line-height: 46px;
+}
+
+.GoliathAllItems,
+.GoliathAllItemsSelected {
   background-color: var(--primary-background-color);
   padding-right: 15px;
   padding-left: 30px;
@@ -209,154 +140,166 @@
   line-height: 46px;
 }
 
-.all-items:hover {
+.GoliathAllItems.MuiBox-root:hover,
+.GoliathAllItemsSelected.MuiBox-root {
   background-color: var(--primary-selected-color);
 }
 
-.all-items-selected {
-  background-color: var(--primary-selected-color);
+/******************************************************************************
+ * Sidebar Folder Feed List
+ ******************************************************************************/
+
+.GoliathFolderFeedList.MuiTreeView-root {
+  line-height: 14px;
+  padding: 10px 0 10px 0;
 }
 
-.all-items-text {
-  display: inline;
-  padding-left: 8px;
-  line-height: 46px;
+.GoliathFolderRow .MuiCollapse-root {
+  margin-left: 24px;
 }
 
-.goliath-ant-tree {
-  background: var(--primary-background-color);
-  line-height: 16px;
+.GoliathFolderTitle {
+  font-family: 'PT Sans Caption', sans-serif;
   color: var(--primary-font-color);
+  font-size: 14px;
 }
 
-.goliath-tree-switcher {
-  color: var(--primary-font-color);
+.GoliathFeedRow .MuiTreeItem-content .MuiTreeItem-iconContainer {
+  align-self: flex-start;
+  padding-top: 6px;
 }
 
-.goliath-feed-row {
-  display: flex;
-  align-items: center;
-  flex-flow: row nowrap;
+.GoliathFeedRow .MuiTreeItem-content .MuiTreeItem-label {
+  line-height: 1.4;
 }
 
-.goliath-feed-icon {
+.GoliathFeedIcon {
   height: 16px;
   width: 16px;
 }
 
-.goliath-feed-title {
-  padding-left: 6px;
+.GoliathFeedRow .MuiTreeItem-label {
+  padding: 2px 0 2px 4px;
+}
+
+.GoliathFeedTitle {
   padding-right: 1px;
+  font-size: 14px;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--primary-font-color);
+  font-family: 'PT Sans Caption', sans-serif;
   margin: 0;
 }
 
-/* Main Container */
+/******************************************************************************
+ * Sidebar Footer
+ ******************************************************************************/
 
-.content {
-}
-
-/* Footer */
-
-.footer {
+.GoliathFooter {
   text-align: center;
   font-family: 'PT Sans Caption', sans-serif;
-  color: var(--article-list-empty-primary-font-color);
-  background-color: var(--article-list-background-color);
-  flex-grow: 1;
+  color: var(--primary-font-color);
+  background-color: var(--primary-background-color);
+  padding-top: 10px;
+  font-size: 10px;
 }
 
-/* Article list */
+/******************************************************************************
+ * Main Container
+ ******************************************************************************/
 
-.content-container {
+.GoliathMainContainer {
+  flex-grow: 1;
+  background-color: var(--article-list-background-color);
+}
+
+/******************************************************************************
+ * Article List
+ ******************************************************************************/
+
+.GoliathArticleListContainer {
+  min-height: 100vh;
   margin: 0 24px;
 }
 
-.article-list {
-  background-color: var(--article-list-background-color);
-  height: 100vh;
-}
-
-.article-list-empty {
+.GoliathArticleListEmpty {
   display: flex;
   flex-direction: column;
   text-align: center;
   color: var(--article-list-empty-primary-font-color);
   font-size: 24px;
-  height: 80%;
+  height: 100vh;
   justify-content: center;
-  flex-grow: 8;
 }
 
-.article-list-empty-icon {
-  vertical-align: middle;
+.GoliathArticleListEmptyIcon.MuiSvgIcon-root {
   font-size: 120px;
+  width: 100%;
 }
 
-.article-list-empty-text {
+.GoliathArticleListEmptyText.MuiTypography-root {
   color: var(--article-list-empty-text-font-color);;
   vertical-align: middle;
   font-family: 'PT Sans Caption', sans-serif;
+  font-size: 32px;
 }
 
-/* Article */
+/******************************************************************************
+ * Article
+ ******************************************************************************/
 
-.article-header,
-.article-header-read {
+.GoliathArticleOuter {
+  /* Needed to get correct offsetTop for react-list */
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+}
+
+.GoliathArticleHeader {
   display: flex;
-  flex-direction: column;
   align-items: stretch;
   justify-content: space-between;
   background-color: var(--card-header-background-color);
 }
 
-.article-header p,
-.article-header a {
+.GoliathArticleHeader p,
+.GoliathArticleHeader a {
   color: var(--article-header-unread-font-color);
+  text-decoration: none;
 }
 
-.article-header-read p,
-.article-header-read a {
+.GoliathArticleHeaderRead p,
+.GoliathArticleHeaderRead a {
   color: var(--article-header-read-font-color);
+  text-decoration: none;
 }
 
-.article-header-selected {
-  background-color: var(--card-header-selected-background-color);
-}
-
-.article-title {
+.GoliathArticleTitle {
   width: 100%;
   font-family: 'Adobe-Caslon-Pro', serif;
   font-size: 24px;
 }
 
-.article-metadata {
+.GoliathArticleMeta {
   display: flex;
   padding-top: 5px;
   line-height: 16px;
+  font-family: 'Adobe-Caslon-Pro', serif;
 }
 
-.article-status-read,
-.article-status-unread {
-  font-size: 12px;
-  padding-left: 7px;
-}
-
-.article-feed {
+.GoliathArticleFeed {
   font-size: 16px;
   display: flex;
   padding-left: 10px;
 }
 
-.article-feed-title {
+.GoliathArticleFeedTitle {
   padding-left: 5px;
   margin: 0;
   font-variant-caps: petite-caps;
 }
 
-.article-date {
+.GoliathArticleDate {
   color: var(--article-date-color);
   font-family: 'Adobe-Caslon-Pro', serif;
   padding-left: 10px;
@@ -366,29 +309,29 @@
   align-items: baseline;
 }
 
-.article-date-tooltip {
-  max-width: 400px;
-  font-family: 'PT Sans Caption', sans-serif;
-}
-
-.article-content {
+.GoliathArticleContent {
   font-size: 18px;
   font-family: 'Adobe-Caslon-Pro', serif;
-  background-color: var(--article-background-color);
   color: var(--article-font-color);
   padding: 24px;
 }
 
-.article-content h1,
-.article-content h2,
-.article-content h3,
-.article-content h4,
-.article-content h5,
-.article-content h6 {
+.GoliathArticleContent a {
+  color: var(--article-font-color);
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.GoliathArticleContent h1,
+.GoliathArticleContent h2,
+.GoliathArticleContent h3,
+.GoliathArticleContent h4,
+.GoliathArticleContent h5,
+.GoliathArticleContent h6 {
   color: var(--article-font-color);
 }
 
-.article-content img {
+.GoliathArticleContent img {
   max-width: 75%;
   height: auto;
   /* Center images */
@@ -396,7 +339,7 @@
   margin: 0 auto;
 }
 
-figure {
+.GoliathArticleContent.MuiCardContent-root figure {
   display: flex;
   margin: 0 auto;
   max-width: 75%;
@@ -404,7 +347,8 @@ figure {
   padding-bottom: 10px;
 }
 
-figure p, figcaption {
+.GoliathArticleContent.MuiCardContent-root figure p,
+.GoliathArticleContent.MuiCardContent-root figcaption {
   text-align: center;
   padding-top: 10px;
   font-size: smaller;
@@ -412,7 +356,7 @@ figure p, figcaption {
 }
 
 /* Hide some elements that clutter article display. */
-.share_submission,
-.feedflare {
+.GoliathArticleContent.MuiCardContent-root .share_submission,
+.GoliathArticleContent.MuiCardContent-root .feedflare {
   display: none;
 }

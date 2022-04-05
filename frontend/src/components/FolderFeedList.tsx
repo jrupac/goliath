@@ -1,5 +1,4 @@
 import React, {ReactNode, ReactText} from 'react';
-import Tree from 'antd/lib/tree';
 import {
   Feed,
   Folder,
@@ -8,7 +7,12 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-import {CaretDownOutlined} from '@ant-design/icons';
+import {Box} from "@mui/material";
+import InboxIcon from "@mui/icons-material/Inbox";
+import TreeView from '@mui/lab/TreeView';
+import {TreeItem} from "@mui/lab";
+import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
+import FolderIcon from '@mui/icons-material/Folder';
 
 export interface FolderFeedListProps {
   tree: Map<FolderId, Folder>;
@@ -33,16 +37,13 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     this.handleSelect = this.handleSelect.bind(this);
   }
 
-  handleSelect = (keys: ReactText[]) => {
+  handleSelect = (_: any, key: string[] | string) => {
     let selectionKey: SelectionKey;
     let selectionType: SelectionType;
-    let key: ReactText;
 
-    // This tree can only have one node selected at a time.
-    if (keys && keys.length === 1) {
-      key = keys[0];
-    } else {
-      throw new Error("Unexpected tree node selection: " + keys.toString());
+    // Since the tree is not multi-select, we should receive a single string.
+    if (typeof key !== 'string') {
+      throw new Error("Unexpected selection key: " + key)
     }
 
     let entry = this.state.keyCache.get(key);
@@ -60,7 +61,7 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
 
     if (!this.props.selectedKey || this.props.selectedKey === KeyAll) {
       selectedKeys = [];
-      allSelectedClass = 'all-items-selected';
+      allSelectedClass = 'GoliathAllItemsSelected';
     } else {
       switch (this.props.selectionType) {
       case SelectionType.Article:
@@ -68,57 +69,52 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
           "Cannot render folder feed list with article selection");
       case SelectionType.Folder:
         selectedKeys = [this.props.selectedKey as string];
-        allSelectedClass = 'all-items';
+        allSelectedClass = 'GoliathAllItems';
         break;
       case SelectionType.Feed:
         const feedId = this.props.selectedKey[0];
         selectedKeys = [feedId as string];
-        allSelectedClass = 'all-items';
+        allSelectedClass = 'GoliathAllItems';
         break;
       case SelectionType.All: // fallthrough
       default:
         selectedKeys = [];
-        allSelectedClass = 'all-items-selected';
+        allSelectedClass = 'GoliathAllItemsSelected';
       }
     }
 
-    // TODO: Implement folder expansion with override correctly.
-    // const expandedKeys = Array.from(tree.entries()).map(
-    //     ([k, v]) => ( (v.unread_count > 0) ? k : null));
-
-    const treeData = Array.from(
-      tree.entries(), ([k, v]) => (
-        {
-          key: k.toString(),
-          title: renderFolderTitle(v),
-          children: Array.from(v.feeds.values()).map(renderFeed),
-        })
-    );
-
     return (
-      <div>
-        <div
-          onClick={() => this.handleSelect([KeyAll])}
+      <Box>
+        <Box
+          onClick={() => this.handleSelect(null, KeyAll)}
           className={allSelectedClass}>
-          <i
-            className="fas fa-inbox"
-            aria-hidden="true"/>
-          <div className='all-items-text'>
+          <InboxIcon fontSize="small"/>
+          <Box className={allSelectedClass}>
             {this.renderAllItemsTitle()}
-          </div>
-        </div>
-        <Tree
-          blockNode
-          className="goliath-ant-tree"
-          defaultExpandAll
-          onSelect={this.handleSelect}
-          selectedKeys={selectedKeys}
-          showIcon
-          switcherIcon={<CaretDownOutlined className="goliath-tree-switcher"/>}
-          titleRender={titleRender}
-          treeData={treeData}>
-        </Tree>
-      </div>
+          </Box>
+        </Box>
+
+        <TreeView
+          className="GoliathFolderFeedList"
+          onNodeSelect={this.handleSelect}
+          selected={selectedKeys}
+          expanded={Array.from(tree.keys(), (k) => k.toString())}
+          defaultCollapseIcon={<FolderIcon/>}
+        >
+          {
+            Array.from(
+              tree.entries(), ([k, v]) => (
+                <TreeItem
+                  key={k.toString()}
+                  nodeId={k.toString()}
+                  label={renderFolder(v)}
+                  className="GoliathFolderRow"
+                >
+                  {Array.from(v.feeds.values()).map(renderFeed)}
+                </TreeItem>))
+          }
+        </TreeView>
+      </Box>
     )
   }
 
@@ -151,26 +147,24 @@ function precomputeIdToSelectionKey(structure: Map<FolderId, Folder>): Map<strin
   return cache;
 }
 
-function renderFolderTitle(folder: Folder) {
+function renderFolder(folder: Folder) {
   if (folder.unread_count === 0) {
-    return folder.title;
+    return <span className="GoliathFolderTitle">{folder.title}</span>;
   } else {
-    return <b>{`(${folder.unread_count})  ${folder.title}`}</b>;
+    return <span className="GoliathFolderTitle">
+      <b>{`(${folder.unread_count})  ${folder.title}`}</b>
+    </span>;
   }
-}
-
-function titleRender(nodeData: any): ReactNode {
-  return <span className="goliath-feed-title">{nodeData['title']}</span>;
 }
 
 function renderFeed(feed: Feed) {
   let img: ReactNode;
   if (feed.favicon === '') {
-    img = <i className="fas fa-rss-square"/>
+    img = <RssFeedOutlinedIcon fontSize="small"/>
   } else {
     img = <img src={`data:${feed.favicon}`} height={16} width={16} alt=''/>
   }
-  img = <span className="goliath-feed-icon">{img}</span>;
+  img = <span className="GoliathFeedIcon">{img}</span>;
 
   let title: ReactNode;
   if (feed.unread_count === 0) {
@@ -179,9 +173,10 @@ function renderFeed(feed: Feed) {
     title = <b>{`(${feed.unread_count})  ${feed.title}`}</b>
   }
 
-  return {
-    title: title,
-    key: feed.id.toString(),
-    icon: img,
-  };
+  return <TreeItem
+    key={feed.id.toString()}
+    nodeId={feed.id.toString()}
+    label={<span className="GoliathFeedTitle">{title}</span>}
+    className="GoliathFeedRow"
+    icon={img}/>
 }
