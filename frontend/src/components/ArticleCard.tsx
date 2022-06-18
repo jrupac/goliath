@@ -1,7 +1,6 @@
 import moment from 'moment';
 import React, {ReactNode} from "react";
 import {Article} from "../utils/types";
-import Mercury from '@postlight/mercury-parser';
 import {
   Box,
   Card,
@@ -10,6 +9,7 @@ import {
   Skeleton,
   Tooltip
 } from "@mui/material";
+import {Readability} from "@mozilla/readability";
 
 export interface ArticleProps {
   article: Article;
@@ -25,25 +25,6 @@ export interface ArticleState {
   loading: boolean;
 }
 
-// Copied from @types/postlight__mercury-parser because this type is not
-// exported there.
-interface ParseResult {
-  title: string | null;
-  content: string | null;
-  author: string | null;
-  date_published: string | null;
-  lead_image_url: string | null;
-  dek: string | null;
-  next_page_url: string | null;
-  url: string;
-  domain: string;
-  excerpt: string | null;
-  word_count: number;
-  direction: 'ltr' | 'rtl';
-  total_pages: number;
-  rendered_pages: number;
-}
-
 export default class ArticleCard extends React.Component<ArticleProps, ArticleState> {
   constructor(props: ArticleProps) {
     super(props);
@@ -56,11 +37,11 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
 
   componentDidMount() {
     window.addEventListener('keydown', this.handleKeyDown);
-  };
+  }
 
   componentWillUnmount() {
     window.removeEventListener('keydown', this.handleKeyDown);
-  };
+  }
 
   render() {
     const date = new Date(this.props.article.created_on_time * 1000);
@@ -179,28 +160,30 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
 
     const url = makeAbsolute("/cache?url=" + encodeURI(this.props.article.url));
 
-    Mercury.parse(url)
-      .then((result: ParseResult) => {
-        if (result === null || result.content === null) {
+    fetch(url)
+      .then((response) => response.text())
+      .then((result) => {
+        const doc = new DOMParser().parseFromString(result, "text/html");
+        const parsed = new Readability(doc).parse();
+
+        if (parsed === null || parsed.content === null) {
           return;
         }
         this.setState({
-          parsed: result.content,
+          parsed: parsed.content,
           showParsed: true
         }, () => {
           this.props.shouldRerender()
         })
       })
-      .catch((reason: any) => {
-        console.log("Mercury.parse failed: " + reason);
-      })
+      .catch((e) => console.log("Readability parse failed: " + e))
       .finally(() => {
         this.setState({
           loading: false
         }, () => {
           this.props.shouldRerender()
         });
-      })
+      });
   }
 
   handleKeyDown = (event: KeyboardEvent) => {
