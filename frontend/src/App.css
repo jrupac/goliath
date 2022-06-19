@@ -47,7 +47,7 @@
   background-color: #243941;
   justify-content: flex-end;
   padding-right: 20px;
-  font-family: 'Pacifico', cursive;
+  font-family: var(--primary-sans-serif-font), cursive;
   color: #e6f2f7;
   font-size: 48px;
   width: 40%;
@@ -107,7 +107,7 @@
 .GoliathDrawer {
   width: 300px;
   flex-shrink: 0;
-  font-family: 'PT Sans Caption', sans-serif;
+  font-family: var(--primary-sans-serif-font), sans-serif;
 }
 
 .GoliathDrawer .MuiDrawer-paper {
@@ -159,7 +159,7 @@
 }
 
 .GoliathFolderTitle {
-  font-family: 'PT Sans Caption', sans-serif;
+  font-family: var(--primary-sans-serif-font), sans-serif;
   color: var(--primary-font-color);
   font-size: 14px;
 }
@@ -188,7 +188,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--primary-font-color);
-  font-family: 'PT Sans Caption', sans-serif;
+  font-family: var(--primary-sans-serif-font), sans-serif;
   margin: 0;
 }
 
@@ -198,7 +198,7 @@
 
 .GoliathFooter {
   text-align: center;
-  font-family: 'PT Sans Caption', sans-serif;
+  font-family: var(--primary-sans-serif-font), sans-serif;
   color: var(--primary-font-color);
   background-color: var(--primary-background-color);
   padding-top: 10px;
@@ -241,7 +241,7 @@
 .GoliathArticleListEmptyText.MuiTypography-root {
   color: var(--article-list-empty-text-font-color);;
   vertical-align: middle;
-  font-family: 'PT Sans Caption', sans-serif;
+  font-family: var(--primary-sans-serif-font), sans-serif;
   font-size: 32px;
 }
 
