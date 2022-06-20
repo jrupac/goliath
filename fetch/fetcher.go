@@ -235,20 +235,7 @@ func handleItemsForUser(ctx context.Context, feed *models.Feed, d *storage.Datab
 	newLatest := latest
 
 	var existingArticles []models.Article
-	existingArticles, err := d.GetUnreadArticlesForFeedForUser(u, feed.ID)
-	if err != nil {
-		log.Warningf("Error while fetching existing articles for feed %s: %s", feed.ID, err)
-	}
-
-	dupes := filterDupeArticles(existingArticles)
-	log.Infof("Found %d existing similar articles", len(dupes))
-	err = d.DeleteArticlesByIdForUser(u, dupes)
-	if err != nil {
-		log.Warningf("Failed to delete existing similar articles for feed %s: %s", feed.ID, err)
-	}
-
-	// Re-fetch existing articles after removing dupes
-	existingArticles, err = d.GetUnreadArticlesForFeedForUser(u, feed.ID)
+	existingArticles, err := d.GetArticlesForFeedForUser(u, feed.ID)
 	if err != nil {
 		log.Warningf("Error while fetching existing articles for feed %s: %s", feed.ID, err)
 	}
@@ -306,10 +293,16 @@ Loop:
 			log.V(2).Infof("Not persisting because present in retrieval cache: %+v", a)
 		} else {
 			// Remove existing articles that are similar to the newly fetched one.
-			ids := getSimilarExistingArticles(existingArticles, a)
-			if len(ids) > 0 {
-				log.Infof("Found %d similar articles to %s: %+v", len(ids), a.Title, ids)
-				err = d.DeleteArticlesByIdForUser(u, ids)
+			unreadIds, readIds := getSimilarExistingArticles(existingArticles, a)
+
+			if len(unreadIds) == 0 && len(readIds) > 0 {
+				// If all similar articles are read, mark the new one as read too to avoid "resurrecting" it.
+				// This is preferable to just skipping it as it progresses the "latest" timestamp.
+				log.V(2).Infof("Marking new article for %s read since all similar ones are read: %s", feed.ID, a.Title)
+				a.Read = true
+			} else if len(unreadIds) > 0 {
+				log.Infof("Found %d similar articles to %s: %+v", len(unreadIds), a.Title, unreadIds)
+				err = d.DeleteArticlesByIdForUser(u, unreadIds)
 				if err != nil {
 					log.Warningf("Failed to delete similar articles for feed %s: %s", feed.ID, err)
 				}
@@ -364,8 +357,8 @@ func handleImage(ctx context.Context, feed models.Feed, f *rss.Feed, send chan i
 	}
 }
 
-func getSimilarExistingArticles(articles []models.Article, a models.Article) []int64 {
-	var ids []int64
+func getSimilarExistingArticles(articles []models.Article, a models.Article) ([]int64, []int64) {
+	var unreadIds, readIds []int64
 
 	editDistPercent := func(base string, comp string) float64 {
 		edit := float64(levenshtein.Distance(base, comp)) / float64(len(base))
@@ -377,38 +370,16 @@ func getSimilarExistingArticles(articles []models.Article, a models.Article) []i
 			if *strictDedup ||
 				(editDistPercent(old.Title, a.Title) < *maxEditDedup &&
 					editDistPercent(old.Summary, a.Summary) < *maxEditDedup) {
-				ids = append(ids, old.ID)
+				if old.Read {
+					readIds = append(readIds, old.ID)
+				} else {
+					unreadIds = append(unreadIds, old.ID)
+				}
 			}
 		}
 	}
 
-	return ids
-}
-
-func filterDupeArticles(articles []models.Article) []int64 {
-	var ids []int64
-
-	type articleVal struct {
-		id   int64
-		date time.Time
-	}
-
-	linkMap := map[string]articleVal{}
-
-	for _, a := range articles {
-		if val, ok := linkMap[a.Link]; !ok {
-			linkMap[a.Link] = articleVal{a.ID, a.Date}
-		} else {
-			if val.date.Before(a.Date) {
-				ids = append(ids, val.id)
-				linkMap[a.Link] = articleVal{a.ID, a.Date}
-			} else {
-				ids = append(ids, a.ID)
-			}
-		}
-	}
-
-	return ids
+	return unreadIds, readIds
 }
 
 func tryIconFetch(link string) (besticon.Icon, error) {

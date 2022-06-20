@@ -679,9 +679,9 @@ func (d *Database) GetUnreadArticlesForUser(u models.User, limit int, sinceID in
 	return articles, err
 }
 
-// GetUnreadArticlesForFeedForUser returns a list of unread articles for the
+// GetArticlesForFeedForUser returns a list of articles for the
 // given feed ID and user.
-func (d *Database) GetUnreadArticlesForFeedForUser(u models.User, feedId int64) ([]models.Article, error) {
+func (d *Database) GetArticlesForFeedForUser(u models.User, feedId int64) ([]models.Article, error) {
 	defer logElapsedTime(time.Now(), "GetUnreadArticlesForFeedForUser")
 
 	var articles []models.Article
@@ -689,8 +689,8 @@ func (d *Database) GetUnreadArticlesForFeedForUser(u models.User, feedId int64) 
 	var err error
 
 	rows, err = d.db.Query(
-		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM `+articleTable+`
-		WHERE userid = $1 AND feed = $2 AND NOT read`, u.UserId, feedId)
+		`SELECT id, feed, folder, title, summary, content, parsed, link, read, date FROM `+articleTable+`
+		WHERE userid = $1 AND feed = $2`, u.UserId, feedId)
 	if err != nil {
 		return articles, err
 	}
@@ -699,7 +699,7 @@ func (d *Database) GetUnreadArticlesForFeedForUser(u models.User, feedId int64) 
 	for rows.Next() {
 		a := models.Article{}
 		if err = rows.Scan(
-			&a.ID, &a.FeedID, &a.FolderID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Date); err != nil {
+			&a.ID, &a.FeedID, &a.FolderID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Read, &a.Date); err != nil {
 			return articles, err
 		}
 		articles = append(articles, a)
