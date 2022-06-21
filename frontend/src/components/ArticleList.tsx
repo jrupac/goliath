@@ -8,8 +8,9 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-import {Box, Container, Typography} from "@mui/material";
+import {Box, Container, Grid, Typography} from "@mui/material";
 import InboxIcon from '@mui/icons-material/Inbox';
+import SplitViewArticleCard from "./SplitViewArticleCard";
 
 const goToAllSequence = ['g', 'a'];
 const markAllRead = ['Shift', 'I'];
@@ -37,18 +38,18 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     super(props);
     this.state = {
       articleEntries: props.articleEntries,
-      scrollIndex: -1,
+      scrollIndex: 0,
       keypressBuffer: new Array(keyBufLength)
     };
   }
 
   componentDidMount() {
     window.addEventListener('keydown', this.handleKeyDown);
-  };
+  }
 
   componentWillUnmount() {
     window.removeEventListener('keydown', this.handleKeyDown);
-  };
+  }
 
   componentDidUpdate(prevProps: ArticleListProps) {
     // Reset scroll position when the enclosing key changes.
@@ -81,16 +82,115 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       )
     } else {
       const articles = this.state.articleEntries;
+      const renderIndex = Math.max(0, this.state.scrollIndex);
+      const [article, title, favicon] = articles[renderIndex];
+
+      // Impossible, but not statically, so lint shuts up.
+      if (this.state.scrollIndex === -10) {
+        return (
+          <Box className="GoliathArticleListContainer">
+            <ReactList
+              ref={this.handleMounted}
+              itemRenderer={(e) => this.renderArticle(articles, e)}
+              length={articles.length}
+              type='variable'/>
+          </Box>
+        )
+      }
+
+
       return (
-        <Box className="GoliathArticleListContainer">
-          <ReactList
-            ref={this.handleMounted}
-            itemRenderer={(e) => this.renderArticle(articles, e)}
-            length={articles.length}
-            type='variable'/>
-        </Box>
+        <Container maxWidth={false} className="GoliathArticleListContainer">
+          <Grid container spacing={3}>
+            <Grid container item xs={4} wrap="nowrap">
+              <div style={{
+                overflowY: 'scroll',
+                width: "100vh",
+                height: "100vh",
+                paddingTop: "15px",
+                paddingRight: "15px"
+              }}>
+                <ReactList
+                  ref={this.handleMounted}
+                  itemRenderer={(e) => this.renderArticleListEntry(articles, e)}
+                  length={articles.length}
+                  type='uniform'/>
+              </div>
+            </Grid>
+            <Grid item xs={8}>
+              <SplitViewArticleCard
+                key={article.id.toString()}
+                article={article}
+                title={title}
+                favicon={favicon}
+                isSelected={true}
+                shouldRerender={() => ({})}/>
+            </Grid>
+          </Grid>
+        </Container>
       )
     }
+  }
+
+  renderArticleListEntry(articles: ArticleListEntry[], index: number) {
+    const [article, title, favicon] = articles[index];
+    let t;
+
+    if (!favicon) {
+      t = <i className="fas fa-rss-square"/>
+    } else {
+      t = <img src={`data:${favicon}`} height={16} width={16} alt=''/>
+    }
+
+    let css;
+
+    css = {
+      borderBottom: "1px solid gray",
+      padding: "10px",
+    };
+
+    if (index == this.state.scrollIndex) {
+      css = {
+        borderBottom: "1px solid gray",
+        padding: "10px",
+        background: "rgb(0.1, 0.1, 0.1)"
+      };
+    }
+
+    return (
+      // <Paper elevation={elevation}>
+      <Grid zeroMinWidth container direction="column" style={css}>
+        <Grid zeroMinWidth item xs>
+          <Typography noWrap className="GoliathArticleTitle">
+            {this.extractContent(article.title)}
+          </Typography>
+        </Grid>
+        <Grid zeroMinWidth container item xs>
+          <Grid item sx={{paddingRight: "10px"}} xs="auto">
+            {t}
+          </Grid>
+          <Grid item zeroMinWidth xs>
+            <Typography noWrap className="GoliathArticleFeedTitle">
+              {this.extractContent(title)}
+            </Typography>
+          </Grid>
+        </Grid>
+        <Grid container item wrap="nowrap">
+          <Grid item zeroMinWidth xs>
+            <Typography noWrap className="GoliathArticleContent">
+              {this.extractContent(article.html)}
+            </Typography>
+          </Grid>
+        </Grid>
+      </Grid>
+      // </Paper>
+    );
+  }
+
+  extractContent(html: string) {
+    return new DOMParser()
+      .parseFromString(html, "text/html")
+      .documentElement.textContent;
   }
 
   renderArticle(articles: ArticleListEntry[], index: number) {

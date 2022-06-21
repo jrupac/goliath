@@ -505,7 +505,9 @@ export default class App extends React.Component<AppProps, AppState> {
     return (
       <ThemeProvider theme={theme}>
         {/* TODO: Is there a better way to inject overrides than this? */}
-        <Box sx={{display: 'flex'}} className={`${themeClasses}`}>
+        <Box
+          sx={{display: 'flex', overflow: 'hidden', height: '100vh'}}
+          className={`${themeClasses}`}>
           <CssBaseline/>
           <Drawer
             variant="permanent"

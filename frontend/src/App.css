@@ -280,6 +280,12 @@
   font-size: 24px;
 }
 
+.GoliathArticleTitle.MuiTypography-root {
+  width: 100%;
+  font-family: 'Adobe-Caslon-Pro', serif;
+  font-size: 18px;
+}
+
 .GoliathArticleMeta {
   display: flex;
   padding-top: 5px;
@@ -299,6 +305,13 @@
   font-variant-caps: petite-caps;
 }
 
+.GoliathArticleFeedTitle.MuiTypography-root {
+  padding-left: 5px;
+  font-family: 'Adobe-Caslon-Pro', serif;
+  margin: 0;
+  font-variant-caps: petite-caps;
+}
+
 .GoliathArticleDate {
   color: var(--article-date-color);
   font-family: 'Adobe-Caslon-Pro', serif;
@@ -307,6 +320,20 @@
   text-align: right;
   display: flex;
   align-items: baseline;
+}
+
+.GoliathArticleContent.MuiTypography-root {
+  font-size: 16px;
+  font-family: 'Adobe-Caslon-Pro', serif;
+  color: var(--article-font-color);
+  padding: 0;
+}
+
+.GoliathSplitViewArticleContent.MuiTypography-root {
+  font-size: 18px;
+  font-family: 'Adobe-Caslon-Pro', serif;
+  color: var(--article-font-color);
+  padding: 24px;
 }
 
 .GoliathArticleContent {
