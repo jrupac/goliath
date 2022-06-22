@@ -110,8 +110,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
               <div style={{
                 overflowY: 'scroll',
                 width: "100vh",
-                height: "100vh",
-                // paddingTop: "15px"
+                height: "100vh"
               }}>
                 <ReactList
                   ref={this.handleMounted}
@@ -135,7 +134,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     }
   }
 
-  generateImagePreview(index: number) {
+  async generateImagePreview(index: number) {
     // Already generated preview for this article, so nothing to do.
     if (this.state.articleImagePreviews[index] !== undefined) {
       return;
@@ -151,7 +150,8 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       return;
     }
 
-    for (let j = 0; j < images.length; j++) {
+    let limit = Math.min(5, images.length)
+    for (let j = 0; j < limit; j++) {
       const img = new Image();
       img.src = images[j].src;
 
@@ -166,36 +166,38 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       }));
     }
 
-    Promise.allSettled(p).then((results) => {
-      let height = 0;
-      let src: string;
+    const results = await Promise.allSettled(p);
+    let height = 0;
+    let src: string;
 
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          const [imgHeight, imgSrc] = result.value;
-          if (imgHeight > height) {
-            height = imgHeight;
-            src = imgSrc;
-          }
+    results.forEach((result) => {
+      if (result.status === 'fulfilled') {
+        const [imgHeight, imgSrc] = result.value;
+        if (imgHeight > height) {
+          height = imgHeight;
+          src = imgSrc;
         }
-      })
-
-      if (height > 0) {
-        this.setState((prevState) => {
-          const imgPrevs = Array.from(prevState.articleImagePreviews);
-          imgPrevs[index] = (
-            <img className="GoliathArticleListImagePreview" src={src}/>);
-          return {articleImagePreviews: imgPrevs}
-        });
       }
-    });
+    })
+
+    if (height > 0) {
+      this.setState((prevState) => {
+        const imgPrevs = Array.from(prevState.articleImagePreviews);
+        imgPrevs[index] = (
+          <img className="GoliathArticleListImagePreview" src={src}/>);
+        return {articleImagePreviews: imgPrevs}
+      });
+    }
+
   }
 
   renderArticleListEntry(index: number) {
     const articles = this.state.articleEntries
     const articlePrevs = this.state.articleImagePreviews;
 
-    this.generateImagePreview(index);
+    // We want this to be async, but add the .then() to quiet the warning.
+    this.generateImagePreview(index).then();
+
     const [article, title, favicon] = articles[index];
     let faviconImg;
 

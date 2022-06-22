@@ -61,7 +61,7 @@ export default class SplitViewArticleCard extends React.Component<ArticleProps, 
 
     return (
       <Box className="GoliathArticleOuter">
-        <Card elevation={elevation}>
+        <Card elevation={elevation} className="GoliathHeaderContainer">
           <CardHeader
             className={`GoliathArticleHeader ${headerClass}`}
             title={
