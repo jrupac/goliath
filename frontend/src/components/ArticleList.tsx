@@ -3,6 +3,7 @@ import React from "react";
 import ReactList from 'react-list';
 import {animateScroll as scroll} from 'react-scroll';
 import {
+  ArticleImagePreview,
   ArticleListEntry,
   MarkState,
   SelectionKey,
@@ -26,6 +27,7 @@ export interface ArticleListProps {
 
 export interface ArticleListState {
   articleEntries: ArticleListEntry[];
+  articleImagePreviews: ArticleImagePreview[];
 
   scrollIndex: number;
   keypressBuffer: Array<string>;
@@ -38,6 +40,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     super(props);
     this.state = {
       articleEntries: props.articleEntries,
+      articleImagePreviews: new Array(props.articleEntries.length),
       scrollIndex: 0,
       keypressBuffer: new Array(keyBufLength)
     };
@@ -63,7 +66,8 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     }
     this.setState({
       articleEntries: Array.from(this.props.articleEntries),
-      scrollIndex: -1,
+      articleImagePreviews: new Array(this.props.articleEntries.length),
+      scrollIndex: 0,
       keypressBuffer: new Array(keyBufLength)
     });
   }
@@ -107,12 +111,11 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
                 overflowY: 'scroll',
                 width: "100vh",
                 height: "100vh",
-                paddingTop: "15px",
-                paddingRight: "15px"
+                // paddingTop: "15px"
               }}>
                 <ReactList
                   ref={this.handleMounted}
-                  itemRenderer={(e) => this.renderArticleListEntry(articles, e)}
+                  itemRenderer={(e) => this.renderArticleListEntry(e)}
                   length={articles.length}
                   type='uniform'/>
               </div>
@@ -132,42 +135,95 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     }
   }
 
-  renderArticleListEntry(articles: ArticleListEntry[], index: number) {
-    const [article, title, favicon] = articles[index];
-    let t;
-
-    if (!favicon) {
-      t = <i className="fas fa-rss-square"/>
-    } else {
-      t = <img src={`data:${favicon}`} height={16} width={16} alt=''/>
+  generateImagePreview(index: number) {
+    // Already generated preview for this article, so nothing to do.
+    if (this.state.articleImagePreviews[index] !== undefined) {
+      return;
     }
 
-    let css;
+    const minPixelSize = 100;
+    const p: Promise<any>[] = [];
+    const [article] = this.state.articleEntries[index];
+    const images = new DOMParser()
+      .parseFromString(article.html, "text/html").images;
 
-    css = {
+    if (images === undefined) {
+      return;
+    }
+
+    for (let j = 0; j < images.length; j++) {
+      const img = new Image();
+      img.src = images[j].src;
+
+      p.push(new Promise((resolve, reject) => {
+        img.decode().then(() => {
+          if (img.height >= minPixelSize && img.width >= minPixelSize) {
+            resolve([img.height, img.src]);
+          }
+          reject();
+        }).catch(() => {
+        });
+      }));
+    }
+
+    Promise.allSettled(p).then((results) => {
+      let height = 0;
+      let src: string;
+
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          const [imgHeight, imgSrc] = result.value;
+          if (imgHeight > height) {
+            height = imgHeight;
+            src = imgSrc;
+          }
+        }
+      })
+
+      if (height > 0) {
+        this.setState((prevState) => {
+          const imgPrevs = Array.from(prevState.articleImagePreviews);
+          imgPrevs[index] = (
+            <img className="GoliathArticleListImagePreview" src={src}/>);
+          return {articleImagePreviews: imgPrevs}
+        });
+      }
+    });
+  }
+
+  renderArticleListEntry(index: number) {
+    const articles = this.state.articleEntries
+    const articlePrevs = this.state.articleImagePreviews;
+
+    this.generateImagePreview(index);
+    const [article, title, favicon] = articles[index];
+    let faviconImg;
+
+    if (!favicon) {
+      faviconImg = <i className="fas fa-rss-square"/>
+    } else {
+      faviconImg = <img src={`data:${favicon}`} height={16} width={16} alt=''/>
+    }
+
+    let css: Record<string, string> = {
       borderBottom: "1px solid gray",
       padding: "10px",
     };
 
     if (index == this.state.scrollIndex) {
-      css = {
-        borderBottom: "1px solid gray",
-        padding: "10px",
-        background: "rgb(0.1, 0.1, 0.1)"
-      };
+      css['background'] = "rgb(20, 20, 20)";
     }
 
     return (
-      // <Paper elevation={elevation}>
-      <Grid zeroMinWidth container direction="column" style={css}>
-        <Grid zeroMinWidth item xs>
-          <Typography noWrap className="GoliathArticleTitle">
+      <Grid container direction="column" style={css} key={index}>
+        <Grid zeroMinWidth item className="GoliathArticleListEntryContainer">
+          <Typography noWrap className="GoliathArticleListTitle">
             {this.extractContent(article.title)}
           </Typography>
         </Grid>
         <Grid zeroMinWidth container item xs>
           <Grid item sx={{paddingRight: "10px"}} xs="auto">
-            {t}
+            {faviconImg}
           </Grid>
           <Grid item zeroMinWidth xs>
             <Typography noWrap className="GoliathArticleFeedTitle">
@@ -176,18 +232,20 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
           </Grid>
         </Grid>
         <Grid container item wrap="nowrap">
-          <Grid item zeroMinWidth xs>
-            <Typography noWrap className="GoliathArticleContent">
+          <Grid item xs='auto'>
+            {articlePrevs[index]}
+          </Grid>
+          <Grid item zeroMinWidth xs style={{height: '100px'}}>
+            <Typography className="GoliathArticleContentPreview">
               {this.extractContent(article.html)}
             </Typography>
           </Grid>
         </Grid>
       </Grid>
-      // </Paper>
     );
   }
 
-  extractContent(html: string) {
+  extractContent(html: string): string | null {
     return new DOMParser()
       .parseFromString(html, "text/html")
       .documentElement.textContent;
@@ -270,9 +328,9 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         }
       }
       return {
-        articleEntries,
-        keypressBuffer,
-        scrollIndex
+        articleEntries: articleEntries,
+        keypressBuffer: keypressBuffer,
+        scrollIndex: scrollIndex
       };
     }, this.handleScroll);
   };
@@ -315,7 +373,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
           article.is_read = 1;
         }
         return {
-          articleEntries
+          articleEntries: articleEntries
         };
       });
     }

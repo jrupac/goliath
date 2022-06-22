@@ -218,9 +218,9 @@
  * Article List
  ******************************************************************************/
 
-.GoliathArticleListContainer {
+.GoliathArticleListContainer.MuiContainer-root {
   min-height: 100vh;
-  margin: 0 24px;
+  padding: 0;
 }
 
 .GoliathArticleListEmpty {
@@ -245,14 +245,28 @@
   font-size: 32px;
 }
 
+.GoliathArticleListEntryContainer.MuiGrid-root {
+  width: 100%;
+}
+
+.GoliathArticleListImagePreview {
+  max-height: 75px;
+  max-width: 100px;
+  padding-right: 10px;
+  position: relative;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 /******************************************************************************
  * Article
  ******************************************************************************/
 
 .GoliathArticleOuter {
-  /* Needed to get correct offsetTop for react-list */
-  border-top: 12px solid transparent;
-  border-bottom: 12px solid transparent;
+  border-top: 20px solid transparent;
+  height: 100vh;
+  overflow-y: auto;
+  padding-right: 20px;
 }
 
 .GoliathArticleHeader {
@@ -280,10 +294,10 @@
   font-size: 24px;
 }
 
-.GoliathArticleTitle.MuiTypography-root {
+.GoliathArticleListTitle.MuiTypography-root {
   width: 100%;
   font-family: 'Adobe-Caslon-Pro', serif;
-  font-size: 18px;
+  font-size: 22px;
 }
 
 .GoliathArticleMeta {
@@ -336,6 +350,17 @@
   padding: 24px;
 }
 
+.GoliathArticleContentPreview.MuiTypography-root {
+  font-size: 16px;
+  font-family: 'Adobe-Caslon-Pro', serif;
+  color: var(--article-font-color);
+  overflow: hidden;
+  text-overflow: "ellipsis";
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+
 .GoliathArticleContent {
   font-size: 18px;
   font-family: 'Adobe-Caslon-Pro', serif;
@@ -343,22 +368,30 @@
   padding: 24px;
 }
 
-.GoliathArticleContent a {
+.GoliathArticleContent a,
+.GoliathSplitViewArticleContent a {
   color: var(--article-font-color);
   font-weight: bold;
   text-decoration: none;
 }
 
 .GoliathArticleContent h1,
+.GoliathSplitViewArticleContent h1,
 .GoliathArticleContent h2,
+.GoliathSplitViewArticleContent h2,
 .GoliathArticleContent h3,
+.GoliathSplitViewArticleContent h3,
 .GoliathArticleContent h4,
+.GoliathSplitViewArticleContent h4,
 .GoliathArticleContent h5,
-.GoliathArticleContent h6 {
+.GoliathSplitViewArticleContent h5,
+.GoliathArticleContent h6,
+.GoliathSplitViewArticleContent h6 {
   color: var(--article-font-color);
 }
 
-.GoliathArticleContent img {
+.GoliathArticleContent img,
+.GoliathSplitViewArticleContent img {
   max-width: 75%;
   height: auto;
   /* Center images */
@@ -366,7 +399,8 @@
   margin: 0 auto;
 }
 
-.GoliathArticleContent.MuiCardContent-root figure {
+.GoliathArticleContent.MuiCardContent-root figure,
+.GoliathSplitViewArticleContent.MuiCardContent-root figure {
   display: flex;
   margin: 0 auto;
   max-width: 75%;
@@ -375,7 +409,9 @@
 }
 
 .GoliathArticleContent.MuiCardContent-root figure p,
-.GoliathArticleContent.MuiCardContent-root figcaption {
+.GoliathSplitViewArticleContent.MuiCardContent-root figure p,
+.GoliathArticleContent.MuiCardContent-root figcaption,
+.GoliathSplitViewArticleContent.MuiCardContent-root figcaption {
   text-align: center;
   padding-top: 10px;
   font-size: smaller;
@@ -384,6 +420,8 @@
 
 /* Hide some elements that clutter article display. */
 .GoliathArticleContent.MuiCardContent-root .share_submission,
-.GoliathArticleContent.MuiCardContent-root .feedflare {
+.GoliathSplitViewArticleContent.MuiCardContent-root .share_submission,
+.GoliathArticleContent.MuiCardContent-root .feedflare,
+.GoliathSplitViewArticleContent.MuiCardContent-root .feedflare {
   display: none;
 }

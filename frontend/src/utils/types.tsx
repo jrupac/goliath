@@ -1,5 +1,7 @@
 /** Global types for Goliath RSS */
 
+import React from "react";
+
 /** Theme is a list of possible theme values for the application. */
 export enum Theme {
   Default = 0,
@@ -91,6 +93,8 @@ export type Folder = {
   unread_count: number;
   feeds: Map<FeedId, Feed>;
 }
+
+export type ArticleImagePreview = React.ReactElement | null;
 
 /** ArticleListEntry also holds metadata associated with a displayed Article. */
 export type ArticleListEntry = [Article, FeedTitle, Favicon, FeedId, FolderId];
