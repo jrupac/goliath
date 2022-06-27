@@ -178,6 +178,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       let scrollIndex = prevState.scrollIndex;
       let articleEntries = Array.from(prevState.articleEntries);
       let articleViewToggleState = prevState.articleViewToggleState;
+      const [article] = this.state.articleEntries[scrollIndex];
 
       // Add new keypress to buffer, dropping the oldest entry.
       let keypressBuffer = [...prevState.keypressBuffer.slice(1), event.key];
@@ -221,7 +222,6 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
             scrollIndex = 0;
           }
 
-          const [article] = this.state.articleEntries[scrollIndex];
           window.open(article.url, '_blank');
           break;
         default:

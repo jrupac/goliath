@@ -4,12 +4,12 @@ module.exports = {
     "plugin:react/recommended"
   ],
   "rules": {
-    "no-use-before-define": "off",
+    "@typescript-eslint/no-unused-vars": "warn",
     "@typescript-eslint/no-use-before-define": ["warn"],
     "default-case": "off",
+    "func-style": 0,
     "id-length": "off",
     "indent": ["error", 2],
-    "func-style": 0,
     "max-lines": "off",
     "no-bitwise": "off",
     "no-case-declarations": "warn",
@@ -17,7 +17,7 @@ module.exports = {
     "no-extra-semi": "warn",
     "no-magic-numbers": "off",
     "no-param-reassign": "off",
-    "no-unused-vars": "warn",
+    "no-use-before-define": "off",
     "react/no-set-state": "off",
     // For now.
     "require-jsdoc": "off",
