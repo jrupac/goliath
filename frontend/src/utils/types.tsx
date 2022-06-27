@@ -42,6 +42,12 @@ export type SelectionKey =
 /** MarkState describes the desired state of a mark operation. */
 export type MarkState = "read";
 
+/** ArticleImagePreview toggles between UI options for the article list. */
+export enum ArticleListView {
+  Combined = 0,
+  Split = 1 << 0,
+}
+
 /** Article is a single unit of content. */
 export interface ArticleId extends String {
 }

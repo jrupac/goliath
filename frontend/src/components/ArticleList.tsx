@@ -5,6 +5,7 @@ import {animateScroll as scroll} from 'react-scroll';
 import {
   ArticleImagePreview,
   ArticleListEntry,
+  ArticleListView,
   MarkState,
   SelectionKey,
   SelectionType
@@ -14,7 +15,7 @@ import InboxIcon from '@mui/icons-material/Inbox';
 import SplitViewArticleCard from "./SplitViewArticleCard";
 
 const goToAllSequence = ['g', 'a'];
-const markAllRead = ['Shift', 'I'];
+const markAllReadSequence = ['Shift', 'I'];
 const keyBufLength = 2;
 
 export interface ArticleListProps {
@@ -31,6 +32,7 @@ export interface ArticleListState {
 
   scrollIndex: number;
   keypressBuffer: Array<string>;
+  articleViewToggleState: ArticleListView
 }
 
 export default class ArticleList extends React.Component<ArticleListProps, ArticleListState> {
@@ -42,7 +44,8 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       articleEntries: props.articleEntries,
       articleImagePreviews: new Array(props.articleEntries.length),
       scrollIndex: 0,
-      keypressBuffer: new Array(keyBufLength)
+      keypressBuffer: new Array(keyBufLength),
+      articleViewToggleState: ArticleListView.Combined
     };
   }
 
@@ -89,8 +92,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       const renderIndex = Math.max(0, this.state.scrollIndex);
       const [article, title, favicon] = articles[renderIndex];
 
-      // Impossible, but not statically, so lint shuts up.
-      if (this.state.scrollIndex === -10) {
+      if (this.state.articleViewToggleState === ArticleListView.Combined) {
         return (
           <Box className="GoliathArticleListContainer">
             <ReactList
@@ -285,6 +287,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     this.setState((prevState) => {
       let scrollIndex = prevState.scrollIndex;
       let articleEntries = Array.from(prevState.articleEntries);
+      let articleViewToggleState = prevState.articleViewToggleState;
 
       // Add new keypress to buffer, dropping the oldest entry.
       let keypressBuffer = [...prevState.keypressBuffer.slice(1), event.key];
@@ -293,7 +296,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       if (goToAllSequence.every((e, i) => e === keypressBuffer[i])) {
         this.props.selectAllCallback();
         keypressBuffer = new Array(keyBufLength);
-      } else if (markAllRead.every((e, i) => e === keypressBuffer[i])) {
+      } else if (markAllReadSequence.every((e, i) => e === keypressBuffer[i])) {
         this.props.handleMark(
           'read', this.props.selectionKey, this.props.selectionType);
         articleEntries.forEach((e: ArticleListEntry) => {
@@ -314,6 +317,13 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         case 'k':
           scrollIndex = Math.max(prevState.scrollIndex - 1, 0);
           break;
+        case 's':
+          if (articleViewToggleState === ArticleListView.Combined) {
+            articleViewToggleState = ArticleListView.Split;
+          } else {
+            articleViewToggleState = ArticleListView.Combined;
+          }
+          break;
         case 'v':
           // If trying to open an article before any articles are selected,
           // treat it like a scroll to the first article.
@@ -332,7 +342,8 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       return {
         articleEntries: articleEntries,
         keypressBuffer: keypressBuffer,
-        scrollIndex: scrollIndex
+        scrollIndex: scrollIndex,
+        articleViewToggleState: articleViewToggleState
       };
     }, this.handleScroll);
   };
