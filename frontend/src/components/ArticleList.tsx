@@ -13,6 +13,7 @@ import {
 import {Box, Container, Grid, Typography} from "@mui/material";
 import InboxIcon from '@mui/icons-material/Inbox';
 import SplitViewArticleCard from "./SplitViewArticleCard";
+import SplitViewArticleListEntry from "./SplitViewArticleListEntry";
 
 const goToAllSequence = ['g', 'a'];
 const markAllReadSequence = ['Shift', 'I'];
@@ -104,7 +105,6 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         )
       }
 
-
       return (
         <Container maxWidth={false} className="GoliathArticleListContainer">
           <Grid container spacing={3}>
@@ -116,7 +116,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
               }}>
                 <ReactList
                   ref={this.handleMounted}
-                  itemRenderer={(e) => this.renderArticleListEntry(e)}
+                  itemRenderer={(e) => this.renderSplitViewArticleListEntry(e)}
                   length={articles.length}
                   type='uniform'/>
               </div>
@@ -136,123 +136,11 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     }
   }
 
-  async generateImagePreview(index: number) {
-    // Already generated preview for this article, so nothing to do.
-    if (this.state.articleImagePreviews[index] !== undefined) {
-      return;
-    }
-
-    const minPixelSize = 100;
-    const p: Promise<any>[] = [];
-    const [article] = this.state.articleEntries[index];
-    const images = new DOMParser()
-      .parseFromString(article.html, "text/html").images;
-
-    if (images === undefined) {
-      return;
-    }
-
-    let limit = Math.min(5, images.length)
-    for (let j = 0; j < limit; j++) {
-      const img = new Image();
-      img.src = images[j].src;
-
-      p.push(new Promise((resolve, reject) => {
-        img.decode().then(() => {
-          if (img.height >= minPixelSize && img.width >= minPixelSize) {
-            resolve([img.height, img.src]);
-          }
-          reject();
-        }).catch(() => {
-        });
-      }));
-    }
-
-    const results = await Promise.allSettled(p);
-    let height = 0;
-    let src: string;
-
-    results.forEach((result) => {
-      if (result.status === 'fulfilled') {
-        const [imgHeight, imgSrc] = result.value;
-        if (imgHeight > height) {
-          height = imgHeight;
-          src = imgSrc;
-        }
-      }
-    })
-
-    if (height > 0) {
-      this.setState((prevState) => {
-        const imgPrevs = Array.from(prevState.articleImagePreviews);
-        imgPrevs[index] = (
-          <img className="GoliathArticleListImagePreview" src={src}/>);
-        return {articleImagePreviews: imgPrevs}
-      });
-    }
-
-  }
-
-  renderArticleListEntry(index: number) {
-    const articles = this.state.articleEntries
-    const articlePrevs = this.state.articleImagePreviews;
-
-    // We want this to be async, but add the .then() to quiet the warning.
-    this.generateImagePreview(index).then();
-
-    const [article, title, favicon] = articles[index];
-    let faviconImg;
-
-    if (!favicon) {
-      faviconImg = <i className="fas fa-rss-square"/>
-    } else {
-      faviconImg = <img src={`data:${favicon}`} height={16} width={16} alt=''/>
-    }
-
-    let css: Record<string, string> = {
-      borderBottom: "1px solid gray",
-      padding: "10px",
-    };
-
-    if (index == this.state.scrollIndex) {
-      css['background'] = "rgb(20, 20, 20)";
-    }
-
-    return (
-      <Grid container direction="column" style={css} key={index}>
-        <Grid zeroMinWidth item className="GoliathArticleListEntryContainer">
-          <Typography noWrap className="GoliathArticleListTitle">
-            {this.extractContent(article.title)}
-          </Typography>
-        </Grid>
-        <Grid zeroMinWidth container item xs>
-          <Grid item sx={{paddingRight: "10px"}} xs="auto">
-            {faviconImg}
-          </Grid>
-          <Grid item zeroMinWidth xs>
-            <Typography noWrap className="GoliathArticleFeedTitle">
-              {this.extractContent(title)}
-            </Typography>
-          </Grid>
-        </Grid>
-        <Grid container item wrap="nowrap">
-          <Grid item xs='auto'>
-            {articlePrevs[index]}
-          </Grid>
-          <Grid item zeroMinWidth xs style={{height: '100px'}}>
-            <Typography className="GoliathArticleContentPreview">
-              {this.extractContent(article.html)}
-            </Typography>
-          </Grid>
-        </Grid>
-      </Grid>
-    );
-  }
-
-  extractContent(html: string): string | null {
-    return new DOMParser()
-      .parseFromString(html, "text/html")
-      .documentElement.textContent;
+  renderSplitViewArticleListEntry(index: number) {
+    return <SplitViewArticleListEntry
+      key={index.toString()}
+      article={this.state.articleEntries[index]}
+      selected={index === this.state.scrollIndex}/>
   }
 
   renderArticle(articles: ArticleListEntry[], index: number) {
