@@ -218,10 +218,7 @@
  * Article List
  ******************************************************************************/
 
-.GoliathArticleListContainer.MuiContainer-root {
-  min-height: 100vh;
-  padding: 0;
-}
+/** Common styling */
 
 .GoliathArticleListEmpty {
   display: flex;
@@ -245,7 +242,22 @@
   font-size: 32px;
 }
 
-.GoliathArticleListEntryContainer.MuiGrid-root {
+/** Combined article list */
+
+.GoliathArticleListContainer {
+  min-height: 100vh;
+  padding: 0 24px;
+  overflow-y: auto;
+}
+
+/** Split article list */
+
+.GoliathSplitViewArticleListContainer.MuiContainer-root {
+  min-height: 100vh;
+  padding: 0;
+}
+
+.GoliathSplitViewArticleListGrid.MuiGrid-root {
   width: 100%;
 }
 
@@ -372,30 +384,26 @@
   padding: 24px;
 }
 
-.GoliathArticleContent a,
-.GoliathSplitViewArticleContent a {
+/******************************************************************************
+ * Common Article styling
+ ******************************************************************************/
+
+.GoliathArticleContentStyling a {
   color: var(--article-font-color);
   font-weight: bold;
   text-decoration: none;
 }
 
-.GoliathArticleContent h1,
-.GoliathSplitViewArticleContent h1,
-.GoliathArticleContent h2,
-.GoliathSplitViewArticleContent h2,
-.GoliathArticleContent h3,
-.GoliathSplitViewArticleContent h3,
-.GoliathArticleContent h4,
-.GoliathSplitViewArticleContent h4,
-.GoliathArticleContent h5,
-.GoliathSplitViewArticleContent h5,
-.GoliathArticleContent h6,
-.GoliathSplitViewArticleContent h6 {
+.GoliathArticleContentStyling h1,
+.GoliathArticleContentStyling h2,
+.GoliathArticleContentStyling h3,
+.GoliathArticleContentStyling h4,
+.GoliathArticleContentStyling h5,
+.GoliathArticleContentStyling h6 {
   color: var(--article-font-color);
 }
 
-.GoliathArticleContent img,
-.GoliathSplitViewArticleContent img {
+.GoliathArticleContentStyling img {
   max-width: 75%;
   height: auto;
   /* Center images */
@@ -403,8 +411,7 @@
   margin: 0 auto;
 }
 
-.GoliathArticleContent.MuiCardContent-root figure,
-.GoliathSplitViewArticleContent.MuiCardContent-root figure {
+.GoliathArticleContentStyling.MuiCardContent-root figure {
   display: flex;
   margin: 0 auto;
   max-width: 75%;
@@ -412,10 +419,8 @@
   padding-bottom: 10px;
 }
 
-.GoliathArticleContent.MuiCardContent-root figure p,
-.GoliathSplitViewArticleContent.MuiCardContent-root figure p,
-.GoliathArticleContent.MuiCardContent-root figcaption,
-.GoliathSplitViewArticleContent.MuiCardContent-root figcaption {
+.GoliathArticleContentStyling.MuiCardContent-root figure p,
+.GoliathArticleContentStyling.MuiCardContent-root figcaption {
   text-align: center;
   padding-top: 10px;
   font-size: smaller;
@@ -423,9 +428,7 @@
 }
 
 /* Hide some elements that clutter article display. */
-.GoliathArticleContent.MuiCardContent-root .share_submission,
-.GoliathSplitViewArticleContent.MuiCardContent-root .share_submission,
-.GoliathArticleContent.MuiCardContent-root .feedflare,
-.GoliathSplitViewArticleContent.MuiCardContent-root .feedflare {
+.GoliathArticleContentStyling.MuiCard .share_submission,
+.GoliathArticleContentStyling.MuiCardContent-root .feedflare {
   display: none;
 }

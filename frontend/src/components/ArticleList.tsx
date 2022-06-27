@@ -106,7 +106,9 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       }
 
       return (
-        <Container maxWidth={false} className="GoliathArticleListContainer">
+        <Container
+          maxWidth={false}
+          className="GoliathSplitViewArticleListContainer">
           <Grid container spacing={3}>
             <Grid container item xs={4} wrap="nowrap">
               <div style={{

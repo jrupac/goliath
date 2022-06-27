@@ -91,7 +91,8 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
                 </Tooltip>
               </Box>
             }/>
-          <CardContent className="GoliathArticleContent">
+          <CardContent
+            className="GoliathArticleContent GoliathArticleContentStyling">
             {this.renderContent()}
           </CardContent>
         </Card>

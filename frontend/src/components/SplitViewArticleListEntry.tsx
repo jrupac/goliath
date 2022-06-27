@@ -96,11 +96,13 @@ export default class SplitViewArticleListEntry
 
     if (this.props.selected) {
       css['background'] = "rgb(20, 20, 20)";
+    } else if (article.is_read === 1) {
+      css['background'] = "rgb(5, 5, 5)"
     }
 
     return (
       <Grid container direction="column" style={css}>
-        <Grid zeroMinWidth item className="GoliathArticleListEntryContainer">
+        <Grid zeroMinWidth item className="GoliathSplitViewArticleListGrid">
           <Typography noWrap className="GoliathArticleListTitle">
             {extractContent(article.title)}
           </Typography>

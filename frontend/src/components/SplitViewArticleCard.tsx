@@ -92,7 +92,8 @@ export default class SplitViewArticleCard extends React.Component<ArticleProps, 
               </Box>
             }/>
         </Card>
-        <Typography className="GoliathSplitViewArticleContent">
+        <Typography
+          className="GoliathSplitViewArticleContent GoliathArticleContentStyling">
           {this.renderContent()}
         </Typography>
       </Box>
