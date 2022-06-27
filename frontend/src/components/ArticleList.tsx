@@ -149,7 +149,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     const [article, title, favicon] = articles[index];
 
     return <Article
-      key={article.id.toString()}
+      key={index.toString()}
       article={article}
       title={title}
       favicon={favicon}

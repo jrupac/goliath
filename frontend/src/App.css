@@ -244,8 +244,8 @@
 
 /** Combined article list */
 
-.GoliathArticleListContainer {
-  min-height: 100vh;
+.GoliathArticleListContainer.MuiBox-root {
+  height: 100vh;
   padding: 0 24px;
   overflow-y: auto;
 }
