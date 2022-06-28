@@ -258,6 +258,7 @@
 
 .GoliathSplitViewArticleListBox.MuiBox-root {
   height: 100vh;
+  width: 100vh;
   overflow-y: auto;
 }
 
@@ -266,7 +267,6 @@
 }
 
 .GoliathArticleListEntry.MuiGrid-root {
-  border-bottom: 1px solid gray;
   padding: 10px;
 }
 
@@ -309,6 +309,10 @@
 
 .GoliathArticleOuter {
   border-top: 20px solid transparent;
+}
+
+.GoliathSplitViewArticleOuter {
+  padding-left: 24px;
 }
 
 .GoliathHeaderContainer {

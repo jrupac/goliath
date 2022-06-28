@@ -10,7 +10,7 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-import {Box, Container, Grid, Typography} from "@mui/material";
+import {Box, Container, Divider, Grid, Typography} from "@mui/material";
 import InboxIcon from '@mui/icons-material/Inbox';
 import SplitViewArticleCard from "./SplitViewArticleCard";
 import SplitViewArticleListEntry from "./SplitViewArticleListEntry";
@@ -46,7 +46,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       articleImagePreviews: new Array(props.articleEntries.length),
       scrollIndex: 0,
       keypressBuffer: new Array(keyBufLength),
-      articleViewToggleState: ArticleListView.Combined
+      articleViewToggleState: ArticleListView.Split
     };
   }
 
@@ -98,7 +98,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
           <Box className="GoliathArticleListBox">
             <ReactList
               ref={this.handleMounted}
-              itemRenderer={(e) => this.renderArticle(articles, e)}
+              itemRenderer={(e, key) => this.renderArticle(articles, e, key)}
               length={articles.length}
               type='variable'/>
           </Box>
@@ -109,17 +109,20 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         <Container
           maxWidth={false}
           className="GoliathSplitViewArticleListContainer">
-          <Grid container spacing={3}>
+          <Grid container>
             <Grid container item xs={4}>
               <Box className="GoliathSplitViewArticleListBox">
                 <ReactList
                   ref={this.handleMounted}
-                  itemRenderer={(e) => this.renderSplitViewArticleListEntry(e)}
+                  itemRenderer={(e, key) => this.renderSplitViewArticleListEntry(e, key)}
                   length={articles.length}
                   type='variable'/>
               </Box>
             </Grid>
-            <Grid item xs={8}>
+            <Grid item xs='auto'>
+              <Divider orientation="vertical"/>
+            </Grid>
+            <Grid item xs className="GoliathSplitViewArticleOuter">
               <SplitViewArticleCard
                 key={article.id.toString()}
                 article={article}
@@ -134,18 +137,18 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     }
   }
 
-  renderSplitViewArticleListEntry(index: number) {
+  renderSplitViewArticleListEntry(index: number, key: number | string) {
     return <SplitViewArticleListEntry
-      key={index.toString()}
+      key={key}
       article={this.state.articleEntries[index]}
       selected={index === this.state.scrollIndex}/>
   }
 
-  renderArticle(articles: ArticleListEntry[], index: number) {
+  renderArticle(articles: ArticleListEntry[], index: number, key: number | string) {
     const [article, title, favicon] = articles[index];
 
     return <Article
-      key={index.toString()}
+      key={key}
       article={article}
       title={title}
       favicon={favicon}

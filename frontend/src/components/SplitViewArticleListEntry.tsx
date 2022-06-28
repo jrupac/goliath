@@ -1,6 +1,6 @@
 import React from "react";
 import {ArticleImagePreview, ArticleListEntry} from "../utils/types";
-import {Grid, Paper, Typography} from "@mui/material";
+import {Divider, Grid, Paper, Typography} from "@mui/material";
 
 export interface SplitViewArticleListEntryProps {
   article: ArticleListEntry,
@@ -17,6 +17,16 @@ export default class SplitViewArticleListEntry
     super(props);
     this.state = {
       preview: null
+    }
+  }
+
+  componentDidUpdate(prevProps: SplitViewArticleListEntryProps) {
+    const [prevArticle] = prevProps.article;
+    const [article] = this.props.article;
+    if (prevArticle.id !== article.id) {
+      this.setState({
+        preview: null
+      });
     }
   }
 
@@ -99,7 +109,7 @@ export default class SplitViewArticleListEntry
     }
 
     return (
-      <Paper elevation={elevation} className={readClass}>
+      <Paper elevation={elevation} square className={readClass}>
         <Grid container direction="column" className="GoliathArticleListEntry">
           <Grid zeroMinWidth item className="GoliathArticleListTitle">
             <Typography noWrap className="GoliathArticleListTitle">
@@ -127,6 +137,7 @@ export default class SplitViewArticleListEntry
             </Grid>
           </Grid>
         </Grid>
+        <Divider/>
       </Paper>
     );
   }
