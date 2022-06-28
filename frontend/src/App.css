@@ -244,7 +244,7 @@
 
 /** Combined article list */
 
-.GoliathArticleListContainer.MuiBox-root {
+.GoliathArticleListBox.MuiBox-root {
   height: 100vh;
   padding: 0 24px;
   overflow-y: auto;
@@ -253,8 +253,12 @@
 /** Split article list */
 
 .GoliathSplitViewArticleListContainer.MuiContainer-root {
-  min-height: 100vh;
   padding: 0;
+}
+
+.GoliathSplitViewArticleListBox.MuiBox-root {
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .GoliathArticleListRead.MuiPaper-root {

@@ -95,7 +95,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
 
       if (this.state.articleViewToggleState === ArticleListView.Combined) {
         return (
-          <Box className="GoliathArticleListContainer">
+          <Box className="GoliathArticleListBox">
             <ReactList
               ref={this.handleMounted}
               itemRenderer={(e) => this.renderArticle(articles, e)}
@@ -110,18 +110,14 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
           maxWidth={false}
           className="GoliathSplitViewArticleListContainer">
           <Grid container spacing={3}>
-            <Grid container item xs={4} wrap="nowrap">
-              <div style={{
-                overflowY: 'scroll',
-                width: "100vh",
-                height: "100vh"
-              }}>
+            <Grid container item xs={4}>
+              <Box className="GoliathSplitViewArticleListBox">
                 <ReactList
                   ref={this.handleMounted}
                   itemRenderer={(e) => this.renderSplitViewArticleListEntry(e)}
                   length={articles.length}
-                  type='uniform'/>
-              </div>
+                  type='variable'/>
+              </Box>
             </Grid>
             <Grid item xs={8}>
               <SplitViewArticleCard
