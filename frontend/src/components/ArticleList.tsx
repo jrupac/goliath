@@ -1,9 +1,10 @@
-import Article from './ArticleCard';
+import ArticleCard from './ArticleCard';
 import React from "react";
 import ReactList from 'react-list';
 import {animateScroll as scroll} from 'react-scroll';
 import {
-  ArticleImagePreview,
+  Article,
+  ArticleId,
   ArticleListEntry,
   ArticleListView,
   MarkState,
@@ -14,6 +15,7 @@ import {Box, Container, Divider, Grid, Typography} from "@mui/material";
 import InboxIcon from '@mui/icons-material/Inbox';
 import SplitViewArticleCard from "./SplitViewArticleCard";
 import SplitViewArticleListEntry from "./SplitViewArticleListEntry";
+import LRUCache from "lru-cache";
 
 const goToAllSequence = ['g', 'a'];
 const markAllReadSequence = ['Shift', 'I'];
@@ -29,7 +31,7 @@ export interface ArticleListProps {
 
 export interface ArticleListState {
   articleEntries: ArticleListEntry[];
-  articleImagePreviews: ArticleImagePreview[];
+  articleImagePreviews: LRUCache<ArticleId, string>;
 
   scrollIndex: number;
   keypressBuffer: Array<string>;
@@ -43,7 +45,9 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     super(props);
     this.state = {
       articleEntries: props.articleEntries,
-      articleImagePreviews: new Array(props.articleEntries.length),
+      articleImagePreviews: new LRUCache<ArticleId, string>({
+        max: 5000
+      }),
       scrollIndex: 0,
       keypressBuffer: new Array(keyBufLength),
       articleViewToggleState: ArticleListView.Split
@@ -70,7 +74,6 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     }
     this.setState({
       articleEntries: Array.from(this.props.articleEntries),
-      articleImagePreviews: new Array(this.props.articleEntries.length),
       scrollIndex: 0,
       keypressBuffer: new Array(keyBufLength)
     });
@@ -138,22 +141,82 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
   }
 
   renderSplitViewArticleListEntry(index: number, key: number | string) {
+    const articleEntry = this.state.articleEntries[index];
+    const [article] = articleEntry;
+    this.generateImagePreview(article).then();
+
     return <SplitViewArticleListEntry
       key={key}
-      article={this.state.articleEntries[index]}
+      article={articleEntry}
+      preview={this.state.articleImagePreviews.get(article.id)}
       selected={index === this.state.scrollIndex}/>
   }
 
   renderArticle(articles: ArticleListEntry[], index: number, key: number | string) {
     const [article, title, favicon] = articles[index];
 
-    return <Article
+    return <ArticleCard
       key={key}
       article={article}
       title={title}
       favicon={favicon}
       isSelected={index === this.state.scrollIndex}
       shouldRerender={() => this.handleRerender()}/>
+  }
+
+  async generateImagePreview(article: Article) {
+    // Already generated preview for this article, so nothing to do.
+    if (this.state.articleImagePreviews.get(article.id) !== undefined) {
+      return;
+    }
+
+    const minPixelSize = 100, imgFetchLimit = 5;
+    const p: Promise<any>[] = [];
+    const images = new DOMParser()
+      .parseFromString(article.html, "text/html").images;
+
+    if (images === undefined) {
+      return;
+    }
+
+    let limit = Math.min(imgFetchLimit, images.length)
+    for (let j = 0; j < limit; j++) {
+      const img = new Image();
+      img.src = images[j].src;
+
+      p.push(new Promise((resolve, reject) => {
+        img.decode().then(() => {
+          if (img.height >= minPixelSize && img.width >= minPixelSize) {
+            resolve([img.height, img.src]);
+          }
+          reject();
+        }).catch(() => {
+          /* Ignore errors */
+        });
+      }));
+    }
+
+    const results = await Promise.allSettled(p);
+    let height = 0, src = "";
+
+    results.forEach((result) => {
+      if (result.status === 'fulfilled') {
+        const [imgHeight, imgSrc] = result.value;
+        if (imgHeight > height) {
+          height = imgHeight;
+          src = imgSrc;
+        }
+      }
+    })
+
+    if (height > 0) {
+      this.setState((prevState) => {
+        prevState.articleImagePreviews.set(article.id, src);
+        return {
+          articleImagePreviews: prevState.articleImagePreviews
+        }
+      });
+    }
   }
 
   handleRerender() {

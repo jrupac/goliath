@@ -266,6 +266,10 @@
   color: var(--article-header-read-font-color);
 }
 
+.GoliathArticleListSelected.MuiPaper-root {
+  border: 1px solid grey;
+}
+
 .GoliathArticleListEntry.MuiGrid-root {
   padding: 10px;
 }
