@@ -1,6 +1,7 @@
 import React from "react";
 import {ArticleListEntry} from "../utils/types";
 import {Divider, Grid, Paper, Typography} from "@mui/material";
+import {extractText} from "../utils/helpers";
 
 export interface SplitViewArticleListEntryProps {
   article: ArticleListEntry,
@@ -47,7 +48,7 @@ export default class SplitViewArticleListEntry
         <Grid container direction="column" className="GoliathArticleListEntry">
           <Grid zeroMinWidth item className="GoliathArticleListTitle">
             <Typography noWrap className="GoliathArticleListTitle">
-              {extractContent(article.title)}
+              {extractText(article.title)}
             </Typography>
           </Grid>
           <Grid zeroMinWidth container item xs>
@@ -56,7 +57,7 @@ export default class SplitViewArticleListEntry
             </Grid>
             <Grid item zeroMinWidth xs>
               <Typography noWrap className="GoliathArticleFeedTitle">
-                {extractContent(title)}
+                {extractText(title)}
               </Typography>
             </Grid>
           </Grid>
@@ -66,7 +67,7 @@ export default class SplitViewArticleListEntry
             </Grid>
             <Grid item zeroMinWidth xs style={{height: '100px'}}>
               <Typography className="GoliathArticleContentPreview">
-                {extractContent(article.html)}
+                {extractText(article.html)}
               </Typography>
             </Grid>
           </Grid>
@@ -75,10 +76,4 @@ export default class SplitViewArticleListEntry
       </Paper>
     );
   }
-}
-
-function extractContent(html: string): string | null {
-  return new DOMParser()
-    .parseFromString(html, "text/html")
-    .documentElement.textContent;
 }

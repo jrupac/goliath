@@ -1,4 +1,3 @@
-import moment from 'moment';
 import React, {ReactNode} from "react";
 import {Article} from "../utils/types";
 import {
@@ -9,14 +8,18 @@ import {
   Tooltip,
   Typography
 } from "@mui/material";
-import {Readability} from "@mozilla/readability";
+import {
+  fetchReadability,
+  formatFriendly,
+  formatFull,
+  makeAbsolute
+} from "../utils/helpers";
 
 export interface ArticleProps {
   article: Article;
   title: string;
   favicon: string;
   isSelected: boolean;
-  shouldRerender: () => void;
 }
 
 export interface ArticleState {
@@ -84,9 +87,9 @@ export default class SplitViewArticleCard extends React.Component<ArticleProps, 
                   <p className="GoliathArticleFeedTitle">{feedTitle}</p>
                 </Box>
                 <Tooltip
-                  title={formatFullDate(date)}>
+                  title={formatFull(date)}>
                   <Box className="GoliathArticleDate">
-                    {formatDate(date)}
+                    {formatFriendly(date)}
                   </Box>
                 </Tooltip>
               </Box>
@@ -133,58 +136,34 @@ export default class SplitViewArticleCard extends React.Component<ArticleProps, 
   toggleParseContent() {
     // If already showing parsed content, disable showing it.
     if (this.state.showParsed) {
-      this.setState({
-        showParsed: false
-      }, () => {
-        this.props.shouldRerender()
-      });
+      this.setState({showParsed: false});
       return;
     }
 
     // If already parsed before, just enabling showing it.
     if (this.state.parsed !== null) {
-      this.setState({
-        showParsed: true
-      }, () => {
-        this.props.shouldRerender()
-      });
+      this.setState({showParsed: true});
       return;
     }
 
-    // It's fine for this to be async. If parsing completes before this is set,
-    // it'll just get reset to false below.
-    this.setState({
-      loading: true
-    }, () => {
-      this.props.shouldRerender()
-    });
+    // It's okay if this state change doesn't happen fast enough, it'll just get
+    // reset lower down anyway.
+    this.setState({loading: true});
 
     const url = makeAbsolute("/cache?url=" + encodeURI(this.props.article.url));
-
-    fetch(url)
-      .then((response) => response.text())
-      .then((result) => {
-        const doc = new DOMParser().parseFromString(result, "text/html");
-        const parsed = new Readability(doc).parse();
-
-        if (parsed === null || parsed.content === null) {
-          return;
-        }
-        this.setState({
-          parsed: parsed.content,
-          showParsed: true
-        }, () => {
-          this.props.shouldRerender()
-        })
-      })
-      .catch((e) => console.log("Readability parse failed: " + e))
-      .finally(() => {
-        this.setState({
-          loading: false
-        }, () => {
-          this.props.shouldRerender()
-        });
+    fetchReadability(url).then((content) => {
+      this.setState({
+        parsed: content,
+        showParsed: true,
+        loading: false
       });
+    }).catch((e) => {
+      console.log("Could not parse URL %s: %s", url, e);
+      this.setState({
+        showParsed: false,
+        loading: false
+      });
+    })
   }
 
   handleKeyDown = (event: KeyboardEvent) => {
@@ -202,26 +181,5 @@ export default class SplitViewArticleCard extends React.Component<ArticleProps, 
     if (event.key === 'm') {
       this.toggleParseContent();
     }
-  }
-}
-
-function makeAbsolute(url: string): string {
-  const a = document.createElement('a');
-  a.href = url;
-  return a.href;
-}
-
-function formatFullDate(date: Date) {
-  return moment(date).format('dddd, MMMM Do YYYY, h:mm:ss A');
-}
-
-function formatDate(date: Date) {
-  const now = moment();
-  const before = moment(now).subtract(1, 'days');
-  const then = moment(date);
-  if (then.isBetween(before, now)) {
-    return then.fromNow();
-  } else {
-    return then.format("ddd, MMM D, h:mm A");
   }
 }

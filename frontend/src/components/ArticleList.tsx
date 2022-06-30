@@ -131,8 +131,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
                 article={article}
                 title={title}
                 favicon={favicon}
-                isSelected={true}
-                shouldRerender={() => ({})}/>
+                isSelected={true}/>
             </Grid>
           </Grid>
         </Container>

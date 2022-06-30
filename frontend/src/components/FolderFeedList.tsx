@@ -31,7 +31,7 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     super(props);
 
     this.state = {
-      keyCache: precomputeIdToSelectionKey(this.props.tree)
+      keyCache: this.precomputeIdToSelectionKey(this.props.tree)
     };
 
     this.handleSelect = this.handleSelect.bind(this);
@@ -71,11 +71,12 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
         selectedKeys = [this.props.selectedKey as string];
         allSelectedClass = 'GoliathAllItems';
         break;
-      case SelectionType.Feed:
+      case SelectionType.Feed: {
         const feedId = this.props.selectedKey[0];
         selectedKeys = [feedId as string];
         allSelectedClass = 'GoliathAllItems';
         break;
+      }
       case SelectionType.All: // fallthrough
       default:
         selectedKeys = [];
@@ -107,10 +108,10 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
                 <TreeItem
                   key={k.toString()}
                   nodeId={k.toString()}
-                  label={renderFolder(v)}
+                  label={this.renderFolder(v)}
                   className="GoliathFolderRow"
                 >
-                  {Array.from(v.feeds.values()).map(renderFeed)}
+                  {Array.from(v.feeds.values()).map(this.renderFeed)}
                 </TreeItem>))
           }
         </TreeView>
@@ -126,57 +127,57 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
       return <b>{`(${unreadCount})  All items`}</b>;
     }
   }
-}
 
-function precomputeIdToSelectionKey(structure: Map<FolderId, Folder>): Map<string, [SelectionType, SelectionKey]> {
-  const cache = new Map<string, [SelectionType, SelectionKey]>();
-
-  // Add a special entry for selecting everything.
-  cache.set(KeyAll, [SelectionType.All, KeyAll]);
-
-  structure.forEach(
-    (folder: Folder, folderId: FolderId) => {
-      cache.set(folderId as string, [SelectionType.Folder, folderId]);
-      folder.feeds.forEach(
-        (feed: Feed) => {
-          cache.set(feed.id as string, [SelectionType.Feed, [feed.id, folderId]]);
-        }
-      )
-    });
-
-  return cache;
-}
-
-function renderFolder(folder: Folder) {
-  if (folder.unread_count === 0) {
-    return <span className="GoliathFolderTitle">{folder.title}</span>;
-  } else {
-    return <span className="GoliathFolderTitle">
-      <b>{`(${folder.unread_count})  ${folder.title}`}</b>
-    </span>;
-  }
-}
-
-function renderFeed(feed: Feed) {
-  let img: ReactNode;
-  if (feed.favicon === '') {
-    img = <RssFeedOutlinedIcon fontSize="small"/>
-  } else {
-    img = <img src={`data:${feed.favicon}`} height={16} width={16} alt=''/>
-  }
-  img = <span className="GoliathFeedIcon">{img}</span>;
-
-  let title: ReactNode;
-  if (feed.unread_count === 0) {
-    title = feed.title;
-  } else {
-    title = <b>{`(${feed.unread_count})  ${feed.title}`}</b>
+  renderFolder(folder: Folder) {
+    if (folder.unread_count === 0) {
+      return <span className="GoliathFolderTitle">{folder.title}</span>;
+    } else {
+      return <span className="GoliathFolderTitle">
+        <b>{`(${folder.unread_count})  ${folder.title}`}</b>
+      </span>;
+    }
   }
 
-  return <TreeItem
-    key={feed.id.toString()}
-    nodeId={feed.id.toString()}
-    label={<span className="GoliathFeedTitle">{title}</span>}
-    className="GoliathFeedRow"
-    icon={img}/>
+  renderFeed(feed: Feed) {
+    let img: ReactNode;
+    if (feed.favicon === '') {
+      img = <RssFeedOutlinedIcon fontSize="small"/>
+    } else {
+      img = <img src={`data:${feed.favicon}`} height={16} width={16} alt=''/>
+    }
+    img = <span className="GoliathFeedIcon">{img}</span>;
+
+    let title: ReactNode;
+    if (feed.unread_count === 0) {
+      title = feed.title;
+    } else {
+      title = <b>{`(${feed.unread_count})  ${feed.title}`}</b>
+    }
+
+    return <TreeItem
+      key={feed.id.toString()}
+      nodeId={feed.id.toString()}
+      label={<span className="GoliathFeedTitle">{title}</span>}
+      className="GoliathFeedRow"
+      icon={img}/>
+  }
+
+  precomputeIdToSelectionKey(structure: Map<FolderId, Folder>): Map<string, [SelectionType, SelectionKey]> {
+    const cache = new Map<string, [SelectionType, SelectionKey]>();
+
+    // Add a special entry for selecting everything.
+    cache.set(KeyAll, [SelectionType.All, KeyAll]);
+
+    structure.forEach(
+      (folder: Folder, folderId: FolderId) => {
+        cache.set(folderId as string, [SelectionType.Folder, folderId]);
+        folder.feeds.forEach(
+          (feed: Feed) => {
+            cache.set(feed.id as string, [SelectionType.Feed, [feed.id, folderId]]);
+          }
+        )
+      });
+
+    return cache;
+  }
 }

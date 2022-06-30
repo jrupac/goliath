@@ -37,6 +37,7 @@ import {
   PaletteMode,
   ThemeProvider
 } from "@mui/material";
+import {maxDecimal} from "./utils/helpers";
 
 export interface AppProps {
 }
@@ -120,7 +121,7 @@ export default class App extends React.Component<AppProps, AppState> {
 
   componentWillUnmount() {
     window.removeEventListener('keydown', this.handleKeyDown);
-  };
+  }
 
   componentDidMount() {
     window.addEventListener('keydown', this.handleKeyDown);
@@ -319,7 +320,7 @@ export default class App extends React.Component<AppProps, AppState> {
           if (itemCount === 50) {
             body.items.forEach((item: Article) => {
               // Update latest seen article ID.
-              since = maxArticleId(since, item.id);
+              since = maxDecimal(since, item.id);
             });
             // Kick off a recursive call asynchronously. Errors will be thrown
             // within the call, so ignore the result here.
@@ -363,11 +364,11 @@ export default class App extends React.Component<AppProps, AppState> {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
           const structure = new Map(prevState.structure);
 
-          const article = getArticleOrThrow(
+          const article = this.getArticleOrThrow(
             structure, entity as ArticleSelection);
           article.is_read = 1;
 
-          const unreadCount = updateUnreadCount(structure);
+          const unreadCount = this.updateUnreadCount(structure);
 
           return {
             structure,
@@ -384,11 +385,11 @@ export default class App extends React.Component<AppProps, AppState> {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
           const structure = new Map(prevState.structure);
 
-          const feed = getFeedOrThrow(structure, entity as FeedSelection);
+          const feed = this.getFeedOrThrow(structure, entity as FeedSelection);
           feed.articles.forEach(
             (article: Article) => article.is_read = 1);
 
-          const unreadCount = updateUnreadCount(structure);
+          const unreadCount = this.updateUnreadCount(structure);
 
           return {
             structure,
@@ -405,7 +406,7 @@ export default class App extends React.Component<AppProps, AppState> {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
           const structure = new Map(prevState.structure);
 
-          const folder = getFolderOrThrow(
+          const folder = this.getFolderOrThrow(
             structure, entity as FolderSelection);
 
           folder.feeds.forEach(
@@ -416,7 +417,7 @@ export default class App extends React.Component<AppProps, AppState> {
                 });
             });
 
-          const unreadCount = updateUnreadCount(structure);
+          const unreadCount = this.updateUnreadCount(structure);
 
           return {
             structure,
@@ -444,7 +445,7 @@ export default class App extends React.Component<AppProps, AppState> {
                 });
             });
 
-          const unreadCount = updateUnreadCount(structure);
+          const unreadCount = this.updateUnreadCount(structure);
 
           return {
             structure,
@@ -567,17 +568,17 @@ export default class App extends React.Component<AppProps, AppState> {
       feedId = key[1];
       folderId = key[2];
 
-      feed = getFeedOrThrow(this.state.structure, [feedId, folderId]);
+      feed = this.getFeedOrThrow(this.state.structure, [feedId, folderId]);
       title = feed.title;
       favicon = feed.favicon;
-      article = getArticleOrThrow(this.state.structure, key);
+      article = this.getArticleOrThrow(this.state.structure, key);
 
       entries.push([article, title, favicon, feedId, folderId]);
       break;
     case SelectionType.Feed:
       [feedId, folderId] = this.state.selectionKey as FeedSelection;
 
-      feed = getFeedOrThrow(this.state.structure, [feedId, folderId]);
+      feed = this.getFeedOrThrow(this.state.structure, [feedId, folderId]);
       title = feed.title;
       favicon = feed.favicon;
 
@@ -588,7 +589,7 @@ export default class App extends React.Component<AppProps, AppState> {
     case SelectionType.Folder:
       folderId = this.state.selectionKey as FolderSelection;
 
-      folderData = getFolderOrThrow(this.state.structure, folderId);
+      folderData = this.getFolderOrThrow(this.state.structure, folderId);
 
       folderData.feeds.forEach(
         (feed: Feed) => {
@@ -612,7 +613,7 @@ export default class App extends React.Component<AppProps, AppState> {
       break
     }
 
-    return sortArticles(entries.filter(articleIsUnread));
+    return this.sortArticles(entries.filter(this.articleIsUnread));
   }
 
   handleKeyDown = (event: KeyboardEvent) => {
@@ -625,87 +626,79 @@ export default class App extends React.Component<AppProps, AppState> {
 
     switch (event.key) {
     case 't':
-      console.log("THEME CHANGE");
       this.toggleColorMode();
+      break;
     }
   }
 
   toggleColorMode = () => {
     this.setState((prevState) => {
-      let theme: Theme = prevState.theme;
-
-      if (theme === Theme.Default) {
-        theme = Theme.Dark;
+      if (prevState.theme === Theme.Default) {
+        return {
+          theme: Theme.Dark
+        }
       } else {
-        theme = Theme.Default;
+        return {
+          theme: Theme.Default
+        }
       }
-
-      return {
-        theme: theme
-      };
     });
   }
-}
 
-function maxArticleId(a: Decimal | ArticleId, b: Decimal | ArticleId): Decimal {
-  a = new Decimal(a.toString());
-  b = new Decimal(b.toString());
-  return a > b ? a : b;
-}
-
-function getFolderOrThrow(structure: Map<FolderId, Folder>, folderId: FolderSelection): Folder {
-  const folderData = structure.get(folderId);
-  if (folderData === undefined) {
-    throw new Error("Unknown group: " + folderId);
+  getFolderOrThrow(structure: Map<FolderId, Folder>, folderId: FolderSelection): Folder {
+    const folderData = structure.get(folderId);
+    if (folderData === undefined) {
+      throw new Error("Unknown group: " + folderId);
+    }
+    return folderData;
   }
-  return folderData;
-}
 
-function getFeedOrThrow(structure: Map<FolderId, Folder>, feedSelection: FeedSelection): Feed {
-  const [feedId, folderId] = feedSelection;
-  const folder = getFolderOrThrow(structure, folderId);
-  const feed = folder.feeds.get(feedId);
-  if (feed === undefined) {
-    throw new Error("Unknown feed: " + feedSelection);
+  getFeedOrThrow(structure: Map<FolderId, Folder>, feedSelection: FeedSelection): Feed {
+    const [feedId, folderId] = feedSelection;
+    const folder = this.getFolderOrThrow(structure, folderId);
+    const feed = folder.feeds.get(feedId);
+    if (feed === undefined) {
+      throw new Error("Unknown feed: " + feedSelection);
+    }
+    return feed;
   }
-  return feed;
-}
 
-function getArticleOrThrow(structure: Map<FolderId, Folder>, articleSelection: ArticleSelection): Article {
-  const [articleId, feedId, folderId] = articleSelection;
-  const feed = getFeedOrThrow(structure, [feedId, folderId]);
-  const article = feed.articles.get(articleId);
-  if (article === undefined) {
-    throw new Error("Unknown feed: " + articleId + " in feed " + feed.id);
+  getArticleOrThrow(structure: Map<FolderId, Folder>, articleSelection: ArticleSelection): Article {
+    const [articleId, feedId, folderId] = articleSelection;
+    const feed = this.getFeedOrThrow(structure, [feedId, folderId]);
+    const article = feed.articles.get(articleId);
+    if (article === undefined) {
+      throw new Error("Unknown feed: " + articleId + " in feed " + feed.id);
+    }
+    return article;
   }
-  return article;
-}
 
-function articleIsUnread(articleEntry: ArticleListEntry): boolean {
-  const [article] = articleEntry;
-  return !(article.is_read === 1) as boolean;
-}
+  articleIsUnread(articleEntry: ArticleListEntry): boolean {
+    const [article] = articleEntry;
+    return !(article.is_read === 1) as boolean;
+  }
 
-function sortArticles(articles: ArticleListEntry[]) {
-  // Sort by descending time.
-  return articles.sort(
-    (a: ArticleListEntry, b: ArticleListEntry) =>
-      b[0].created_on_time - a[0].created_on_time);
-}
+  sortArticles(articles: ArticleListEntry[]) {
+    // Sort by descending time.
+    return articles.sort(
+      (a: ArticleListEntry, b: ArticleListEntry) =>
+        b[0].created_on_time - a[0].created_on_time);
+  }
 
-function updateUnreadCount(structure: Map<FolderId, Folder>): number {
-  structure.forEach((folder: Folder) => {
-    folder.feeds.forEach((feed: Feed) => {
-      const articles = Array.from(feed.articles.values());
-      feed.unread_count = articles.reduce(
-        (acc: number, a: Article) => acc + (1 - a.is_read), 0);
+  updateUnreadCount(structure: Map<FolderId, Folder>): number {
+    structure.forEach((folder: Folder) => {
+      folder.feeds.forEach((feed: Feed) => {
+        const articles = Array.from(feed.articles.values());
+        feed.unread_count = articles.reduce(
+          (acc: number, a: Article) => acc + (1 - a.is_read), 0);
+      });
+
+      const feeds = Array.from(folder.feeds.values());
+      folder.unread_count = Array.from(feeds.values()).reduce(
+        (acc: number, f: Feed) => acc + f.unread_count, 0);
     });
 
-    const feeds = Array.from(folder.feeds.values());
-    folder.unread_count = Array.from(feeds.values()).reduce(
-      (acc: number, f: Feed) => acc + f.unread_count, 0);
-  });
-
-  return Array.from(structure.values()).reduce(
-    (acc: number, f: Folder) => acc + f.unread_count, 0);
+    return Array.from(structure.values()).reduce(
+      (acc: number, f: Folder) => acc + f.unread_count, 0);
+  }
 }
