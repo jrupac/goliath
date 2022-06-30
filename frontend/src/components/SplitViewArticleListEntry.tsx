@@ -20,10 +20,16 @@ export default class SplitViewArticleListEntry
 
   render() {
     const [article, title, favicon] = this.props.article;
+    const extractedTitle = extractText(title) || "";
 
-    let faviconImg = <i className="fas fa-rss-square"/>;
+    let faviconImg = <i className="fas fa-rss-square" title={extractedTitle}/>;
     if (favicon) {
-      faviconImg = <img src={`data:${favicon}`} height={16} width={16} alt=''/>
+      faviconImg = (
+        <img
+          src={`data:${favicon}`}
+          className="GoliathFeedIcon"
+          alt={extractedTitle}
+          title={extractedTitle}/>);
     }
 
     let previewImg = null;
@@ -51,21 +57,20 @@ export default class SplitViewArticleListEntry
               {extractText(article.title)}
             </Typography>
           </Grid>
-          <Grid zeroMinWidth container item xs>
-            <Grid item sx={{paddingRight: "10px"}} xs="auto">
+          <Grid zeroMinWidth item xs>
+            <Divider
+              textAlign="left"
+              className="GoliathSplitViewArticleListTitleDivider">
               {faviconImg}
-            </Grid>
-            <Grid item zeroMinWidth xs>
-              <Typography noWrap className="GoliathArticleFeedTitle">
-                {extractText(title)}
-              </Typography>
-            </Grid>
+            </Divider>
           </Grid>
           <Grid container item wrap="nowrap">
             <Grid item xs='auto'>
               {previewImg}
             </Grid>
-            <Grid item zeroMinWidth xs style={{height: '100px'}}>
+            <Grid
+              item zeroMinWidth xs
+              className="GoliathArticleContentPreviewGrid">
               <Typography className="GoliathArticleContentPreview">
                 {extractText(article.html)}
               </Typography>
