@@ -12,10 +12,10 @@ import {
   SelectionType
 } from "../utils/types";
 import {Box, Container, Divider, Grid, Typography} from "@mui/material";
-import InboxIcon from '@mui/icons-material/Inbox';
 import SplitViewArticleCard from "./SplitViewArticleCard";
 import SplitViewArticleListEntry from "./SplitViewArticleListEntry";
 import LRUCache from "lru-cache";
+import {DoneAllRounded} from "@mui/icons-material";
 
 const goToAllSequence = ['g', 'a'];
 const markAllReadSequence = ['Shift', 'I'];
@@ -84,9 +84,9 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       return (
         <Container fixed className="GoliathArticleListContainer">
           <Box className="GoliathArticleListEmpty">
-            <InboxIcon className="GoliathArticleListEmptyIcon"/>
+            <DoneAllRounded className="GoliathArticleListEmptyIcon"/>
             <Typography className="GoliathArticleListEmptyText">
-              No unread articles
+              All done!
             </Typography>
           </Box>
         </Container>
