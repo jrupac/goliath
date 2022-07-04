@@ -1,11 +1,11 @@
 import React from "react";
-import {ArticleListEntry} from "../utils/types";
+import {ArticleImagePreview, ArticleListEntry} from "../utils/types";
 import {Divider, Grid, Paper, Typography} from "@mui/material";
 import {extractText} from "../utils/helpers";
 
 export interface SplitViewArticleListEntryProps {
   article: ArticleListEntry,
-  preview: string | undefined,
+  preview: ArticleImagePreview | undefined,
   selected: boolean
 }
 
@@ -19,26 +19,7 @@ export default class SplitViewArticleListEntry
   }
 
   render() {
-    const [article, title, favicon] = this.props.article;
-    const extractedTitle = extractText(title) || "";
-
-    let faviconImg = <i className="fas fa-rss-square" title={extractedTitle}/>;
-    if (favicon) {
-      faviconImg = (
-        <img
-          src={`data:${favicon}`}
-          className="GoliathFeedIcon"
-          alt={extractedTitle}
-          title={extractedTitle}/>);
-    }
-
-    let previewImg = null;
-    if (this.props.preview) {
-      previewImg = (
-        <img
-          className="GoliathArticleListImagePreview"
-          src={this.props.preview}/>);
-    }
+    const [article] = this.props.article;
 
     let elevation = 3, extraClasses = [];
     if (this.props.selected) {
@@ -61,12 +42,12 @@ export default class SplitViewArticleListEntry
             <Divider
               textAlign="left"
               className="GoliathSplitViewArticleListTitleDivider">
-              {faviconImg}
+              {this.renderFavicon()}
             </Divider>
           </Grid>
           <Grid container item wrap="nowrap">
             <Grid item xs='auto'>
-              {previewImg}
+              {this.renderImagePreview()}
             </Grid>
             <Grid
               item zeroMinWidth xs
@@ -80,5 +61,44 @@ export default class SplitViewArticleListEntry
         <Divider/>
       </Paper>
     );
+  }
+
+  renderFavicon() {
+    const [, title, favicon] = this.props.article;
+    const extractedTitle = extractText(title) || "";
+
+    if (favicon) {
+      return (
+        <img
+          src={`data:${favicon}`}
+          className="GoliathFeedIcon"
+          alt={extractedTitle}
+          title={extractedTitle}/>);
+    }
+
+    return <i className="fas fa-rss-square" title={extractedTitle}/>;
+  }
+
+  renderImagePreview() {
+    const crop = this.props.preview;
+
+    if (crop) {
+      const scale = 100 / crop.width;
+      const style = {
+        left: -(crop.x * scale) + "px",
+        top: -(crop.y * scale) + "px",
+        width: crop.origWidth * scale
+      }
+
+      return (
+        <figure className="GoliathArticleListImagePreviewFigure">
+          <img
+            className="GoliathArticleListImagePreview"
+            src={crop.src}
+            style={style}/>
+        </figure>);
+    }
+
+    return null;
   }
 }

@@ -284,13 +284,16 @@
   font-size: 22px;
 }
 
-.GoliathArticleListImagePreview {
-  max-height: 75px;
-  max-width: 100px;
-  padding-right: 10px;
+.GoliathArticleListImagePreviewFigure {
+  width: 100px;
+  height: 100px;
+  overflow: hidden;
   position: relative;
-  top: 50%;
-  transform: translateY(-50%);
+  margin: 0 10px 0 0;
+}
+
+.GoliathArticleListImagePreview {
+  position: absolute;
 }
 
 .GoliathArticleListRead.MuiPaper-root .GoliathArticleListImagePreview {

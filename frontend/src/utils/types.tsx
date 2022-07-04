@@ -101,3 +101,12 @@ export type Folder = {
 /** ArticleListEntry also holds metadata associated with a displayed Article. */
 export type ArticleListEntry = [Article, FeedTitle, Favicon, FeedId, FolderId];
 
+/** ArticleImagePreview holds cropping information for image previews. */
+export type ArticleImagePreview = {
+  src: string;
+  x: number;
+  y: number;
+  origWidth: number;
+  width: number;
+  height: number;
+}

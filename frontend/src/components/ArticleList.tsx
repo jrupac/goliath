@@ -5,6 +5,7 @@ import {animateScroll as scroll} from 'react-scroll';
 import {
   Article,
   ArticleId,
+  ArticleImagePreview,
   ArticleListEntry,
   ArticleListView,
   MarkState,
@@ -16,6 +17,7 @@ import SplitViewArticleCard from "./SplitViewArticleCard";
 import SplitViewArticleListEntry from "./SplitViewArticleListEntry";
 import LRUCache from "lru-cache";
 import {DoneAllRounded} from "@mui/icons-material";
+import smartcrop from "smartcrop";
 
 const goToAllSequence = ['g', 'a'];
 const markAllReadSequence = ['Shift', 'I'];
@@ -31,7 +33,7 @@ export interface ArticleListProps {
 
 export interface ArticleListState {
   articleEntries: ArticleListEntry[];
-  articleImagePreviews: LRUCache<ArticleId, string>;
+  articleImagePreviews: LRUCache<ArticleId, ArticleImagePreview>;
 
   scrollIndex: number;
   keypressBuffer: Array<string>;
@@ -40,12 +42,13 @@ export interface ArticleListState {
 
 export default class ArticleList extends React.Component<ArticleListProps, ArticleListState> {
   list: ReactList | null = null;
+  inflightPreview: Set<ArticleId> = new Set<ArticleId>();
 
   constructor(props: ArticleListProps) {
     super(props);
     this.state = {
       articleEntries: props.articleEntries,
-      articleImagePreviews: new LRUCache<ArticleId, string>({
+      articleImagePreviews: new LRUCache<ArticleId, ArticleImagePreview>({
         max: 5000
       }),
       scrollIndex: 0,
@@ -169,6 +172,12 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       return;
     }
 
+    // There's already an inflight request for this article, so nothing to do.
+    if (this.inflightPreview.has(article.id)) {
+      return;
+    }
+    this.inflightPreview.add(article.id);
+
     const minPixelSize = 100, imgFetchLimit = 5;
     const p: Promise<any>[] = [];
     const images = new DOMParser()
@@ -186,7 +195,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       p.push(new Promise((resolve, reject) => {
         img.decode().then(() => {
           if (img.height >= minPixelSize && img.width >= minPixelSize) {
-            resolve([img.height, img.src]);
+            resolve([img.height, img.width, img.src]);
           }
           reject();
         }).catch(() => {
@@ -196,25 +205,51 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     }
 
     const results = await Promise.allSettled(p);
-    let height = 0, src = "";
+    let height = 0, width = 0, src = "";
 
     results.forEach((result) => {
       if (result.status === 'fulfilled') {
-        const [imgHeight, imgSrc] = result.value;
+        const [imgHeight, imgWidth, imgSrc] = result.value;
         if (imgHeight > height) {
           height = imgHeight;
+          width = imgWidth;
           src = imgSrc;
         }
       }
     })
 
     if (height > 0) {
+      const crop = await fetch(src)
+        .then((f) => f.blob())
+        .then(createImageBitmap)
+        .then((i) => smartcrop.crop(i, {
+          minScale: 0.001,
+          height: minPixelSize,
+          width: minPixelSize,
+          ruleOfThirds: false
+        }))
+        .catch(console.log);
+
+      if (!crop) {
+        this.inflightPreview.delete(article.id);
+        return;
+      }
+
+      const imgPreview: ArticleImagePreview = {
+        src: src,
+        x: crop.topCrop.x,
+        y: crop.topCrop.y,
+        origWidth: width,
+        width: crop.topCrop.width,
+        height: crop.topCrop.height,
+      }
+
       this.setState((prevState) => {
-        prevState.articleImagePreviews.set(article.id, src);
+        prevState.articleImagePreviews.set(article.id, imgPreview);
         return {
           articleImagePreviews: prevState.articleImagePreviews
         }
-      });
+      }, () => this.inflightPreview.delete(article.id));
     }
   }
 
