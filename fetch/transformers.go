@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	cacheEndpoint = "/cache"
+	cacheEndpoint = "cache"
 )
 
 var (
