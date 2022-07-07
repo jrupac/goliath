@@ -1,6 +1,8 @@
 {
-    "name": "",
-    "short_name": "",
+    "name": "Goliath RSS",
+    "short_name": "Goliath RSS",
+    "start_url": ".",
+    "id": ".",
     "icons": [
         {
             "src": "/android-chrome-192x192.png",
