@@ -1,13 +1,6 @@
 import React, {ReactNode} from "react";
 import {Article} from "../utils/types";
-import {
-  Box,
-  Card,
-  CardHeader,
-  Skeleton,
-  Tooltip,
-  Typography
-} from "@mui/material";
+import {Box, Card, CardHeader, Skeleton, Tooltip} from "@mui/material";
 import {
   fetchReadability,
   formatFriendly,
@@ -95,10 +88,10 @@ export default class SplitViewArticleCard extends React.Component<ArticleProps, 
               </Box>
             }/>
         </Card>
-        <Typography
+        <div
           className="GoliathSplitViewArticleContent GoliathArticleContentStyling">
           {this.renderContent()}
-        </Typography>
+        </div>
       </Box>
     )
   }

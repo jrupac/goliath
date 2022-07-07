@@ -211,7 +211,6 @@
 
 .GoliathMainContainer {
   flex-grow: 1;
-  background-color: var(--article-list-background-color);
 }
 
 /******************************************************************************
@@ -404,14 +403,14 @@
   align-items: baseline;
 }
 
-.GoliathArticleContent.MuiTypography-root {
+.GoliathArticleContent {
   font-size: 16px;
   font-family: 'Adobe-Caslon-Pro', serif;
   color: var(--article-font-color);
   padding: 0;
 }
 
-.GoliathSplitViewArticleContent.MuiTypography-root {
+.GoliathSplitViewArticleContent {
   font-size: 18px;
   font-family: 'Adobe-Caslon-Pro', serif;
   color: var(--article-font-color);
