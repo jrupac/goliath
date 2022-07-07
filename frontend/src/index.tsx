@@ -3,9 +3,9 @@ import ReactDOM from "react-dom";
 import {BrowserRouter, Route, Switch} from 'react-router-dom';
 import App from './App';
 import Login from './components/Login';
-import * as registerServiceWorker from "./registerServiceWorker";
+import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 
-registerServiceWorker.register();
+serviceWorkerRegistration.register();
 
 ReactDOM.render(
   <BrowserRouter>
