@@ -230,18 +230,28 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         }))
         .catch(console.log);
 
-      if (!crop) {
-        this.inflightPreview.delete(article.id);
-        return;
-      }
+      let imgPreview: ArticleImagePreview;
 
-      const imgPreview: ArticleImagePreview = {
-        src: src,
-        x: crop.topCrop.x,
-        y: crop.topCrop.y,
-        origWidth: width,
-        width: crop.topCrop.width,
-        height: crop.topCrop.height,
+      if (crop) {
+        imgPreview = {
+          src: src,
+          x: crop.topCrop.x,
+          y: crop.topCrop.y,
+          origWidth: width,
+          width: crop.topCrop.width,
+          height: crop.topCrop.height,
+        }
+      } else {
+        // Finding a good crop didn't work, so just show the original image
+        // This will be scaled appropriately when shown.
+        imgPreview = {
+          src: src,
+          x: 0,
+          y: 0,
+          origWidth: width,
+          width: width,
+          height: height,
+        }
       }
 
       this.setState((prevState) => {

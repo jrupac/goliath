@@ -1,7 +1,8 @@
 import React from "react";
 import {ArticleImagePreview, ArticleListEntry} from "../utils/types";
-import {Divider, Grid, Paper, Typography} from "@mui/material";
-import {extractText} from "../utils/helpers";
+import {Avatar, Chip, Divider, Grid, Paper, Typography} from "@mui/material";
+import {extractText, formatFriendly} from "../utils/helpers";
+import RssFeedIcon from "@mui/icons-material/RssFeed";
 
 export interface SplitViewArticleListEntryProps {
   article: ArticleListEntry,
@@ -39,13 +40,14 @@ export default class SplitViewArticleListEntry
             </Typography>
           </Grid>
           <Grid zeroMinWidth item xs>
-            <Divider
-              textAlign="left"
-              className="GoliathSplitViewArticleListTitleDivider">
-              {this.renderFavicon()}
-            </Divider>
+            <div className="GoliathArticleListMeta">
+              {this.renderMeta()}
+            </div>
           </Grid>
-          <Grid container item wrap="nowrap">
+          <Grid
+            container item
+            wrap="nowrap"
+            className="GoliathArticleListContent">
             <Grid item xs='auto'>
               {this.renderImagePreview()}
             </Grid>
@@ -63,20 +65,23 @@ export default class SplitViewArticleListEntry
     );
   }
 
-  renderFavicon() {
-    const [, title, favicon] = this.props.article;
+  renderMeta() {
+    const [article, title, favicon] = this.props.article;
     const extractedTitle = extractText(title) || "";
-
+    const date = new Date(article.created_on_time * 1000);
     if (favicon) {
       return (
-        <img
-          src={`data:${favicon}`}
-          className="GoliathFeedIcon"
-          alt={extractedTitle}
-          title={extractedTitle}/>);
+        <Chip
+          size="small"
+          avatar={<Avatar src={`data:${favicon}`} alt={extractedTitle}/>}
+          label={formatFriendly(date)}/>);
+    } else {
+      return (
+        <Chip
+          size="small"
+          icon={<RssFeedIcon/>}
+          label={formatFriendly(date)}/>);
     }
-
-    return <i className="fas fa-rss-square" title={extractedTitle}/>;
   }
 
   renderImagePreview() {

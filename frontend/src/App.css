@@ -281,7 +281,15 @@
 .GoliathArticleListTitle.MuiTypography-root {
   width: 100%;
   font-family: 'Adobe-Caslon-Pro', serif;
-  font-size: 22px;
+  font-size: 20px;
+}
+
+.GoliathArticleListMeta {
+  display: flex;
+}
+
+.GoliathArticleListContent {
+  padding-top: 5px;
 }
 
 .GoliathArticleListImagePreviewFigure {
@@ -301,7 +309,7 @@
 }
 
 .GoliathSplitViewArticleListTitleDivider.MuiDivider-root::before {
-  width: 2%;
+  width: 0;
 }
 
 .GoliathArticleContentPreviewGrid.MuiGrid-root {
