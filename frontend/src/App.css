@@ -287,6 +287,10 @@
   display: flex;
 }
 
+.GoliathArticleListMetaChip.MuiChip-root {
+  font-family: var(--primary-sans-serif-font), sans-serif;
+}
+
 .GoliathArticleListContent {
   padding-top: 5px;
 }
@@ -297,6 +301,7 @@
   overflow: hidden;
   position: relative;
   margin: 0 10px 0 0;
+  border-radius: 10px;
 }
 
 .GoliathArticleListImagePreview {

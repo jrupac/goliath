@@ -73,12 +73,14 @@ export default class SplitViewArticleListEntry
       return (
         <Chip
           size="small"
+          className="GoliathArticleListMetaChip"
           avatar={<Avatar src={`data:${favicon}`} alt={extractedTitle}/>}
           label={formatFriendly(date)}/>);
     } else {
       return (
         <Chip
           size="small"
+          className="GoliathArticleListMetaChip"
           icon={<RssFeedIcon/>}
           label={formatFriendly(date)}/>);
     }
