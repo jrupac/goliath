@@ -14,7 +14,9 @@ import {createHandlerBoundToURL, precacheAndRoute} from 'workbox-precaching';
 import {registerRoute} from 'workbox-routing';
 import {StaleWhileRevalidate} from 'workbox-strategies';
 
-declare const self: ServiceWorkerGlobalScope;
+export default null;
+// eslint-disable-next-line no-undef
+declare var self: ServiceWorkerGlobalScope;
 
 clientsClaim();
 
