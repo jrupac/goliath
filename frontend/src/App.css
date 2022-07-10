@@ -261,6 +261,12 @@
   overflow-y: auto;
 }
 
+.GoliathArticleListBase.MuiPaper-root {
+  border: 1px solid transparent;
+  /* Fixed size to optimize scrolling */
+  height: 182px;
+}
+
 .GoliathArticleListRead.MuiPaper-root {
   color: var(--article-header-read-font-color);
 }
@@ -269,15 +275,15 @@
   border: 1px solid grey;
 }
 
-.GoliathArticleListEntry.MuiGrid-root {
+.GoliathArticleListGrid.MuiGrid-root {
   padding: 10px;
 }
 
-.GoliathArticleListTitle.MuiGrid-root {
+.GoliathArticleListTitleGrid.MuiGrid-root {
   width: 100%;
 }
 
-.GoliathArticleListTitle.MuiTypography-root {
+.GoliathArticleListTitleType.MuiTypography-root {
   width: 100%;
   font-family: 'Adobe-Caslon-Pro', serif;
   font-size: 20px;

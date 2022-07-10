@@ -11,18 +11,39 @@ export interface SplitViewArticleListEntryProps {
 }
 
 export interface SplitViewArticleListEntryState {
+  extractedTitle: string,
+  extractedContent: string
 }
 
 export default class SplitViewArticleListEntry
-  extends React.Component<SplitViewArticleListEntryProps, SplitViewArticleListEntryState> {
+  extends React.PureComponent<SplitViewArticleListEntryProps, SplitViewArticleListEntryState> {
   constructor(props: SplitViewArticleListEntryProps) {
     super(props);
+    const [article] = props.article;
+    this.state = {
+      extractedTitle: extractText(article.title) || "",
+      extractedContent: extractText(article.html) || ""
+    }
+  }
+
+  componentDidUpdate(prevProps: SplitViewArticleListEntryProps) {
+    const [article] = this.props.article;
+    const [prevArticle] = prevProps.article;
+
+    if (article.id === prevArticle.id) {
+      return;
+    }
+
+    this.setState({
+      extractedTitle: extractText(article.title) || "",
+      extractedContent: extractText(article.html) || ""
+    });
   }
 
   render() {
     const [article] = this.props.article;
 
-    let elevation = 3, extraClasses = [];
+    let elevation = 3, extraClasses = ["GoliathArticleListBase"];
     if (this.props.selected) {
       elevation = 10;
       extraClasses.push("GoliathArticleListSelected");
@@ -33,10 +54,10 @@ export default class SplitViewArticleListEntry
 
     return (
       <Paper elevation={elevation} square className={extraClasses.join(" ")}>
-        <Grid container direction="column" className="GoliathArticleListEntry">
-          <Grid zeroMinWidth item className="GoliathArticleListTitle">
-            <Typography noWrap className="GoliathArticleListTitle">
-              {extractText(article.title)}
+        <Grid container direction="column" className="GoliathArticleListGrid">
+          <Grid zeroMinWidth item className="GoliathArticleListTitleGrid">
+            <Typography noWrap className="GoliathArticleListTitleType">
+              {this.state.extractedTitle}
             </Typography>
           </Grid>
           <Grid zeroMinWidth item xs>
@@ -55,7 +76,7 @@ export default class SplitViewArticleListEntry
               item zeroMinWidth xs
               className="GoliathArticleContentPreviewGrid">
               <Typography className="GoliathArticleContentPreview">
-                {extractText(article.html)}
+                {this.state.extractedContent}
               </Typography>
             </Grid>
           </Grid>
@@ -66,8 +87,8 @@ export default class SplitViewArticleListEntry
   }
 
   renderMeta() {
-    const [article, title, favicon] = this.props.article;
-    const extractedTitle = extractText(title) || "";
+    const [article, , favicon] = this.props.article;
+    const extractedTitle = this.state.extractedTitle;
     const date = new Date(article.created_on_time * 1000);
     if (favicon) {
       return (

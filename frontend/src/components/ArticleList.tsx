@@ -49,7 +49,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     this.state = {
       articleEntries: props.articleEntries,
       articleImagePreviews: new LRUCache<ArticleId, ArticleImagePreview>({
-        max: 5000
+        max: 100
       }),
       scrollIndex: 0,
       keypressBuffer: new Array(keyBufLength),
@@ -104,7 +104,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
           <Box className="GoliathArticleListBox">
             <ReactList
               ref={this.handleMounted}
-              itemRenderer={(e, key) => this.renderArticle(articles, e, key)}
+              itemRenderer={(e) => this.renderArticle(e)}
               length={articles.length}
               type='variable'/>
           </Box>
@@ -120,9 +120,10 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
               <Box className="GoliathSplitViewArticleListBox">
                 <ReactList
                   ref={this.handleMounted}
-                  itemRenderer={(e, key) => this.renderSplitViewArticleListEntry(e, key)}
+                  itemRenderer={(e) => this.renderSplitViewArticleListEntry(e)}
                   length={articles.length}
-                  type='variable'/>
+                  threshold={500}
+                  type='uniform'/>
               </Box>
             </Grid>
             <Grid item xs='auto'>
@@ -142,23 +143,23 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     }
   }
 
-  renderSplitViewArticleListEntry(index: number, key: number | string) {
+  renderSplitViewArticleListEntry(index: number) {
     const articleEntry = this.state.articleEntries[index];
     const [article] = articleEntry;
     this.generateImagePreview(article).then();
 
     return <SplitViewArticleListEntry
-      key={key}
+      key={article.id.toString()}
       article={articleEntry}
       preview={this.state.articleImagePreviews.get(article.id)}
       selected={index === this.state.scrollIndex}/>
   }
 
-  renderArticle(articles: ArticleListEntry[], index: number, key: number | string) {
-    const [article, title, favicon] = articles[index];
+  renderArticle(index: number) {
+    const [article, title, favicon] = this.state.articleEntries[index];
 
     return <ArticleCard
-      key={key}
+      key={article.id.toString()}
       article={article}
       title={title}
       favicon={favicon}
@@ -168,7 +169,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
 
   async generateImagePreview(article: Article) {
     // Already generated preview for this article, so nothing to do.
-    if (this.state.articleImagePreviews.get(article.id) !== undefined) {
+    if (this.state.articleImagePreviews.has(article.id)) {
       return;
     }
 
@@ -228,7 +229,9 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
           width: minPixelSize,
           ruleOfThirds: false
         }))
-        .catch(console.log);
+        .catch(() => {
+          /* Ignore errors */
+        });
 
       let imgPreview: ArticleImagePreview;
 
@@ -335,43 +338,24 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
           break;
         }
       }
-      return {
-        articleEntries: articleEntries,
-        keypressBuffer: keypressBuffer,
-        scrollIndex: scrollIndex,
-        articleViewToggleState: articleViewToggleState
-      };
-    }, this.handleScroll);
-  };
 
-  handleMounted = (list: ReactList) => {
-    this.list = list;
-  };
-
-  handleScroll() {
-    // If this feed is empty, there's no list, so nothing to scroll.
-    if (this.list) {
-      // A scroll index of less than 0 is meaningless.
-      if (this.state.scrollIndex < 0) {
-        return;
-      }
-
-      // Animate scrolling using technique described by react-list author here:
-      // https://github.com/coderiety/react-list/issues/79
-      // @ts-ignore
-      const scrollPos = this.list.getSpaceBefore(this.state.scrollIndex);
-
-      scroll.scrollTo(scrollPos, {
-        // The scrolling container is not trivial to figure out, but react-list
-        // has already done the work to figure it out, so use it directly.
+      // Handle scrolling and marking
+      if (this.list) {
+        // Animate scrolling using technique described by react-list author here:
+        // https://github.com/coderiety/react-list/issues/79
         // @ts-ignore
-        container: this.list.scrollParent,
-        isDynamic: true,
-        duration: 400,
-        smooth: "easeInOutQuad",
-      });
+        const scrollPos = this.list.getSpaceBefore(scrollIndex);
 
-      this.setState((prevState: ArticleListState) => {
+        scroll.scrollTo(scrollPos, {
+          // The scrolling container is not trivial to figure out, but react-list
+          // has already done the work to figure it out, so use it directly.
+          // @ts-ignore
+          container: this.list.scrollParent,
+          isDynamic: true,
+          duration: 500,
+          smooth: "easeInSine",
+        });
+
         const articleEntries = Array.from(prevState.articleEntries);
         const entry = articleEntries[prevState.scrollIndex];
         const [article, , , feedId, folderId] = entry;
@@ -381,10 +365,18 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
             'read', [article.id, feedId, folderId], SelectionType.Article);
           article.is_read = 1;
         }
-        return {
-          articleEntries: articleEntries
-        };
-      });
-    }
-  }
+      }
+
+      return {
+        articleEntries: articleEntries,
+        keypressBuffer: keypressBuffer,
+        scrollIndex: scrollIndex,
+        articleViewToggleState: articleViewToggleState
+      };
+    });
+  };
+
+  handleMounted = (list: ReactList) => {
+    this.list = list;
+  };
 }
