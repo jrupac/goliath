@@ -33,8 +33,7 @@ func (s *server) AddUser(_ context.Context, _ *AddUserRequest) (*AddUserResponse
 // During the operation of adding a feed, fetching is paused and restarted.
 func (s *server) AddFeed(_ context.Context, req *AddFeedRequest) (*AddFeedResponse, error) {
 	resp := &AddFeedResponse{}
-	// Zero indicates the root folder.
-	parentID := int64(0)
+	folderID := int64(-1)
 
 	if req.Title == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "must specify Title")
@@ -69,20 +68,25 @@ func (s *server) AddFeed(_ context.Context, req *AddFeedRequest) (*AddFeedRespon
 
 		for _, f := range folders {
 			if f.Name == req.Folder {
-				parentID = f.ID
+				folderID = f.ID
 				break
 			}
-		}
-
-		if parentID == 0 {
-			return nil, status.Error(codes.InvalidArgument, "could not find folder")
 		}
 	}
 
 	fetch.Pause()
 	defer fetch.Resume()
 
-	feedID, err := s.db.InsertFeedForUser(user, feed, parentID)
+	// Folder ID not found, so create a new one
+	if folderID == -1 {
+		newFolder := models.Folder{Name: req.Folder}
+		folderID, err = s.db.InsertFolderForUser(user, newFolder, 0)
+		if err != nil {
+			return nil, status.Error(codes.DataLoss, "could not create new folder")
+		}
+	}
+
+	feedID, err := s.db.InsertFeedForUser(user, feed, folderID)
 	if err != nil {
 		return resp, status.Error(codes.DataLoss, "failed to persist feed")
 	}
