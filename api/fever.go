@@ -423,9 +423,14 @@ func (a Fever) constructFeedsGroups(d *storage.Database, u models.User) ([]feeds
 		return feedGroups, err
 	}
 	for k, v := range feedsPerFolder {
+		var feedIds []string
+		for _, i := range v {
+			feedIds = append(feedIds, strconv.FormatInt(i, 10))
+		}
+
 		feedGroup := feedsGroupType{
 			GroupID: k,
-			FeedIDs: v,
+			FeedIDs: strings.Join(feedIds, ","),
 		}
 		feedGroups = append(feedGroups, feedGroup)
 	}

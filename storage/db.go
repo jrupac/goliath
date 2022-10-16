@@ -12,7 +12,6 @@ import (
 	"github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"strconv"
 	"strings"
 	"time"
 )
@@ -518,17 +517,12 @@ func (d *Database) GetFeedsInFolderForUser(u models.User, folderId int64) ([]mod
 	return feeds, nil
 }
 
-// GetFeedsPerFolderForUser returns a map of folder ID to a comma-separated
-// string of feed IDs for the given user.
-func (d *Database) GetFeedsPerFolderForUser(u models.User) (map[int64]string, error) {
+// GetFeedsPerFolderForUser returns a map of folder ID to an array of feed IDs.
+func (d *Database) GetFeedsPerFolderForUser(u models.User) (map[int64][]int64, error) {
 	defer logElapsedTime(time.Now(), "GetFeedsPerFolderForUser")
 
-	// TODO: Make this method return map[int64][]int64.
-	// Right now this is encoding Fever API semantics into the DB function.
-	agg := map[int64][]string{}
-	resp := map[int64]string{}
+	resp := map[int64][]int64{}
 
-	// CockroachDB doesn't have a concat-with-separator aggregation function
 	rows, err := d.db.Query(`SELECT folder, id FROM Feed WHERE userid = $1`, u.UserId)
 	if err != nil {
 		return resp, err
@@ -540,12 +534,9 @@ func (d *Database) GetFeedsPerFolderForUser(u models.User) (map[int64]string, er
 		if err = rows.Scan(&folderID, &feedID); err != nil {
 			return resp, err
 		}
-		agg[folderID] = append(agg[folderID], strconv.FormatInt(feedID, 10))
+		resp[folderID] = append(resp[folderID], feedID)
 	}
 
-	for k, v := range agg {
-		resp[k] = strings.Join(v, ",")
-	}
 	return resp, err
 }
 
