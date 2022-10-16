@@ -11,7 +11,7 @@ require (
 	github.com/golang/protobuf v1.3.1 // indirect
 	github.com/jrupac/rss v1.0.3
 	github.com/lib/pq v1.1.1
-	github.com/mat/besticon v3.9.0+incompatible
+	github.com/mat/besticon v3.12.0+incompatible
 	github.com/microcosm-cc/bluemonday v1.0.16
 	github.com/prometheus/client_golang v0.9.4
 	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c

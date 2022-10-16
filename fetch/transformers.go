@@ -9,6 +9,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/mat/besticon/besticon"
 	"html"
+	"image"
 	"image/png"
 	"net/url"
 	"strings"
@@ -27,21 +28,15 @@ var (
 // maybeResizeImage converts the provided besticon.Icon to a 256x256 PNG image
 // and returns an imagePair struct containing the base64-encoded image and
 // metadata.
-func maybeResizeImage(folderId int64, feedId int64, bi besticon.Icon) (ip imagePair) {
+func maybeResizeImage(folderId int64, feedId int64, bi besticon.Icon, i *image.Image) (ip imagePair) {
 	ip = imagePair{folderId, feedId, "image/" + bi.Format, bi.ImageData}
 
 	if *normalizeFavicons {
 		var buff bytes.Buffer
 
-		i, err := bi.Image()
-		if err != nil {
-			log.Warningf("failed to convert besticon.Icon to image.Image: %s", err)
-			return
-		}
-
 		resized := imaging.Resize(*i, 256, 256, imaging.Lanczos)
 
-		err = png.Encode(&buff, resized)
+		err := png.Encode(&buff, resized)
 		if err != nil {
 			log.Warningf("failed to encode image as PNG: %s", err)
 			return

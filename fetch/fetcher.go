@@ -14,6 +14,7 @@ import (
 	"github.com/jrupac/rss"
 	"github.com/mat/besticon/besticon"
 	"github.com/microcosm-cc/bluemonday"
+	"image"
 	"io/ioutil"
 	"net/url"
 	"sync"
@@ -331,6 +332,7 @@ Loop:
 
 func handleImage(ctx context.Context, feed models.Feed, f *rss.Feed, send chan imagePair) {
 	var icon besticon.Icon
+	var img *image.Image
 	var feedHost string
 
 	parsedUrl, err := url.Parse(f.Link)
@@ -338,19 +340,23 @@ func handleImage(ctx context.Context, feed models.Feed, f *rss.Feed, send chan i
 		feedHost = parsedUrl.Hostname()
 	}
 
-	if i, err := tryIconFetch(f.Image.URL); err == nil {
-		icon = i
-	} else if i, err = tryIconFetch(f.Link); err == nil {
-		icon = i
-	} else if i, err = tryIconFetch(feedHost); err == nil {
-		icon = i
-	} else {
+	// Look in multiple URLs for a suitable icon
+	found := false
+	for _, path := range []string{f.Image.URL, f.Link, feedHost} {
+		if i, decoded, err := tryIconFetch(path); err == nil {
+			found = true
+			icon = i
+			img = decoded
+		}
+	}
+
+	if !found {
 		log.V(2).Infof("Could not find suitable icon for feed: %s", feedHost)
 		return
 	}
 
 	select {
-	case send <- maybeResizeImage(feed.FolderID, feed.ID, icon):
+	case send <- maybeResizeImage(feed.FolderID, feed.ID, icon, img):
 		break
 	case <-ctx.Done():
 		break
@@ -382,29 +388,33 @@ func getSimilarExistingArticles(articles []models.Article, a models.Article) ([]
 	return unreadIds, readIds
 }
 
-func tryIconFetch(link string) (besticon.Icon, error) {
+func tryIconFetch(link string) (besticon.Icon, *image.Image, error) {
 	icon := besticon.Icon{}
 
 	if link == "" {
-		return icon, errors.New("invalid URL")
+		return icon, nil, errors.New("invalid URL")
 	}
 
 	finder := besticon.IconFinder{}
 
 	icons, err := finder.FetchIcons(link)
 	if err != nil {
-		return icon, err
+		return icon, nil, err
 	}
 
 	if len(icons) == 0 {
-		return icon, errors.New("no icons found")
+		return icon, nil, errors.New("no icons found")
 	}
 
 	for _, i := range icons {
 		if i.URL != "" && i.Format != "" {
-			return i, nil
+			// Also try decoding the image. If we're successful, return it to avoid
+			// needing to decode it again later on.
+			if img, err := i.Image(); err == nil {
+				return i, img, nil
+			}
 		}
 	}
 
-	return icon, errors.New("no suitable icons found")
+	return icon, nil, errors.New("no suitable icons found")
 }
