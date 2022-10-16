@@ -14,6 +14,7 @@ import {
   formatFull,
   makeAbsolute
 } from "../utils/helpers";
+import RssFeedOutlinedIcon from "@mui/icons-material/RssFeedOutlined";
 
 export interface ArticleProps {
   article: Article;
@@ -107,7 +108,7 @@ export default class ArticleCard extends React.Component<ArticleProps, ArticleSt
   renderFavicon() {
     const favicon = this.props.favicon;
     if (!favicon) {
-      return <i className="fas fa-rss-square"/>
+      return <RssFeedOutlinedIcon fontSize="small"/>
     } else {
       return <img src={`data:${favicon}`} height={16} width={16} alt=''/>
     }
