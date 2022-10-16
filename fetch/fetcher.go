@@ -263,6 +263,12 @@ Loop:
 		content = maybeRewriteImageSourceUrls(content)
 		summary = maybeRewriteImageSourceUrls(summary)
 
+		// An empty title can cause rendering problems and just looks wrong when
+		// being displayed, so rewrite.
+		if title == "" {
+			title = "(Untitled)"
+		}
+
 		syntheticDate := false
 		retrieved := time.Now()
 		var date time.Time
