@@ -183,7 +183,7 @@ export default class App extends React.Component<AppProps, AppState> {
           }
 
           // Populate feeds in this folder.
-          const feeds = new Map<FeedId, Feed>();
+          let feeds = new Map<FeedId, Feed>();
           feedIdList.forEach(
             (feedId: FeedId) => {
               const feed = globalFeedMap.get(feedId);
@@ -210,6 +210,10 @@ export default class App extends React.Component<AppProps, AppState> {
           // Compute other metadata about this folder.
           const unreadCount = Array.from(feeds.values()).reduce(
             (acc: number, f: Feed) => acc + f.unread_count, 0);
+
+          // Sort feeds by title
+          feeds = new Map([...feeds].sort(
+            (a, b) => a[1].title.localeCompare(b[1].title)))
 
           const folderData: Folder = {
             feeds: feeds,
