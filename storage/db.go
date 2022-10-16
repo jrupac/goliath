@@ -300,7 +300,7 @@ func (d *Database) DeleteArticlesByIdForUser(u models.User, ids []int64) error {
 	defer logElapsedTime(time.Now(), "DeleteArticlesByIdForUser")
 
 	_, err := d.db.Exec(
-		`DELETE FROM Article WHERE userid = $1 AND id = ANY($2)`, pq.Array(ids), u.UserId)
+		`DELETE FROM Article WHERE userid = $1 AND id = ANY($2)`, u.UserId, pq.Array(ids))
 	return err
 }
 
