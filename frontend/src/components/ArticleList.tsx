@@ -339,19 +339,13 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         }
       }
 
-      // Handle scrolling and marking
-      if (this.list) {
+      const entry = articleEntries[prevState.scrollIndex];
+      const [, , , feedId, folderId] = entry;
 
-
-        const articleEntries = Array.from(prevState.articleEntries);
-        const entry = articleEntries[prevState.scrollIndex];
-        const [article, , , feedId, folderId] = entry;
-
-        if (!(article.is_read === 1)) {
-          this.props.handleMark(
-            'read', [article.id, feedId, folderId], SelectionType.Article);
-          article.is_read = 1;
-        }
+      if (!(article.is_read === 1)) {
+        this.props.handleMark(
+          'read', [article.id, feedId, folderId], SelectionType.Article);
+        article.is_read = 1;
       }
 
       return {
@@ -361,22 +355,22 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         articleViewToggleState: articleViewToggleState
       };
     }, () => {
-
-
-      // Animate scrolling using technique described by react-list author here:
-      // https://github.com/coderiety/react-list/issues/79
-      // @ts-ignore
-      const scrollPos = this.list.getSpaceBefore(this.state.scrollIndex);
-
-      scroll.scrollTo(scrollPos, {
-        // The scrolling container is not trivial to figure out, but react-list
-        // has already done the work to figure it out, so use it directly.
+      if (this.list) {
+        // Animate scrolling using technique described by react-list author here:
+        // https://github.com/coderiety/react-list/issues/79
         // @ts-ignore
-        container: this.list.scrollParent,
-        isDynamic: true,
-        duration: 500,
-        smooth: "easeInSine",
-      });
+        const scrollPos = this.list.getSpaceBefore(this.state.scrollIndex);
+
+        scroll.scrollTo(scrollPos, {
+          // The scrolling container is not trivial to figure out, but react-list
+          // has already done the work to figure it out, so use it directly.
+          // @ts-ignore
+          container: this.list.scrollParent,
+          isDynamic: true,
+          duration: 500,
+          smooth: "easeInSine",
+        });
+      }
     });
   };
 
