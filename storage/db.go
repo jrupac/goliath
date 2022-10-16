@@ -9,25 +9,18 @@ import (
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/opml"
 	"github.com/jrupac/goliath/utils"
+	"github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus"
 
-	// PostgreSQL driver support
-	_ "github.com/lib/pq"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	dialect             = "postgres"
-	folderTable         = "Folder"
-	folderChildrenTable = "FolderChildren"
-	feedTable           = "Feed"
-	articleTable        = "Article"
-	userTable           = "UserTable"
-	retrievalCacheTable = "RetrievalCache"
-	maxFetchedRows      = 10000
-	slowOpLogThreshold  = 50 * time.Millisecond
+	dialect            = "postgres"
+	maxFetchedRows     = 10000
+	slowOpLogThreshold = 50 * time.Millisecond
 )
 
 var (
@@ -79,7 +72,7 @@ func (d *Database) Close() error {
 func (d *Database) InsertUser(u models.User) error {
 	defer logElapsedTime(time.Now(), "InsertUser")
 
-	_, err := d.db.Exec(`INSERT INTO `+userTable+`(id, username, key) VALUES($1, $2, $3)`, u.UserId, u.Username, u.Key)
+	_, err := d.db.Exec(`INSERT INTO UserTable (id, username, key) VALUES($1, $2, $3)`, u.UserId, u.Username, u.Key)
 
 	return err
 }
@@ -89,7 +82,7 @@ func (d *Database) GetAllUsers() ([]models.User, error) {
 	defer logElapsedTime(time.Now(), "GetAllUsers")
 
 	var users []models.User
-	rows, err := d.db.Query(`SELECT id, username, key FROM ` + userTable)
+	rows, err := d.db.Query(`SELECT id, username, key FROM UserTable`)
 	if err != nil {
 		return users, err
 	}
@@ -112,7 +105,7 @@ func (d *Database) GetUserByKey(key string) (models.User, error) {
 
 	var u models.User
 	err := d.db.QueryRow(
-		`SELECT id, username, key FROM `+userTable+` WHERE key = $1`, key).Scan(
+		`SELECT id, username, key FROM UserTable WHERE key = $1`, key).Scan(
 		&u.UserId, &u.Username, &u.Key)
 	if !u.Valid() {
 		return models.User{}, errors.New("could not find user")
@@ -127,7 +120,7 @@ func (d *Database) GetUserByUsername(username string) (models.User, error) {
 
 	var u models.User
 	err := d.db.QueryRow(
-		`SELECT id, username, key FROM `+userTable+` WHERE username = $1`, username).Scan(
+		`SELECT id, username, key FROM UserTable WHERE username = $1`, username).Scan(
 		&u.UserId, &u.Username, &u.Key)
 	if !u.Valid() {
 		return models.User{}, errors.New("could not find user")
@@ -139,7 +132,7 @@ func (d *Database) GetUserByUsername(username string) (models.User, error) {
 func (d *Database) GetAllRetrievalCaches() (map[string]string, error) {
 	defer logElapsedTime(time.Now(), "GetAllRetrievalCaches")
 
-	rows, err := d.db.Query(`SELECT userid, cache FROM ` + retrievalCacheTable)
+	rows, err := d.db.Query(`SELECT userid, cache FROM RetrievalCache`)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +162,7 @@ func (d *Database) PersistAllRetrievalCaches(entries map[string][]byte) error {
 	}
 	valueStr := strings.Join(values, ",")
 
-	_, err := d.db.Exec(`UPSERT INTO ` + retrievalCacheTable + `(userid, cache) VALUES` + valueStr)
+	_, err := d.db.Exec(`UPSERT INTO RetrievalCache(userid, cache) VALUES` + valueStr)
 
 	return err
 }
@@ -185,7 +178,7 @@ func (d *Database) InsertArticleForUser(u models.User, a models.Article) error {
 	var articleID int64
 	var count int
 	err := d.db.QueryRow(
-		`SELECT COUNT(*) FROM `+articleTable+` WHERE userid = $1 AND hash = $2`,
+		`SELECT COUNT(*) FROM Article WHERE userid = $1 AND hash = $2`,
 		u.UserId, a.Hash()).Scan(&count)
 	if err != nil {
 		return err
@@ -196,7 +189,7 @@ func (d *Database) InsertArticleForUser(u models.User, a models.Article) error {
 	}
 
 	err = d.db.QueryRow(
-		`INSERT INTO `+articleTable+`
+		`INSERT INTO Article
 		(userid, feed, folder, hash, title, summary, content, parsed, link, read, date, retrieved)
 		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
 		u.UserId, a.FeedID, a.FolderID, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Date, a.Retrieved).Scan(&articleID)
@@ -215,7 +208,7 @@ func (d *Database) InsertFaviconForUser(u models.User, folderId int64, feedId in
 	// TODO: Consider wrapping this into a Favicon model type.
 	var count int
 	err := d.db.QueryRow(
-		`SELECT COUNT(*) FROM `+feedTable+` WHERE userid = $1 AND folder = $2 AND id = $3`,
+		`SELECT COUNT(*) FROM Feed WHERE userid = $1 AND folder = $2 AND id = $3`,
 		u.UserId, folderId, feedId).Scan(&count)
 	if err != nil {
 		return err
@@ -228,7 +221,7 @@ func (d *Database) InsertFaviconForUser(u models.User, folderId int64, feedId in
 	h := base64.StdEncoding.EncodeToString(img)
 
 	_, err = d.db.Exec(
-		`UPDATE `+feedTable+` SET favicon = $1, mime = $2 WHERE userid = $3 AND folder = $4 AND id = $5`,
+		`UPDATE Feed SET favicon = $1, mime = $2 WHERE userid = $3 AND folder = $4 AND id = $5`,
 		h, mime, u.UserId, folderId, feedId)
 	return err
 }
@@ -244,7 +237,7 @@ func (d *Database) InsertFeedForUser(u models.User, f models.Feed, folderId int6
 	// If the feed is assumed to be a top-level entry, determine the ID of the
 	// root folder that it actually is under.
 	if folderId == 0 {
-		err := d.db.QueryRow(`SELECT id FROM `+folderTable+` WHERE userid = $1 AND name = $2`,
+		err := d.db.QueryRow(`SELECT id FROM Folder WHERE userid = $1 AND name = $2`,
 			u.UserId, models.RootFolder).Scan(&folderId)
 		if err != nil {
 			return feedID, nil
@@ -252,7 +245,7 @@ func (d *Database) InsertFeedForUser(u models.User, f models.Feed, folderId int6
 	}
 
 	err := d.db.QueryRow(
-		`INSERT INTO `+feedTable+`(userid, folder, hash, title, description, url, link)
+		`INSERT INTO Feed(userid, folder, hash, title, description, url, link)
 			VALUES($1, $2, $3, $4, $5, $6, $7)
 			ON CONFLICT(hash) DO UPDATE SET hash = excluded.hash RETURNING id`,
 		u.UserId, folderId, f.Hash(), f.Title, f.Description, f.URL, f.Link).Scan(&feedID)
@@ -268,7 +261,7 @@ func (d *Database) InsertFolderForUser(u models.User, f models.Folder, parentId 
 	var folderID int64
 
 	err := d.db.QueryRow(
-		`INSERT INTO `+folderTable+`(name) VALUES($1, $2)
+		`INSERT INTO Folder(userid, name) VALUES($1, $2)
     	 ON CONFLICT(name) DO UPDATE SET name = excluded.name RETURNING id`, u.UserId, f.Name).Scan(&folderID)
 	if err != nil {
 		return folderID, err
@@ -280,7 +273,7 @@ func (d *Database) InsertFolderForUser(u models.User, f models.Folder, parentId 
 	// the folder mapping table.
 	if parentId != 0 {
 		_, err = d.db.Exec(
-			`UPSERT INTO `+folderChildrenTable+`(userid, parent, child) VALUES($1, $2, $3)`, u.UserId, parentId, folderID)
+			`UPSERT INTO FolderChildren(userid, parent, child) VALUES($1, $2, $3)`, u.UserId, parentId, folderID)
 		if err != nil {
 			return folderID, err
 		}
@@ -295,7 +288,7 @@ func (d *Database) DeleteArticlesForUser(u models.User, minTimestamp time.Time) 
 	defer logElapsedTime(time.Now(), "DeleteArticlesForUser")
 
 	r, err := d.db.Exec(
-		`DELETE FROM `+articleTable+` WHERE userid = $1 AND read AND (retrieved IS NULL OR retrieved < $2) RETURNING id`,
+		`DELETE FROM Article WHERE userid = $1 AND read AND (retrieved IS NULL OR retrieved < $2) RETURNING id`,
 		u.UserId, minTimestamp)
 	if err != nil {
 		return 0, err
@@ -307,11 +300,8 @@ func (d *Database) DeleteArticlesForUser(u models.User, minTimestamp time.Time) 
 func (d *Database) DeleteArticlesByIdForUser(u models.User, ids []int64) error {
 	defer logElapsedTime(time.Now(), "DeleteArticlesByIdForUser")
 
-	// This makes a comma-separated IDs as a string, e.g.: "[1, 2, 3]"
-	idStr := strings.Join(strings.Fields(fmt.Sprint(ids)), ",")
-
 	_, err := d.db.Exec(
-		`DELETE FROM `+articleTable+` WHERE userid = $1 AND id = ANY ARRAY `+idStr, u.UserId)
+		`DELETE FROM Article WHERE userid = $1 AND id = ANY($2)`, pq.Array(ids), u.UserId)
 	return err
 }
 
@@ -321,14 +311,14 @@ func (d *Database) DeleteFeedForUser(u models.User, feedId int64, folderId int64
 
 	// TODO: Make the following queries into a single transaction.
 	_, err := d.db.Exec(
-		`DELETE FROM `+articleTable+` WHERE userid = $1 AND folder = $2 AND feed = $3`,
+		`DELETE FROM Article WHERE userid = $1 AND folder = $2 AND feed = $3`,
 		u.UserId, folderId, feedId)
 	if err != nil {
 		return err
 	}
 
 	_, err = d.db.Exec(
-		`DELETE FROM `+feedTable+` WHERE userid = $1 AND folder = $2 AND id = $3`,
+		`DELETE FROM Feed WHERE userid = $1 AND folder = $2 AND id = $3`,
 		u.UserId, folderId, feedId)
 
 	return err
@@ -350,7 +340,7 @@ func (d *Database) MarkArticleForUser(u models.User, articleId int64, status str
 	}
 
 	_, err = d.db.Exec(
-		`UPDATE `+articleTable+` SET read = $1 WHERE userid = $2 AND id = $3`, state, u.UserId, articleId)
+		`UPDATE Article SET read = $1 WHERE userid = $2 AND id = $3`, state, u.UserId, articleId)
 	return err
 }
 
@@ -366,7 +356,7 @@ func (d *Database) MarkFeedForUser(u models.User, feedId int64, status string) e
 	}
 
 	_, err = d.db.Exec(
-		`UPDATE `+articleTable+` SET read = $1 WHERE userid = $2 AND feed = $3`, state, u.UserId, feedId)
+		`UPDATE Article SET read = $1 WHERE userid = $2 AND feed = $3`, state, u.UserId, feedId)
 	return err
 }
 
@@ -384,12 +374,12 @@ func (d *Database) MarkFolderForUser(u models.User, folderId int64, status strin
 
 	// Special-case id=0 to mean everything (the root folder).
 	if folderId == 0 {
-		_, err = d.db.Exec(`UPDATE `+articleTable+` SET read = $1 WHERE userid = $2`, state, u.UserId)
+		_, err = d.db.Exec(`UPDATE Article SET read = $1 WHERE userid = $2`, state, u.UserId)
 		return err
 	}
 
 	_, err = d.db.Exec(
-		`UPDATE `+articleTable+` SET read = $1 WHERE userid = $2 AND folder = $3`, state, u.UserId, folderId)
+		`UPDATE Article SET read = $1 WHERE userid = $2 AND folder = $3`, state, u.UserId, folderId)
 	if err != nil {
 		return err
 	}
@@ -413,7 +403,7 @@ func (d *Database) UpdateFeedMetadataForUser(u models.User, f models.Feed) error
 	defer logElapsedTime(time.Now(), "UpdateFeedMetadataForUser")
 
 	_, err := d.db.Exec(
-		`UPDATE `+feedTable+` SET hash = $1, title = $2, description = $3, link = $4 WHERE userid = $5 AND folder = $6 AND id = $7`,
+		`UPDATE Feed SET hash = $1, title = $2, description = $3, link = $4 WHERE userid = $5 AND folder = $6 AND id = $7`,
 		f.Hash(), f.Title, f.Description, f.Link, u.UserId, f.FolderID, f.ID)
 	return err
 }
@@ -424,7 +414,7 @@ func (d *Database) UpdateLatestTimeForFeedForUser(u models.User, folderId int64,
 	defer logElapsedTime(time.Now(), "UpdateLatestTimeForFeedForUser")
 
 	_, err := d.db.Exec(
-		`UPDATE `+feedTable+` SET latest = $1 WHERE userid = $2 AND folder = $3 AND id = $4`,
+		`UPDATE Feed SET latest = $1 WHERE userid = $2 AND folder = $3 AND id = $4`,
 		latest, u.UserId, folderId, id)
 	return err
 }
@@ -440,7 +430,7 @@ func (d *Database) GetFolderChildrenForUser(u models.User, id int64) ([]int64, e
 
 	var children []int64
 	rows, err := d.db.Query(
-		`SELECT child FROM `+folderChildrenTable+` WHERE userid = $1 AND parent = $2`, u.UserId, id)
+		`SELECT child FROM FolderChildren WHERE userid = $1 AND parent = $2`, u.UserId, id)
 	if err != nil {
 		return children, err
 	}
@@ -463,7 +453,7 @@ func (d *Database) GetAllFoldersForUser(u models.User) ([]models.Folder, error) 
 
 	// TODO: Consider returning a map[int64]models.Folder instead.
 	var folders []models.Folder
-	rows, err := d.db.Query(`SELECT id, name FROM `+folderTable+` WHERE userid = $1`, u.UserId)
+	rows, err := d.db.Query(`SELECT id, name FROM Folder WHERE userid = $1`, u.UserId)
 	if err != nil {
 		return folders, err
 	}
@@ -487,7 +477,7 @@ func (d *Database) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
 
 	var feeds []models.Feed
 	rows, err := d.db.Query(
-		`SELECT id, folder, title, description, url, link, latest FROM `+feedTable+` WHERE userid = $1`, u.UserId)
+		`SELECT id, folder, title, description, url, link, latest FROM Feed WHERE userid = $1`, u.UserId)
 	if err != nil {
 		return feeds, err
 	}
@@ -512,7 +502,7 @@ func (d *Database) GetFeedsInFolderForUser(u models.User, folderId int64) ([]mod
 	var feeds []models.Feed
 
 	rows, err := d.db.Query(
-		`SELECT id, title, url FROM `+feedTable+` WHERE userid = $1 AND folder = $2`, u.UserId, folderId)
+		`SELECT id, title, url FROM Feed WHERE userid = $1 AND folder = $2`, u.UserId, folderId)
 	if err != nil {
 		return feeds, err
 	}
@@ -539,7 +529,7 @@ func (d *Database) GetFeedsPerFolderForUser(u models.User) (map[int64]string, er
 	resp := map[int64]string{}
 
 	// CockroachDB doesn't have a concat-with-separator aggregation function
-	rows, err := d.db.Query(`SELECT folder, id FROM `+feedTable+` WHERE userid = $1`, u.UserId)
+	rows, err := d.db.Query(`SELECT folder, id FROM Feed WHERE userid = $1`, u.UserId)
 	if err != nil {
 		return resp, err
 	}
@@ -569,7 +559,7 @@ func (d *Database) GetFolderFeedTreeForUser(u models.User) (*models.Folder, erro
 
 	// First determine the root ID
 	err := d.db.QueryRow(
-		`SELECT id from `+folderTable+` WHERE userid = $1 AND name = $2`, u.UserId, models.RootFolder).Scan(&rootId)
+		`SELECT id from Folder WHERE userid = $1 AND name = $2`, u.UserId, models.RootFolder).Scan(&rootId)
 	if err != nil {
 		return rootFolder, err
 	}
@@ -626,7 +616,7 @@ func (d *Database) GetAllFaviconsForUser(u models.User) (map[int64]string, error
 	// TODO: Consider returning a Favicon model type.
 	favicons := map[int64]string{}
 	rows, err := d.db.Query(
-		`SELECT id, mime, favicon FROM `+feedTable+` WHERE userid = $1 AND favicon IS NOT NULL`, u.UserId)
+		`SELECT id, mime, favicon FROM Feed WHERE userid = $1 AND favicon IS NOT NULL`, u.UserId)
 	if err != nil {
 		return favicons, err
 	}
@@ -661,7 +651,7 @@ func (d *Database) GetUnreadArticlesForUser(u models.User, limit int, sinceID in
 	}
 
 	rows, err = d.db.Query(
-		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM `+articleTable+`
+		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM Article
 		WHERE userid = $1 AND id > $2 AND NOT read ORDER BY id LIMIT $3`, u.UserId, sinceID, limit)
 	if err != nil {
 		return articles, err
@@ -689,7 +679,7 @@ func (d *Database) GetArticlesForFeedForUser(u models.User, feedId int64) ([]mod
 	var err error
 
 	rows, err = d.db.Query(
-		`SELECT id, feed, folder, title, summary, content, parsed, link, read, date FROM `+articleTable+`
+		`SELECT id, feed, folder, title, summary, content, parsed, link, read, date FROM Article
 		WHERE userid = $1 AND feed = $2`, u.UserId, feedId)
 	if err != nil {
 		return articles, err
