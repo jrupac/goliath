@@ -143,7 +143,7 @@ export default class App extends React.Component<AppProps, AppState> {
     }
 
     this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-      const structure = new Map<FolderId, Folder>();
+      let structure = new Map<FolderId, Folder>();
 
       // Map of (Folder ID) -> (Feed ID).
       const folderToFeeds = new Map<FolderId, FeedId[]>();
@@ -228,6 +228,10 @@ export default class App extends React.Component<AppProps, AppState> {
       // Compute other global metadata.
       const unreadCount = Array.from(structure.values()).reduce(
         (acc: number, f: Folder) => acc + f.unread_count, 0);
+
+      // Sort folders by title
+      structure = new Map([...structure].sort(
+        (a, b) => a[1].title.localeCompare(b[1].title)))
 
       return {
         structure,
