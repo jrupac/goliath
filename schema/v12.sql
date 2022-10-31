@@ -1,0 +1,4 @@
+SET DATABASE TO Goliath;
+
+ALTER TABLE IF EXISTS UserTable
+    ADD COLUMN hashpass STRING;

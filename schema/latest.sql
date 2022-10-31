@@ -5,12 +5,13 @@ GRANT ALL ON DATABASE Goliath TO goliath;
 
 SET DATABASE TO Goliath;
 
-CREATE TABLE IF NOT EXISTS UserTable (
-  -- Key columns
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  username STRING NOT NULL UNIQUE,
-  -- Data columns
-  key STRING NOT NULL UNIQUE
+CREATE TABLE IF NOT EXISTS UserTable(
+    -- Key columns
+                                        id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                                        username STRING NOT NULL UNIQUE,
+    -- Data columns
+                                        key      STRING NOT NULL UNIQUE,
+                                        hashpass STRING
 );
 
 CREATE UNIQUE INDEX ON UserTable (username) STORING (key);
