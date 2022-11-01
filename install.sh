@@ -13,7 +13,7 @@ buildTimestamp=`date +%s`
 buildHash=`git rev-parse HEAD`
 ldFlags="-X main.buildTimestamp=$buildTimestamp -X main.buildHash=$buildHash"
 echo "Compling Goliath core."
-go build -x -v -ldflags "$ldFlags" .
+go build -x -v -mod=mod -ldflags "$ldFlags" .
 
 echo "Compiling Goliath frontend."
 cd frontend/
