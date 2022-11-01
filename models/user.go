@@ -9,6 +9,7 @@ type User struct {
 	UserId   UserId
 	Username string
 	Key      string
+	HashPass string
 }
 
 // Valid returns true if this object is well-formed.
