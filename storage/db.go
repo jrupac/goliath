@@ -625,6 +625,33 @@ func (d *Database) GetAllFaviconsForUser(u models.User) (map[int64]string, error
 	return favicons, err
 }
 
+// GetArticlesForUser returns articles from the specified list.
+func (d *Database) GetArticlesForUser(u models.User, ids []int64) ([]models.Article, error) {
+	defer logElapsedTime(time.Now(), "GetArticlesForUser")
+
+	var articles []models.Article
+	var rows *sql.Rows
+	var err error
+
+	rows, err = d.db.Query(
+		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM Article
+		WHERE userid = $1 AND id = ANY($2)`, u.UserId, pq.Array(ids))
+	if err != nil {
+		return articles, err
+	}
+	defer closeSilent(rows)
+
+	for rows.Next() {
+		a := models.Article{}
+		if err = rows.Scan(
+			&a.ID, &a.FeedID, &a.FolderID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Date); err != nil {
+			return articles, err
+		}
+		articles = append(articles, a)
+	}
+	return articles, err
+}
+
 // GetUnreadArticlesForUser returns a list of at most the given limit of
 // articles after the given ID.
 func (d *Database) GetUnreadArticlesForUser(u models.User, limit int, sinceID int64) ([]models.Article, error) {
@@ -752,7 +779,7 @@ func logElapsedTime(t time.Time, method string) {
 		// Record latency measurements in microseconds.
 		latencyMetric.WithLabelValues(method).Observe(float64(d) / float64(time.Microsecond))
 		if d > slowOpLogThreshold {
-			log.Warningf("Slow operation for method %s: %s", method, d)
+			log.V(2).Infof("Slow operation for method %s: %s", method, d)
 		}
 	})
 }
