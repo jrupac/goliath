@@ -94,11 +94,12 @@ func (a GReader) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	formUser := r.PostForm.Get("Email")
-	formPass := r.PostForm.Get("Passwd")
+	formUser := r.Form.Get("Email")
+	formPass := r.Form.Get("Passwd")
 
 	user, err := a.d.GetUserByUsername(formUser)
 	if err != nil {
+		log.Warningf("Failed to find user: %s", formUser)
 		a.returnError(w, http.StatusUnauthorized)
 		return
 	}
