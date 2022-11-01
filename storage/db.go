@@ -119,8 +119,8 @@ func (d *Database) GetUserByUsername(username string) (models.User, error) {
 
 	var u models.User
 	err := d.db.QueryRow(
-		`SELECT id, username, key FROM UserTable WHERE username = $1`, username).Scan(
-		&u.UserId, &u.Username, &u.Key)
+		`SELECT id, username, key, hashpass FROM UserTable WHERE username = $1`, username).Scan(
+		&u.UserId, &u.Username, &u.Key, &u.HashPass)
 	if !u.Valid() {
 		return models.User{}, errors.New("could not find user")
 	}
