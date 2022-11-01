@@ -1,10 +1,8 @@
 package api
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
@@ -12,19 +10,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/crypto/bcrypt"
 	"net/http"
+	"net/http/httputil"
+	"strconv"
 	"strings"
 	"time"
 )
-
-// This is a fixed, randomly generated salt used as part of the generated
-// auth token. This is temporary until a token with expiration support is
-// implemented (i.e., with JWT).
-const tokenSalt = "D5qpSQLaDlGbbcKxj2Jj0Q=="
-
-type tokenType struct {
-	Username string `json:"username"`
-	Token    string `json:"token"`
-}
 
 var (
 	greaderLatencyMetric = prometheus.NewSummaryVec(
@@ -45,8 +35,6 @@ func init() {
 type GReader struct {
 	d *storage.Database
 }
-
-type greaderResponse map[string]string
 
 // GReaderHandler returns a new GReader handler.
 func GReaderHandler(d *storage.Database) http.HandlerFunc {
@@ -71,39 +59,38 @@ func (a GReader) route(w http.ResponseWriter, r *http.Request) {
 	// Record the total server latency of each call.
 	defer a.recordLatency(time.Now(), "server")
 
-	var resp greaderResponse
-	var status int
-
-	switch {
-	case r.URL.Path == "/greader/accounts/ClientLogin":
-		resp, status = a.handleLogin(w, r)
-	case r.URL.Path == "/greader/reader/api/0/user-info":
-		resp, status = a.withAuth(r, a.handleUserInfo)
-	default:
-		log.Infof("DID NOT MATCH ANY ROUTE")
-		log.Infof("GReader request URL path: %s", r.URL.Path)
-		log.Infof("GReader request URL: %s", r.URL.String())
-		log.Infof("GReader request body: %s", r.PostForm.Encode())
-		a.returnError(w, http.StatusBadRequest)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 
-	if status != http.StatusOK {
-		a.returnError(w, status)
-	} else {
-		a.returnSuccess(w, resp)
+	switch r.URL.Path {
+	case "/greader/accounts/ClientLogin":
+		a.handleLogin(w, r)
+	case "/greader/reader/api/0/token":
+		a.withAuth(w, r, a.handlePostToken)
+	case "/greader/reader/api/0/user-info":
+		a.withAuth(w, r, a.handleUserInfo)
+	case "/greader/reader/api/0/subscription/list":
+		a.withAuth(w, r, a.handleSubscriptionList)
+	case "/greader/reader/api/0/stream/items/ids":
+		a.withAuth(w, r, a.handleStreamItemIds)
+	case "/greader/reader/api/0/stream/items/contents":
+		a.withAuth(w, r, a.handleStreamItemsContents)
+	case "/greader/reader/api/0/edit-tag":
+		a.withAuth(w, r, a.handleEditTag)
+	default:
+		log.Warningf("Got unexpected route: %s", r.URL.String())
+		dump, err := httputil.DumpRequest(r, true)
+		if err != nil {
+			log.Warningf("Failed to dump request: %s", err)
+		}
+		log.Warningf("%q", dump)
+		a.returnError(w, http.StatusBadRequest)
 	}
 }
 
-func (a GReader) handleLogin(_ http.ResponseWriter, r *http.Request) (resp greaderResponse, status int) {
-	resp = map[string]string{}
-	status = http.StatusOK
-
+func (a GReader) handleLogin(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
-		status = http.StatusInternalServerError
+		a.returnError(w, http.StatusBadRequest)
 		return
 	}
 
@@ -112,142 +99,312 @@ func (a GReader) handleLogin(_ http.ResponseWriter, r *http.Request) (resp gread
 
 	user, err := a.d.GetUserByUsername(formUser)
 	if err != nil {
-		status = http.StatusInternalServerError
+		a.returnError(w, http.StatusUnauthorized)
 		return
 	}
 
 	ok := bcrypt.CompareHashAndPassword([]byte(user.HashPass), []byte(formPass))
 	if ok == nil {
-		token, err := createToken(user.HashPass, formUser)
+		token, err := createAuthToken(user.HashPass, formUser)
 		if err != nil {
-			status = http.StatusInternalServerError
+			a.returnError(w, http.StatusInternalServerError)
 			return
 		}
-
-		resp["SID"] = ""
-		resp["LSID"] = ""
-		resp["Auth"] = token
+		a.returnSuccess(w, greaderHandlelogin{Auth: token})
 	} else {
-		status = http.StatusUnauthorized
-		return
+		a.returnError(w, http.StatusUnauthorized)
 	}
-	return
 }
 
-func (a GReader) handleUserInfo(r *http.Request, user models.User) (resp greaderResponse, status int) {
-	resp = map[string]string{}
-	status = http.StatusOK
+func (a GReader) handleUserInfo(w http.ResponseWriter, _ *http.Request, user models.User) {
+	a.returnSuccess(w, greaderUserInfo{
+		UserId:   string(user.UserId),
+		Username: user.Username,
+	})
+}
 
+func (a GReader) handleSubscriptionList(w http.ResponseWriter, _ *http.Request, user models.User) {
+	folders, err := a.d.GetAllFoldersForUser(user)
+	if err != nil {
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	feeds, err := a.d.GetAllFeedsForUser(user)
+	if err != nil {
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	faviconMap, err := a.d.GetAllFaviconsForUser(user)
+	if err != nil {
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	folderMap := map[int64]string{}
+	for _, folder := range folders {
+		folderMap[folder.ID] = folder.Name
+	}
+
+	subList := greaderSubscriptionList{}
+
+	for _, feed := range feeds {
+		subList.Subscriptions = append(subList.Subscriptions, greaderSubscription{
+			Title: feed.Title,
+			// No client seems to use this field, so let it as zero
+			FirstItemMsec: "0",
+			HtmlUrl:       feed.Link,
+			IconUrl:       fmt.Sprintf("data:%s", faviconMap[feed.ID]),
+			SortId:        feed.Title,
+			Id:            fmt.Sprintf("feed/%d", feed.ID),
+			Categories: []greaderCategory{{
+				Id:    fmt.Sprintf("user/-/label/%d", feed.FolderID),
+				Label: folderMap[feed.FolderID],
+			}},
+		})
+	}
+
+	a.returnSuccess(w, subList)
+}
+
+func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, user models.User) {
 	err := r.ParseForm()
 	if err != nil {
-		status = http.StatusInternalServerError
+		a.returnError(w, http.StatusBadRequest)
 		return
 	}
 
-	resp["userId"] = string(user.UserId)
-	resp["userName"] = user.Username
+	limit, err := strconv.Atoi(r.Form.Get("n"))
+	if err != nil {
+		log.Warningf(
+			"Saw unexpected 'n' parameter, defaulting to 10,000: %s", r.PostForm.Get("n"))
+		limit = 10000
+	}
 
-	return
+	switch s := r.Form.Get("s"); s {
+	case "user/-/state/com.google/starred":
+		// TODO: Support starred items
+		a.returnSuccess(w, greaderStreamItemIds{})
+		return
+	case "user/-/state/com.google/read":
+		// Never return read items to the client, it's just simpler
+		a.returnSuccess(w, greaderStreamItemIds{})
+		return
+	case "user/-/state/com.google/reading-list":
+		// Handled below
+		break
+	default:
+		log.Warningf("Saw unexpected 's' parameter: %s", s)
+		a.returnError(w, http.StatusNotImplemented)
+		return
+	}
+
+	xt := r.Form.Get("xt")
+	if xt != "user/-/state/com.google/read" {
+		// Only support excluding read items
+		log.Warningf("Saw unexpected 'xt' parameter: %s", xt)
+		a.returnError(w, http.StatusNotImplemented)
+		return
+	}
+
+	// TODO: Support continuation tokens
+	articles, err := a.d.GetUnreadArticlesForUser(user, limit, -1)
+	if err != nil {
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	streamItemIds := greaderStreamItemIds{}
+
+	for _, article := range articles {
+		streamItemIds.ItemRefs = append(streamItemIds.ItemRefs, greaderItemRef{
+			Id: strconv.FormatInt(article.ID, 10),
+			DirectStreamIds: []string{
+				fmt.Sprintf("feed/%d", article.FeedID),
+				fmt.Sprintf("user/-/label/%d", article.FolderID),
+			},
+			TimestampUsec: strconv.FormatInt(article.Date.UnixMicro(), 10),
+		})
+	}
+
+	a.returnSuccess(w, streamItemIds)
 }
 
-func (a GReader) withAuth(r *http.Request, handler func(*http.Request, models.User) (greaderResponse, int)) (greaderResponse, int) {
-	resp := map[string]string{}
+func (a GReader) handlePostToken(w http.ResponseWriter, _ *http.Request, _ models.User) {
+	_, _ = fmt.Fprint(w, createPostToken())
+	a.returnSuccess(w, nil)
+}
 
+func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Request, user models.User) {
+	err := r.ParseForm()
+	if err != nil {
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	if !validatePostToken(r.Form.Get("T")) {
+		a.returnError(w, http.StatusUnauthorized)
+		return
+	}
+
+	articleIdsValue := r.Form["i"]
+	var articleIds []int64
+	for _, articleIdStr := range articleIdsValue {
+		id, err := strconv.ParseInt(articleIdStr, 16, 64)
+		if err != nil {
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+		articleIds = append(articleIds, id)
+	}
+
+	articles, err := a.d.GetArticlesForUser(user, articleIds)
+	if err != nil {
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	streamItemContents := greaderStreamItemsContents{
+		Id:      "user/-/state/com.google/reading-list",
+		Updated: time.Now().Unix(),
+	}
+
+	for _, article := range articles {
+		streamItemContents.Items = append(streamItemContents.Items, greaderItemContent{
+			CrawlTimeMsec: strconv.FormatInt(article.Date.UnixMilli(), 10),
+			TimestampUsec: strconv.FormatInt(article.Date.UnixMicro(), 10),
+			Id:            fmt.Sprintf("tag:google.com,2005:reader/item/%x", article.ID),
+			Categories: []string{
+				"user/-/state/com.google/reading-list",
+				fmt.Sprintf("feed/%d", article.FeedID),
+				fmt.Sprintf("user/-/label/%d", article.FolderID),
+			},
+			Title:     article.Title,
+			Published: article.Date.Unix(),
+			Canonical: []greaderCanonical{
+				{Href: article.Link},
+			},
+			Alternate: []greaderCanonical{
+				{Href: article.Link},
+			},
+			Summary: greaderContent{
+				Content: article.Content,
+			},
+			Origin: greaderOrigin{
+				StreamId: fmt.Sprintf("feed/%d", article.FeedID),
+			},
+		})
+	}
+
+	a.returnSuccess(w, streamItemContents)
+}
+
+func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user models.User) {
+	err := r.ParseForm()
+	if err != nil {
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	if !validatePostToken(r.Form.Get("T")) {
+		a.returnError(w, http.StatusUnauthorized)
+		return
+	}
+
+	articleIdsValue := r.Form["i"]
+	var articleIds []int64
+	for _, articleIdStr := range articleIdsValue {
+		id, err := strconv.ParseInt(articleIdStr, 16, 64)
+		if err != nil {
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+		articleIds = append(articleIds, id)
+	}
+
+	var status string
+	// Only support updating one tag
+	switch r.Form.Get("a") {
+	case "user/-/state/com.google/read":
+		status = "read"
+	case "user/-/state/com.google/kept-unread":
+		status = "unread"
+	case "user/-/state/com.google/starred", "user/-/state/com.google/broadcast\n":
+		// TODO: Support starring items
+		a.returnError(w, http.StatusNotImplemented)
+		return
+	}
+
+	for _, articleId := range articleIds {
+		err = a.d.MarkArticleForUser(user, articleId, status)
+		if err != nil {
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	_, _ = w.Write([]byte("OK"))
+	a.returnSuccess(w, nil)
+}
+
+func (a GReader) withAuth(w http.ResponseWriter, r *http.Request, handler func(http.ResponseWriter, *http.Request, models.User)) {
 	// Header should be in format:
 	//   Authorization: GoogleLogin auth=<token>
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		return resp, http.StatusUnauthorized
+		a.returnError(w, http.StatusUnauthorized)
+		return
 	}
 
 	authFields := strings.Fields(authHeader)
 	if len(authFields) != 2 || !strings.EqualFold(authFields[0], "GoogleLogin") {
-		return resp, http.StatusBadRequest
+		a.returnError(w, http.StatusBadRequest)
+		return
 	}
 
 	authStr, tokenStr, found := strings.Cut(authFields[1], "=")
 	if !found {
-		return resp, http.StatusBadRequest
+		a.returnError(w, http.StatusBadRequest)
+		return
 	}
 
-	if tokenStr == "" || !strings.EqualFold(authStr, "auth") {
-		return resp, http.StatusBadRequest
+	if !strings.EqualFold(authStr, "auth") {
+		a.returnError(w, http.StatusBadRequest)
+		return
 	}
 
-	username, token, err := extractToken(tokenStr)
+	username, token, err := extractAuthToken(tokenStr)
 	if err != nil {
-		return resp, http.StatusBadRequest
+		a.returnError(w, http.StatusBadRequest)
+		return
 	}
 
 	user, err := a.d.GetUserByUsername(username)
 	if err != nil {
-		return resp, http.StatusUnauthorized
+		a.returnError(w, http.StatusUnauthorized)
+		return
 	}
 
-	if validateToken(token, username, user.HashPass) {
-		return handler(r, user)
+	if validateAuthToken(token, username, user.HashPass) {
+		handler(w, r, user)
+	} else {
+		a.returnError(w, http.StatusUnauthorized)
 	}
-	return resp, http.StatusUnauthorized
 }
 
 func (a GReader) returnError(w http.ResponseWriter, status int) {
 	w.WriteHeader(status)
 }
 
-func (a GReader) returnSuccess(w http.ResponseWriter, resp greaderResponse) {
+func (a GReader) returnSuccess(w http.ResponseWriter, resp any) {
 	w.WriteHeader(http.StatusOK)
 
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(resp); err != nil {
-		a.returnError(w, http.StatusInternalServerError)
+	if resp != nil {
+		enc := json.NewEncoder(w)
+		enc.SetEscapeHTML(false)
+		if err := enc.Encode(resp); err != nil {
+			a.returnError(w, http.StatusInternalServerError)
+		}
 	}
-}
-
-func createToken(hashPass string, username string) (string, error) {
-	// This roughly follows what FreshRSS uses for the auth token
-	// The token format is a JSON object containing:
-	// {
-	//   Username: username,
-	//   Token: base64(sha256(tokenSalt + username + bcrypt(salt + password)))
-	// }
-	h := sha256.New()
-	h.Write([]byte(tokenSalt))
-	h.Write([]byte(username))
-	h.Write([]byte(hashPass))
-	t := h.Sum(nil)
-
-	token := tokenType{
-		Username: username,
-		Token:    base64.URLEncoding.EncodeToString(t),
-	}
-	t, err := json.Marshal(token)
-	if err != nil {
-		return "", err
-	}
-	return string(t), nil
-}
-
-func extractToken(token string) (string, []byte, error) {
-	var t tokenType
-	err := json.Unmarshal([]byte(token), &t)
-	if err != nil {
-		return "", []byte{}, err
-	}
-
-	dec, err := base64.URLEncoding.DecodeString(t.Token)
-	if err != nil {
-		return "", []byte{}, err
-	}
-
-	return t.Username, dec, nil
-}
-
-func validateToken(token []byte, username string, hashPass string) bool {
-	h := sha256.New()
-	h.Write([]byte(tokenSalt))
-	h.Write([]byte(username))
-	h.Write([]byte(hashPass))
-
-	return bytes.Compare(token, h.Sum(nil)) == 0
 }
