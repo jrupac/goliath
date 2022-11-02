@@ -319,24 +319,13 @@ func (a Fever) handleItems(d *storage.Database, u models.User, resp *responseTyp
 	}
 	// Make an empty (not nil) slice because their JSON encodings are different.
 	items := make([]itemType, 0)
-	var content string
 	for _, a := range articles {
-		if *serveParsedArticles && a.Parsed != "" {
-			log.Infof("Serving parsed content for title: %s", a.Title)
-			content = a.Parsed
-		} else if a.Content != "" {
-			// The "content" field usually has more text, but is not always set.
-			content = a.Content
-		} else {
-			content = a.Summary
-		}
-
 		i := itemType{
 			ID:          a.ID,
 			FeedID:      a.FeedID,
 			Title:       a.Title,
 			Author:      "",
-			HTML:        content,
+			HTML:        a.GetContents(*serveParsedArticles),
 			URL:         a.Link,
 			IsSaved:     0,
 			IsRead:      0,

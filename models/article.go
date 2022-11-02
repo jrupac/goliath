@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	log "github.com/golang/glog"
 	"golang.org/x/crypto/sha3"
 	"time"
 )
@@ -37,4 +38,19 @@ func (a *Article) Hash() string {
 		h.Write([]byte(a.Date.String()))
 	}
 	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+// GetContents tries to return a non-empty content field for this article.
+func (a *Article) GetContents(serveParsed bool) string {
+	var content string
+	if serveParsed && a.Parsed != "" {
+		log.V(2).Infof("Serving parsed content for title: %s", a.Title)
+		content = a.Parsed
+	} else if a.Content != "" {
+		// The "content" field usually has more text, but is not always set.
+		content = a.Content
+	} else {
+		content = a.Summary
+	}
+	return content
 }

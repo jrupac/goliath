@@ -16,6 +16,14 @@ import (
 	"time"
 )
 
+const (
+	readingListStreamId string = "user/-/state/com.google/reading-list"
+	readStreamId        string = "user/-/state/com.google/read"
+	unreadStreamId      string = "user/-/state/com.google/kept-unread"
+	starredStreamId     string = "user/-/state/com.google/starred"
+	broadcastStreamId   string = "user/-/state/com.google/broadcast"
+)
+
 var (
 	greaderLatencyMetric = prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
@@ -158,9 +166,9 @@ func (a GReader) handleSubscriptionList(w http.ResponseWriter, _ *http.Request, 
 			HtmlUrl:       feed.Link,
 			IconUrl:       fmt.Sprintf("data:%s", faviconMap[feed.ID]),
 			SortId:        feed.Title,
-			Id:            fmt.Sprintf("feed/%d", feed.ID),
+			Id:            greaderFeedId(feed.ID),
 			Categories: []greaderCategory{{
-				Id:    fmt.Sprintf("user/-/label/%d", feed.FolderID),
+				Id:    greaderFolderId(feed.FolderID),
 				Label: folderMap[feed.FolderID],
 			}},
 		})
@@ -184,15 +192,15 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 	}
 
 	switch s := r.Form.Get("s"); s {
-	case "user/-/state/com.google/starred":
+	case starredStreamId:
 		// TODO: Support starred items
 		a.returnSuccess(w, greaderStreamItemIds{})
 		return
-	case "user/-/state/com.google/read":
+	case readStreamId:
 		// Never return read items to the client, it's just simpler
 		a.returnSuccess(w, greaderStreamItemIds{})
 		return
-	case "user/-/state/com.google/reading-list":
+	case readingListStreamId:
 		// Handled below
 		break
 	default:
@@ -202,7 +210,7 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 	}
 
 	xt := r.Form.Get("xt")
-	if xt != "user/-/state/com.google/read" {
+	if xt != readStreamId {
 		// Only support excluding read items
 		log.Warningf("Saw unexpected 'xt' parameter: %s", xt)
 		a.returnError(w, http.StatusNotImplemented)
@@ -222,8 +230,8 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 		streamItemIds.ItemRefs = append(streamItemIds.ItemRefs, greaderItemRef{
 			Id: strconv.FormatInt(article.ID, 10),
 			DirectStreamIds: []string{
-				fmt.Sprintf("feed/%d", article.FeedID),
-				fmt.Sprintf("user/-/label/%d", article.FolderID),
+				greaderFeedId(article.FeedID),
+				greaderFolderId(article.FolderID),
 			},
 			TimestampUsec: strconv.FormatInt(article.Date.UnixMicro(), 10),
 		})
@@ -267,7 +275,7 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 	}
 
 	streamItemContents := greaderStreamItemsContents{
-		Id:      "user/-/state/com.google/reading-list",
+		Id:      readingListStreamId,
 		Updated: time.Now().Unix(),
 	}
 
@@ -275,11 +283,11 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 		streamItemContents.Items = append(streamItemContents.Items, greaderItemContent{
 			CrawlTimeMsec: strconv.FormatInt(article.Date.UnixMilli(), 10),
 			TimestampUsec: strconv.FormatInt(article.Date.UnixMicro(), 10),
-			Id:            fmt.Sprintf("tag:google.com,2005:reader/item/%x", article.ID),
+			Id:            greaderArticleId(article.ID),
 			Categories: []string{
-				"user/-/state/com.google/reading-list",
-				fmt.Sprintf("feed/%d", article.FeedID),
-				fmt.Sprintf("user/-/label/%d", article.FolderID),
+				readingListStreamId,
+				greaderFeedId(article.FeedID),
+				greaderFolderId(article.FolderID),
 			},
 			Title:     article.Title,
 			Published: article.Date.Unix(),
@@ -290,10 +298,10 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 				{Href: article.Link},
 			},
 			Summary: greaderContent{
-				Content: article.Content,
+				Content: article.GetContents(*serveParsedArticles),
 			},
 			Origin: greaderOrigin{
-				StreamId: fmt.Sprintf("feed/%d", article.FeedID),
+				StreamId: greaderFeedId(article.FeedID),
 			},
 		})
 	}
@@ -327,11 +335,11 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 	var status string
 	// Only support updating one tag
 	switch r.Form.Get("a") {
-	case "user/-/state/com.google/read":
+	case readStreamId:
 		status = "read"
-	case "user/-/state/com.google/kept-unread":
+	case unreadStreamId:
 		status = "unread"
-	case "user/-/state/com.google/starred", "user/-/state/com.google/broadcast\n":
+	case starredStreamId, broadcastStreamId:
 		// TODO: Support starring items
 		a.returnError(w, http.StatusNotImplemented)
 		return
@@ -392,6 +400,18 @@ func (a GReader) withAuth(w http.ResponseWriter, r *http.Request, handler func(h
 	} else {
 		a.returnError(w, http.StatusUnauthorized)
 	}
+}
+
+func greaderArticleId(articleId int64) string {
+	return fmt.Sprintf("tag:google.com,2005:reader/item/%x", articleId)
+}
+
+func greaderFeedId(feedId int64) string {
+	return fmt.Sprintf("feed/%d", feedId)
+}
+
+func greaderFolderId(folderId int64) string {
+	return fmt.Sprintf("user/-/label/%d", folderId)
 }
 
 func (a GReader) returnError(w http.ResponseWriter, status int) {
