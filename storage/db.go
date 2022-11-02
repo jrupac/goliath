@@ -625,6 +625,41 @@ func (d *Database) GetAllFaviconsForUser(u models.User) (map[int64]string, error
 	return favicons, err
 }
 
+// GetUnreadArticleMetaForUser returns a list of at most the given limit of
+// articles after the given ID. Only metadata fields are returned, not content.
+func (d *Database) GetUnreadArticleMetaForUser(u models.User, limit int, sinceID int64) ([]models.Article, error) {
+	defer logElapsedTime(time.Now(), "GetUnreadArticlesForUser")
+
+	var articles []models.Article
+	var rows *sql.Rows
+	var err error
+
+	if limit == -1 {
+		limit = maxFetchedRows
+	}
+	if sinceID == -1 {
+		sinceID = 0
+	}
+
+	rows, err = d.db.Query(
+		`SELECT id, feed, folder, date FROM Article
+		WHERE userid = $1 AND id > $2 AND NOT read ORDER BY id LIMIT $3`, u.UserId, sinceID, limit)
+	if err != nil {
+		return articles, err
+	}
+	defer closeSilent(rows)
+
+	for rows.Next() {
+		a := models.Article{}
+		if err = rows.Scan(
+			&a.ID, &a.FeedID, &a.FolderID, &a.Date); err != nil {
+			return articles, err
+		}
+		articles = append(articles, a)
+	}
+	return articles, err
+}
+
 // GetArticlesForUser returns articles from the specified list.
 func (d *Database) GetArticlesForUser(u models.User, ids []int64) ([]models.Article, error) {
 	defer logElapsedTime(time.Now(), "GetArticlesForUser")

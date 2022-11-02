@@ -218,7 +218,7 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 	}
 
 	// TODO: Support continuation tokens
-	articles, err := a.d.GetUnreadArticlesForUser(user, limit, -1)
+	articles, err := a.d.GetUnreadArticleMetaForUser(user, limit, -1)
 	if err != nil {
 		a.returnError(w, http.StatusInternalServerError)
 		return
