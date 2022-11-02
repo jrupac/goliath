@@ -35,6 +35,7 @@ import {
 } from "@mui/material";
 import Fever from "./api/Fever";
 import {parseJson} from "./utils/helpers";
+import {FetchApi} from "./api/interface";
 
 export interface AppProps {
 }
@@ -57,7 +58,7 @@ interface Version {
 }
 
 export default class App extends React.Component<AppProps, AppState> {
-  fever = new Fever();
+  fetchApi: FetchApi;
 
   constructor(props: AppProps) {
     super(props);
@@ -71,6 +72,7 @@ export default class App extends React.Component<AppProps, AppState> {
       unreadCount: 0,
       theme: Theme.Dark,
     };
+    this.fetchApi = new Fever();
   }
 
   componentWillUnmount() {
@@ -81,7 +83,7 @@ export default class App extends React.Component<AppProps, AppState> {
     window.addEventListener('keydown', this.handleKeyDown);
 
     this.fetchVersion().then(() => console.log("Fetched version info."));
-    this.fever.initialize((status) =>
+    this.fetchApi.initialize((status) =>
       this.setState((prevState) => ({status: prevState.status | status})))
       .then(([unreadCount, tree]) => {
         console.log("Completed all Fever requests.")
@@ -109,7 +111,7 @@ export default class App extends React.Component<AppProps, AppState> {
   handleMark = (mark: MarkState, entity: SelectionKey, type: SelectionType) => {
     switch (type) {
     case SelectionType.Article:
-      this.fever.markArticle(mark, entity).then(() => {
+      this.fetchApi.markArticle(mark, entity).then(() => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
           const structure = new Map(prevState.structure);
 
@@ -127,7 +129,7 @@ export default class App extends React.Component<AppProps, AppState> {
       }).catch((e) => console.log(e));
       break;
     case SelectionType.Feed:
-      this.fever.markFeed(mark, entity).then(() => {
+      this.fetchApi.markFeed(mark, entity).then(() => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
           const structure = new Map(prevState.structure);
 
@@ -145,7 +147,7 @@ export default class App extends React.Component<AppProps, AppState> {
       }).catch((e) => console.log(e));
       break;
     case SelectionType.Folder:
-      this.fever.markFolder(mark, entity).then(() => {
+      this.fetchApi.markFolder(mark, entity).then(() => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
           const structure = new Map(prevState.structure);
 
@@ -170,7 +172,7 @@ export default class App extends React.Component<AppProps, AppState> {
       }).catch((e) => console.log(e));
       break;
     case SelectionType.All:
-      this.fever.markAll(mark, entity).then(() => {
+      this.fetchApi.markAll(mark, entity).then(() => {
         // Update the read buffer and unread counts.
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
           const structure = new Map(prevState.structure);
