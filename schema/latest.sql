@@ -44,7 +44,8 @@ CREATE TABLE IF NOT EXISTS Feed
     folder      INT    NOT NULL,
     id          SERIAL NOT NULL UNIQUE,
     PRIMARY KEY (userid, folder, id),
-    CONSTRAINT fd_folder FOREIGN KEY (userid, folder) REFERENCES Folder,
+    CONSTRAINT fd_folder FOREIGN KEY (userid, folder)
+        REFERENCES Folder ON UPDATE CASCADE,
     -- Metadata columns
     hash        STRING UNIQUE,
     -- Data columns
@@ -70,7 +71,8 @@ CREATE TABLE IF NOT EXISTS Article
     feed      INT    NOT NULL,
     id        SERIAL NOT NULL UNIQUE,
     PRIMARY KEY (userid, folder, feed, id),
-    CONSTRAINT fk_feed_folder FOREIGN KEY (userid, folder, feed) REFERENCES Feed,
+    CONSTRAINT fk_feed_folder FOREIGN KEY (userid, folder, feed)
+        REFERENCES Feed ON UPDATE CASCADE,
     -- Metadata columns
     hash      STRING UNIQUE,
     -- Data columns
@@ -84,12 +86,7 @@ CREATE TABLE IF NOT EXISTS Article
     date      TIMESTAMPTZ,
     -- Retrieval timestamp
     retrieved TIMESTAMPTZ
-) INTERLEAVE IN PARENT Feed
-    (
-     userid,
-     folder,
-     feed
-        );
+) INTERLEAVE IN PARENT Feed (userid, folder, feed);
 
 CREATE
     UNIQUE INDEX IF NOT EXISTS article_idx_read_key
@@ -102,14 +99,7 @@ CREATE
 CREATE TABLE IF NOT EXISTS RetrievalCache
 (
     -- Key columns
-    userid
-        UUID
-        PRIMARY
-            KEY,
+    userid UUID PRIMARY KEY,
     -- Data columns
-    cache
-        STRING
-) INTERLEAVE IN PARENT UserTable
-    (
-     userid
-        );
+    cache  STRING
+) INTERLEAVE IN PARENT UserTable (userid);
