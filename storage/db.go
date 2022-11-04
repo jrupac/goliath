@@ -418,6 +418,21 @@ func (d *Database) UpdateLatestTimeForFeedForUser(u models.User, folderId int64,
 	return err
 }
 
+// UpdateFolderForFeedForUser updates the folder of the given feed.
+// The new `folderId` must already exist and is enforced by a foreign key
+// constraint on the `Feed` folder.
+func (d *Database) UpdateFolderForFeedForUser(u models.User, feedId int64, folderId int64) error {
+	defer logElapsedTime(time.Now(), "UpdateFolderForFeedForUser")
+
+	// The corresponding rows in the `Article` table will also be updated via the
+	// `ON UPDATE CASCADE` setting of the foreign key constraint on that table, so
+	// no need to directly update `Article` here.
+	_, err := d.db.Exec(
+		`UPDATE Feed SET folder = $1 WHERE userid = $2 and id = $3`,
+		folderId, u.UserId, feedId)
+	return err
+}
+
 /*******************************************************************************
  * Getter methods
  ******************************************************************************/
