@@ -36,6 +36,7 @@ export interface ArticleListState {
   articleImagePreviews: LRUCache<ArticleId, ArticleImagePreview>;
 
   scrollIndex: number;
+  smoothScroll: boolean;
   keypressBuffer: Array<string>;
   articleViewToggleState: ArticleListView
 }
@@ -52,6 +53,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         max: 100
       }),
       scrollIndex: 0,
+      smoothScroll: false,
       keypressBuffer: new Array(keyBufLength),
       articleViewToggleState: ArticleListView.Split
     };
@@ -284,6 +286,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     }
 
     this.setState((prevState) => {
+      let smoothScroll = prevState.smoothScroll;
       let scrollIndex = prevState.scrollIndex;
       let articleEntries = Array.from(prevState.articleEntries);
       let articleViewToggleState = prevState.articleViewToggleState;
@@ -306,6 +309,9 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         keypressBuffer = new Array(keyBufLength);
       } else {
         switch (event.key) {
+        case 'f':
+          smoothScroll = !smoothScroll;
+          break;
         case 'ArrowDown':
           event.preventDefault(); // fallthrough
         case 'j':
@@ -349,27 +355,32 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       }
 
       return {
+        smoothScroll: smoothScroll,
+        scrollIndex: scrollIndex,
         articleEntries: articleEntries,
         keypressBuffer: keypressBuffer,
-        scrollIndex: scrollIndex,
         articleViewToggleState: articleViewToggleState
       };
     }, () => {
       if (this.list) {
-        // Animate scrolling using technique described by react-list author here:
-        // https://github.com/coderiety/react-list/issues/79
-        // @ts-ignore
-        const scrollPos = this.list.getSpaceBefore(this.state.scrollIndex);
-
-        scroll.scrollTo(scrollPos, {
-          // The scrolling container is not trivial to figure out, but react-list
-          // has already done the work to figure it out, so use it directly.
+        if (this.state.smoothScroll) {
+          // Animate scrolling using technique described by react-list author here:
+          // https://github.com/coderiety/react-list/issues/79
           // @ts-ignore
-          container: this.list.scrollParent,
-          isDynamic: true,
-          duration: 500,
-          smooth: "easeInSine",
-        });
+          const scrollPos = this.list.getSpaceBefore(this.state.scrollIndex);
+
+          scroll.scrollTo(scrollPos, {
+            // The scrolling container is not trivial to figure out, but react-list
+            // has already done the work to figure it out, so use it directly.
+            // @ts-ignore
+            container: this.list.scrollParent,
+            isDynamic: true,
+            duration: 500,
+            smooth: "easeInSine",
+          });
+        } else {
+          this.list.scrollTo(this.state.scrollIndex);
+        }
       }
     });
   };
