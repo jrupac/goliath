@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS Feed
     folder      INT    NOT NULL,
     id          SERIAL NOT NULL UNIQUE,
     PRIMARY KEY (userid, folder, id),
-    CONSTRAINT fd_folder FOREIGN KEY (userid, folder)
+    CONSTRAINT fk_folder_cascade FOREIGN KEY (userid, folder)
         REFERENCES Folder ON UPDATE CASCADE,
     -- Metadata columns
     hash        STRING UNIQUE,
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS Article
     feed      INT    NOT NULL,
     id        SERIAL NOT NULL UNIQUE,
     PRIMARY KEY (userid, folder, feed, id),
-    CONSTRAINT fk_feed_folder FOREIGN KEY (userid, folder, feed)
+    CONSTRAINT fk_feed_folder_cascade FOREIGN KEY (userid, folder, feed)
         REFERENCES Feed ON UPDATE CASCADE,
     -- Metadata columns
     hash      STRING UNIQUE,
