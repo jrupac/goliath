@@ -24,7 +24,17 @@ EOF
 
 ```shell
 $ grpc_cli call <URL> AdminService.RemoveFeed <<EOF
-Username: "<Username"
+Username: "<Username>"
 Id: <id>
+EOF
+```
+
+## Edit a feed
+
+```shell
+$ grpc_cli call <URL> AdminService.EditFeed <<EOF
+Username: "<Username>"
+Id: <id>
+Folder: "<Name of folder>"
 EOF
 ```

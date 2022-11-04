@@ -166,6 +166,50 @@ func (s *server) RemoveFeed(_ context.Context, req *RemoveFeedRequest) (*RemoveF
 	return resp, nil
 }
 
+// EditFeed updates the requested feed for the requested user.
+// During the operation of adding a feed, fetching is paused and restarted.
+func (s *server) EditFeed(_ context.Context, req *EditFeedRequest) (*EditFeedResponse, error) {
+	resp := &EditFeedResponse{}
+
+	if req.Username == "" {
+		return nil, status.Error(codes.InvalidArgument, "must specify Username")
+	}
+	if req.Id == 0 {
+		return nil, status.Error(codes.InvalidArgument, "must specify non-zero Feed ID")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Error(codes.NotFound, "could not find user")
+	}
+
+	folders, err := s.db.GetAllFoldersForUser(user)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	var folderId int64 = -1
+	for _, f := range folders {
+		if f.Name == req.Folder {
+			folderId = f.ID
+			break
+		}
+	}
+	if folderId == -1 {
+		return nil, status.Error(codes.InvalidArgument, "could not find folder")
+	}
+
+	fetch.Pause()
+	defer fetch.Resume()
+
+	err = s.db.UpdateFolderForFeedForUser(user, req.Id, folderId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	return resp, nil
+}
+
 func newServer(d *storage.Database) AdminServiceServer {
 	s := &server{db: d}
 	return s

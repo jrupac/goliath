@@ -74,6 +74,22 @@ message RemoveFeedRequest {
 message RemoveFeedResponse {
 }
 
+message EditFeedRequest {
+  // Required. Username for user for whom this feed should be edited.
+  string Username = 1;
+
+  // Required. Internal identifier for existing feed object.
+  int64 Id = 2;
+
+  // Required. Name of new folder this feed should be moved to.
+  // Note: This folder must already exist.
+  string Folder = 3;
+}
+
+// Empty response. Success is indicated by gRPC-level status code.
+message EditFeedResponse {
+}
+
 service AdminService {
   // Add a new user into the system.
   rpc AddUser (AddUserRequest) returns (AddUserResponse);
@@ -86,4 +102,7 @@ service AdminService {
 
   // Remove an existing feed.
   rpc RemoveFeed (RemoveFeedRequest) returns (RemoveFeedResponse);
+
+  // Edit an existing feed.
+  rpc EditFeed (EditFeedRequest) returns (EditFeedResponse);
 }
