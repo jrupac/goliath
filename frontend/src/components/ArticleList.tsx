@@ -1,7 +1,6 @@
 import ArticleCard from './ArticleCard';
 import React from "react";
 import ReactList from 'react-list';
-import {animateScroll as scroll} from 'react-scroll';
 import {
   Article,
   ArticleId,
@@ -53,7 +52,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         max: 100
       }),
       scrollIndex: 0,
-      smoothScroll: false,
+      smoothScroll: true,
       keypressBuffer: new Array(keyBufLength),
       articleViewToggleState: ArticleListView.Split
     };
@@ -363,24 +362,18 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       };
     }, () => {
       if (this.list) {
-        if (this.state.smoothScroll) {
-          // Animate scrolling using technique described by react-list author here:
-          // https://github.com/coderiety/react-list/issues/79
-          // @ts-ignore
-          const scrollPos = this.list.getSpaceBefore(this.state.scrollIndex);
+        // Animate scrolling using technique described by react-list author here:
+        // https://github.com/coderiety/react-list/issues/79
+        // @ts-ignore
+        const scrollPos = this.list.getSpaceBefore(this.state.scrollIndex);
 
-          scroll.scrollTo(scrollPos, {
-            // The scrolling container is not trivial to figure out, but react-list
-            // has already done the work to figure it out, so use it directly.
-            // @ts-ignore
-            container: this.list.scrollParent,
-            isDynamic: true,
-            duration: 500,
-            smooth: "easeInSine",
-          });
-        } else {
-          this.list.scrollTo(this.state.scrollIndex);
-        }
+        // The scrolling container is not trivial to figure out, but react-list
+        // has already done the work to figure it out, so use it directly.
+        // @ts-ignore
+        this.list.scrollParent.scrollTo({
+          top: scrollPos,
+          behavior: this.state.smoothScroll ? 'smooth' : 'auto'
+        });
       }
     });
   };
