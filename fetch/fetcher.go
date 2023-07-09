@@ -244,24 +244,35 @@ func handleItemsForUser(ctx context.Context, feed *models.Feed, d *storage.Datab
 Loop:
 	for _, item := range items {
 		title := item.Title
+
+		// Try both item.Content and item.Summary to see if they have any values
+		contents := item.Content
+		if contents == "" {
+			contents = item.Summary
+		}
+
 		// Some feeds give back content that is HTML-escaped. When this happens,
 		// sanitization makes the content appear as raw, escaped text. There's not
 		// a canonical way of determining if the content is given here as escaped
 		// or not, so we use a heuristic.
-		content := maybeUnescapeHtml(item.Content)
-		summary := maybeUnescapeHtml(item.Summary)
+		contents = maybeUnescapeHtml(contents)
 
 		parsed := maybeParseArticleContent(item.Link)
 
+		if item.Enclosures != nil {
+			for _, enc := range item.Enclosures {
+				contents = PrependMediaToHtml(enc.URL, contents)
+				parsed = PrependMediaToHtml(enc.URL, parsed)
+			}
+		}
+
 		if *sanitizeHTML {
 			title = bluemondayTitlePolicy.Sanitize(title)
-			content = bluemondayBodyPolicy.Sanitize(content)
-			summary = bluemondayBodyPolicy.Sanitize(summary)
+			contents = bluemondayBodyPolicy.Sanitize(contents)
 			parsed = bluemondayBodyPolicy.Sanitize(parsed)
 		}
 
-		content = maybeRewriteImageSourceUrls(content)
-		summary = maybeRewriteImageSourceUrls(summary)
+		contents = maybeRewriteImageSourceUrls(contents)
 
 		// An empty title can cause rendering problems and just looks wrong when
 		// being displayed, so rewrite.
@@ -284,8 +295,8 @@ Loop:
 			FeedID:        feed.ID,
 			FolderID:      feed.FolderID,
 			Title:         title,
-			Summary:       summary,
-			Content:       content,
+			Summary:       contents,
+			Content:       contents,
 			Parsed:        parsed,
 			Link:          item.Link,
 			Date:          date,

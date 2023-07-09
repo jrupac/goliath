@@ -124,3 +124,24 @@ func maybeRewriteImageSourceUrls(s string) string {
 
 	return resp
 }
+
+// PrependMediaToHtml prepends the image included in the RSS enclosure to the
+// HTML content specified.
+func PrependMediaToHtml(img string, s string) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
+	if err != nil {
+		log.Warningf("Failed to parse HTML: %s", err)
+		return s
+	}
+
+	doc.Find("body").First().PrependHtml(
+		fmt.Sprintf("<img src=\"%s\">", img))
+
+	resp, err := doc.Html()
+	if err != nil {
+		log.Warningf("Failed to render rewritten HTML: %s", err)
+		return s
+	}
+
+	return resp
+}
