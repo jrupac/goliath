@@ -150,8 +150,10 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     let title: ReactNode;
     if (feed.unread_count === 0) {
       title = feed.title;
+      title = <span dangerouslySetInnerHTML={{__html: feed.title}}/>
     } else {
-      title = <b>{`(${feed.unread_count})  ${feed.title}`}</b>
+      title = <b>{`(${feed.unread_count}) `}
+        <span dangerouslySetInnerHTML={{__html: feed.title}}/></b>
     }
 
     return <TreeItem
