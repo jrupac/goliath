@@ -217,11 +217,11 @@ func fetchLoopForFeed(ctx context.Context, d *storage.Database, r *cache.Retriev
 func updateFeedMetadataForUser(d *storage.Database, f *models.Feed, rf *rss.Feed, u models.User) {
 	if rf.Title != "" {
 		t := maybeUnescapeHtml(rf.Title)
-		f.Title = bluemondayBodyPolicy.Sanitize(t)
+		f.Title = extractTextFromHtml(t)
 	}
 	if rf.Description != "" {
 		d := maybeUnescapeHtml(rf.Description)
-		f.Description = bluemondayBodyPolicy.Sanitize(d)
+		f.Description = extractTextFromHtml(d)
 	}
 	if rf.Link != "" {
 		f.Link = rf.Link

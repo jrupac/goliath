@@ -125,6 +125,18 @@ func maybeRewriteImageSourceUrls(s string) string {
 	return resp
 }
 
+// extractTextFromHtml parses the given string as an HTML document and returns
+// the combined text from the doc. On parse error, returns the original string.
+func extractTextFromHtml(s string) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
+	if err != nil {
+		log.Warningf("Failed to parse HTML: %s", err)
+		return s
+	}
+
+	return doc.Text()
+}
+
 // PrependMediaToHtml prepends the image included in the RSS enclosure to the
 // HTML content specified.
 func PrependMediaToHtml(img string, s string) string {
