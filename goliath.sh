@@ -64,13 +64,13 @@ function handle_options() {
 # Inspired by https://stackoverflow.com/a/68511611.
 function copy_to_volume() {
   SRC_PATH=$1
-  DEST_VOLUME_NAME=$2
-  DEST_PATH="${3:-}"
+  VOLUME_MOUNT=$2
+  DEST_PATH=$3
 
   # Create minimal, empty container.
   echo -e 'FROM scratch\nLABEL empty=""' | docker build -t empty -
 
-  CONTAINER_ID=$(docker container create -v "${DEST_VOLUME_NAME}:/cockroach-data" empty cmd)
+  CONTAINER_ID=$(docker container create -v "${VOLUME_MOUNT}" empty cmd)
   docker cp "${SRC_PATH}/" "${CONTAINER_ID}:${DEST_PATH}"
   docker rm "${CONTAINER_ID}" --volumes
 }
@@ -92,7 +92,10 @@ if [[ -z $(docker volume ls -f name="${CRDB_VOL_NAME}" -q) ]]; then
   echo "Creating CockroachDB data volume..."
 
   docker volume create --name "${CRDB_VOL_NAME}" > /dev/null
-  copy_to_volume "${CRDB_SRC_DIR}" "${CRDB_VOL_NAME}" "${CRDB_DEST_DIR}"
+  copy_to_volume \
+      "${CRDB_SRC_DIR}" \
+      "${CRDB_VOL_NAME}:/cockroach-data" \
+      "${CRDB_DEST_DIR}"
 fi
 
 echo "Starting container..."
