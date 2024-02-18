@@ -1,0 +1,36 @@
+services:
+  goliath:
+    build:
+      args:
+        - BUILD_TIMESTAMP="${BUILD_TIMESTAMP}"
+        - BUILD_HASH="${BUILD_HASH}"
+    networks:
+      - db-network
+    ports:
+      - "9999:9999"
+      - "9998:9998"
+    volumes:
+      - "./config.ini:/config.ini"
+    depends_on:
+      db-service:
+        condition: service_started
+
+  db-service:
+    image: cockroachdb/cockroach:v19.2.2
+    hostname: crdb
+    ports:
+      - "8080:8080"
+    expose:
+      - "26257"
+    command: "start-single-node --insecure --advertise-addr=crdb"
+    networks:
+      - db-network
+    volumes:
+      - "crdb_volume:/cockroach/cockroach-data"
+
+networks:
+  db-network: { }
+
+volumes:
+  crdb_volume:
+    external: true
