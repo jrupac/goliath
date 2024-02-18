@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
+	"flag"
 	"fmt"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
@@ -20,6 +21,10 @@ const (
 	dialect            = "postgres"
 	maxFetchedRows     = 10000
 	slowOpLogThreshold = 50 * time.Millisecond
+)
+
+var (
+	openRetries = flag.Int("openRetries", 5, "Number of retries on opening the DB.")
 )
 
 var (
@@ -45,11 +50,27 @@ func init() {
 // Open opens a connection to the given database path and tests connectivity.
 func Open(dbPath string) (*Database, error) {
 	db := new(Database)
+	var d *sql.DB
+	var err error
 
-	d, err := sql.Open(dialect, dbPath)
-	if err != nil {
-		return nil, err
+	i := 0
+	for i < *openRetries {
+		d, err = sql.Open(dialect, dbPath)
+		if err == nil {
+			break
+		}
+		log.Warningf("sql.Open got error: %v, waiting 1s and retrying...", err)
+		time.Sleep(1 * time.Second)
+		i += 1
 	}
+
+	if err != nil {
+		log.Errorf("could not open DB after %d retries, failing.", *openRetries)
+		return nil, err
+	} else {
+		log.Infof("Successfully connected to DB!")
+	}
+
 	if err = d.Ping(); err != nil {
 		return nil, err
 	}
