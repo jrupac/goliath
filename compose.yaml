@@ -4,6 +4,7 @@ services:
       args:
         - BUILD_TIMESTAMP="${BUILD_TIMESTAMP}"
         - BUILD_HASH="${BUILD_HASH}"
+    container_name: "goliath"
     networks:
       - db-network
     ports:
@@ -12,12 +13,13 @@ services:
     volumes:
       - "./config.ini:/config.ini"
     depends_on:
-      db-service:
+      crdb-service:
         condition: service_started
 
-  db-service:
+  crdb-service:
     image: cockroachdb/cockroach:v19.2.2
     hostname: crdb
+    container_name: "crdb-service"
     ports:
       - "8080:8080"
     expose:
