@@ -9,8 +9,8 @@ import {
 } from "../utils/types";
 import {Box} from "@mui/material";
 import InboxIcon from "@mui/icons-material/Inbox";
-import TreeView from '@mui/lab/TreeView';
-import {TreeItem} from "@mui/lab";
+import {TreeView} from '@mui/x-tree-view/TreeView';
+import {TreeItem} from '@mui/x-tree-view/TreeItem';
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
 import FolderIcon from '@mui/icons-material/Folder';
 
@@ -57,10 +57,10 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
 
   render() {
     const tree = this.props.tree;
-    let selectedKeys: string[], allSelectedClass: string;
+    let selectedKey: string, allSelectedClass: string;
 
     if (!this.props.selectedKey || this.props.selectedKey === KeyAll) {
-      selectedKeys = [];
+      selectedKey = '';
       allSelectedClass = 'GoliathAllItemsSelected';
     } else {
       switch (this.props.selectionType) {
@@ -68,18 +68,18 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
         throw new Error(
           "Cannot render folder feed list with article selection");
       case SelectionType.Folder:
-        selectedKeys = [this.props.selectedKey as string];
+        selectedKey = this.props.selectedKey as string;
         allSelectedClass = 'GoliathAllItems';
         break;
       case SelectionType.Feed: {
         const feedId = this.props.selectedKey[0];
-        selectedKeys = [feedId as string];
+        selectedKey = feedId as string;
         allSelectedClass = 'GoliathAllItems';
         break;
       }
       case SelectionType.All: // fallthrough
       default:
-        selectedKeys = [];
+        selectedKey = '';
         allSelectedClass = 'GoliathAllItemsSelected';
       }
     }
@@ -98,7 +98,7 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
         <TreeView
           className="GoliathFolderFeedList"
           onNodeSelect={this.handleSelect}
-          selected={selectedKeys}
+          selected={selectedKey}
           expanded={Array.from(tree.keys(), (k) => k.toString())}
           defaultCollapseIcon={<FolderIcon/>}
         >
