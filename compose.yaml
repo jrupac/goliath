@@ -5,6 +5,7 @@ services:
         - BUILD_TIMESTAMP="${BUILD_TIMESTAMP}"
         - BUILD_HASH="${BUILD_HASH}"
     container_name: "goliath"
+    profiles: [ "prod" ]
     networks:
       - db-network
     ports:
@@ -27,11 +28,56 @@ services:
     command: "start-single-node --insecure --advertise-addr=crdb"
     networks:
       - db-network
+      - goliath-network-dev
     volumes:
       - "crdb_volume:/cockroach/cockroach-data"
 
+  ################################################################################
+  # Dev Environment-Specific Services
+  ################################################################################
+
+  backend-dev:
+    build:
+      dockerfile: dev.Dockerfile
+    container_name: "goliath"
+    profiles: [ "dev" ]
+    networks:
+      - db-network
+      - goliath-network-dev
+    security_opt:
+      - seccomp:unconfined
+    cap_add:
+      - SYS_PTRACE
+    ports:
+      - "9999:9999"
+      - "9998:9998"
+      - "40000:40000"
+    volumes:
+      - "./config.ini:/config.ini"
+    depends_on:
+      crdb-service:
+        condition: service_started
+
+  frontend-dev:
+    build:
+      context: frontend
+      dockerfile: dev.Dockerfile
+    container_name: "frontend"
+    stdin_open: true
+    profiles: [ "dev" ]
+    ports:
+      - "3000:3000"
+    networks:
+      - goliath-network-dev
+    volumes:
+      - ./frontend:/frontend
+    depends_on:
+      backend-dev:
+        condition: service_started
+
 networks:
   db-network: { }
+  goliath-network-dev: { }
 
 volumes:
   crdb_volume:

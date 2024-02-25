@@ -1,8 +1,11 @@
+# syntax=docker/dockerfile:1
+
 # Build backend
 
 FROM docker.io/golang:1.21 AS backend_builder
 
-# Install protoc
+ENV CGO_ENABLED 0
+ENV GOOS linux
 
 RUN echo "Installing deps..."
 RUN DEBIAN_FRONTEND=noninteractive \
@@ -24,7 +27,7 @@ ARG BUILD_TIMESTAMP
 ARG BUILD_HASH
 
 RUN echo "Building Goliath core..."
-RUN CGO_ENABLED=0 GOOS=linux go build -x -v -mod=mod -ldflags  \
+RUN go build -x -v -mod=mod -ldflags  \
     "-X main.buildTimestamp=${BUILD_TIMESTAMP} \
     -X main.buildHash=${BUILD_HASH}" \
     -o goliath
@@ -32,6 +35,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -x -v -mod=mod -ldflags  \
 # Build frontend
 
 FROM node:lts AS frontend_builder
+
+ENV NODE_ENV production
 
 WORKDIR /
 
