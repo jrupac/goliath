@@ -13,6 +13,7 @@ BUILD_HASH=$(git rev-parse HEAD)
 
 FORCE_VOL=false
 ACTION=""
+DOCKER_COMPOSE_CMD=()
 DOCKER_COMPOSE_ARGS=()
 ENV=prod
 
@@ -130,13 +131,20 @@ handle_options "$@"
 
 setup_volume
 
+if command -v docker-compose > /dev/null; then
+  DOCKER_COMPOSE_CMD=(docker-compose)
+else
+  DOCKER_COMPOSE_CMD=(docker compose)
+fi
+
 # If running in attached mode, down services on Ctrl-C.
 if [[ "${ACTION}" = "up" ]]; then
-  trap 'docker compose --profile ${ENV} down' INT
+  trap '${DOCKER_COMPOSE_CMD[@} --profile ${ENV} down' INT
 fi
 
 echo "Executing:"
 echo "  Action: ${ACTION}"
 echo "  Environment: ${ENV}"
 echo "  Extra args: ${DOCKER_COMPOSE_ARGS[*]}"
-docker compose --profile "${ENV}" "${ACTION}" "${DOCKER_COMPOSE_ARGS[@]}"
+"${DOCKER_COMPOSE_CMD[@]}" \
+    --profile "${ENV}" "${ACTION}" "${DOCKER_COMPOSE_ARGS[@]}"
