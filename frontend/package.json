@@ -2,7 +2,7 @@
   "name": "frontend-js",
   "version": "0.1.0",
   "private": true,
-  "proxy": "http://goliath:9999",
+  "proxy": "http://goliath-dev:9999",
   "dependencies": {
     "@emotion/react": "^11.4.1",
     "@emotion/styled": "^11.8.1",

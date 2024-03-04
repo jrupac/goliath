@@ -2,7 +2,7 @@
 
 # Build backend
 
-FROM docker.io/golang:1.21 AS backend_builder
+FROM docker.io/golang:1.21 AS backend_builder_prod
 
 ENV CGO_ENABLED 0
 ENV GOOS linux
@@ -34,7 +34,7 @@ RUN go build -x -v -mod=mod -ldflags  \
 
 # Build frontend
 
-FROM node:lts AS frontend_builder
+FROM node:lts AS frontend_builder_prod
 
 ENV NODE_ENV production
 
@@ -54,12 +54,11 @@ RUN npm run build
 
 # Uncomment for image with more tools like a shell for debugging.
 # FROM gcr.io/distroless/base-debian11
-
 FROM scratch
 
-COPY --from=backend_builder /goliath /
-COPY --from=backend_builder /etc/ssl/certs /etc/ssl/certs/
+COPY --from=backend_builder_prod /goliath /
+COPY --from=backend_builder_prod /etc/ssl/certs /etc/ssl/certs/
 
-COPY --from=frontend_builder /build /public
+COPY --from=frontend_builder_prod /build /public
 
 CMD ["/goliath", "--config=/config.ini", "--logtostderr"]

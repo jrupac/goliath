@@ -10,6 +10,3 @@ EXPOSE 3000
 
 RUN echo "Starting Goliath frontend (dev)..."
 CMD ["npm", "run", "start"]
-
-# FROM gcr.io/distroless/base-debian11
-# FROM docker.io/golang:1.21
