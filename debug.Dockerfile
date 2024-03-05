@@ -48,4 +48,4 @@ COPY --from=backend_builder_debug /go/bin/dlv /
 CMD ["/dlv", "--listen=:40000", "--headless=true", "--api-version=2", "exec", \
     "/goliath", \
     "--", \
-    "--config=/config.ini", "--logtostderr"]
+    "--config=/config.ini"]

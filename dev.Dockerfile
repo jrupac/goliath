@@ -40,4 +40,4 @@ FROM scratch
 COPY --from=backend_builder_dev /goliath /
 COPY --from=backend_builder_dev /etc/ssl/certs /etc/ssl/certs/
 
-CMD ["/goliath", "--config=/config.ini", "--logtostderr"]
+CMD ["/goliath", "--config=/config.ini"]

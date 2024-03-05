@@ -69,4 +69,4 @@ COPY --from=backend_builder_prod /etc/ssl/certs /etc/ssl/certs/
 
 COPY --from=frontend_builder_prod /build /public
 
-CMD ["/goliath", "--config=/config.ini", "--logtostderr"]
+CMD ["/goliath", "--config=/config.ini"]

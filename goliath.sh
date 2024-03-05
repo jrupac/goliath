@@ -13,7 +13,7 @@ BUILD_HASH=$(git rev-parse HEAD)
 
 FORCE_VOL=false
 ACTION=""
-DOCKER_COMPOSE_CMD=()
+ATTACHED=false
 DOCKER_COMPOSE_ARGS=()
 ENV=prod
 
@@ -29,6 +29,7 @@ function usage() {
   echo "Options:"
   echo " -h, --help      Display this help message."
   echo " --env ENV       Environment to start (\"prod\", \"dev\", or \"debug\"). Default to \"prod\"."
+  echo " --attached      Starts containers in attached mode. Only applies to \"up\" action."
   echo " --crdb_dir DIR  CockroachDB data directory to populate volume. Ignored if volume exists unless --force_volume is set."
   echo " --force_volume  Force creation of volume even if already exists (destroys existing volume)."
   echo ""
@@ -72,12 +73,15 @@ function handle_options() {
         fi
         shift
         ;;
+      --attached)
+        ATTACHED=true
+        ;;
       --force_volume)
         FORCE_VOL=true
         ;;
       --)
         shift
-        DOCKER_COMPOSE_ARGS=("$@")
+        DOCKER_COMPOSE_ARGS+=("$@")
         break
         ;;
       *)
@@ -116,7 +120,9 @@ function setup_volume() {
   fi
 
   if [[ -z $(docker volume ls -f name="${CRDB_VOL_NAME}" -q) ]]; then
+    docker volume ls -f name="${CRDB_VOL_NAME}" -q
     echo "Creating CockroachDB data volume..."
+    exit 1
 
     docker volume create --name "${CRDB_VOL_NAME}" > /dev/null
     copy_to_volume \
@@ -131,20 +137,18 @@ handle_options "$@"
 
 setup_volume
 
-if command -v docker-compose > /dev/null; then
-  DOCKER_COMPOSE_CMD=(docker-compose)
-else
-  DOCKER_COMPOSE_CMD=(docker compose)
-fi
-
-# If running in attached mode, down services on Ctrl-C.
-if [[ "${ACTION}" = "up" ]]; then
-  trap '${DOCKER_COMPOSE_CMD[@]} --profile ${ENV} down' INT
-fi
-
 echo "Executing:"
 echo "  Action: ${ACTION}"
 echo "  Environment: ${ENV}"
 echo "  Extra args: ${DOCKER_COMPOSE_ARGS[*]}"
-"${DOCKER_COMPOSE_CMD[@]}" \
-    --profile "${ENV}" "${ACTION}" "${DOCKER_COMPOSE_ARGS[@]}"
+
+if [[ "${ACTION}" = "up" ]]; then
+  if [[ $ATTACHED = true ]]; then
+    # If running in attached mode, down services on Ctrl-C.
+    trap 'docker compose --profile ${ENV} down' INT
+  else
+    DOCKER_COMPOSE_ARGS+=("-d")
+  fi
+fi
+
+docker compose --profile "${ENV}" "${ACTION}" "${DOCKER_COMPOSE_ARGS[@]}"
