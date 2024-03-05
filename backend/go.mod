@@ -17,10 +17,8 @@ require (
 	golang.org/x/crypto v0.21.0
 	golang.org/x/net v0.22.0
 	google.golang.org/grpc v1.62.0
-	google.golang.org/protobuf v1.32.0 // indirect
+	google.golang.org/protobuf v1.32.0
 )
-
-require github.com/golang/protobuf v1.5.3
 
 require (
 	github.com/andybalholm/cascadia v1.3.2 // indirect
@@ -30,6 +28,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/prometheus/client_model v0.6.0 // indirect
 	github.com/prometheus/common v0.49.0 // indirect
