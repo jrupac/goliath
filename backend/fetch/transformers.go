@@ -7,7 +7,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/disintegration/imaging"
 	log "github.com/golang/glog"
-	"github.com/mat/besticon/besticon"
+	"github.com/mat/besticon/v3/besticon"
 	"html"
 	"image"
 	"image/png"
@@ -123,6 +123,18 @@ func maybeRewriteImageSourceUrls(s string) string {
 	}
 
 	return resp
+}
+
+// extractTextFromHtml parses the given string as an HTML document and returns
+// the combined text from the doc. On parse error, returns the original string.
+func extractTextFromHtml(s string) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
+	if err != nil {
+		log.Warningf("Failed to parse HTML: %s", err)
+		return s
+	}
+
+	return doc.Text()
 }
 
 // PrependMediaToHtml prepends the image included in the RSS enclosure to the

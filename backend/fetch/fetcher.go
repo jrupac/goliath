@@ -12,10 +12,10 @@ import (
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
 	"github.com/jrupac/rss"
-	"github.com/mat/besticon/besticon"
+	"github.com/mat/besticon/v3/besticon"
 	"github.com/microcosm-cc/bluemonday"
 	"image"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"sync"
 	"time"
@@ -64,9 +64,22 @@ func Resume() {
 	resumeChan <- struct{}{}
 }
 
+type Fetcher struct {
+	finder *besticon.IconFinder
+}
+
+func New() *Fetcher {
+	// Turn off logging of HTTP icon requests.
+	b := besticon.New(besticon.WithLogger(besticon.NewDefaultLogger(io.Discard)))
+
+	return &Fetcher{
+		finder: b.NewIconFinder(),
+	}
+}
+
 // Start starts continuous feed fetching and writes fetched articles to the
 // database.
-func Start(ctx context.Context, d *storage.Database, r *cache.RetrievalCache) {
+func (f Fetcher) Start(ctx context.Context, d *storage.Database, r *cache.RetrievalCache) {
 	log.Infof("Starting continuous feed fetching.")
 
 	// Add additional time layouts that sometimes appear in feeds.
@@ -74,15 +87,12 @@ func Start(ctx context.Context, d *storage.Database, r *cache.RetrievalCache) {
 	rss.TimeLayouts = append(rss.TimeLayouts, "Monday, 02 Jan 2006 15:04:05 MST")
 	rss.TimeLayouts = append(rss.TimeLayouts, "Mon, 02 Jan 2006")
 
-	// Turn off logging of HTTP icon requests.
-	besticon.SetLogOutput(ioutil.Discard)
-
 	fctx, cancel := context.WithCancel(ctx)
 
 	// A WaitGroup of size 0 or 1 to wait on all fetching to complete.
 	loopCondition := &sync.WaitGroup{}
 	loopCondition.Add(1)
-	go startFetchLoop(fctx, loopCondition, d, r)
+	go f.startFetchLoop(fctx, loopCondition, d, r)
 
 	for {
 		select {
@@ -94,7 +104,7 @@ func Start(ctx context.Context, d *storage.Database, r *cache.RetrievalCache) {
 		case <-resumeChan:
 			fctx, cancel = context.WithCancel(ctx)
 			loopCondition.Add(1)
-			go startFetchLoop(fctx, loopCondition, d, r)
+			go f.startFetchLoop(fctx, loopCondition, d, r)
 			log.Info("Fetcher resumed.")
 		case <-ctx.Done():
 			cancel()
@@ -104,7 +114,7 @@ func Start(ctx context.Context, d *storage.Database, r *cache.RetrievalCache) {
 	}
 }
 
-func startFetchLoop(ctx context.Context, parent *sync.WaitGroup, d *storage.Database, r *cache.RetrievalCache) {
+func (f Fetcher) startFetchLoop(ctx context.Context, parent *sync.WaitGroup, d *storage.Database, r *cache.RetrievalCache) {
 	defer parent.Done()
 
 	users, err := d.GetAllUsers()
@@ -119,14 +129,14 @@ func startFetchLoop(ctx context.Context, parent *sync.WaitGroup, d *storage.Data
 	for _, u := range users {
 		go func(u models.User) {
 			defer usersLoopWg.Done()
-			startFetchLoopForUser(d, ctx, r, u)
+			f.startFetchLoopForUser(d, ctx, r, u)
 		}(u)
 	}
 
 	usersLoopWg.Wait()
 }
 
-func startFetchLoopForUser(d *storage.Database, ctx context.Context, r *cache.RetrievalCache, u models.User) {
+func (f Fetcher) startFetchLoopForUser(d *storage.Database, ctx context.Context, r *cache.RetrievalCache, u models.User) {
 	feeds, err := d.GetAllFeedsForUser(u)
 	if err != nil {
 		log.Errorf("Failed to fetch all feeds for user %s: %s", u, err)
@@ -139,11 +149,11 @@ func startFetchLoopForUser(d *storage.Database, ctx context.Context, r *cache.Re
 	ac := make(chan models.Article)
 	ic := make(chan imagePair)
 
-	for _, f := range feeds {
-		go func(f models.Feed) {
+	for _, feed := range feeds {
+		go func(mf models.Feed) {
 			defer userLoopCondition.Done()
-			fetchLoopForFeed(ctx, d, r, ac, ic, f, u)
-		}(f)
+			f.fetchLoopForFeed(ctx, d, r, ac, ic, mf, u)
+		}(feed)
 	}
 
 	for {
@@ -168,25 +178,25 @@ func startFetchLoopForUser(d *storage.Database, ctx context.Context, r *cache.Re
 	}
 }
 
-func fetchLoopForFeed(ctx context.Context, d *storage.Database, r *cache.RetrievalCache, ac chan models.Article, ic chan imagePair, feed models.Feed, u models.User) {
+func (f Fetcher) fetchLoopForFeed(ctx context.Context, d *storage.Database, r *cache.RetrievalCache, ac chan models.Article, ic chan imagePair, feed models.Feed, u models.User) {
 	log.Infof("Fetching URL '%s'", feed.URL)
 	tick := make(<-chan time.Time)
 	initalFetch := make(chan struct{})
 
 	go func() {
-		f, err := rss.Fetch(feed.URL)
+		fetch, err := rss.Fetch(feed.URL)
 		if err != nil {
 			log.Warningf("Error for user %s feed %d fetching URL '%s': %s", u, feed.ID, feed.URL, err)
 			return
 		}
 
-		updateFeedMetadataForUser(d, &feed, f, u)
+		f.updateFeedMetadataForUser(d, &feed, fetch, u)
 
-		handleItemsForUser(ctx, &feed, d, r, f.Items, ac, u)
-		handleImage(ctx, feed, f, ic)
+		f.handleItemsForUser(ctx, &feed, d, r, fetch.Items, ac, u)
+		f.handleImage(ctx, feed, fetch, ic)
 
-		tick = time.After(time.Until(f.Refresh))
-		log.Infof("Initial waiting to fetch %s until %s for user %s\n", feed.URL, f.Refresh, u)
+		tick = time.After(time.Until(fetch.Refresh))
+		log.Infof("Initial waiting to fetch %s until %s for user %s\n", feed.URL, fetch.Refresh, u)
 		initalFetch <- struct{}{}
 	}()
 
@@ -198,13 +208,13 @@ func fetchLoopForFeed(ctx context.Context, d *storage.Database, r *cache.Retriev
 		case <-tick:
 			log.Infof("Fetching feed %s for user %s", feed.URL, u)
 			var refresh time.Time
-			if f, err := rss.Fetch(feed.URL); err != nil {
+			if fetch, err := rss.Fetch(feed.URL); err != nil {
 				log.Warningf("Error fetching %s: %s", feed.URL, err)
 				// If the request transiently fails, try again after a fixed interval.
 				refresh = time.Now().Add(10 * time.Minute)
 			} else {
-				handleItemsForUser(ctx, &feed, d, r, f.Items, ac, u)
-				refresh = f.Refresh
+				f.handleItemsForUser(ctx, &feed, d, r, fetch.Items, ac, u)
+				refresh = fetch.Refresh
 			}
 			log.Infof("Waiting to fetch %s until %s\n", feed.URL, refresh)
 			tick = time.After(time.Until(refresh))
@@ -214,24 +224,26 @@ func fetchLoopForFeed(ctx context.Context, d *storage.Database, r *cache.Retriev
 	}
 }
 
-func updateFeedMetadataForUser(d *storage.Database, f *models.Feed, rf *rss.Feed, u models.User) {
+func (f Fetcher) updateFeedMetadataForUser(d *storage.Database, mf *models.Feed, rf *rss.Feed, u models.User) {
 	if rf.Title != "" {
-		f.Title = rf.Title
+		t := maybeUnescapeHtml(rf.Title)
+		mf.Title = extractTextFromHtml(t)
 	}
 	if rf.Description != "" {
-		f.Description = rf.Description
+		d := maybeUnescapeHtml(rf.Description)
+		mf.Description = extractTextFromHtml(d)
 	}
 	if rf.Link != "" {
-		f.Link = rf.Link
+		mf.Link = rf.Link
 	}
 
-	err := d.UpdateFeedMetadataForUser(u, *f)
+	err := d.UpdateFeedMetadataForUser(u, *mf)
 	if err != nil {
-		log.Warningf("Error while updated feed metadata for feed %s: %s", f.ID, err)
+		log.Warningf("Error while updated feed metadata for feed %s: %s", mf.ID, err)
 	}
 }
 
-func handleItemsForUser(ctx context.Context, feed *models.Feed, d *storage.Database, r *cache.RetrievalCache, items []*rss.Item, send chan models.Article, u models.User) {
+func (f Fetcher) handleItemsForUser(ctx context.Context, feed *models.Feed, d *storage.Database, r *cache.RetrievalCache, items []*rss.Item, send chan models.Article, u models.User) {
 	latest := feed.Latest
 	newLatest := latest
 
@@ -347,20 +359,20 @@ Loop:
 	}
 }
 
-func handleImage(ctx context.Context, feed models.Feed, f *rss.Feed, send chan imagePair) {
+func (f Fetcher) handleImage(ctx context.Context, feed models.Feed, fetch *rss.Feed, send chan imagePair) {
 	var icon besticon.Icon
 	var img *image.Image
 	var feedHost string
 
-	parsedUrl, err := url.Parse(f.Link)
+	parsedUrl, err := url.Parse(fetch.Link)
 	if err == nil {
 		feedHost = parsedUrl.Hostname()
 	}
 
 	// Look in multiple URLs for a suitable icon
 	found := false
-	for _, path := range []string{f.Image.URL, f.Link, feedHost} {
-		if i, decoded, err := tryIconFetch(path); err == nil {
+	for _, path := range []string{fetch.Image.URL, fetch.Link, feedHost} {
+		if i, decoded, err := f.tryIconFetch(path); err == nil {
 			found = true
 			icon = i
 			img = decoded
@@ -405,16 +417,14 @@ func getSimilarExistingArticles(articles []models.Article, a models.Article) ([]
 	return unreadIds, readIds
 }
 
-func tryIconFetch(link string) (besticon.Icon, *image.Image, error) {
+func (f Fetcher) tryIconFetch(link string) (besticon.Icon, *image.Image, error) {
 	icon := besticon.Icon{}
 
 	if link == "" {
 		return icon, nil, errors.New("invalid URL")
 	}
 
-	finder := besticon.IconFinder{}
-
-	icons, err := finder.FetchIcons(link)
+	icons, err := f.finder.FetchIcons(link)
 	if err != nil {
 		return icon, nil, err
 	}

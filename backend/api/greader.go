@@ -419,8 +419,6 @@ func (a GReader) returnError(w http.ResponseWriter, status int) {
 }
 
 func (a GReader) returnSuccess(w http.ResponseWriter, resp any) {
-	w.WriteHeader(http.StatusOK)
-
 	if resp != nil {
 		enc := json.NewEncoder(w)
 		enc.SetEscapeHTML(false)

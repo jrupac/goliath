@@ -1,0 +1,118 @@
+services:
+  ##############################################################################
+  # Prod Environment
+  ##############################################################################
+
+  goliath:
+    build:
+      args:
+        - BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
+        - BUILD_HASH=${BUILD_HASH}
+    container_name: "goliath"
+    profiles: [ "prod" ]
+    networks:
+      - crdb-network
+    ports:
+      - "9999:9999"
+      - "9998:9998"
+    volumes:
+      - "./config.ini:/config.ini"
+      - "/tmp:/tmp"
+    depends_on:
+      crdb:
+        condition: service_started
+
+  ##############################################################################
+  # Dev Environment
+  ##############################################################################
+
+  frontend-dev: &frontend_dev_template
+    build:
+      context: frontend
+      dockerfile: dev.Dockerfile
+    container_name: "frontend_dev"
+    stdin_open: true
+    profiles: [ "dev" ]
+    ports:
+      - "3000:3000"
+    links:
+      - "backend-dev:goliath-dev"
+    networks:
+      - goliath-network
+    volumes:
+      - ./frontend:/frontend
+
+  backend-dev: &backend_dev_template
+    build:
+      dockerfile: dev.Dockerfile
+    container_name: "backend_dev"
+
+    profiles: [ "dev" ]
+    networks:
+      - crdb-network
+      - goliath-network
+    ports:
+      - "9999:9999"
+      - "9998:9998"
+    volumes:
+      - "./config.ini:/config.ini"
+      - "/tmp:/tmp"
+    depends_on:
+      crdb:
+        condition: service_started
+
+  ##############################################################################
+  # Debug Environment
+  ##############################################################################
+
+  frontend-debug:
+    <<: *frontend_dev_template
+    container_name: "frontend-debug"
+    profiles: [ "debug" ]
+    links:
+      - "backend-debug:goliath-dev"
+
+  backend-debug:
+    <<: *backend_dev_template
+    build:
+      dockerfile: debug.Dockerfile
+    container_name: "backend-debug"
+    profiles: [ "debug" ]
+    security_opt:
+      - seccomp:unconfined
+    cap_add:
+      - SYS_PTRACE
+    ports:
+      - "9999:9999"
+      - "9998:9998"
+      - "40000:40000"
+
+  ##############################################################################
+  # External Services
+  ##############################################################################
+
+  crdb:
+    image: cockroachdb/cockroach:v23.2.2
+    hostname: crdb
+    container_name: "crdb-service"
+    ports:
+      - "8080:8080"
+    expose:
+      - "26257"
+    command: "start-single-node --insecure --advertise-addr=crdb"
+    networks:
+      - crdb-network
+      - goliath-network
+    volumes:
+      - "crdb_volume:/cockroach/cockroach-data"
+      - "./backend/schema:/cockroach/scripts"
+
+networks:
+  crdb-network: { }
+  # Only needed in non-prod environments where the frontend is not bundled
+  # into the backend.
+  goliath-network: { }
+
+volumes:
+  crdb_volume:
+    external: true

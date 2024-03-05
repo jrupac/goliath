@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS Folder
     PRIMARY KEY (userid, id),
     -- Data columns
     name   STRING UNIQUE
-) INTERLEAVE IN PARENT UserTable (userid);
+    );
 
 CREATE TABLE IF NOT EXISTS FolderChildren
 (
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS FolderChildren
     parent INT  NOT NULL REFERENCES Folder (id),
     child  INT  NOT NULL REFERENCES Folder (id),
     PRIMARY KEY (userid, parent, child)
-) INTERLEAVE IN PARENT Folder (userid, parent);
+    );
 
 CREATE TABLE IF NOT EXISTS Feed
 (
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS Feed
     favicon     STRING,
     -- Latest timestamp of articles in this feed
     latest      TIMESTAMPTZ DEFAULT CAST(0 AS TIMESTAMPTZ)
-) INTERLEAVE IN PARENT Folder (userid, folder);
+    );
 
 CREATE INDEX ON Feed (userid) STORING (title, description, url, link, latest);
 
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS Article
     date      TIMESTAMPTZ,
     -- Retrieval timestamp
     retrieved TIMESTAMPTZ
-) INTERLEAVE IN PARENT Feed (userid, folder, feed);
+    );
 
 CREATE
     UNIQUE INDEX IF NOT EXISTS article_idx_read_key
@@ -102,4 +102,4 @@ CREATE TABLE IF NOT EXISTS RetrievalCache
     userid UUID PRIMARY KEY,
     -- Data columns
     cache  STRING
-) INTERLEAVE IN PARENT UserTable (userid);
+);
