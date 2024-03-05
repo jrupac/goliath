@@ -7,7 +7,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/disintegration/imaging"
 	log "github.com/golang/glog"
-	"github.com/mat/besticon/besticon"
+	"github.com/mat/besticon/v3/besticon"
 	"html"
 	"image"
 	"image/png"
