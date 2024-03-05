@@ -139,7 +139,7 @@ fi
 
 # If running in attached mode, down services on Ctrl-C.
 if [[ "${ACTION}" = "up" ]]; then
-  trap '${DOCKER_COMPOSE_CMD[@} --profile ${ENV} down' INT
+  trap '${DOCKER_COMPOSE_CMD[@]} --profile ${ENV} down' INT
 fi
 
 echo "Executing:"
