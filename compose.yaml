@@ -90,7 +90,7 @@ services:
   ##############################################################################
 
   crdb:
-    image: cockroachdb/cockroach:v19.2.2
+    image: cockroachdb/cockroach:v20.2.3
     hostname: crdb
     container_name: "crdb-service"
     ports:

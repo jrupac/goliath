@@ -1,7 +1,5 @@
 # syntax=docker/dockerfile:1
 
-# Build backend
-
 FROM golang:1.21 AS backend_builder_dev
 
 ENV CGO_ENABLED 0

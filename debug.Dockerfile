@@ -34,7 +34,7 @@ RUN protoc --proto_path=admin/ --go_out=admin/ --go-grpc_out=admin/ \
 RUN echo "Building Goliath core with debug flags..."
 RUN go build -v -mod=mod -gcflags="all=-N -l" -o goliath
 
-# Get Delve from a GOPATH not from a Go Modules project
+RUN echo "Installing delve..."
 WORKDIR /go/src/
 RUN go install github.com/go-delve/delve/cmd/dlv@latest
 
