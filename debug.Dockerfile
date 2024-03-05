@@ -23,8 +23,16 @@ COPY backend/go.mod backend/go.sum /
 RUN go mod download
 COPY backend/ /
 
+RUN echo "Building protobufs..."
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+RUN export PATH="$PATH:$(go env GOPATH)/bin"
+RUN protoc --proto_path=admin/ --go_out=admin/ --go-grpc_out=admin/ \
+    --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative \
+    admin.proto
+
 RUN echo "Building Goliath core with debug flags..."
-RUN go build -x -v -mod=mod -gcflags="all=-N -l" -o goliath
+RUN go build -v -mod=mod -gcflags="all=-N -l" -o goliath
 
 # Get Delve from a GOPATH not from a Go Modules project
 WORKDIR /go/src/

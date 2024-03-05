@@ -23,11 +23,19 @@ COPY backend/go.mod backend/go.sum /
 RUN go mod download
 COPY backend/ /
 
+RUN echo "Building protobufs..."
+RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+RUN export PATH="$PATH:$(go env GOPATH)/bin"
+RUN protoc --proto_path=admin/ --go_out=admin/ --go-grpc_out=admin/ \
+    --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative \
+    admin.proto
+
 ARG BUILD_TIMESTAMP
 ARG BUILD_HASH
 
 RUN echo "Building Goliath core..."
-RUN go build -x -v -mod=mod -ldflags  \
+RUN go build -v -mod=mod -ldflags  \
     "-X main.buildTimestamp=${BUILD_TIMESTAMP} \
     -X main.buildHash=${BUILD_HASH}" \
     -o goliath

@@ -20,6 +20,7 @@ var (
 )
 
 type server struct {
+	UnimplementedAdminServiceServer
 	db *storage.Database
 }
 
