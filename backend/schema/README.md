@@ -1,4 +1,4 @@
-## Example Operations
+# Example Operations
 
 ## Schema Updates
 
@@ -7,6 +7,19 @@ After stopping the Goliath binary, apply schema updates:
 ```bash
 $ VERSION=<latest schema version>
 $ cockroach sql --insecure --database=Goliath < schema/${VERSION}.sql
+```
+
+### Docker
+
+If running in Dockerized mode, start the containers and then attach to the
+running CockroachDB container and execute:
+
+```bash
+$ ./goliath.sh up
+
+# In a separate shell
+$ docker exec crdb-service /bin/bash
+[root@crdb cockroach] $ ./cockroach sql --insecure < scripts/${VERSION}.sql
 ```
 
 ## Example Queries

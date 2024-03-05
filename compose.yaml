@@ -90,7 +90,7 @@ services:
   ##############################################################################
 
   crdb:
-    image: cockroachdb/cockroach:v21.2.0
+    image: cockroachdb/cockroach:v21.2.17
     hostname: crdb
     container_name: "crdb-service"
     ports:
@@ -103,6 +103,7 @@ services:
       - goliath-network
     volumes:
       - "crdb_volume:/cockroach/cockroach-data"
+      - "./backend/schema:/cockroach/scripts"
 
 networks:
   crdb-network: { }
