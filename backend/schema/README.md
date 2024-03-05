@@ -18,7 +18,7 @@ running CockroachDB container and execute:
 $ ./goliath.sh up
 
 # In a separate shell
-$ docker exec crdb-service /bin/bash
+$ docker exec -it crdb-service /bin/bash
 [root@crdb cockroach] $ ./cockroach sql --insecure < scripts/${VERSION}.sql
 ```
 
