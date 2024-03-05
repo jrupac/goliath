@@ -21,10 +21,12 @@ const (
 	dialect            = "postgres"
 	maxFetchedRows     = 10000
 	slowOpLogThreshold = 50 * time.Millisecond
+	retryBackoff       = 1 * time.Second
 )
 
 var (
 	openRetries = flag.Int("openRetries", 5, "Number of retries on opening the DB.")
+	pingRetries = flag.Int("pingRetries", 5, "Number of retries on pinging the DB.")
 )
 
 var (
@@ -60,7 +62,7 @@ func Open(dbPath string) (*Database, error) {
 			break
 		}
 		log.Warningf("sql.Open got error: %v, waiting 1s and retrying...", err)
-		time.Sleep(1 * time.Second)
+		time.Sleep(retryBackoff)
 		i += 1
 	}
 
@@ -71,8 +73,23 @@ func Open(dbPath string) (*Database, error) {
 		log.Infof("Successfully connected to DB!")
 	}
 
-	if err = d.Ping(); err != nil {
+	i = 0
+	for i < *pingRetries {
+		err = d.Ping()
+		if err == nil {
+			break
+		}
+
+		log.Warningf("sql.Ping got error: %v, waiting 1s and retrying...", err)
+		time.Sleep(retryBackoff)
+		i += 1
+	}
+
+	if err != nil {
+		log.Errorf("could not ping DB after %d retries, failing.", *pingRetries)
 		return nil, err
+	} else {
+		log.Infof("Successfully pinged DB!")
 	}
 
 	db.db = d
