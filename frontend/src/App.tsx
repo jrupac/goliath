@@ -39,7 +39,7 @@ import {
 import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion} from "./api/Goliath";
 import {RouteComponentProps} from "react-router-dom";
-import {cookieExists, GoliathCookieName, LoginPath} from "./utils/helpers";
+import {LoginPath} from "./utils/helpers";
 
 // AppProps needs to extend RouteComponentProps to get "history".
 export interface AppProps extends RouteComponentProps {
@@ -83,7 +83,7 @@ export default class App extends React.Component<AppProps, AppState> {
     // This is defense-in-depth to redirect to the login page if the
     // appropriate cookie is not present. This check is also done on the
     // server side and returns an HTTP redirect.
-    if (!cookieExists(GoliathCookieName)) {
+    if (!this.fetchApi.VerifyAuth()) {
       this.props.history.push({
         pathname: LoginPath
       });

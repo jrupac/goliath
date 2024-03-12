@@ -15,7 +15,12 @@ import {
   Status
 } from "../utils/types";
 import {Decimal} from "decimal.js-light";
-import {maxDecimal, parseJson} from "../utils/helpers";
+import {
+  cookieExists,
+  GoliathCookieName,
+  maxDecimal,
+  parseJson
+} from "../utils/helpers";
 import {FetchAPI, LoginInfo} from "./interface";
 
 // The following several interfaces conform to the Fever API.
@@ -66,7 +71,7 @@ export default class Fever implements FetchAPI {
     this.feverFetchItemsResponse = {items: [], total_items: 0};
   }
 
-  public async HandleLogin(loginInfo: LoginInfo): Promise<boolean> {
+  public async HandleAuth(loginInfo: LoginInfo): Promise<boolean> {
     return await fetch('/auth', {
       method: 'POST',
       body: JSON.stringify(loginInfo),
@@ -82,6 +87,10 @@ export default class Fever implements FetchAPI {
       console.log(e);
       return false;
     });
+  }
+
+  public VerifyAuth(): boolean {
+    return cookieExists(GoliathCookieName);
   }
 
   public async InitializeContent(cb: (status: Status) => void): Promise<[number, ContentTree]> {

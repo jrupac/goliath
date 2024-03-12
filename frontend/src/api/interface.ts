@@ -10,7 +10,11 @@ export interface FetchAPI {
   // HandleLogin will attempt to authenticating the user.
   // This method returns a Promise that when resolved will return a boolean
   // indicating success or failure of the login attempt.
-  HandleLogin(loginInfo: LoginInfo): Promise<boolean>;
+  HandleAuth(loginInfo: LoginInfo): Promise<boolean>;
+
+  // VerifyAuth returns true if a previous login attempt has been successful
+  // based on the presence of some side effect (e.g., a cookie being present).
+  VerifyAuth(): boolean;
 
   // InitializeContent will return a promise that when resolved returns the
   // number of unread items and a fully populated map of folder IDs to folders,

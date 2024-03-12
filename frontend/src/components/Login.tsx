@@ -107,7 +107,7 @@ class WrappedLogin extends React.Component<WrappedLoginProps, any> {
       password: this.state.password
     }
 
-    this.fetchApi.HandleLogin(loginInfo).then((ok: boolean) => {
+    this.fetchApi.HandleAuth(loginInfo).then((ok: boolean) => {
       if (ok) {
         this.setState({loginFailed: false});
         this.props.history.push({
