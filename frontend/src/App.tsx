@@ -38,9 +38,13 @@ import {
 } from "@mui/material";
 import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion} from "./api/Goliath";
+import {RouteComponentProps} from "react-router-dom";
+import {cookieExists, GoliathCookieName, LoginPath} from "./utils/helpers";
 
-export interface AppProps {
+// AppProps needs to extend RouteComponentProps to get "history".
+export interface AppProps extends RouteComponentProps {
 }
+
 
 export interface AppState {
   buildTimestamp: string;
@@ -76,6 +80,16 @@ export default class App extends React.Component<AppProps, AppState> {
   }
 
   componentDidMount() {
+    // This is defense-in-depth to redirect to the login page if the
+    // appropriate cookie is not present. This check is also done on the
+    // server side and returns an HTTP redirect.
+    if (!cookieExists(GoliathCookieName)) {
+      this.props.history.push({
+        pathname: LoginPath
+      });
+      return;
+    }
+
     window.addEventListener('keydown', this.handleKeyDown);
 
     this.fetchVersion().then(() => console.log("Fetched version info."));
