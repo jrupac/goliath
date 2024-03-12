@@ -20,7 +20,8 @@ import {
   SelectionKey,
   SelectionType,
   Status,
-  Theme
+  Theme,
+  VersionData
 } from "./utils/types";
 
 import './themes/default.css';
@@ -36,8 +37,8 @@ import {
   ThemeProvider
 } from "@mui/material";
 import Fever from "./api/Fever";
-import {parseJson} from "./utils/helpers";
 import {FetchAPI} from "./api/interface";
+import {GetVersion} from "./api/Goliath";
 
 export interface AppProps {
 }
@@ -51,12 +52,6 @@ export interface AppState {
   contentTree: ContentTree;
   unreadCount: number;
   theme: Theme;
-}
-
-// Version matches the response from a /version API call.
-interface Version {
-  build_timestamp: string;
-  build_hash: string;
 }
 
 export default class App extends React.Component<AppProps, AppState> {
@@ -97,17 +92,13 @@ export default class App extends React.Component<AppProps, AppState> {
       });
   }
 
-  fetchVersion() {
-    return fetch('/version', {
-      credentials: 'include'
-    }).then((result) => result.text())
-      .then((result) => parseJson(result))
-      .then((body: Version) => {
-        this.setState({
-          buildTimestamp: body.build_timestamp,
-          buildHash: body.build_hash
-        })
-      }).catch((e) => console.log(e));
+  async fetchVersion(): Promise<void> {
+    return await GetVersion().then((versionData: VersionData) => {
+      this.setState({
+        buildTimestamp: versionData.build_timestamp,
+        buildHash: versionData.build_hash
+      })
+    });
   }
 
   handleMark = (mark: MarkState, entity: SelectionKey, type: SelectionType) => {

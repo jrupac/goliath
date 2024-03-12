@@ -1,12 +1,13 @@
 import {ContentTree, SelectionKey, Status} from "../utils/types";
 
 export interface FetchAPI {
-  // initialize will return a promise that when resolved returns a fully
-  // populated map of folder IDs to folders, each of which has nested feeds and
-  // articles.
+  // initialize will return a promise that when resolved returns the number of
+  // unread items and  a fully populated map of folder IDs to folders, each of
+  // which has nested feeds and articles.
+  //
   // The given `cb` callback will be invoked to update status as the fetching is
   // progressing.
-  initialize(cb: (s: Status) => void): Promise<[Status, ContentTree]>;
+  initialize(cb: (s: Status) => void): Promise<[number, ContentTree]>;
 
   // markArticle will mark the specified article with the specified mark status.
   markArticle(mark: string, entity: SelectionKey): Promise<Response>;

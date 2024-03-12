@@ -10,6 +10,7 @@ import {
   Folder,
   FolderId,
   FolderSelection,
+  initContentTree,
   SelectionKey,
   Status
 } from "../utils/types";
@@ -65,7 +66,7 @@ export default class Fever implements FetchAPI {
     this.feverFetchItemsResponse = {items: [], total_items: 0};
   }
 
-  public async initialize(cb: (status: Status) => void): Promise<[number, Map<FolderId, Folder>]> {
+  public async initialize(cb: (status: Status) => void): Promise<[number, ContentTree]> {
     await Promise.all([
       this.fetchFeeds(cb),
       this.fetchFolders(cb),
@@ -178,8 +179,8 @@ export default class Fever implements FetchAPI {
     cb(Status.Article);
   }
 
-  private buildTree(): [Status, ContentTree] {
-    let tree = new Map<FolderId, Folder>();
+  private buildTree(): [number, ContentTree] {
+    let tree: ContentTree = initContentTree();
 
     // Map of (Folder ID) -> (Feed ID).
     const folderToFeeds = new Map<FolderId, FeedId[]>();
