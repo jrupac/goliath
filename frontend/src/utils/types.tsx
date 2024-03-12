@@ -3,7 +3,7 @@
 /** Theme is a list of possible theme values for the application. */
 export enum Theme {
   Default = 0,
-  Dark = 1 << 0,
+  Dark = 1,
 }
 
 /** Status describes which items have been fetched so far via the Fever API. */
@@ -43,13 +43,28 @@ export type MarkState = "read";
 /** ArticleListView lists the UI options for the article list. */
 export enum ArticleListView {
   Combined = 0,
-  Split = 1 << 0,
+  Split = 1,
 }
+
+/** ArticleId is the ID associated with an Article object. */
+export type ArticleId = string;
+
+/** FaviconId is the ID of the favicon associated with a feed. */
+export type FaviconId = string;
+
+// Favicon is described by a MIME type followed by a base64 encoding.
+export type Favicon = string;
+
+/** Feed is a content source which contains zero or more articles. */
+export type FeedId = string;
+
+/** FeedTitle is the textual title of a feed. */
+export type FeedTitle = string;
+
+/** FolderId is the ID of a Folder object. */
+export type FolderId = string;
 
 /** Article is a single unit of content. */
-export interface ArticleId extends String {
-}
-
 export interface Article {
   id: ArticleId;
   feed_id: FeedId;
@@ -61,19 +76,6 @@ export interface Article {
   is_read: 0 | 1;
   created_on_time: number;
 }
-
-/** Favicon describes the image associated with a feed. */
-export interface FaviconId extends String {
-}
-
-// Favicon is described by a MIME type followed by a base64 encoding.
-export type Favicon = string;
-
-/** Feed is a content source which contains zero or more articles. */
-export interface FeedId extends String {
-}
-
-export type FeedTitle = string;
 
 export interface Feed {
   id: FeedId;
@@ -89,14 +91,17 @@ export interface Feed {
 }
 
 /** Folder is a logical grouping of zero or more Feeds. */
-export interface FolderId extends String {
-}
-
 export type Folder = {
   title: string;
   unread_count: number;
   feeds: Map<FeedId, Feed>;
 }
+
+/** ContentTree is a map of FolderID -> Folder with all associated content. */
+export type ContentTree = Map<FolderId, Folder>;
+
+/** Create a new, empty ContentTree object. */
+export const initContentTree = () => new Map<FolderId, Folder>();
 
 /** ArticleListEntry also holds metadata associated with a displayed Article. */
 export type ArticleListEntry = [Article, FeedTitle, Favicon, FeedId, FolderId];

@@ -2,6 +2,7 @@ import {
   Article,
   ArticleId,
   ArticleSelection,
+  ContentTree,
   FaviconId,
   Feed,
   FeedId,
@@ -14,6 +15,7 @@ import {
 } from "../utils/types";
 import {Decimal} from "decimal.js-light";
 import {maxDecimal, parseJson} from "../utils/helpers";
+import {FetchAPI} from "./interface";
 
 // The following several interfaces conform to the Fever API.
 interface FeverFeedGroupType {
@@ -50,7 +52,7 @@ interface FeverFetchItemsType {
   total_items: number;
 }
 
-export default class Fever {
+export default class Fever implements FetchAPI {
   private feverFetchGroupsResponse: FeverFetchGroupsType;
   private feverFetchFeedsResponse: FeverFetchFeedsType;
   private feverFetchFaviconsResponse: FeverFetchFaviconsType;
@@ -74,35 +76,35 @@ export default class Fever {
     return this.buildTree();
   }
 
-  public markArticle(mark: string, entity: SelectionKey): Promise<Response> {
-    const feverId = (entity as ArticleSelection)[0] as string;
-    return fetch('/fever/?api&mark=item&as=' + mark + '&id=' + feverId, {
+  public async markArticle(mark: string, entity: SelectionKey): Promise<Response> {
+    const feverId: string = (entity as ArticleSelection)[0] as string;
+    return await fetch('/fever/?api&mark=item&as=' + mark + '&id=' + feverId, {
       credentials: 'include'
     });
   }
 
-  public markFeed(mark: string, entity: SelectionKey): Promise<Response> {
-    const feverId = (entity as FeedSelection)[0] as string;
-    return fetch('/fever/?api&mark=feed&as=' + mark + '&id=' + feverId, {
+  public async markFeed(mark: string, entity: SelectionKey): Promise<Response> {
+    const feverId: string = (entity as FeedSelection)[0];
+    return await fetch('/fever/?api&mark=feed&as=' + mark + '&id=' + feverId, {
       credentials: 'include'
     });
   }
 
-  public markFolder(mark: string, entity: SelectionKey): Promise<Response> {
-    const feverId = (entity as FolderSelection) as string;
-    return fetch('/fever/?api&mark=group&as=' + mark + '&id=' + feverId, {
+  public async markFolder(mark: string, entity: SelectionKey): Promise<Response> {
+    const feverId: string = (entity as FolderSelection);
+    return await fetch('/fever/?api&mark=group&as=' + mark + '&id=' + feverId, {
       credentials: 'include'
     });
   }
 
-  public markAll(mark: string, entity: SelectionKey): Promise<Response> {
-    return fetch('/fever/?api&mark=group&as=' + mark + '&id=' + entity, {
+  public async markAll(mark: string, entity: SelectionKey): Promise<Response> {
+    return await fetch('/fever/?api&mark=group&as=' + mark + '&id=' + entity, {
       credentials: 'include'
     });
   }
 
-  private fetchFolders(cb: (status: Status) => void) {
-    return fetch('/fever/?api&groups', {
+  private async fetchFolders(cb: (status: Status) => void): Promise<void> {
+    return await fetch('/fever/?api&groups', {
       credentials: 'include'
     }).then((result) => result.text())
       .then((result) => parseJson(result))
@@ -112,8 +114,8 @@ export default class Fever {
       }).catch((e) => console.log(e));
   }
 
-  private fetchFeeds(cb: (status: Status) => void) {
-    return fetch('/fever/?api&feeds', {
+  private async fetchFeeds(cb: (status: Status) => void): Promise<void> {
+    return await fetch('/fever/?api&feeds', {
       credentials: 'include'
     }).then((result) => result.text())
       .then((result) => parseJson(result))
@@ -123,8 +125,8 @@ export default class Fever {
       }).catch((e) => console.log(e));
   }
 
-  private fetchFavicons(cb: (status: Status) => void) {
-    return fetch('/fever/?api&favicons', {
+  private async fetchFavicons(cb: (status: Status) => void): Promise<void> {
+    return await fetch('/fever/?api&favicons', {
       credentials: 'include'
     }).then((result) => result.text())
       .then((result) => parseJson(result))
@@ -134,7 +136,7 @@ export default class Fever {
       }).catch((e) => console.log(e));
   }
 
-  private async fetchItems(cb: (status: Status) => void) {
+  private async fetchItems(cb: (status: Status) => void): Promise<void> {
     let since = new Decimal(0);
     let itemUri = '/fever/?api&items';
     let itemCount = -1;
@@ -176,7 +178,7 @@ export default class Fever {
     cb(Status.Article);
   }
 
-  private buildTree(): [number, Map<FolderId, Folder>] {
+  private buildTree(): [Status, ContentTree] {
     let tree = new Map<FolderId, Folder>();
 
     // Map of (Folder ID) -> (Feed ID).

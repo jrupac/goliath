@@ -7,12 +7,14 @@ import {
   Article,
   ArticleListEntry,
   ArticleSelection,
+  ContentTree,
   Feed,
   FeedId,
   FeedSelection,
   Folder,
   FolderId,
   FolderSelection,
+  initContentTree,
   KeyAll,
   MarkState,
   SelectionKey,
@@ -35,7 +37,7 @@ import {
 } from "@mui/material";
 import Fever from "./api/Fever";
 import {parseJson} from "./utils/helpers";
-import {FetchApi} from "./api/interface";
+import {FetchAPI} from "./api/interface";
 
 export interface AppProps {
 }
@@ -46,7 +48,7 @@ export interface AppState {
   selectionKey: SelectionKey;
   selectionType: SelectionType;
   status: Status;
-  structure: Map<FolderId, Folder>;
+  contentTree: ContentTree;
   unreadCount: number;
   theme: Theme;
 }
@@ -58,7 +60,7 @@ interface Version {
 }
 
 export default class App extends React.Component<AppProps, AppState> {
-  fetchApi: FetchApi;
+  fetchApi: FetchAPI;
 
   constructor(props: AppProps) {
     super(props);
@@ -68,7 +70,7 @@ export default class App extends React.Component<AppProps, AppState> {
       selectionKey: KeyAll,
       selectionType: SelectionType.All,
       status: Status.Start,
-      structure: new Map<FolderId, Folder>(),
+      contentTree: initContentTree(),
       unreadCount: 0,
       theme: Theme.Dark,
     };
@@ -89,7 +91,7 @@ export default class App extends React.Component<AppProps, AppState> {
         console.log("Completed all Fever requests.")
         this.setState({
           unreadCount: unreadCount,
-          structure: tree,
+          contentTree: tree,
           status: Status.Ready
         })
       });
@@ -113,7 +115,7 @@ export default class App extends React.Component<AppProps, AppState> {
     case SelectionType.Article:
       this.fetchApi.markArticle(mark, entity).then(() => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-          const structure = new Map(prevState.structure);
+          const structure = new Map(prevState.contentTree);
 
           const article = this.getArticleOrThrow(
             structure, entity as ArticleSelection);
@@ -122,7 +124,7 @@ export default class App extends React.Component<AppProps, AppState> {
           const unreadCount = this.updateUnreadCount(structure);
 
           return {
-            structure,
+            contentTree: structure,
             unreadCount,
           } as AppState
         });
@@ -131,7 +133,7 @@ export default class App extends React.Component<AppProps, AppState> {
     case SelectionType.Feed:
       this.fetchApi.markFeed(mark, entity).then(() => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-          const structure = new Map(prevState.structure);
+          const structure = new Map(prevState.contentTree);
 
           const feed = this.getFeedOrThrow(structure, entity as FeedSelection);
           feed.articles.forEach(
@@ -140,7 +142,7 @@ export default class App extends React.Component<AppProps, AppState> {
           const unreadCount = this.updateUnreadCount(structure);
 
           return {
-            structure,
+            contentTree: structure,
             unreadCount,
           } as AppState
         });
@@ -149,7 +151,7 @@ export default class App extends React.Component<AppProps, AppState> {
     case SelectionType.Folder:
       this.fetchApi.markFolder(mark, entity).then(() => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-          const structure = new Map(prevState.structure);
+          const structure = new Map(prevState.contentTree);
 
           const folder = this.getFolderOrThrow(
             structure, entity as FolderSelection);
@@ -165,7 +167,7 @@ export default class App extends React.Component<AppProps, AppState> {
           const unreadCount = this.updateUnreadCount(structure);
 
           return {
-            structure,
+            contentTree: structure,
             unreadCount,
           } as AppState
         });
@@ -175,7 +177,7 @@ export default class App extends React.Component<AppProps, AppState> {
       this.fetchApi.markAll(mark, entity).then(() => {
         // Update the read buffer and unread counts.
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-          const structure = new Map(prevState.structure);
+          const structure = new Map(prevState.contentTree);
 
           structure.forEach(
             (folder: Folder) => {
@@ -191,7 +193,7 @@ export default class App extends React.Component<AppProps, AppState> {
           const unreadCount = this.updateUnreadCount(structure);
 
           return {
-            structure,
+            contentTree: structure,
             unreadCount,
           } as AppState
         });
@@ -264,7 +266,7 @@ export default class App extends React.Component<AppProps, AppState> {
             </Box>
             <Box>
               <FolderFeedList
-                tree={this.state.structure}
+                tree={this.state.contentTree}
                 unreadCount={this.state.unreadCount}
                 selectedKey={this.state.selectionKey}
                 selectionType={this.state.selectionType}
@@ -311,17 +313,17 @@ export default class App extends React.Component<AppProps, AppState> {
       feedId = key[1];
       folderId = key[2];
 
-      feed = this.getFeedOrThrow(this.state.structure, [feedId, folderId]);
+      feed = this.getFeedOrThrow(this.state.contentTree, [feedId, folderId]);
       title = feed.title;
       favicon = feed.favicon;
-      article = this.getArticleOrThrow(this.state.structure, key);
+      article = this.getArticleOrThrow(this.state.contentTree, key);
 
       entries.push([article, title, favicon, feedId, folderId]);
       break;
     case SelectionType.Feed:
       [feedId, folderId] = this.state.selectionKey as FeedSelection;
 
-      feed = this.getFeedOrThrow(this.state.structure, [feedId, folderId]);
+      feed = this.getFeedOrThrow(this.state.contentTree, [feedId, folderId]);
       title = feed.title;
       favicon = feed.favicon;
 
@@ -332,7 +334,7 @@ export default class App extends React.Component<AppProps, AppState> {
     case SelectionType.Folder:
       folderId = this.state.selectionKey as FolderSelection;
 
-      folderData = this.getFolderOrThrow(this.state.structure, folderId);
+      folderData = this.getFolderOrThrow(this.state.contentTree, folderId);
 
       folderData.feeds.forEach(
         (feed: Feed) => {
@@ -343,7 +345,7 @@ export default class App extends React.Component<AppProps, AppState> {
         });
       break;
     case SelectionType.All:
-      this.state.structure.forEach(
+      this.state.contentTree.forEach(
         (folder: Folder, folderId: FolderId) => {
           folder.feeds.forEach(
             (feed: Feed) => {
