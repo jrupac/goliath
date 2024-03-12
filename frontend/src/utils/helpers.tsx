@@ -4,15 +4,6 @@ import {ArticleId} from "./types";
 import {Readability} from "@mozilla/readability";
 import * as LosslessJSON from "lossless-json";
 
-/** Default URI path for the Goliath frontend. */
-export const DefaultPath: string = "/";
-
-/** URI path for the login page on the frontend. */
-export const LoginPath: string = "/login";
-
-/** Name of cookie set by the backend on successful auth. */
-export const GoliathCookieName: string = "goliath";
-
 export function extractText(html: string): string | null {
   return new DOMParser()
     .parseFromString(html, "text/html")

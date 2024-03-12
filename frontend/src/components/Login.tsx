@@ -9,7 +9,7 @@ import {
   ThemeProvider
 } from "@mui/material";
 import {FetchAPI, FetchAPIFactory, LoginInfo} from "../api/interface";
-import {DefaultPath} from "../utils/helpers";
+import {GoliathPath} from "../utils/types";
 
 // WrappedLoginProps needs to extend RouteComponentProps to get "history".
 export interface WrappedLoginProps extends RouteComponentProps {
@@ -111,7 +111,7 @@ class WrappedLogin extends React.Component<WrappedLoginProps, any> {
       if (ok) {
         this.setState({loginFailed: false});
         this.props.history.push({
-          pathname: DefaultPath
+          pathname: GoliathPath.Default
         });
       } else {
         this.setState({loginFailed: true});

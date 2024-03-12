@@ -1,5 +1,13 @@
 /** Global types for Goliath RSS */
 
+/** Well-known paths for the frontend. */
+export enum GoliathPath {
+  /** Default URI path for the frontend. */
+  Default = "/",
+  /** URI path for the login page on the frontend. */
+  Login = "/login",
+}
+
 /** Theme is a list of possible theme values for the application. */
 export enum Theme {
   Default = 0,

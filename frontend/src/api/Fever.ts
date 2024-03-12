@@ -15,13 +15,11 @@ import {
   Status
 } from "../utils/types";
 import {Decimal} from "decimal.js-light";
-import {
-  cookieExists,
-  GoliathCookieName,
-  maxDecimal,
-  parseJson
-} from "../utils/helpers";
+import {cookieExists, maxDecimal, parseJson} from "../utils/helpers";
 import {FetchAPI, LoginInfo} from "./interface";
+
+// The server sets a cookie with this name on successful login.
+const feverAuthCookie: string = "goliath";
 
 // The following several interfaces conform to the Fever API.
 interface FeverFeedGroupType {
@@ -81,6 +79,10 @@ export default class Fever implements FetchAPI {
         console.log(res);
         return false;
       } else {
+        if (!cookieExists(feverAuthCookie)) {
+          console.log("Server did not set auth cookie.");
+          return false;
+        }
         return true;
       }
     }).catch((e) => {
@@ -90,7 +92,7 @@ export default class Fever implements FetchAPI {
   }
 
   public VerifyAuth(): boolean {
-    return cookieExists(GoliathCookieName);
+    return cookieExists(feverAuthCookie);
   }
 
   public async InitializeContent(cb: (status: Status) => void): Promise<[number, ContentTree]> {

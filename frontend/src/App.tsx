@@ -14,6 +14,7 @@ import {
   Folder,
   FolderId,
   FolderSelection,
+  GoliathPath,
   initContentTree,
   KeyAll,
   MarkState,
@@ -39,7 +40,6 @@ import {
 import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion} from "./api/Goliath";
 import {RouteComponentProps} from "react-router-dom";
-import {LoginPath} from "./utils/helpers";
 
 // AppProps needs to extend RouteComponentProps to get "history".
 export interface AppProps extends RouteComponentProps {
@@ -85,7 +85,7 @@ export default class App extends React.Component<AppProps, AppState> {
     // server side and returns an HTTP redirect.
     if (!this.fetchApi.VerifyAuth()) {
       this.props.history.push({
-        pathname: LoginPath
+        pathname: GoliathPath.Login
       });
       return;
     }
