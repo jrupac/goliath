@@ -1,4 +1,5 @@
 import {ContentTree, SelectionKey, Status} from "../utils/types";
+import Fever from "./Fever";
 
 export type LoginInfo = {
   username: string,
@@ -30,4 +31,12 @@ export interface FetchAPI {
 
   // MarkAll will mark all items with the specified mark status.
   MarkAll(mark: string, entity: SelectionKey): Promise<Response>;
+}
+
+export class FetchAPIFactory {
+  // Create returns a concrete implementation of a FetchAPI.
+  static Create(): FetchAPI {
+    // TODO: Support other APIs.
+    return new Fever();
+  }
 }

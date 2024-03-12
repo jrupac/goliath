@@ -8,8 +8,7 @@ import {
   TextField,
   ThemeProvider
 } from "@mui/material";
-import Fever from "../api/Fever";
-import {FetchAPI, LoginInfo} from "../api/interface";
+import {FetchAPI, FetchAPIFactory, LoginInfo} from "../api/interface";
 
 // WrappedLoginProps needs to extend RouteComponentProps to get "history".
 export interface WrappedLoginProps extends RouteComponentProps {
@@ -27,7 +26,7 @@ class WrappedLogin extends React.Component<WrappedLoginProps, any> {
       username: "",
       password: ""
     };
-    this.fetchApi = new Fever();
+    this.fetchApi = FetchAPIFactory.Create();
   }
 
   render() {

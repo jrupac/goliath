@@ -36,8 +36,7 @@ import {
   PaletteMode,
   ThemeProvider
 } from "@mui/material";
-import Fever from "./api/Fever";
-import {FetchAPI} from "./api/interface";
+import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion} from "./api/Goliath";
 
 export interface AppProps {
@@ -69,7 +68,7 @@ export default class App extends React.Component<AppProps, AppState> {
       unreadCount: 0,
       theme: Theme.Dark,
     };
-    this.fetchApi = new Fever();
+    this.fetchApi = FetchAPIFactory.Create();
   }
 
   componentWillUnmount() {
