@@ -8,12 +8,16 @@ import {
   TextField,
   ThemeProvider
 } from "@mui/material";
+import Fever from "../api/Fever";
+import {FetchAPI, LoginInfo} from "../api/interface";
 
 // WrappedLoginProps needs to extend RouteComponentProps to get "history".
 export interface WrappedLoginProps extends RouteComponentProps {
 }
 
 class WrappedLogin extends React.Component<WrappedLoginProps, any> {
+  private fetchApi: FetchAPI;
+
   constructor(props: WrappedLoginProps) {
     super(props);
     this.state = {
@@ -23,6 +27,7 @@ class WrappedLogin extends React.Component<WrappedLoginProps, any> {
       username: "",
       password: ""
     };
+    this.fetchApi = new Fever();
   }
 
   render() {
@@ -97,29 +102,22 @@ class WrappedLogin extends React.Component<WrappedLoginProps, any> {
       return;
     }
 
-    const data = {
-      'username': this.state.username,
-      'password': this.state.password
+    const loginInfo: LoginInfo = {
+      username: this.state.username,
+      password: this.state.password
     }
 
-    fetch('/auth', {
-      method: 'POST',
-      body: JSON.stringify(data),
-      credentials: 'include'
-    }).then((res: Response) => {
-      if (!res.ok) {
-        this.setState({loginFailed: true});
-        console.log(res);
-      } else {
+    this.fetchApi.HandleLogin(loginInfo).then((ok: boolean) => {
+      if (ok) {
         this.setState({loginFailed: false});
         this.props.history.push({
           pathname: '/'
         });
+      } else {
+        this.setState({loginFailed: true});
       }
-    }).catch((e) => {
-      this.setState({loginFailed: true});
-      console.log(e);
     });
+
   }
 
   validateForm() {

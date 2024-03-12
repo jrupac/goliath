@@ -16,7 +16,7 @@ import {
 } from "../utils/types";
 import {Decimal} from "decimal.js-light";
 import {maxDecimal, parseJson} from "../utils/helpers";
-import {FetchAPI} from "./interface";
+import {FetchAPI, LoginInfo} from "./interface";
 
 // The following several interfaces conform to the Fever API.
 interface FeverFeedGroupType {
@@ -66,7 +66,25 @@ export default class Fever implements FetchAPI {
     this.feverFetchItemsResponse = {items: [], total_items: 0};
   }
 
-  public async initialize(cb: (status: Status) => void): Promise<[number, ContentTree]> {
+  public async HandleLogin(loginInfo: LoginInfo): Promise<boolean> {
+    return await fetch('/auth', {
+      method: 'POST',
+      body: JSON.stringify(loginInfo),
+      credentials: 'include'
+    }).then((res: Response) => {
+      if (!res.ok) {
+        console.log(res);
+        return false;
+      } else {
+        return true;
+      }
+    }).catch((e) => {
+      console.log(e);
+      return false;
+    });
+  }
+
+  public async InitializeContent(cb: (status: Status) => void): Promise<[number, ContentTree]> {
     await Promise.all([
       this.fetchFeeds(cb),
       this.fetchFolders(cb),
@@ -77,28 +95,28 @@ export default class Fever implements FetchAPI {
     return this.buildTree();
   }
 
-  public async markArticle(mark: string, entity: SelectionKey): Promise<Response> {
+  public async MarkArticle(mark: string, entity: SelectionKey): Promise<Response> {
     const feverId: string = (entity as ArticleSelection)[0] as string;
     return await fetch('/fever/?api&mark=item&as=' + mark + '&id=' + feverId, {
       credentials: 'include'
     });
   }
 
-  public async markFeed(mark: string, entity: SelectionKey): Promise<Response> {
+  public async MarkFeed(mark: string, entity: SelectionKey): Promise<Response> {
     const feverId: string = (entity as FeedSelection)[0];
     return await fetch('/fever/?api&mark=feed&as=' + mark + '&id=' + feverId, {
       credentials: 'include'
     });
   }
 
-  public async markFolder(mark: string, entity: SelectionKey): Promise<Response> {
+  public async MarkFolder(mark: string, entity: SelectionKey): Promise<Response> {
     const feverId: string = (entity as FolderSelection);
     return await fetch('/fever/?api&mark=group&as=' + mark + '&id=' + feverId, {
       credentials: 'include'
     });
   }
 
-  public async markAll(mark: string, entity: SelectionKey): Promise<Response> {
+  public async MarkAll(mark: string, entity: SelectionKey): Promise<Response> {
     return await fetch('/fever/?api&mark=group&as=' + mark + '&id=' + entity, {
       credentials: 'include'
     });

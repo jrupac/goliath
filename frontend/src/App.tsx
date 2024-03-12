@@ -80,7 +80,7 @@ export default class App extends React.Component<AppProps, AppState> {
     window.addEventListener('keydown', this.handleKeyDown);
 
     this.fetchVersion().then(() => console.log("Fetched version info."));
-    this.fetchApi.initialize((status) =>
+    this.fetchApi.InitializeContent((status) =>
       this.setState((prevState) => ({status: prevState.status | status})))
       .then(([unreadCount, tree]) => {
         console.log("Completed all Fever requests.")
@@ -104,7 +104,7 @@ export default class App extends React.Component<AppProps, AppState> {
   handleMark = (mark: MarkState, entity: SelectionKey, type: SelectionType) => {
     switch (type) {
     case SelectionType.Article:
-      this.fetchApi.markArticle(mark, entity).then(() => {
+      this.fetchApi.MarkArticle(mark, entity).then(() => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
           const structure = new Map(prevState.contentTree);
 
@@ -122,7 +122,7 @@ export default class App extends React.Component<AppProps, AppState> {
       }).catch((e) => console.log(e));
       break;
     case SelectionType.Feed:
-      this.fetchApi.markFeed(mark, entity).then(() => {
+      this.fetchApi.MarkFeed(mark, entity).then(() => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
           const structure = new Map(prevState.contentTree);
 
@@ -140,7 +140,7 @@ export default class App extends React.Component<AppProps, AppState> {
       }).catch((e) => console.log(e));
       break;
     case SelectionType.Folder:
-      this.fetchApi.markFolder(mark, entity).then(() => {
+      this.fetchApi.MarkFolder(mark, entity).then(() => {
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
           const structure = new Map(prevState.contentTree);
 
@@ -165,7 +165,7 @@ export default class App extends React.Component<AppProps, AppState> {
       }).catch((e) => console.log(e));
       break;
     case SelectionType.All:
-      this.fetchApi.markAll(mark, entity).then(() => {
+      this.fetchApi.MarkAll(mark, entity).then(() => {
         // Update the read buffer and unread counts.
         this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
           const structure = new Map(prevState.contentTree);
