@@ -1,4 +1,5 @@
 import {Feed, FeedCls, FeedId} from "./feed";
+import {MarkState} from "../src/utils/types";
 
 /** FolderId is the ID of a Folder object. */
 export type FolderId = string;
@@ -37,6 +38,17 @@ export class FolderCls {
     this.feeds.set(feed.Id(), feed);
     this.sort();
     this.unread_count += feed.UnreadCount();
+  }
+
+  public MarkFolder(markState: MarkState) {
+    let unread: number = 0;
+
+    this.feeds.forEach((f: FeedCls): void => {
+      unread += f.MarkFeed(markState);
+    });
+
+    this.unread_count = unread;
+    return this.unread_count;
   }
 
   public UnreadCount(): number {

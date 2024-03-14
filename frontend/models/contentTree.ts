@@ -1,5 +1,6 @@
 import {Folder, FolderCls, FolderId} from "./folder";
 import {FeedCls} from "./feed";
+import {MarkState} from "../src/utils/types";
 
 /** ContentTree is a map of FolderID -> Folder with all associated content. */
 export type ContentTree = Map<FolderId, Folder>;
@@ -40,6 +41,17 @@ export class ContentTreeCls {
   }
 
   public UnreadCount(): number {
+    return this.unread_count;
+  }
+
+  public MarkAll(markState: MarkState) {
+    let unread: number = 0;
+
+    this.tree.forEach((f: FolderCls): void => {
+      unread += f.MarkFolder(markState);
+    });
+
+    this.unread_count = unread;
     return this.unread_count;
   }
 
