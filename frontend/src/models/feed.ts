@@ -54,8 +54,8 @@ export class FeedCls {
   private articles: Map<ArticleId, ArticleCls>;
 
   private constructor(id: FeedId, favicon: FaviconCls, title: FeedTitle, url: string,
-                      site_url: string, is_spark: 0 | 1, last_updated_on_time: number,
-                      unread_count: number, articles: Map<ArticleId, ArticleCls>) {
+    site_url: string, is_spark: 0 | 1, last_updated_on_time: number,
+    unread_count: number, articles: Map<ArticleId, ArticleCls>) {
     this.id = id;
     this.favicon = favicon;
     this.title = title;

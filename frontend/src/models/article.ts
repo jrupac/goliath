@@ -33,8 +33,8 @@ export class ArticleCls {
   private readStatus: ReadStatus;
 
   constructor(id: ArticleId, title: string, author: string, html: string,
-              url: string, is_saved: 0 | 1, created_on_time: number,
-              is_read: 0 | 1) {
+    url: string, is_saved: 0 | 1, created_on_time: number,
+    is_read: 0 | 1) {
     this.id = id;
     this.title = title;
     this.author = author;
