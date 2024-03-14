@@ -1,5 +1,5 @@
 import {Article, ArticleCls, ArticleId} from "./article";
-import {MarkState} from "../src/utils/types";
+import {MarkState} from "../utils/types";
 
 /** Feed is a content source which contains zero or more articles. */
 export type FeedId = string;

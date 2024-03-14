@@ -1,4 +1,4 @@
-import {MarkState} from "../src/utils/types";
+import {MarkState} from "../utils/types";
 import {FeedId} from "./feed";
 
 /** ArticleId is the ID associated with an Article object. */

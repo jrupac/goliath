@@ -1,6 +1,6 @@
 import {Folder, FolderCls, FolderId} from "./folder";
 import {FeedCls} from "./feed";
-import {MarkState} from "../src/utils/types";
+import {MarkState} from "../utils/types";
 
 /** ContentTree is a map of FolderID -> Folder with all associated content. */
 export type ContentTree = Map<FolderId, Folder>;

@@ -1,5 +1,5 @@
 import {Feed, FeedCls, FeedId} from "./feed";
-import {MarkState} from "../src/utils/types";
+import {MarkState} from "../utils/types";
 
 /** FolderId is the ID of a Folder object. */
 export type FolderId = string;

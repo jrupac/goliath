@@ -8,10 +8,10 @@ import {
 import {Decimal} from "decimal.js-light";
 import {cookieExists, maxDecimal, parseJson} from "../utils/helpers";
 import {FetchAPI, LoginInfo} from "./interface";
-import {ContentTree, initContentTree} from "../../models/contentTree";
-import {Article, ArticleId} from "../../models/article";
-import {Folder, FolderId} from "../../models/folder";
-import {FaviconId, Feed, FeedId} from "../../models/feed";
+import {ContentTree, initContentTree} from "../models/contentTree";
+import {Article, ArticleId} from "../models/article";
+import {Folder, FolderId} from "../models/folder";
+import {FaviconId, Feed, FeedId} from "../models/feed";
 
 // The server sets a cookie with this name on successful login.
 const feverAuthCookie: string = "goliath";
