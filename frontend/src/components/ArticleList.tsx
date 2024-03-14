@@ -16,7 +16,7 @@ import LRUCache from "lru-cache";
 import {DoneAllRounded} from "@mui/icons-material";
 import smartcrop from "smartcrop";
 
-import {Article, ArticleId} from "../../models/article";
+import {Article, ArticleId} from "../models/article";
 
 const goToAllSequence = ['g', 'a'];
 const markAllReadSequence = ['Shift', 'I'];
@@ -24,6 +24,7 @@ const keyBufLength = 2;
 
 export interface ArticleListProps {
   articleEntries: ArticleListEntry[];
+  articleEntriesCls: ArticleListEntry[];
   selectionKey: SelectionKey;
   selectionType: SelectionType;
   selectAllCallback: () => void;

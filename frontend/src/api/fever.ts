@@ -8,10 +8,14 @@ import {
 import {Decimal} from "decimal.js-light";
 import {cookieExists, maxDecimal, parseJson} from "../utils/helpers";
 import {FetchAPI, LoginInfo} from "./interface";
-import {ContentTree, initContentTree} from "../models/contentTree";
-import {Article, ArticleId} from "../models/article";
-import {Folder, FolderId} from "../models/folder";
-import {FaviconId, Feed, FeedId} from "../models/feed";
+import {
+  ContentTree,
+  ContentTreeCls,
+  initContentTree
+} from "../models/contentTree";
+import {Article, ArticleCls, ArticleId} from "../models/article";
+import {Folder, FolderCls, FolderId} from "../models/folder";
+import {FaviconCls, FaviconId, Feed, FeedCls, FeedId} from "../models/feed";
 
 // The server sets a cookie with this name on successful login.
 const feverAuthCookie: string = "goliath";
@@ -86,7 +90,7 @@ export default class Fever implements FetchAPI {
     return Promise.resolve(cookieExists(feverAuthCookie));
   }
 
-  public async InitializeContent(cb: (status: Status) => void): Promise<[number, ContentTree]> {
+  public async InitializeContent(cb: (status: Status) => void): Promise<[number, ContentTree, ContentTreeCls]> {
     await Promise.all([
       this.fetchFeeds(cb),
       this.fetchFolders(cb),
@@ -192,8 +196,9 @@ export default class Fever implements FetchAPI {
     cb(Status.Article);
   }
 
-  private buildTree(): [number, ContentTree] {
+  private buildTree(): [number, ContentTree, ContentTreeCls] {
     let tree: ContentTree = initContentTree();
+    let treeCls: ContentTreeCls = ContentTreeCls.new();
 
     // Map of (Folder ID) -> (Feed ID).
     const folderToFeeds = new Map<FolderId, FeedId[]>();
@@ -232,6 +237,8 @@ export default class Fever implements FetchAPI {
           return;
         }
 
+        let folderCls = new FolderCls(group.id, group.title);
+
         // Populate feeds in this folder.
         let feeds = new Map<FeedId, Feed>();
         feedIdList.forEach(
@@ -241,19 +248,33 @@ export default class Fever implements FetchAPI {
               throw new Error("Unknown feed ID: " + feedId);
             }
 
+            const feedCls: FeedCls = new FeedCls(
+              feed.id, feed.title, feed.url, feed.site_url, feed.is_spark,
+              feed.last_updated_on_time);
+
             // Populate articles in this feed.
             const articles = feedToArticles.get(feedId) || [];
             feed.articles = new Map<ArticleId, Article>();
             articles.forEach((article: Article) => {
               feed.articles.set(article.id, article);
+
+              feedCls.AddArticle(new ArticleCls(
+                article.id, article.title, article.author, article.html,
+                article.url, article.is_saved, article.created_on_time,
+                article.is_read));
+
             });
 
             // Compute other metadata about this feed.
             feed.unread_count = articles.reduce(
               (acc: number, a: Article) => acc + (1 - a.is_read), 0);
-            feed.favicon = globalFaviconMap.get(feed.favicon_id) || "";
+
+            const faviconData = globalFaviconMap.get(feed.favicon_id) || "";
+            feed.favicon = faviconData;
+            feedCls.SetFavicon(new FaviconCls(faviconData))
 
             feeds.set(feedId, feed);
+            folderCls.AddFeed(feedCls);
           }
         );
 
@@ -270,7 +291,9 @@ export default class Fever implements FetchAPI {
           title: group.title,
           unread_count: unreadCount
         };
+
         tree.set(folderId, folderData);
+        treeCls.AddFolder(folderCls);
       }
     );
 
@@ -282,6 +305,6 @@ export default class Fever implements FetchAPI {
     tree = new Map([...tree].sort(
       (a, b) => a[1].title.localeCompare(b[1].title)))
 
-    return [unreadCount, tree];
+    return [unreadCount, tree, treeCls];
   }
 }

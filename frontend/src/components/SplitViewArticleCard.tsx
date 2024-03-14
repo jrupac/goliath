@@ -8,7 +8,7 @@ import {
 } from "../utils/helpers";
 import RssFeedOutlinedIcon from "@mui/icons-material/RssFeedOutlined";
 
-import {Article} from "../../models/article";
+import {Article} from "../models/article";
 
 export interface ArticleProps {
   article: Article;

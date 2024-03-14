@@ -1,5 +1,5 @@
 import {Feed, FeedCls, FeedId} from "./feed";
-import {MarkState} from "../utils/types";
+import {ArticleListEntry, FeedEntry, MarkState} from "../utils/types";
 import {ArticleId} from "./article";
 
 /** FolderId is the ID of a Folder object. */
@@ -66,6 +66,36 @@ export class FolderCls {
 
     this.unread_count = unread;
     return this.unread_count;
+  }
+
+  public GetArticleEntry(articleId: ArticleId, feedId: FeedId): ArticleListEntry[] {
+    const feed: FeedCls = this.getFeedOrThrow(feedId);
+    return [
+      [...feed.GetArticleEntry(articleId), this.id],
+    ];
+  }
+
+  public GetFeedEntry(feedId: FeedId): ArticleListEntry[] {
+    const entries: ArticleListEntry[] = [];
+    const feed: FeedCls = this.getFeedOrThrow(feedId);
+
+    feed.GetFeedEntry().forEach((e: FeedEntry): void => {
+      entries.push([...e, this.id]);
+    })
+
+    return entries;
+  }
+
+  public GetFolderEntry(): ArticleListEntry[] {
+    const entries: ArticleListEntry[] = [];
+
+    this.feeds.forEach((f: FeedCls): void => {
+      f.GetFeedEntry().forEach((e: FeedEntry): void => {
+        entries.push([...e, this.id]);
+      })
+    });
+
+    return entries;
   }
 
   public UnreadCount(): number {

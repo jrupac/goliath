@@ -8,9 +8,11 @@ import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
 import FolderIcon from '@mui/icons-material/Folder';
 import {Folder, FolderId} from "../models/folder";
 import {Feed} from "../models/feed";
+import {ContentTreeCls} from "../models/contentTree";
 
 export interface FolderFeedListProps {
   tree: Map<FolderId, Folder>;
+  treeCls: ContentTreeCls;
   unreadCount: number;
   selectedKey: SelectionKey;
   selectionType: SelectionType;

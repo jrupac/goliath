@@ -53,6 +53,20 @@ export class ArticleCls {
     return this.readStatus;
   }
 
+  public GetArticleEntry(): Article {
+    return {
+      id: this.id,
+      feed_id: "", // Not passed to this object
+      title: this.title,
+      author: this.author,
+      html: this.html,
+      url: this.url,
+      is_saved: this.is_saved,
+      is_read: (this.readStatus === ReadStatus.Read) ? 0 : 1,
+      created_on_time: this.created_on_time,
+    };
+  }
+
   public ReadStatus(): ReadStatus {
     return this.readStatus;
   }

@@ -1,5 +1,5 @@
 import {Article, ArticleCls, ArticleId} from "./article";
-import {MarkState} from "../utils/types";
+import {FeedEntry, MarkState} from "../utils/types";
 
 /** Feed is a content source which contains zero or more articles. */
 export type FeedId = string;
@@ -76,13 +76,6 @@ export class FeedCls {
     this.favicon = favicon;
   }
 
-  public AddArticles(articles: ArticleCls[]): void {
-    for (const article of articles) {
-      this.articles.set(article.Id(), article);
-    }
-    this.sort();
-  }
-
   public AddArticle(article: ArticleCls): void {
     this.articles.set(article.Id(), article);
     this.sort();
@@ -110,8 +103,35 @@ export class FeedCls {
     return this.unread_count;
   }
 
+  public GetArticleEntry(articleId: ArticleId): FeedEntry {
+    const article: ArticleCls = this.getArticleOrThrow(articleId);
+    const favicon: Favicon = (this.favicon ===
+      null) ? "" : this.favicon.GetFavicon();
+    return [article.GetArticleEntry(), this.title, favicon, this.id];
+  }
+
+  public GetFeedEntry(): FeedEntry[] {
+    const entries: FeedEntry[] = [];
+    const favicon: Favicon = (this.favicon ===
+      null) ? "" : this.favicon.GetFavicon();
+
+    this.articles.forEach((a: ArticleCls): void => {
+      entries.push([a.GetArticleEntry(), this.title, favicon, this.id]);
+    });
+
+    return entries;
+  }
+
   public static Comparator(a: FeedCls, b: FeedCls): number {
     return a.Title().localeCompare(b.Title());
+  }
+
+  private getArticleOrThrow(articleId: ArticleId): ArticleCls {
+    const article = this.articles.get(articleId);
+    if (article === undefined) {
+      throw new Error(`No article by ID: ${articleId} in feed ${this.id}`);
+    }
+    return article;
   }
 
   private sort(): void {

@@ -1,6 +1,6 @@
 import {SelectionKey, Status} from "../utils/types";
 import Fever from "./fever";
-import {ContentTree} from "../../models/contentTree";
+import {ContentTree, ContentTreeCls} from "../models/contentTree";
 
 export type LoginInfo = {
   username: string,
@@ -23,7 +23,7 @@ export interface FetchAPI {
   //
   // The given `cb` callback will be invoked to update status as the fetching is
   // progressing.
-  InitializeContent(cb: (s: Status) => void): Promise<[number, ContentTree]>;
+  InitializeContent(cb: (s: Status) => void): Promise<[number, ContentTree, ContentTreeCls]>;
 
   // MarkArticle will mark the specified article with the specified mark status.
   MarkArticle(mark: string, entity: SelectionKey): Promise<Response>;

@@ -64,8 +64,10 @@ export enum ArticleListView {
   Split = 1,
 }
 
+export type ArticleEntry = Article;
+export type FeedEntry = [ArticleEntry, FeedTitle, Favicon, FeedId];
 /** ArticleListEntry also holds metadata associated with a displayed Article. */
-export type ArticleListEntry = [Article, FeedTitle, Favicon, FeedId, FolderId];
+export type ArticleListEntry = [...FeedEntry, FolderId];
 
 /** ArticleImagePreview holds cropping information for image previews. */
 export type ArticleImagePreview = {

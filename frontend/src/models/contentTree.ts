@@ -1,11 +1,15 @@
 import {Folder, FolderCls, FolderId} from "./folder";
-import {FeedCls} from "./feed";
+import {FeedId} from "./feed";
 import {
+  ArticleListEntry,
   ArticleSelection,
   FeedSelection,
   FolderSelection,
-  MarkState
+  MarkState,
+  SelectionKey,
+  SelectionType
 } from "../utils/types";
+import {ArticleId} from "./article";
 
 /** ContentTree is a map of FolderID -> Folder with all associated content. */
 export type ContentTree = Map<FolderId, Folder>;
@@ -33,60 +37,72 @@ export class ContentTreeCls {
     this.unread_count += folder.UnreadCount();
   }
 
-  public AddFeed(folderId: FolderId, feed: FeedCls): void {
-    const existing = this.getFolderOrThrow(folderId);
-
-    this.unread_count -= existing.UnreadCount();
-    existing.AddFeed(feed);
-    this.unread_count += existing.UnreadCount();
-  }
-
   public UnreadCount(): number {
     return this.unread_count;
   }
 
-  public MarkArticle(markState: MarkState, entity: ArticleSelection): number {
-    const [articleId, feedId, folderId] = entity;
-    const folder = this.getFolderOrThrow(folderId);
-
-    this.unread_count -= folder.UnreadCount();
-    folder.MarkArticle(feedId, articleId, markState);
-    this.unread_count += folder.UnreadCount();
-
-    return this.unread_count;
-  }
-
-  public MarkFeed(markState: MarkState, entity: FeedSelection): number {
-    const [feedId, folderId] = entity;
-    const folder = this.getFolderOrThrow(folderId);
-
-    this.unread_count -= folder.UnreadCount();
-    folder.MarkFeed(feedId, markState);
-    this.unread_count += folder.UnreadCount();
-
-    return this.unread_count;
-  }
-
-  public MarkFolder(markState: MarkState, entity: FolderSelection): number {
-    const folderId: FolderId = entity;
-    const folder = this.getFolderOrThrow(folderId);
-
-    this.unread_count -= folder.UnreadCount();
-    folder.MarkFolder(markState);
-    this.unread_count += folder.UnreadCount();
-
-    return this.unread_count;
-  }
-
-  public MarkAll(markState: MarkState) {
+  public Mark(markState: MarkState, key: SelectionKey, type: SelectionType): number {
+    let articleId: ArticleId, feedId: FeedId, folderId: FolderId;
+    let folder: FolderCls;
     let unread: number = 0;
 
-    this.tree.forEach((f: FolderCls): void => {
-      unread += f.MarkFolder(markState);
-    });
+    switch (type) {
+    case SelectionType.Article:
+      [articleId, feedId, folderId] = key as ArticleSelection;
+      folder = this.getFolderOrThrow(folderId);
 
-    this.unread_count = unread;
+      this.unread_count -= folder.UnreadCount();
+      folder.MarkArticle(feedId, articleId, markState);
+      this.unread_count += folder.UnreadCount();
+      break;
+    case SelectionType.Feed:
+      [feedId, folderId] = key as FeedSelection;
+      folder = this.getFolderOrThrow(folderId);
+
+      this.unread_count -= folder.UnreadCount();
+      folder.MarkFeed(feedId, markState);
+      this.unread_count += folder.UnreadCount();
+      break;
+    case SelectionType.Folder:
+      folderId = key as FolderSelection;
+      folder = this.getFolderOrThrow(folderId);
+
+      this.unread_count -= folder.UnreadCount();
+      folder.MarkFolder(markState);
+      this.unread_count += folder.UnreadCount();
+      break;
+    case SelectionType.All:
+      this.tree.forEach((f: FolderCls): void => {
+        unread += f.MarkFolder(markState);
+      });
+      this.unread_count = unread;
+      break;
+    }
+
     return this.unread_count;
+  }
+
+  public GetEntries(key: SelectionKey, type: SelectionType): ArticleListEntry[] {
+    let articleId: ArticleId, feedId: FeedId, folderId: FolderId;
+    const entries: ArticleListEntry[] = [];
+
+    switch (type) {
+    case SelectionType.Article:
+      [articleId, feedId, folderId] = key as ArticleSelection;
+      return this.getFolderOrThrow(folderId).GetArticleEntry(articleId, feedId);
+    case SelectionType.Feed:
+      [feedId, folderId] = key as FeedSelection;
+      return this.getFolderOrThrow(folderId).GetFeedEntry(feedId);
+    case SelectionType.Folder:
+      folderId = key as FolderSelection;
+      return this.getFolderOrThrow(folderId).GetFolderEntry();
+    case SelectionType.All:
+      this.tree.forEach((f: FolderCls): void => {
+        entries.concat(f.GetFolderEntry());
+      });
+    }
+
+    return entries;
   }
 
   private getFolderOrThrow(folderId: FolderId): FolderCls {

@@ -33,7 +33,11 @@ import {
 import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion} from "./api/goliath";
 import {RouteComponentProps} from "react-router-dom";
-import {ContentTree, initContentTree} from "./models/contentTree";
+import {
+  ContentTree,
+  ContentTreeCls,
+  initContentTree
+} from "./models/contentTree";
 import {Article} from "./models/article";
 import {Folder, FolderId} from "./models/folder";
 import {Feed, FeedId} from "./models/feed";
@@ -50,6 +54,7 @@ export interface AppState {
   selectionType: SelectionType;
   status: Status;
   contentTree: ContentTree;
+  contentTreeCls: ContentTreeCls;
   unreadCount: number;
   theme: Theme;
 }
@@ -66,6 +71,7 @@ export default class App extends React.Component<AppProps, AppState> {
       selectionType: SelectionType.All,
       status: Status.Start,
       contentTree: initContentTree(),
+      contentTreeCls: ContentTreeCls.new(),
       unreadCount: 0,
       theme: Theme.Dark,
     };
@@ -93,11 +99,12 @@ export default class App extends React.Component<AppProps, AppState> {
       await this.fetchVersion();
       console.log("Fetched version info.")
 
-      let [unreadCount, tree] = await this.fetchApi.InitializeContent(this.updateState);
+      let [unreadCount, tree, treeCls] = await this.fetchApi.InitializeContent(this.updateState);
       console.log("Completed all Fever requests.")
       this.setState({
         unreadCount: unreadCount,
         contentTree: tree,
+        contentTreeCls: treeCls,
         status: Status.Ready
       });
     })
@@ -118,6 +125,14 @@ export default class App extends React.Component<AppProps, AppState> {
   }
 
   handleMark = (mark: MarkState, entity: SelectionKey, type: SelectionType) => {
+    this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
+      const contentTreeCls: ContentTreeCls = prevState.contentTreeCls;
+      contentTreeCls.Mark(mark, entity, type);
+      return {
+        contentTreeCls: contentTreeCls,
+      } as AppState
+    });
+
     switch (type) {
     case SelectionType.Article:
       this.fetchApi.MarkArticle(mark, entity).then(() => {
@@ -274,6 +289,7 @@ export default class App extends React.Component<AppProps, AppState> {
             <Box>
               <FolderFeedList
                 tree={this.state.contentTree}
+                treeCls={this.state.contentTreeCls}
                 unreadCount={this.state.unreadCount}
                 selectedKey={this.state.selectionKey}
                 selectionType={this.state.selectionType}
@@ -296,6 +312,7 @@ export default class App extends React.Component<AppProps, AppState> {
             <Box>
               <ArticleList
                 articleEntries={this.populateArticleListEntries()}
+                articleEntriesCls={this.populateArticleListEntriesCls()}
                 selectionKey={this.state.selectionKey}
                 selectionType={this.state.selectionType}
                 handleMark={this.handleMark}
@@ -365,6 +382,12 @@ export default class App extends React.Component<AppProps, AppState> {
       break
     }
 
+    return this.sortArticles(entries.filter(this.articleIsUnread));
+  }
+
+  populateArticleListEntriesCls(): ArticleListEntry[] {
+    const entries: ArticleListEntry[] = this.state.contentTreeCls.GetEntries(
+      this.state.selectionKey, this.state.selectionType);
     return this.sortArticles(entries.filter(this.articleIsUnread));
   }
 
