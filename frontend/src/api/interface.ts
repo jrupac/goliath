@@ -1,5 +1,5 @@
 import {SelectionKey, Status} from "../utils/types";
-import Fever from "./Fever";
+import Fever from "./fever";
 import {ContentTree} from "../../models/contentTree";
 
 export type LoginInfo = {

@@ -31,7 +31,7 @@ import {
   ThemeProvider
 } from "@mui/material";
 import {FetchAPI, FetchAPIFactory} from "./api/interface";
-import {GetVersion} from "./api/Goliath";
+import {GetVersion} from "./api/goliath";
 import {RouteComponentProps} from "react-router-dom";
 import {ContentTree, initContentTree} from "../models/contentTree";
 import {Article} from "../models/article";
