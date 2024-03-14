@@ -1,5 +1,6 @@
 import {Feed, FeedCls, FeedId} from "./feed";
 import {MarkState} from "../utils/types";
+import {ArticleId} from "./article";
 
 /** FolderId is the ID of a Folder object. */
 export type FolderId = string;
@@ -16,16 +17,12 @@ export class FolderCls {
   private unread_count: number;
   private feeds: Map<FeedId, FeedCls>;
 
-  constructor(id: FolderId, title: string, feeds: Map<FeedId, FeedCls>) {
+  constructor(id: FolderId, title: string) {
     this.id = id;
     this.title = title;
-    this.feeds = feeds;
 
     this.unread_count = 0;
-    this.feeds.forEach((f: FeedCls): void => {
-      this.unread_count += f.UnreadCount();
-    });
-    this.sort();
+    this.feeds = new Map<FeedId, FeedCls>();
   }
 
   public AddFeed(feed: FeedCls): void {
@@ -40,7 +37,27 @@ export class FolderCls {
     this.unread_count += feed.UnreadCount();
   }
 
-  public MarkFolder(markState: MarkState) {
+  public MarkArticle(articleId: ArticleId, feedId: FeedId, markState: MarkState): number {
+    const feed = this.getFeedOrThrow(feedId);
+
+    this.unread_count -= feed.UnreadCount();
+    feed.MarkArticle(articleId, markState);
+    this.unread_count += feed.UnreadCount();
+
+    return this.unread_count;
+  }
+
+  public MarkFeed(feedId: FeedId, markState: MarkState): number {
+    const feed = this.getFeedOrThrow(feedId);
+
+    this.unread_count -= feed.UnreadCount();
+    feed.MarkFeed(markState);
+    this.unread_count += feed.UnreadCount();
+
+    return this.unread_count;
+  }
+
+  public MarkFolder(markState: MarkState): number {
     let unread: number = 0;
 
     this.feeds.forEach((f: FeedCls): void => {
@@ -65,6 +82,14 @@ export class FolderCls {
 
   public static Comparator(a: FolderCls, b: FolderCls): number {
     return a.Title().localeCompare(b.Title());
+  }
+
+  private getFeedOrThrow(feedId: FeedId): FeedCls {
+    const feed = this.feeds.get(feedId);
+    if (feed === undefined) {
+      throw new Error(`No feed by ID: ${feedId} in folder ${this.id}`);
+    }
+    return feed;
   }
 
   private sort(): void {

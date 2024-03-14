@@ -1,8 +1,8 @@
 /** Global types for Goliath RSS */
 
-import {Article, ArticleId} from "../../models/article";
-import {FolderId} from "../../models/folder";
-import {Favicon, FeedId, FeedTitle} from "../../models/feed";
+import {Article, ArticleId} from "../models/article";
+import {FolderId} from "../models/folder";
+import {Favicon, FeedId, FeedTitle} from "../models/feed";
 
 /** Well-known paths for the frontend. */
 export enum GoliathPath {

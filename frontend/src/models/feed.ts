@@ -25,47 +25,39 @@ export interface Feed {
 }
 
 export class FaviconCls {
-  private readonly id: FaviconId;
-  private readonly favicon: Favicon;
+  private readonly data: Favicon;
 
-  public constructor(id: FaviconId, favicon: Favicon) {
-    this.id = id;
-    this.favicon = favicon;
-  }
-
-  public GetId(): FaviconId {
-    return this.id;
+  public constructor(favicon: Favicon) {
+    this.data = favicon;
   }
 
   public GetFavicon(): Favicon {
-    return this.favicon;
+    return this.data;
   }
 }
 
 export class FeedCls {
   private readonly id: FeedId;
-  private readonly favicon: FaviconCls;
   private readonly title: FeedTitle;
   private readonly url: string;
   private readonly site_url: string;
   private readonly is_spark: 0 | 1;
   private readonly last_updated_on_time: number;
   private unread_count: number;
+  private favicon: FaviconCls | null;
   private articles: Map<ArticleId, ArticleCls>;
 
-  private constructor(id: FeedId, favicon: FaviconCls, title: FeedTitle, url: string,
-    site_url: string, is_spark: 0 | 1, last_updated_on_time: number,
-    unread_count: number, articles: Map<ArticleId, ArticleCls>) {
+  constructor(id: FeedId, title: FeedTitle, url: string,
+    site_url: string, is_spark: 0 | 1, last_updated_on_time: number) {
     this.id = id;
-    this.favicon = favicon;
+    this.favicon = null;
     this.title = title;
     this.url = url;
     this.site_url = site_url;
     this.is_spark = is_spark;
     this.last_updated_on_time = last_updated_on_time;
-    this.unread_count = unread_count;
-    this.articles = articles;
-    this.sort();
+    this.unread_count = 0;
+    this.articles = new Map<ArticleId, ArticleCls>();
   }
 
   public Title(): FeedTitle {
@@ -78,6 +70,10 @@ export class FeedCls {
 
   public UnreadCount(): number {
     return this.unread_count;
+  }
+
+  public SetFavicon(favicon: FaviconCls): void {
+    this.favicon = favicon;
   }
 
   public AddArticles(articles: ArticleCls[]): void {
@@ -93,10 +89,9 @@ export class FeedCls {
   }
 
   public MarkArticle(articleId: ArticleId, markState: MarkState): number {
-    const article = this.articles.get(articleId);
+    const article = this.articles?.get(articleId);
     if (article === undefined) {
-      console.log(`Unknown article in feed ${this.id}: ${articleId}`);
-      return this.unread_count;
+      throw new Error(`No article by ID: ${articleId} in feed ${this.id}`);
     }
 
     this.unread_count -= article.ReadStatus();

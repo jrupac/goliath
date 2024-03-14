@@ -1,6 +1,11 @@
 import {Folder, FolderCls, FolderId} from "./folder";
 import {FeedCls} from "./feed";
-import {MarkState} from "../utils/types";
+import {
+  ArticleSelection,
+  FeedSelection,
+  FolderSelection,
+  MarkState
+} from "../utils/types";
 
 /** ContentTree is a map of FolderID -> Folder with all associated content. */
 export type ContentTree = Map<FolderId, Folder>;
@@ -29,11 +34,7 @@ export class ContentTreeCls {
   }
 
   public AddFeed(folderId: FolderId, feed: FeedCls): void {
-    const existing = this.tree.get(folderId);
-    if (existing === undefined) {
-      console.log(`WARNING: Unknown folder: ${folderId} in ContentTree.`);
-      return;
-    }
+    const existing = this.getFolderOrThrow(folderId);
 
     this.unread_count -= existing.UnreadCount();
     existing.AddFeed(feed);
@@ -41,6 +42,39 @@ export class ContentTreeCls {
   }
 
   public UnreadCount(): number {
+    return this.unread_count;
+  }
+
+  public MarkArticle(markState: MarkState, entity: ArticleSelection): number {
+    const [articleId, feedId, folderId] = entity;
+    const folder = this.getFolderOrThrow(folderId);
+
+    this.unread_count -= folder.UnreadCount();
+    folder.MarkArticle(feedId, articleId, markState);
+    this.unread_count += folder.UnreadCount();
+
+    return this.unread_count;
+  }
+
+  public MarkFeed(markState: MarkState, entity: FeedSelection): number {
+    const [feedId, folderId] = entity;
+    const folder = this.getFolderOrThrow(folderId);
+
+    this.unread_count -= folder.UnreadCount();
+    folder.MarkFeed(feedId, markState);
+    this.unread_count += folder.UnreadCount();
+
+    return this.unread_count;
+  }
+
+  public MarkFolder(markState: MarkState, entity: FolderSelection): number {
+    const folderId: FolderId = entity;
+    const folder = this.getFolderOrThrow(folderId);
+
+    this.unread_count -= folder.UnreadCount();
+    folder.MarkFolder(markState);
+    this.unread_count += folder.UnreadCount();
+
     return this.unread_count;
   }
 
@@ -53,6 +87,14 @@ export class ContentTreeCls {
 
     this.unread_count = unread;
     return this.unread_count;
+  }
+
+  private getFolderOrThrow(folderId: FolderId): FolderCls {
+    const folder = this.tree.get(folderId);
+    if (folder === undefined) {
+      throw new Error(`No folder by ID: ${folderId}`);
+    }
+    return folder;
   }
 
   private sort(): void {
