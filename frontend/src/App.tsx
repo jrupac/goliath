@@ -83,35 +83,35 @@ export default class App extends React.Component<AppProps, AppState> {
     // This is defense-in-depth to redirect to the login page if the
     // appropriate cookie is not present. This check is also done on the
     // server side and returns an HTTP redirect.
-    if (!this.fetchApi.VerifyAuth()) {
-      this.props.history.push({
-        pathname: GoliathPath.Login
-      });
-      return;
-    }
+    this.fetchApi.VerifyAuth().then((ok: boolean) => {
+      if (!ok) {
+        this.props.history.push({
+          pathname: GoliathPath.Login
+        });
+        return;
+      }
+      window.addEventListener('keydown', this.handleKeyDown);
 
-    window.addEventListener('keydown', this.handleKeyDown);
-
-    this.fetchVersion().then(() => console.log("Fetched version info."));
-    this.fetchApi.InitializeContent((status) =>
-      this.setState((prevState) => ({status: prevState.status | status})))
-      .then(([unreadCount, tree]) => {
-        console.log("Completed all Fever requests.")
-        this.setState({
-          unreadCount: unreadCount,
-          contentTree: tree,
-          status: Status.Ready
-        })
-      });
+      this.fetchVersion().then(() => console.log("Fetched version info."));
+      this.fetchApi.InitializeContent((status) =>
+        this.setState((prevState) => ({status: prevState.status | status})))
+        .then(([unreadCount, tree]) => {
+          console.log("Completed all Fever requests.")
+          this.setState({
+            unreadCount: unreadCount,
+            contentTree: tree,
+            status: Status.Ready
+          })
+        });
+    })
   }
 
   async fetchVersion(): Promise<void> {
-    return await GetVersion().then((versionData: VersionData) => {
-      this.setState({
-        buildTimestamp: versionData.build_timestamp,
-        buildHash: versionData.build_hash
-      })
-    });
+    const versionData: VersionData = await GetVersion();
+    this.setState({
+      buildTimestamp: versionData.build_timestamp,
+      buildHash: versionData.build_hash
+    })
   }
 
   handleMark = (mark: MarkState, entity: SelectionKey, type: SelectionType) => {

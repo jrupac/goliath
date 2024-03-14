@@ -70,29 +70,25 @@ export default class Fever implements FetchAPI {
   }
 
   public async HandleAuth(loginInfo: LoginInfo): Promise<boolean> {
-    return await fetch('/auth', {
+    const res: Response = await fetch('/auth', {
       method: 'POST',
       body: JSON.stringify(loginInfo),
       credentials: 'include'
-    }).then((res: Response) => {
-      if (!res.ok) {
-        console.log(res);
-        return false;
-      } else {
-        if (!cookieExists(feverAuthCookie)) {
-          console.log("Server did not set auth cookie.");
-          return false;
-        }
-        return true;
-      }
-    }).catch((e) => {
-      console.log(e);
-      return false;
     });
+    if (!res.ok) {
+      console.log(res);
+      return false;
+    } else {
+      if (!await this.VerifyAuth()) {
+        console.log("Server did not set auth cookie.");
+        return false;
+      }
+      return true;
+    }
   }
 
-  public VerifyAuth(): boolean {
-    return cookieExists(feverAuthCookie);
+  public VerifyAuth(): Promise<boolean> {
+    return Promise.resolve(cookieExists(feverAuthCookie));
   }
 
   public async InitializeContent(cb: (status: Status) => void): Promise<[number, ContentTree]> {
@@ -134,36 +130,30 @@ export default class Fever implements FetchAPI {
   }
 
   private async fetchFolders(cb: (status: Status) => void): Promise<void> {
-    return await fetch('/fever/?api&groups', {
+    const res: Response = await fetch('/fever/?api&groups', {
       credentials: 'include'
-    }).then((result) => result.text())
-      .then((result) => parseJson(result))
-      .then((body: FeverFetchGroupsType) => {
-        this.feverFetchGroupsResponse = body;
-        cb(Status.Folder);
-      }).catch((e) => console.log(e));
+    });
+    const result: string = await res.text();
+    this.feverFetchGroupsResponse = await parseJson(result);
+    cb(Status.Folder);
   }
 
   private async fetchFeeds(cb: (status: Status) => void): Promise<void> {
-    return await fetch('/fever/?api&feeds', {
+    const res: Response = await fetch('/fever/?api&feeds', {
       credentials: 'include'
-    }).then((result) => result.text())
-      .then((result) => parseJson(result))
-      .then((body: FeverFetchFeedsType) => {
-        this.feverFetchFeedsResponse = body;
-        cb(Status.Feed);
-      }).catch((e) => console.log(e));
+    });
+    const result: string = await res.text();
+    this.feverFetchFeedsResponse = await parseJson(result);
+    cb(Status.Feed);
   }
 
   private async fetchFavicons(cb: (status: Status) => void): Promise<void> {
-    return await fetch('/fever/?api&favicons', {
+    const res: Response = await fetch('/fever/?api&favicons', {
       credentials: 'include'
-    }).then((result) => result.text())
-      .then((result) => parseJson(result))
-      .then((body: FeverFetchFaviconsType) => {
-        this.feverFetchFaviconsResponse = body;
-        cb(Status.Favicon);
-      }).catch((e) => console.log(e));
+    });
+    const result: string = await res.text();
+    this.feverFetchFaviconsResponse = await parseJson(result);
+    cb(Status.Favicon);
   }
 
   private async fetchItems(cb: (status: Status) => void): Promise<void> {
@@ -172,12 +162,11 @@ export default class Fever implements FetchAPI {
     let itemCount = -1;
 
     for (; ;) {
-      let items = await fetch(itemUri, {
+      const res: Response = await fetch(itemUri, {
         credentials: 'include'
-      }).then((result) => result.text())
-        .then((result) => parseJson(result))
-        .then((body: FeverFetchItemsType) => body.items)
-        .catch((e) => console.log(e));
+      });
+      const result: string = await res.text();
+      const items = await parseJson(result).items;
 
       if (!items) {
         return;
