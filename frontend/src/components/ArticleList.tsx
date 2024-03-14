@@ -23,7 +23,6 @@ const markAllReadSequence = ['Shift', 'I'];
 const keyBufLength = 2;
 
 export interface ArticleListProps {
-  articleEntries: ArticleListEntry[];
   articleEntriesCls: ArticleListEntry[];
   selectionKey: SelectionKey;
   selectionType: SelectionType;
@@ -48,7 +47,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
   constructor(props: ArticleListProps) {
     super(props);
     this.state = {
-      articleEntries: props.articleEntries,
+      articleEntries: props.articleEntriesCls,
       articleImagePreviews: new LRUCache<ArticleId, ArticleImagePreview>({
         max: 100
       }),
@@ -78,7 +77,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       this.list.forceUpdate();
     }
     this.setState({
-      articleEntries: Array.from(this.props.articleEntries),
+      articleEntries: Array.from(this.props.articleEntriesCls),
       scrollIndex: 0,
       keypressBuffer: new Array(keyBufLength)
     });

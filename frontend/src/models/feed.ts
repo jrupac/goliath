@@ -1,4 +1,4 @@
-import {Article, ArticleCls, ArticleId} from "./article";
+import {Article, ArticleCls, ArticleId, ReadStatus} from "./article";
 import {FeedEntry, MarkState} from "../utils/types";
 
 /** Feed is a content source which contains zero or more articles. */
@@ -79,6 +79,7 @@ export class FeedCls {
   public AddArticle(article: ArticleCls): void {
     this.articles.set(article.Id(), article);
     this.sort();
+    this.unread_count += (article.ReadStatus() === ReadStatus.Unread) ? 1 : 0;
   }
 
   public MarkArticle(articleId: ArticleId, markState: MarkState): number {

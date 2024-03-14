@@ -311,7 +311,6 @@ export default class App extends React.Component<AppProps, AppState> {
           >
             <Box>
               <ArticleList
-                articleEntries={this.populateArticleListEntries()}
                 articleEntriesCls={this.populateArticleListEntriesCls()}
                 selectionKey={this.state.selectionKey}
                 selectionType={this.state.selectionType}

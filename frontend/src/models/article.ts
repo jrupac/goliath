@@ -42,7 +42,7 @@ export class ArticleCls {
     this.url = url;
     this.is_saved = is_saved;
     this.created_on_time = created_on_time;
-    this.readStatus = is_read ? ReadStatus.Read : ReadStatus.Unread;
+    this.readStatus = (is_read === 1) ? ReadStatus.Read : ReadStatus.Unread;
   }
 
   public MarkArticle(markState: MarkState): ReadStatus {
@@ -62,7 +62,7 @@ export class ArticleCls {
       html: this.html,
       url: this.url,
       is_saved: this.is_saved,
-      is_read: (this.readStatus === ReadStatus.Read) ? 0 : 1,
+      is_read: (this.readStatus === ReadStatus.Read) ? 1 : 0,
       created_on_time: this.created_on_time,
     };
   }

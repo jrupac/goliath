@@ -84,7 +84,7 @@ export class ContentTreeCls {
 
   public GetEntries(key: SelectionKey, type: SelectionType): ArticleListEntry[] {
     let articleId: ArticleId, feedId: FeedId, folderId: FolderId;
-    const entries: ArticleListEntry[] = [];
+    let entries: ArticleListEntry[] = [];
 
     switch (type) {
     case SelectionType.Article:
@@ -98,7 +98,7 @@ export class ContentTreeCls {
       return this.getFolderOrThrow(folderId).GetFolderEntry();
     case SelectionType.All:
       this.tree.forEach((f: FolderCls): void => {
-        entries.concat(f.GetFolderEntry());
+        entries = entries.concat(f.GetFolderEntry());
       });
     }
 
