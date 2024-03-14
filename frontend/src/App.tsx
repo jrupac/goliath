@@ -80,26 +80,26 @@ export default class App extends React.Component<AppProps, AppState> {
     // This is defense-in-depth to redirect to the login page if the
     // appropriate cookie is not present. This check is also done on the
     // server side and returns an HTTP redirect.
-    this.fetchApi.VerifyAuth().then((ok: boolean) => {
+    this.fetchApi.VerifyAuth().then(async (ok: boolean): Promise<void> => {
       if (!ok) {
         this.props.history.push({
           pathname: GoliathPath.Login
         });
         return;
       }
+
       window.addEventListener('keydown', this.handleKeyDown);
 
-      this.fetchVersion().then(() => console.log("Fetched version info."));
-      this.fetchApi.InitializeContent((status) =>
-        this.setState((prevState) => ({status: prevState.status | status})))
-        .then(([unreadCount, tree]) => {
-          console.log("Completed all Fever requests.")
-          this.setState({
-            unreadCount: unreadCount,
-            contentTree: tree,
-            status: Status.Ready
-          })
-        });
+      await this.fetchVersion();
+      console.log("Fetched version info.")
+
+      let [unreadCount, tree] = await this.fetchApi.InitializeContent(this.updateState);
+      console.log("Completed all Fever requests.")
+      this.setState({
+        unreadCount: unreadCount,
+        contentTree: tree,
+        status: Status.Ready
+      });
     })
   }
 
@@ -109,6 +109,12 @@ export default class App extends React.Component<AppProps, AppState> {
       buildTimestamp: versionData.build_timestamp,
       buildHash: versionData.build_hash
     })
+  }
+
+  updateState = (status: Status): void => {
+    this.setState((prevState: Readonly<AppState>): { status: Status } => {
+      return {status: prevState.status | status};
+    });
   }
 
   handleMark = (mark: MarkState, entity: SelectionKey, type: SelectionType) => {
