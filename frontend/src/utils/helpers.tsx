@@ -1,8 +1,9 @@
 import moment from "moment";
 import {Decimal} from "decimal.js-light";
-import {ArticleId} from "./types";
 import {Readability} from "@mozilla/readability";
 import * as LosslessJSON from "lossless-json";
+
+import {ArticleId} from "../../models/article";
 
 export function extractText(html: string): string | null {
   return new DOMParser()

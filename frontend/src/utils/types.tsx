@@ -1,5 +1,9 @@
 /** Global types for Goliath RSS */
 
+import {Article, ArticleId} from "../../models/article";
+import {FolderId} from "../../models/folder";
+import {Favicon, FeedId, FeedTitle} from "../../models/feed";
+
 /** Well-known paths for the frontend. */
 export enum GoliathPath {
   /** Default URI path for the frontend. */
@@ -59,63 +63,6 @@ export enum ArticleListView {
   Combined = 0,
   Split = 1,
 }
-
-/** ArticleId is the ID associated with an Article object. */
-export type ArticleId = string;
-
-/** FaviconId is the ID of the favicon associated with a feed. */
-export type FaviconId = string;
-
-// Favicon is described by a MIME type followed by a base64 encoding.
-export type Favicon = string;
-
-/** Feed is a content source which contains zero or more articles. */
-export type FeedId = string;
-
-/** FeedTitle is the textual title of a feed. */
-export type FeedTitle = string;
-
-/** FolderId is the ID of a Folder object. */
-export type FolderId = string;
-
-/** Article is a single unit of content. */
-export interface Article {
-  id: ArticleId;
-  feed_id: FeedId;
-  title: string;
-  author: string;
-  html: string;
-  url: string;
-  is_saved: 0 | 1;
-  is_read: 0 | 1;
-  created_on_time: number;
-}
-
-export interface Feed {
-  id: FeedId;
-  favicon_id: FaviconId;
-  favicon: Favicon;
-  title: FeedTitle;
-  url: string;
-  site_url: string;
-  is_spark: 0 | 1;
-  last_updated_on_time: number;
-  unread_count: number;
-  articles: Map<ArticleId, Article>;
-}
-
-/** Folder is a logical grouping of zero or more Feeds. */
-export type Folder = {
-  title: string;
-  unread_count: number;
-  feeds: Map<FeedId, Feed>;
-}
-
-/** ContentTree is a map of FolderID -> Folder with all associated content. */
-export type ContentTree = Map<FolderId, Folder>;
-
-/** Create a new, empty ContentTree object. */
-export const initContentTree = () => new Map<FolderId, Folder>();
 
 /** ArticleListEntry also holds metadata associated with a displayed Article. */
 export type ArticleListEntry = [Article, FeedTitle, Favicon, FeedId, FolderId];

@@ -4,18 +4,11 @@ import FolderFeedList from './components/FolderFeedList';
 import Loading from './components/Loading';
 import React from 'react';
 import {
-  Article,
   ArticleListEntry,
   ArticleSelection,
-  ContentTree,
-  Feed,
-  FeedId,
   FeedSelection,
-  Folder,
-  FolderId,
   FolderSelection,
   GoliathPath,
-  initContentTree,
   KeyAll,
   MarkState,
   SelectionKey,
@@ -40,6 +33,10 @@ import {
 import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion} from "./api/Goliath";
 import {RouteComponentProps} from "react-router-dom";
+import {ContentTree, initContentTree} from "../models/contentTree";
+import {Article} from "../models/article";
+import {Folder, FolderId} from "../models/folder";
+import {Feed, FeedId} from "../models/feed";
 
 // AppProps needs to extend RouteComponentProps to get "history".
 export interface AppProps extends RouteComponentProps {

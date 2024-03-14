@@ -1,5 +1,4 @@
 import React, {ReactNode} from "react";
-import {Article} from "../utils/types";
 import {Box, Card, CardHeader, Skeleton, Tooltip} from "@mui/material";
 import {
   fetchReadability,
@@ -8,6 +7,8 @@ import {
   makeAbsolute
 } from "../utils/helpers";
 import RssFeedOutlinedIcon from "@mui/icons-material/RssFeedOutlined";
+
+import {Article} from "../../models/article";
 
 export interface ArticleProps {
   article: Article;

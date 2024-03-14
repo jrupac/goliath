@@ -2,8 +2,6 @@ import ArticleCard from './ArticleCard';
 import React from "react";
 import ReactList from 'react-list';
 import {
-  Article,
-  ArticleId,
   ArticleImagePreview,
   ArticleListEntry,
   ArticleListView,
@@ -17,6 +15,8 @@ import SplitViewArticleListEntry from "./SplitViewArticleListEntry";
 import LRUCache from "lru-cache";
 import {DoneAllRounded} from "@mui/icons-material";
 import smartcrop from "smartcrop";
+
+import {Article, ArticleId} from "../../models/article";
 
 const goToAllSequence = ['g', 'a'];
 const markAllReadSequence = ['Shift', 'I'];

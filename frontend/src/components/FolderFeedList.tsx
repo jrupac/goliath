@@ -1,18 +1,13 @@
 import React, {ReactNode, ReactText} from 'react';
-import {
-  Feed,
-  Folder,
-  FolderId,
-  KeyAll,
-  SelectionKey,
-  SelectionType
-} from "../utils/types";
+import {KeyAll, SelectionKey, SelectionType} from "../utils/types";
 import {Box} from "@mui/material";
 import InboxIcon from "@mui/icons-material/Inbox";
 import {TreeView} from '@mui/x-tree-view/TreeView';
 import {TreeItem} from '@mui/x-tree-view/TreeItem';
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
 import FolderIcon from '@mui/icons-material/Folder';
+import {Folder, FolderId} from "../../models/folder";
+import {Feed} from "../../models/feed";
 
 export interface FolderFeedListProps {
   tree: Map<FolderId, Folder>;
