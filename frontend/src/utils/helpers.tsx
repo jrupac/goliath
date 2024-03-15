@@ -3,7 +3,7 @@ import {Decimal} from "decimal.js-light";
 import {Readability} from "@mozilla/readability";
 import * as LosslessJSON from "lossless-json";
 
-import {ArticleId} from "../../models/article";
+import {ArticleId} from "../models/article";
 
 export function extractText(html: string): string | null {
   return new DOMParser()
