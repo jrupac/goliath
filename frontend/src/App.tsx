@@ -288,8 +288,7 @@ export default class App extends React.Component<AppProps, AppState> {
             </Box>
             <Box>
               <FolderFeedList
-                tree={this.state.contentTree}
-                treeCls={this.state.contentTreeCls}
+                folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
                 unreadCount={this.state.unreadCount}
                 selectedKey={this.state.selectionKey}
                 selectionType={this.state.selectionType}

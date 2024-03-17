@@ -1,4 +1,4 @@
-import {Feed, FeedCls, FeedId} from "./feed";
+import {Feed, FeedCls, FeedId, FeedTitle, FeedView} from "./feed";
 import {ArticleListEntry, FeedEntry, MarkState} from "../utils/types";
 import {ArticleId} from "./article";
 
@@ -9,6 +9,12 @@ export type Folder = {
   title: string;
   unread_count: number;
   feeds: Map<FeedId, Feed>;
+}
+
+export interface FolderView {
+  id: FolderId;
+  title: FeedTitle;
+  unread_count: number;
 }
 
 export class FolderCls {
@@ -108,6 +114,21 @@ export class FolderCls {
 
   public Title(): string {
     return this.title;
+  }
+
+  public GetViewEntry(): [FolderView, FeedView[]] {
+    const folderView: FolderView = {
+      id: this.id,
+      title: this.title,
+      unread_count: this.unread_count
+    };
+
+    const feedViews: FeedView[] = [];
+    this.feeds.forEach((f: FeedCls): void => {
+      feedViews.push(f.GetView(this.id));
+    });
+
+    return [folderView, feedViews];
   }
 
   public static Comparator(a: FolderCls, b: FolderCls): number {

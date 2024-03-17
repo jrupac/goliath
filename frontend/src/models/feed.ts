@@ -1,5 +1,6 @@
 import {Article, ArticleCls, ArticleId, ReadStatus} from "./article";
 import {FeedEntry, MarkState} from "../utils/types";
+import {FolderId} from "./folder";
 
 /** Feed is a content source which contains zero or more articles. */
 export type FeedId = string;
@@ -34,6 +35,14 @@ export class FaviconCls {
   public GetFavicon(): Favicon {
     return this.data;
   }
+}
+
+export interface FeedView {
+  id: FeedId;
+  folder_id: FolderId;
+  favicon: FaviconCls | null;
+  title: FeedTitle;
+  unread_count: number;
 }
 
 export class FeedCls {
@@ -121,6 +130,16 @@ export class FeedCls {
     });
 
     return entries;
+  }
+
+  public GetView(folderId: FolderId): FeedView {
+    return {
+      id: this.id,
+      folder_id: folderId,
+      favicon: this.favicon,
+      title: this.title,
+      unread_count: this.unread_count,
+    };
   }
 
   public static Comparator(a: FeedCls, b: FeedCls): number {

@@ -1,5 +1,5 @@
-import {Folder, FolderCls, FolderId} from "./folder";
-import {FeedId} from "./feed";
+import {Folder, FolderCls, FolderId, FolderView} from "./folder";
+import {FeedId, FeedView} from "./feed";
 import {
   ArticleListEntry,
   ArticleSelection,
@@ -103,6 +103,14 @@ export class ContentTreeCls {
     }
 
     return entries;
+  }
+
+  public GetFolderFeedView(): Map<FolderView, FeedView[]> {
+    const view: Map<FolderView, FeedView[]> = new Map();
+    this.tree.forEach((f: FolderCls): void => {
+      view.set(...f.GetViewEntry());
+    });
+    return view;
   }
 
   private getFolderOrThrow(folderId: FolderId): FolderCls {
