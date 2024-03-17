@@ -11,8 +11,7 @@ import {
   SelectionKey,
   SelectionType,
   Status,
-  Theme,
-  VersionData
+  Theme
 } from "./utils/types";
 
 import './themes/default.css';
@@ -28,7 +27,7 @@ import {
   ThemeProvider
 } from "@mui/material";
 import {FetchAPI, FetchAPIFactory} from "./api/interface";
-import {GetVersion} from "./api/goliath";
+import {GetVersion, VersionData} from "./api/goliath";
 import {RouteComponentProps} from "react-router-dom";
 import {ContentTreeCls} from "./models/contentTree";
 

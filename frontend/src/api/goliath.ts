@@ -1,14 +1,19 @@
 import {parseJson} from "../utils/helpers";
-import {VersionData} from "../utils/types";
 
-// version matches the response from a /version API call.
-interface version {
-  build_timestamp: string;
-  build_hash: string;
+/** VersionData describes metadata about the backend version. */
+export type VersionData = {
+  build_timestamp: string,
+  build_hash: string
 }
 
 /** GetVersion returns metadata about the Goliath backend. */
 export async function GetVersion(): Promise<VersionData> {
+  // version matches the response from a /version API call.
+  interface version {
+    build_timestamp: string;
+    build_hash: string;
+  }
+
   return await fetch('/version', {
     credentials: 'include'
   }).then((result) => result.text())

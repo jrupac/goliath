@@ -18,12 +18,6 @@ export enum Theme {
   Dark = 1,
 }
 
-/** VersionData describes metadata about the backend version. */
-export type VersionData = {
-  build_timestamp: string,
-  build_hash: string
-}
-
 /** Status describes which items have been fetched so far via the Fever API. */
 export enum Status {
   Start = 0,
