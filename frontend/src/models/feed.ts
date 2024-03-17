@@ -94,26 +94,23 @@ export class FeedCls {
     return this.unread_count;
   }
 
-  public GetArticleEntry(articleId: ArticleId, folderId: FolderId): ArticleView {
-    const article: ArticleCls = this.getArticleOrThrow(articleId);
+  public GetArticleView(folderId: FolderId, articleId?: ArticleId): ArticleView[] {
     const favicon: Favicon = (this.favicon ===
       null) ? "" : this.favicon.GetFavicon();
-    return article.GetArticleView(this.title, favicon, this.id, folderId);
-  }
 
-  public GetArticleEntries(folderId: FolderId): ArticleView[] {
+    if (typeof articleId !== 'undefined') {
+      const article: ArticleCls = this.getArticleOrThrow(articleId);
+      return [article.GetArticleView(this.title, favicon, this.id, folderId)];
+    }
+
     const entries: ArticleView[] = [];
-    const favicon: Favicon = (this.favicon ===
-      null) ? "" : this.favicon.GetFavicon();
-
     this.articles.forEach((a: ArticleCls): void => {
       entries.push(a.GetArticleView(this.title, favicon, this.id, folderId));
     });
-
     return entries;
   }
 
-  public GetView(folderId: FolderId): FeedView {
+  public GetFolderFeedView(folderId: FolderId): FeedView {
     return {
       id: this.id,
       folder_id: folderId,

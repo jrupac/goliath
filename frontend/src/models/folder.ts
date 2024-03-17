@@ -68,26 +68,6 @@ export class FolderCls {
     return this.unread_count;
   }
 
-  public GetArticleEntry(articleId: ArticleId, feedId: FeedId): ArticleView[] {
-    const feed: FeedCls = this.getFeedOrThrow(feedId);
-    return [feed.GetArticleEntry(articleId, this.id)];
-  }
-
-  public GetFeedEntry(feedId: FeedId): ArticleView[] {
-    const feed: FeedCls = this.getFeedOrThrow(feedId);
-    return feed.GetArticleEntries(this.id);
-  }
-
-  public GetFolderEntry(): ArticleView[] {
-    let entries: ArticleView[] = [];
-
-    this.feeds.forEach((f: FeedCls): void => {
-      entries = entries.concat(f.GetArticleEntries(this.id));
-    });
-
-    return entries;
-  }
-
   public UnreadCount(): number {
     return this.unread_count;
   }
@@ -100,7 +80,23 @@ export class FolderCls {
     return this.title;
   }
 
-  public GetViewEntry(): [FolderView, FeedView[]] {
+  public GetArticleView(feedId?: FeedId, articleId?: ArticleId): ArticleView[] {
+    if (typeof feedId !== 'undefined') {
+      const feed: FeedCls = this.getFeedOrThrow(feedId);
+      if (typeof articleId !== 'undefined') {
+        return feed.GetArticleView(this.id, articleId);
+      }
+      return feed.GetArticleView(this.id);
+    }
+
+    let entries: ArticleView[] = [];
+    this.feeds.forEach((f: FeedCls): void => {
+      entries = entries.concat(f.GetArticleView(this.id));
+    });
+    return entries;
+  }
+
+  public GetFolderFeedView(): [FolderView, FeedView[]] {
     const folderView: FolderView = {
       id: this.id,
       title: this.title,
@@ -109,7 +105,7 @@ export class FolderCls {
 
     const feedViews: FeedView[] = [];
     this.feeds.forEach((f: FeedCls): void => {
-      feedViews.push(f.GetView(this.id));
+      feedViews.push(f.GetFolderFeedView(this.id));
     });
 
     return [folderView, feedViews];

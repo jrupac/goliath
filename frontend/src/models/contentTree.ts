@@ -77,23 +77,23 @@ export class ContentTreeCls {
     return this.unread_count;
   }
 
-  public GetEntries(key: SelectionKey, type: SelectionType): ArticleView[] {
+  public GetArticleView(key: SelectionKey, type: SelectionType): ArticleView[] {
     let articleId: ArticleId, feedId: FeedId, folderId: FolderId;
     let entries: ArticleView[] = [];
 
     switch (type) {
     case SelectionType.Article:
       [articleId, feedId, folderId] = key as ArticleSelection;
-      return this.getFolderOrThrow(folderId).GetArticleEntry(articleId, feedId);
+      return this.getFolderOrThrow(folderId).GetArticleView(feedId, articleId);
     case SelectionType.Feed:
       [feedId, folderId] = key as FeedSelection;
-      return this.getFolderOrThrow(folderId).GetFeedEntry(feedId);
+      return this.getFolderOrThrow(folderId).GetArticleView(feedId);
     case SelectionType.Folder:
       folderId = key as FolderSelection;
-      return this.getFolderOrThrow(folderId).GetFolderEntry();
+      return this.getFolderOrThrow(folderId).GetArticleView();
     case SelectionType.All:
       this.tree.forEach((f: FolderCls): void => {
-        entries = entries.concat(f.GetFolderEntry());
+        entries = entries.concat(f.GetArticleView());
       });
     }
 
@@ -103,7 +103,7 @@ export class ContentTreeCls {
   public GetFolderFeedView(): Map<FolderView, FeedView[]> {
     const view: Map<FolderView, FeedView[]> = new Map();
     this.tree.forEach((f: FolderCls): void => {
-      view.set(...f.GetViewEntry());
+      view.set(...f.GetFolderFeedView());
     });
     return view;
   }

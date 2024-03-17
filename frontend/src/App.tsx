@@ -256,7 +256,7 @@ export default class App extends React.Component<AppProps, AppState> {
   }
 
   populateArticleListEntriesCls(): ArticleView[] {
-    const entries: ArticleView[] = this.state.contentTreeCls.GetEntries(
+    const entries: ArticleView[] = this.state.contentTreeCls.GetArticleView(
       this.state.selectionKey, this.state.selectionType);
     return this.sortArticles(entries.filter(this.articleIsUnread));
   }
