@@ -28,8 +28,8 @@ export interface Feed {
 export class FaviconCls {
   private readonly data: Favicon;
 
-  public constructor(favicon: Favicon) {
-    this.data = favicon;
+  public constructor(favicon: Favicon | undefined) {
+    this.data = favicon === undefined ? "" : favicon;
   }
 
   public GetFavicon(): Favicon {
@@ -92,11 +92,7 @@ export class FeedCls {
   }
 
   public MarkArticle(articleId: ArticleId, markState: MarkState): number {
-    const article = this.articles?.get(articleId);
-    if (article === undefined) {
-      throw new Error(`No article by ID: ${articleId} in feed ${this.id}`);
-    }
-
+    const article: ArticleCls = this.getArticleOrThrow(articleId);
     this.unread_count -= article.ReadStatus();
     this.unread_count += article.MarkArticle(markState);
     return this.unread_count;
@@ -143,11 +139,12 @@ export class FeedCls {
   }
 
   public static Comparator(a: FeedCls, b: FeedCls): number {
+    // Sort by title of feed
     return a.Title().localeCompare(b.Title());
   }
 
   private getArticleOrThrow(articleId: ArticleId): ArticleCls {
-    const article = this.articles.get(articleId);
+    const article: ArticleCls | undefined = this.articles.get(articleId);
     if (article === undefined) {
       throw new Error(`No article by ID: ${articleId} in feed ${this.id}`);
     }
@@ -155,7 +152,8 @@ export class FeedCls {
   }
 
   private sort(): void {
-    const comparator = (a: [ArticleId, ArticleCls], b: [ArticleId, ArticleCls]) => ArticleCls.Comparator(a[1], b[1]);
+    const comparator = (a: [ArticleId, ArticleCls], b: [ArticleId, ArticleCls]) =>
+      ArticleCls.Comparator(a[1], b[1]);
     this.articles = new Map([...this.articles.entries()].sort(comparator));
   }
 }

@@ -132,11 +132,12 @@ export class FolderCls {
   }
 
   public static Comparator(a: FolderCls, b: FolderCls): number {
+    // Sort by title of folder
     return a.Title().localeCompare(b.Title());
   }
 
   private getFeedOrThrow(feedId: FeedId): FeedCls {
-    const feed = this.feeds.get(feedId);
+    const feed: FeedCls | undefined = this.feeds.get(feedId);
     if (feed === undefined) {
       throw new Error(`No feed by ID: ${feedId} in folder ${this.id}`);
     }
@@ -144,7 +145,8 @@ export class FolderCls {
   }
 
   private sort(): void {
-    const comparator = (a: [FeedId, FeedCls], b: [FeedId, FeedCls]) => FeedCls.Comparator(a[1], b[1]);
+    const comparator = (a: [FeedId, FeedCls], b: [FeedId, FeedCls]) =>
+      FeedCls.Comparator(a[1], b[1]);
     this.feeds = new Map([...this.feeds.entries()].sort(comparator));
   }
 }

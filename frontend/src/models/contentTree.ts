@@ -1,4 +1,4 @@
-import {Folder, FolderCls, FolderId, FolderView} from "./folder";
+import {FolderCls, FolderId, FolderView} from "./folder";
 import {FeedId, FeedView} from "./feed";
 import {
   ArticleListEntry,
@@ -11,11 +11,7 @@ import {
 } from "../utils/types";
 import {ArticleId} from "./article";
 
-/** ContentTree is a map of FolderID -> Folder with all associated content. */
-export type ContentTree = Map<FolderId, Folder>;
-/** Create a new, empty ContentTree object. */
-export const initContentTree = () => new Map<FolderId, Folder>();
-
+/** ContentTreeCls contains a tree of folders, feeds, and articles. */
 export class ContentTreeCls {
   private tree: Map<FolderId, FolderCls>;
   private unread_count: number;
@@ -114,7 +110,7 @@ export class ContentTreeCls {
   }
 
   private getFolderOrThrow(folderId: FolderId): FolderCls {
-    const folder = this.tree.get(folderId);
+    const folder: FolderCls | undefined = this.tree.get(folderId);
     if (folder === undefined) {
       throw new Error(`No folder by ID: ${folderId}`);
     }
@@ -122,7 +118,8 @@ export class ContentTreeCls {
   }
 
   private sort(): void {
-    const comparator = (a: [FolderId, FolderCls], b: [FolderId, FolderCls]) => FolderCls.Comparator(a[1], b[1]);
+    const comparator = (a: [FolderId, FolderCls], b: [FolderId, FolderCls]) =>
+      FolderCls.Comparator(a[1], b[1]);
     this.tree = new Map([...this.tree.entries()].sort(comparator));
   }
 

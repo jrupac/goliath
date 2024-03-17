@@ -80,6 +80,7 @@ export class ArticleCls {
   }
 
   public static Comparator(a: ArticleCls, b: ArticleCls): number {
+    // Sort by article creation time in descending order
     return b.CreateTime() - a.CreateTime();
   }
 }

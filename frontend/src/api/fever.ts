@@ -8,13 +8,9 @@ import {
 import {Decimal} from "decimal.js-light";
 import {cookieExists, maxDecimal, parseJson} from "../utils/helpers";
 import {FetchAPI, LoginInfo} from "./interface";
-import {
-  ContentTree,
-  ContentTreeCls,
-  initContentTree
-} from "../models/contentTree";
-import {Article, ArticleCls, ArticleId} from "../models/article";
-import {Folder, FolderCls, FolderId} from "../models/folder";
+import {ContentTreeCls} from "../models/contentTree";
+import {Article, ArticleCls} from "../models/article";
+import {FolderCls, FolderId} from "../models/folder";
 import {FaviconCls, FaviconId, Feed, FeedCls, FeedId} from "../models/feed";
 
 // The server sets a cookie with this name on successful login.
@@ -90,7 +86,7 @@ export default class Fever implements FetchAPI {
     return Promise.resolve(cookieExists(feverAuthCookie));
   }
 
-  public async InitializeContent(cb: (status: Status) => void): Promise<[number, ContentTree, ContentTreeCls]> {
+  public async InitializeContent(cb: (status: Status) => void): Promise<ContentTreeCls> {
     await Promise.all([
       this.fetchFeeds(cb),
       this.fetchFolders(cb),
@@ -196,8 +192,7 @@ export default class Fever implements FetchAPI {
     cb(Status.Article);
   }
 
-  private buildTree(): [number, ContentTree, ContentTreeCls] {
-    let tree: ContentTree = initContentTree();
+  private buildTree(): ContentTreeCls {
     let treeCls: ContentTreeCls = ContentTreeCls.new();
 
     // Map of (Folder ID) -> (Feed ID).
@@ -229,18 +224,14 @@ export default class Fever implements FetchAPI {
 
     this.feverFetchGroupsResponse.groups.forEach(
       (group: FeverGroupType) => {
-        const folderId = group.id as FolderId;
-        const feedIdList = folderToFeeds.get(folderId);
-
+        const feedIdList = folderToFeeds.get(group.id);
         // Not all folders have feeds, so nothing more to be done here.
         if (feedIdList === undefined) {
           return;
         }
 
-        let folderCls = new FolderCls(group.id, group.title);
-
+        let folderCls: FolderCls = new FolderCls(group.id, group.title);
         // Populate feeds in this folder.
-        let feeds = new Map<FeedId, Feed>();
         feedIdList.forEach(
           (feedId: FeedId) => {
             const feed = globalFeedMap.get(feedId);
@@ -254,57 +245,21 @@ export default class Fever implements FetchAPI {
 
             // Populate articles in this feed.
             const articles = feedToArticles.get(feedId) || [];
-            feed.articles = new Map<ArticleId, Article>();
             articles.forEach((article: Article) => {
-              feed.articles.set(article.id, article);
-
               feedCls.AddArticle(new ArticleCls(
                 article.id, article.title, article.author, article.html,
                 article.url, article.is_saved, article.created_on_time,
                 article.is_read));
-
             });
 
-            // Compute other metadata about this feed.
-            feed.unread_count = articles.reduce(
-              (acc: number, a: Article) => acc + (1 - a.is_read), 0);
-
-            const faviconData = globalFaviconMap.get(feed.favicon_id) || "";
-            feed.favicon = faviconData;
-            feedCls.SetFavicon(new FaviconCls(faviconData))
-
-            feeds.set(feedId, feed);
+            feedCls.SetFavicon(
+              new FaviconCls(globalFaviconMap.get(feed.favicon_id)));
             folderCls.AddFeed(feedCls);
           }
         );
-
-        // Compute other metadata about this folder.
-        const unreadCount = Array.from(feeds.values()).reduce(
-          (acc: number, f: Feed) => acc + f.unread_count, 0);
-
-        // Sort feeds by title
-        feeds = new Map([...feeds].sort(
-          (a, b) => a[1].title.localeCompare(b[1].title)))
-
-        const folderData: Folder = {
-          feeds: feeds,
-          title: group.title,
-          unread_count: unreadCount
-        };
-
-        tree.set(folderId, folderData);
         treeCls.AddFolder(folderCls);
       }
     );
-
-    // Compute other global metadata.
-    const unreadCount = Array.from(tree.values()).reduce(
-      (acc: number, f: Folder) => acc + f.unread_count, 0);
-
-    // Sort folders by title
-    tree = new Map([...tree].sort(
-      (a, b) => a[1].title.localeCompare(b[1].title)))
-
-    return [unreadCount, tree, treeCls];
+    return treeCls;
   }
 }

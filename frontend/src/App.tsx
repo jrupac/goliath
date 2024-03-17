@@ -85,7 +85,8 @@ export default class App extends React.Component<AppProps, AppState> {
       await this.fetchVersion();
       console.log("Fetched version info.")
 
-      let [, , treeCls] = await this.fetchApi.InitializeContent(this.updateState);
+      const treeCls: ContentTreeCls = await this.fetchApi.InitializeContent(
+        this.updateState);
       console.log("Completed all Fever requests.")
       this.setState({
         contentTreeCls: treeCls,
@@ -236,12 +237,6 @@ export default class App extends React.Component<AppProps, AppState> {
     );
   }
 
-  populateArticleListEntriesCls(): ArticleListEntry[] {
-    const entries: ArticleListEntry[] = this.state.contentTreeCls.GetEntries(
-      this.state.selectionKey, this.state.selectionType);
-    return this.sortArticles(entries.filter(this.articleIsUnread));
-  }
-
   handleKeyDown = (event: KeyboardEvent) => {
     // Ignore keypress events when some modifiers are also enabled to avoid
     // triggering on (e.g.) browser shortcuts. Shift is the exception here since
@@ -259,6 +254,12 @@ export default class App extends React.Component<AppProps, AppState> {
       });
       break;
     }
+  }
+
+  populateArticleListEntriesCls(): ArticleListEntry[] {
+    const entries: ArticleListEntry[] = this.state.contentTreeCls.GetEntries(
+      this.state.selectionKey, this.state.selectionType);
+    return this.sortArticles(entries.filter(this.articleIsUnread));
   }
 
   articleIsUnread(articleEntry: ArticleListEntry): boolean {
