@@ -52,7 +52,7 @@ export class ContentTreeCls {
       folder = this.getFolderOrThrow(folderId);
 
       this.unread_count -= folder.UnreadCount();
-      folder.MarkArticle(feedId, articleId, markState);
+      folder.MarkArticle(articleId, feedId, markState);
       this.unread_count += folder.UnreadCount();
       break;
     case SelectionType.Feed:

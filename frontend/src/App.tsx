@@ -5,9 +5,6 @@ import Loading from './components/Loading';
 import React from 'react';
 import {
   ArticleListEntry,
-  ArticleSelection,
-  FeedSelection,
-  FolderSelection,
   GoliathPath,
   KeyAll,
   MarkState,
@@ -33,14 +30,7 @@ import {
 import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion} from "./api/goliath";
 import {RouteComponentProps} from "react-router-dom";
-import {
-  ContentTree,
-  ContentTreeCls,
-  initContentTree
-} from "./models/contentTree";
-import {Article} from "./models/article";
-import {Folder, FolderId} from "./models/folder";
-import {Feed, FeedId} from "./models/feed";
+import {ContentTreeCls} from "./models/contentTree";
 
 // AppProps needs to extend RouteComponentProps to get "history".
 export interface AppProps extends RouteComponentProps {
@@ -53,9 +43,7 @@ export interface AppState {
   selectionKey: SelectionKey;
   selectionType: SelectionType;
   status: Status;
-  contentTree: ContentTree;
   contentTreeCls: ContentTreeCls;
-  unreadCount: number;
   theme: Theme;
 }
 
@@ -70,9 +58,7 @@ export default class App extends React.Component<AppProps, AppState> {
       selectionKey: KeyAll,
       selectionType: SelectionType.All,
       status: Status.Start,
-      contentTree: initContentTree(),
       contentTreeCls: ContentTreeCls.new(),
-      unreadCount: 0,
       theme: Theme.Dark,
     };
     this.fetchApi = FetchAPIFactory.Create();
@@ -99,11 +85,9 @@ export default class App extends React.Component<AppProps, AppState> {
       await this.fetchVersion();
       console.log("Fetched version info.")
 
-      let [unreadCount, tree, treeCls] = await this.fetchApi.InitializeContent(this.updateState);
+      let [, , treeCls] = await this.fetchApi.InitializeContent(this.updateState);
       console.log("Completed all Fever requests.")
       this.setState({
-        unreadCount: unreadCount,
-        contentTree: tree,
         contentTreeCls: treeCls,
         status: Status.Ready
       });
@@ -125,105 +109,34 @@ export default class App extends React.Component<AppProps, AppState> {
   }
 
   handleMark = (mark: MarkState, entity: SelectionKey, type: SelectionType) => {
-    this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-      const contentTreeCls: ContentTreeCls = prevState.contentTreeCls;
-      contentTreeCls.Mark(mark, entity, type);
-      return {
-        contentTreeCls: contentTreeCls,
-      } as AppState
-    });
+    let functor;
 
     switch (type) {
     case SelectionType.Article:
-      this.fetchApi.MarkArticle(mark, entity).then(() => {
-        this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-          const structure = new Map(prevState.contentTree);
-
-          const article = this.getArticleOrThrow(
-            structure, entity as ArticleSelection);
-          article.is_read = 1;
-
-          const unreadCount = this.updateUnreadCount(structure);
-
-          return {
-            contentTree: structure,
-            unreadCount,
-          } as AppState
-        });
-      }).catch((e) => console.log(e));
+      functor = this.fetchApi.MarkArticle;
       break;
     case SelectionType.Feed:
-      this.fetchApi.MarkFeed(mark, entity).then(() => {
-        this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-          const structure = new Map(prevState.contentTree);
-
-          const feed = this.getFeedOrThrow(structure, entity as FeedSelection);
-          feed.articles.forEach(
-            (article: Article) => article.is_read = 1);
-
-          const unreadCount = this.updateUnreadCount(structure);
-
-          return {
-            contentTree: structure,
-            unreadCount,
-          } as AppState
-        });
-      }).catch((e) => console.log(e));
+      functor = this.fetchApi.MarkFeed;
       break;
     case SelectionType.Folder:
-      this.fetchApi.MarkFolder(mark, entity).then(() => {
-        this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-          const structure = new Map(prevState.contentTree);
-
-          const folder = this.getFolderOrThrow(
-            structure, entity as FolderSelection);
-
-          folder.feeds.forEach(
-            (feed: Feed) => {
-              feed.articles.forEach(
-                (article: Article) => {
-                  article.is_read = 1;
-                });
-            });
-
-          const unreadCount = this.updateUnreadCount(structure);
-
-          return {
-            contentTree: structure,
-            unreadCount,
-          } as AppState
-        });
-      }).catch((e) => console.log(e));
+      functor = this.fetchApi.MarkFolder;
       break;
     case SelectionType.All:
-      this.fetchApi.MarkAll(mark, entity).then(() => {
-        // Update the read buffer and unread counts.
-        this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
-          const structure = new Map(prevState.contentTree);
-
-          structure.forEach(
-            (folder: Folder) => {
-              folder.feeds.forEach(
-                (feed: Feed) => {
-                  feed.articles.forEach(
-                    (article: Article) => {
-                      article.is_read = 1;
-                    });
-                });
-            });
-
-          const unreadCount = this.updateUnreadCount(structure);
-
-          return {
-            contentTree: structure,
-            unreadCount,
-          } as AppState
-        });
-      }).catch((e) => console.log(e));
+      functor = this.fetchApi.MarkAll;
       break;
     default:
-      console.log("Unexpected enclosing type: ", type)
+      throw new Error(`Unexpected enclosing type: ${type}`);
     }
+
+    functor(mark, entity).then((): void => {
+      this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
+        const contentTreeCls: ContentTreeCls = prevState.contentTreeCls;
+        contentTreeCls.Mark(mark, entity, type);
+        return {
+          contentTreeCls: contentTreeCls,
+        } as AppState
+      });
+    });
   };
 
   handleSelect = (type: SelectionType, key: SelectionKey) => {
@@ -264,10 +177,11 @@ export default class App extends React.Component<AppProps, AppState> {
         </ThemeProvider>);
     }
 
-    if (this.state.unreadCount === 0) {
+    const unreadCount: number = this.state.contentTreeCls.UnreadCount();
+    if (unreadCount === 0) {
       document.title = 'Goliath RSS';
     } else {
-      document.title = `(${this.state.unreadCount})  Goliath RSS`;
+      document.title = `(${unreadCount})  Goliath RSS`;
     }
 
     return (
@@ -289,7 +203,7 @@ export default class App extends React.Component<AppProps, AppState> {
             <Box>
               <FolderFeedList
                 folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
-                unreadCount={this.state.unreadCount}
+                unreadCount={unreadCount}
                 selectedKey={this.state.selectionKey}
                 selectionType={this.state.selectionType}
                 handleSelect={this.handleSelect}/>
@@ -322,67 +236,6 @@ export default class App extends React.Component<AppProps, AppState> {
     );
   }
 
-  populateArticleListEntries(): ArticleListEntry[] {
-    let key: SelectionKey;
-    let feedId: FeedId, folderId: FolderId;
-    let folderData: Folder, feed: Feed, favicon: string, title: string,
-      article: Article;
-    const entries = [] as ArticleListEntry[];
-
-    switch (this.state.selectionType) {
-    case SelectionType.Article:
-      key = this.state.selectionKey as ArticleSelection;
-      feedId = key[1];
-      folderId = key[2];
-
-      feed = this.getFeedOrThrow(this.state.contentTree, [feedId, folderId]);
-      title = feed.title;
-      favicon = feed.favicon;
-      article = this.getArticleOrThrow(this.state.contentTree, key);
-
-      entries.push([article, title, favicon, feedId, folderId]);
-      break;
-    case SelectionType.Feed:
-      [feedId, folderId] = this.state.selectionKey as FeedSelection;
-
-      feed = this.getFeedOrThrow(this.state.contentTree, [feedId, folderId]);
-      title = feed.title;
-      favicon = feed.favicon;
-
-      feed.articles.forEach((article: Article) => {
-        entries.push([article, title, favicon, feedId, folderId]);
-      });
-      break;
-    case SelectionType.Folder:
-      folderId = this.state.selectionKey as FolderSelection;
-
-      folderData = this.getFolderOrThrow(this.state.contentTree, folderId);
-
-      folderData.feeds.forEach(
-        (feed: Feed) => {
-          feed.articles.forEach(
-            (article: Article) => {
-              entries.push([article, feed.title, feed.favicon, feed.id, folderId])
-            });
-        });
-      break;
-    case SelectionType.All:
-      this.state.contentTree.forEach(
-        (folder: Folder, folderId: FolderId) => {
-          folder.feeds.forEach(
-            (feed: Feed) => {
-              feed.articles.forEach(
-                (article: Article) => {
-                  entries.push([article, feed.title, feed.favicon, feed.id, folderId])
-                });
-            });
-        });
-      break
-    }
-
-    return this.sortArticles(entries.filter(this.articleIsUnread));
-  }
-
   populateArticleListEntriesCls(): ArticleListEntry[] {
     const entries: ArticleListEntry[] = this.state.contentTreeCls.GetEntries(
       this.state.selectionKey, this.state.selectionType);
@@ -399,51 +252,13 @@ export default class App extends React.Component<AppProps, AppState> {
 
     switch (event.key) {
     case 't':
-      this.toggleColorMode();
+      this.setState((prevState: Readonly<AppState>) => {
+        return {
+          theme: prevState.theme === Theme.Default ? Theme.Dark : Theme.Default
+        }
+      });
       break;
     }
-  }
-
-  toggleColorMode = () => {
-    this.setState((prevState) => {
-      if (prevState.theme === Theme.Default) {
-        return {
-          theme: Theme.Dark
-        }
-      } else {
-        return {
-          theme: Theme.Default
-        }
-      }
-    });
-  }
-
-  getFolderOrThrow(structure: Map<FolderId, Folder>, folderId: FolderSelection): Folder {
-    const folderData = structure.get(folderId);
-    if (folderData === undefined) {
-      throw new Error("Unknown group: " + folderId);
-    }
-    return folderData;
-  }
-
-  getFeedOrThrow(structure: Map<FolderId, Folder>, feedSelection: FeedSelection): Feed {
-    const [feedId, folderId] = feedSelection;
-    const folder = this.getFolderOrThrow(structure, folderId);
-    const feed = folder.feeds.get(feedId);
-    if (feed === undefined) {
-      throw new Error("Unknown feed: " + feedSelection);
-    }
-    return feed;
-  }
-
-  getArticleOrThrow(structure: Map<FolderId, Folder>, articleSelection: ArticleSelection): Article {
-    const [articleId, feedId, folderId] = articleSelection;
-    const feed = this.getFeedOrThrow(structure, [feedId, folderId]);
-    const article = feed.articles.get(articleId);
-    if (article === undefined) {
-      throw new Error("Unknown feed: " + articleId + " in feed " + feed.id);
-    }
-    return article;
   }
 
   articleIsUnread(articleEntry: ArticleListEntry): boolean {
@@ -456,22 +271,5 @@ export default class App extends React.Component<AppProps, AppState> {
     return articles.sort(
       (a: ArticleListEntry, b: ArticleListEntry) =>
         b[0].created_on_time - a[0].created_on_time);
-  }
-
-  updateUnreadCount(structure: Map<FolderId, Folder>): number {
-    structure.forEach((folder: Folder) => {
-      folder.feeds.forEach((feed: Feed) => {
-        const articles = Array.from(feed.articles.values());
-        feed.unread_count = articles.reduce(
-          (acc: number, a: Article) => acc + (1 - a.is_read), 0);
-      });
-
-      const feeds = Array.from(folder.feeds.values());
-      folder.unread_count = Array.from(feeds.values()).reduce(
-        (acc: number, f: Feed) => acc + f.unread_count, 0);
-    });
-
-    return Array.from(structure.values()).reduce(
-      (acc: number, f: Folder) => acc + f.unread_count, 0);
   }
 }

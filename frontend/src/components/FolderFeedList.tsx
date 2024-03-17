@@ -10,7 +10,6 @@ import {FolderView} from "../models/folder";
 import {FeedView} from "../models/feed";
 
 export interface FolderFeedListProps {
-  //tree: Map<FolderId, Folder>;
   folderFeedView: Map<FolderView, FeedView[]>;
   unreadCount: number;
   selectedKey: SelectionKey;
