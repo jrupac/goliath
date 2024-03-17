@@ -86,12 +86,15 @@ export class ArticleCls {
     return this.id;
   }
 
-  public CreateTime(): number {
-    return this.created_on_time;
-  }
-
   public static Comparator(a: ArticleCls, b: ArticleCls): number {
     // Sort by article creation time in descending order
-    return b.CreateTime() - a.CreateTime();
+    return b.created_on_time - a.created_on_time;
+  }
+
+  public static SortAndFilterViews(articleViews: ArticleView[]): ArticleView[] {
+    const filterUnread = (a: ArticleView) => !(a.is_read === 1) as boolean;
+    const comparator = (a: ArticleView, b: ArticleView) =>
+      b.created_on_time - a.created_on_time;
+    return articleViews.filter(filterUnread).sort(comparator);
   }
 }

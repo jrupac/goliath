@@ -29,7 +29,6 @@ import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion, VersionData} from "./api/goliath";
 import {RouteComponentProps} from "react-router-dom";
 import {ContentTreeCls} from "./models/contentTree";
-import {ArticleView} from "./models/article";
 
 // AppProps needs to extend RouteComponentProps to get "history".
 export interface AppProps extends RouteComponentProps {
@@ -184,6 +183,9 @@ export default class App extends React.Component<AppProps, AppState> {
       document.title = `(${unreadCount})  Goliath RSS`;
     }
 
+    const selectionKey: SelectionKey = this.state.selectionKey;
+    const selectionType: SelectionType = this.state.selectionType;
+
     return (
       <ThemeProvider theme={theme}>
         {/* TODO: Is there a better way to inject overrides than this? */}
@@ -204,8 +206,8 @@ export default class App extends React.Component<AppProps, AppState> {
               <FolderFeedList
                 folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
                 unreadCount={unreadCount}
-                selectedKey={this.state.selectionKey}
-                selectionType={this.state.selectionType}
+                selectedKey={selectionKey}
+                selectionType={selectionType}
                 handleSelect={this.handleSelect}/>
             </Box>
             <Divider variant="middle"/>
@@ -224,11 +226,13 @@ export default class App extends React.Component<AppProps, AppState> {
           >
             <Box>
               <ArticleList
-                articleEntriesCls={this.populateArticleListEntriesCls()}
-                selectionKey={this.state.selectionKey}
-                selectionType={this.state.selectionType}
+                articleEntriesCls={this.state.contentTreeCls.GetArticleView(
+                  selectionKey, selectionType)}
+                selectionKey={selectionKey}
+                selectionType={selectionType}
                 handleMark={this.handleMark}
-                selectAllCallback={() => this.handleSelect(SelectionType.All, KeyAll)}/>
+                selectAllCallback={() => this.handleSelect(
+                  SelectionType.All, KeyAll)}/>
             </Box>
           </Box>
         </Box>
@@ -253,22 +257,5 @@ export default class App extends React.Component<AppProps, AppState> {
       });
       break;
     }
-  }
-
-  populateArticleListEntriesCls(): ArticleView[] {
-    const entries: ArticleView[] = this.state.contentTreeCls.GetArticleView(
-      this.state.selectionKey, this.state.selectionType);
-    return this.sortArticles(entries.filter(this.articleIsUnread));
-  }
-
-  articleIsUnread(articleEntry: ArticleView): boolean {
-    return !(articleEntry.is_read === 1) as boolean;
-  }
-
-  sortArticles(articles: ArticleView[]) {
-    // Sort by descending time.
-    return articles.sort(
-      (a: ArticleView, b: ArticleView) =>
-        b.created_on_time - a.created_on_time);
   }
 }

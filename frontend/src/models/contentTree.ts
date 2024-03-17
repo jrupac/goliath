@@ -8,7 +8,7 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-import {ArticleId, ArticleView} from "./article";
+import {ArticleCls, ArticleId, ArticleView,} from "./article";
 
 /** ContentTreeCls contains a tree of folders, feeds, and articles. */
 export class ContentTreeCls {
@@ -79,25 +79,30 @@ export class ContentTreeCls {
 
   public GetArticleView(key: SelectionKey, type: SelectionType): ArticleView[] {
     let articleId: ArticleId, feedId: FeedId, folderId: FolderId;
-    let entries: ArticleView[] = [];
+    let articleViews: ArticleView[] = [];
 
     switch (type) {
     case SelectionType.Article:
       [articleId, feedId, folderId] = key as ArticleSelection;
-      return this.getFolderOrThrow(folderId).GetArticleView(feedId, articleId);
+      articleViews = this.getFolderOrThrow(folderId).GetArticleView(
+        feedId, articleId);
+      break;
     case SelectionType.Feed:
       [feedId, folderId] = key as FeedSelection;
-      return this.getFolderOrThrow(folderId).GetArticleView(feedId);
+      articleViews = this.getFolderOrThrow(folderId).GetArticleView(feedId);
+      break;
     case SelectionType.Folder:
       folderId = key as FolderSelection;
-      return this.getFolderOrThrow(folderId).GetArticleView();
+      articleViews = this.getFolderOrThrow(folderId).GetArticleView();
+      break;
     case SelectionType.All:
       this.tree.forEach((f: FolderCls): void => {
-        entries = entries.concat(f.GetArticleView());
+        articleViews = articleViews.concat(f.GetArticleView());
       });
+      break;
     }
 
-    return entries;
+    return ArticleCls.SortAndFilterViews(articleViews);
   }
 
   public GetFolderFeedView(): Map<FolderView, FeedView[]> {
