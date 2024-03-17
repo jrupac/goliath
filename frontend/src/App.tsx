@@ -4,7 +4,6 @@ import FolderFeedList from './components/FolderFeedList';
 import Loading from './components/Loading';
 import React from 'react';
 import {
-  ArticleListEntry,
   GoliathPath,
   KeyAll,
   MarkState,
@@ -30,6 +29,7 @@ import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion, VersionData} from "./api/goliath";
 import {RouteComponentProps} from "react-router-dom";
 import {ContentTreeCls} from "./models/contentTree";
+import {ArticleView} from "./models/article";
 
 // AppProps needs to extend RouteComponentProps to get "history".
 export interface AppProps extends RouteComponentProps {
@@ -255,20 +255,20 @@ export default class App extends React.Component<AppProps, AppState> {
     }
   }
 
-  populateArticleListEntriesCls(): ArticleListEntry[] {
-    const entries: ArticleListEntry[] = this.state.contentTreeCls.GetEntries(
+  populateArticleListEntriesCls(): ArticleView[] {
+    const entries: ArticleView[] = this.state.contentTreeCls.GetEntries(
       this.state.selectionKey, this.state.selectionType);
     return this.sortArticles(entries.filter(this.articleIsUnread));
   }
 
-  articleIsUnread(articleEntry: ArticleListEntry): boolean {
+  articleIsUnread(articleEntry: ArticleView): boolean {
     return !(articleEntry.is_read === 1) as boolean;
   }
 
-  sortArticles(articles: ArticleListEntry[]) {
+  sortArticles(articles: ArticleView[]) {
     // Sort by descending time.
     return articles.sort(
-      (a: ArticleListEntry, b: ArticleListEntry) =>
+      (a: ArticleView, b: ArticleView) =>
         b.created_on_time - a.created_on_time);
   }
 }

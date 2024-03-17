@@ -1,12 +1,12 @@
 import React from "react";
-import {ArticleImagePreview, ArticleListEntry} from "../utils/types";
+import {ArticleImagePreview} from "../utils/types";
 import {Avatar, Chip, Divider, Grid, Paper, Typography} from "@mui/material";
 import {extractText, formatFriendly} from "../utils/helpers";
 import RssFeedIcon from "@mui/icons-material/RssFeed";
 import {ArticleView} from "../models/article";
 
 export interface SplitViewArticleListEntryProps {
-  articleView: ArticleListEntry,
+  articleView: ArticleView,
   preview: ArticleImagePreview | undefined,
   selected: boolean
 }

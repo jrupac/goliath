@@ -5,6 +5,7 @@ import {FolderId} from "./folder";
 /** ArticleId is the ID associated with an Article object. */
 export type ArticleId = string;
 
+/** ArticleView holds metadata associated with a displayed Article. */
 export interface ArticleView {
   // Folder metadata
   folder_id: FolderId;
@@ -37,7 +38,8 @@ export class ArticleCls {
   private readonly created_on_time: number;
   private readStatus: ReadStatus;
 
-  constructor(id: ArticleId, title: string, author: string, html: string,
+  constructor(
+    id: ArticleId, title: string, author: string, html: string,
     url: string, is_saved: 0 | 1, created_on_time: number,
     is_read: 0 | 1) {
     this.id = id;
@@ -58,7 +60,9 @@ export class ArticleCls {
     return this.readStatus;
   }
 
-  public GetArticleEntry(feedTitle: FeedTitle, favicon: Favicon, feedId: FeedId, folderId: FolderId): ArticleView {
+  public GetArticleView(
+    feedTitle: FeedTitle, favicon: Favicon, feedId: FeedId,
+    folderId: FolderId): ArticleView {
     return {
       folder_id: folderId,
       feed_id: feedId,

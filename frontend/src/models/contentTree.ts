@@ -1,7 +1,6 @@
 import {FolderCls, FolderId, FolderView} from "./folder";
 import {FeedId, FeedView} from "./feed";
 import {
-  ArticleListEntry,
   ArticleSelection,
   FeedSelection,
   FolderSelection,
@@ -9,7 +8,7 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-import {ArticleId} from "./article";
+import {ArticleId, ArticleView} from "./article";
 
 /** ContentTreeCls contains a tree of folders, feeds, and articles. */
 export class ContentTreeCls {
@@ -78,9 +77,9 @@ export class ContentTreeCls {
     return this.unread_count;
   }
 
-  public GetEntries(key: SelectionKey, type: SelectionType): ArticleListEntry[] {
+  public GetEntries(key: SelectionKey, type: SelectionType): ArticleView[] {
     let articleId: ArticleId, feedId: FeedId, folderId: FolderId;
-    let entries: ArticleListEntry[] = [];
+    let entries: ArticleView[] = [];
 
     switch (type) {
     case SelectionType.Article:

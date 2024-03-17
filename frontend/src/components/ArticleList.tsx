@@ -3,7 +3,6 @@ import React from "react";
 import ReactList from 'react-list';
 import {
   ArticleImagePreview,
-  ArticleListEntry,
   ArticleListView,
   MarkState,
   SelectionKey,
@@ -23,7 +22,7 @@ const markAllReadSequence = ['Shift', 'I'];
 const keyBufLength = 2;
 
 export interface ArticleListProps {
-  articleEntriesCls: ArticleListEntry[];
+  articleEntriesCls: ArticleView[];
   selectionKey: SelectionKey;
   selectionType: SelectionType;
   selectAllCallback: () => void;
@@ -31,7 +30,7 @@ export interface ArticleListProps {
 }
 
 export interface ArticleListState {
-  articleEntries: ArticleListEntry[];
+  articleEntries: ArticleView[];
   articleImagePreviews: LRUCache<ArticleId, ArticleImagePreview>;
 
   scrollIndex: number;
@@ -300,7 +299,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       } else if (markAllReadSequence.every((e, i) => e === keypressBuffer[i])) {
         this.props.handleMark(
           'read', this.props.selectionKey, this.props.selectionType);
-        articleEntries.forEach((e: ArticleListEntry) => e.is_read = 1);
+        articleEntries.forEach((e: ArticleView) => e.is_read = 1);
         keypressBuffer = new Array(keyBufLength);
       } else {
         switch (event.key) {
