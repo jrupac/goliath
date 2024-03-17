@@ -9,22 +9,52 @@ import {Decimal} from "decimal.js-light";
 import {cookieExists, maxDecimal, parseJson} from "../utils/helpers";
 import {FetchAPI, LoginInfo} from "./interface";
 import {ContentTreeCls} from "../models/contentTree";
-import {Article, ArticleCls} from "../models/article";
+import {ArticleCls, ArticleId} from "../models/article";
 import {FolderCls, FolderId} from "../models/folder";
-import {FaviconCls, FaviconId, Feed, FeedCls, FeedId} from "../models/feed";
+import {Favicon, FaviconCls, FeedCls, FeedId, FeedTitle} from "../models/feed";
 
 // The server sets a cookie with this name on successful login.
 const feverAuthCookie: string = "goliath";
 
-// The following several interfaces conform to the Fever API.
-interface FeverFeedGroupType {
-  group_id: string;
-  feed_ids: string;
+/**
+ * The following several interfaces conform to the Fever API.
+ */
+
+type FaviconId = string;
+
+interface Article {
+  id: ArticleId;
+  feed_id: FeedId;
+  title: string;
+  author: string;
+  html: string;
+  url: string;
+  is_saved: 0 | 1;
+  is_read: 0 | 1;
+  created_on_time: number;
+}
+
+interface Feed {
+  id: FeedId;
+  favicon_id: FaviconId;
+  favicon: Favicon;
+  title: FeedTitle;
+  url: string;
+  site_url: string;
+  is_spark: 0 | 1;
+  last_updated_on_time: number;
+  unread_count: number;
+  articles: Map<ArticleId, Article>;
 }
 
 interface FeverGroupType {
   id: string;
   title: string;
+}
+
+interface FeverFeedGroupType {
+  group_id: string;
+  feed_ids: string;
 }
 
 interface FeverFaviconType {

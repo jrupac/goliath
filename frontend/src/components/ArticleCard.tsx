@@ -14,11 +14,11 @@ import {
   makeAbsolute
 } from "../utils/helpers";
 import RssFeedOutlinedIcon from "@mui/icons-material/RssFeedOutlined";
+import {ArticleView} from "../models/article";
 
-import {Article} from "../models/article";
 
 export interface ArticleProps {
-  article: Article;
+  article: ArticleView;
   title: string;
   favicon: string;
   isSelected: boolean;

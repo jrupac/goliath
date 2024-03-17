@@ -1,29 +1,14 @@
-import {Article, ArticleCls, ArticleId, ReadStatus} from "./article";
+import {ArticleCls, ArticleId, ReadStatus} from "./article";
 import {FeedEntry, MarkState} from "../utils/types";
 import {FolderId} from "./folder";
+//import {Favicon} from "../api/fever";
 
 /** Feed is a content source which contains zero or more articles. */
 export type FeedId = string;
 /** FeedTitle is the textual title of a feed. */
 export type FeedTitle = string;
-
-/** FaviconId is the ID of the favicon associated with a feed. */
-export type FaviconId = string;
-// Favicon is described by a MIME type followed by a base64 encoding.
+/** Favicon is described by a MIME type followed by a base64 encoding. */
 export type Favicon = string;
-
-export interface Feed {
-  id: FeedId;
-  favicon_id: FaviconId;
-  favicon: Favicon;
-  title: FeedTitle;
-  url: string;
-  site_url: string;
-  is_spark: 0 | 1;
-  last_updated_on_time: number;
-  unread_count: number;
-  articles: Map<ArticleId, Article>;
-}
 
 export class FaviconCls {
   private readonly data: Favicon;

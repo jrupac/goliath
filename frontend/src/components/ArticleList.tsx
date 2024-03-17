@@ -16,7 +16,7 @@ import LRUCache from "lru-cache";
 import {DoneAllRounded} from "@mui/icons-material";
 import smartcrop from "smartcrop";
 
-import {Article, ArticleId} from "../models/article";
+import {ArticleId, ArticleView} from "../models/article";
 
 const goToAllSequence = ['g', 'a'];
 const markAllReadSequence = ['Shift', 'I'];
@@ -168,7 +168,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       shouldRerender={() => this.handleRerender()}/>
   }
 
-  async generateImagePreview(article: Article) {
+  async generateImagePreview(article: ArticleView) {
     // Already generated preview for this article, so nothing to do.
     if (this.state.articleImagePreviews.has(article.id)) {
       return;

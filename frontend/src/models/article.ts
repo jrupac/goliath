@@ -1,18 +1,14 @@
 import {MarkState} from "../utils/types";
-import {FeedId} from "./feed";
 
 /** ArticleId is the ID associated with an Article object. */
 export type ArticleId = string;
 
-/** Article is a single unit of content. */
-export interface Article {
+export interface ArticleView {
   id: ArticleId;
-  feed_id: FeedId;
   title: string;
   author: string;
   html: string;
   url: string;
-  is_saved: 0 | 1;
   is_read: 0 | 1;
   created_on_time: number;
 }
@@ -53,15 +49,13 @@ export class ArticleCls {
     return this.readStatus;
   }
 
-  public GetArticleEntry(): Article {
+  public GetArticleEntry(): ArticleView {
     return {
       id: this.id,
-      feed_id: "", // Not passed to this object
       title: this.title,
       author: this.author,
       html: this.html,
       url: this.url,
-      is_saved: this.is_saved,
       is_read: (this.readStatus === ReadStatus.Read) ? 1 : 0,
       created_on_time: this.created_on_time,
     };

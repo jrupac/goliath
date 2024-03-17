@@ -1,15 +1,9 @@
-import {Feed, FeedCls, FeedId, FeedTitle, FeedView} from "./feed";
+import {FeedCls, FeedId, FeedTitle, FeedView} from "./feed";
 import {ArticleListEntry, FeedEntry, MarkState} from "../utils/types";
 import {ArticleId} from "./article";
 
 /** FolderId is the ID of a Folder object. */
 export type FolderId = string;
-/** Folder is a logical grouping of zero or more Feeds. */
-export type Folder = {
-  title: string;
-  unread_count: number;
-  feeds: Map<FeedId, Feed>;
-}
 
 export interface FolderView {
   id: FolderId;

@@ -1,6 +1,6 @@
 /** Global types for Goliath RSS */
 
-import {Article, ArticleId} from "../models/article";
+import {ArticleId, ArticleView} from "../models/article";
 import {FolderId} from "../models/folder";
 import {Favicon, FeedId, FeedTitle} from "../models/feed";
 
@@ -64,7 +64,7 @@ export enum ArticleListView {
   Split = 1,
 }
 
-export type ArticleEntry = Article;
+export type ArticleEntry = ArticleView;
 export type FeedEntry = [ArticleEntry, FeedTitle, Favicon, FeedId];
 /** ArticleListEntry also holds metadata associated with a displayed Article. */
 export type ArticleListEntry = [...FeedEntry, FolderId];
