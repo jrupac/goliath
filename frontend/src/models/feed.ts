@@ -1,5 +1,5 @@
 import {ArticleCls, ArticleId, ReadStatus} from "./article";
-import {FeedEntry, MarkState} from "../utils/types";
+import {ArticleListEntry, MarkState} from "../utils/types";
 import {FolderId} from "./folder";
 //import {Favicon} from "../api/fever";
 
@@ -94,20 +94,20 @@ export class FeedCls {
     return this.unread_count;
   }
 
-  public GetArticleEntry(articleId: ArticleId): FeedEntry {
+  public GetArticleEntry(articleId: ArticleId, folderId: FolderId): ArticleListEntry[] {
     const article: ArticleCls = this.getArticleOrThrow(articleId);
     const favicon: Favicon = (this.favicon ===
       null) ? "" : this.favicon.GetFavicon();
-    return [article.GetArticleEntry(), this.title, favicon, this.id];
+    return [article.GetArticleEntry(this.title, favicon, this.id, folderId)];
   }
 
-  public GetFeedEntry(): FeedEntry[] {
-    const entries: FeedEntry[] = [];
+  public GetFeedEntry(folderId: FolderId): ArticleListEntry[] {
+    const entries: ArticleListEntry[] = [];
     const favicon: Favicon = (this.favicon ===
       null) ? "" : this.favicon.GetFavicon();
 
     this.articles.forEach((a: ArticleCls): void => {
-      entries.push([a.GetArticleEntry(), this.title, favicon, this.id]);
+      entries.push(a.GetArticleEntry(this.title, favicon, this.id, folderId));
     });
 
     return entries;

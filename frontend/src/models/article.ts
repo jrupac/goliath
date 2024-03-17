@@ -1,9 +1,18 @@
 import {MarkState} from "../utils/types";
+import {Favicon, FeedId, FeedTitle} from "./feed";
+import {FolderId} from "./folder";
 
 /** ArticleId is the ID associated with an Article object. */
 export type ArticleId = string;
 
 export interface ArticleView {
+  // Folder metadata
+  folder_id: FolderId;
+  // Feed metadata
+  feed_id: FeedId;
+  feed_title: FeedTitle;
+  favicon: Favicon;
+  // Article metadata and content
   id: ArticleId;
   title: string;
   author: string;
@@ -49,8 +58,12 @@ export class ArticleCls {
     return this.readStatus;
   }
 
-  public GetArticleEntry(): ArticleView {
+  public GetArticleEntry(feedTitle: FeedTitle, favicon: Favicon, feedId: FeedId, folderId: FolderId): ArticleView {
     return {
+      folder_id: folderId,
+      feed_id: feedId,
+      feed_title: feedTitle,
+      favicon: favicon,
       id: this.id,
       title: this.title,
       author: this.author,

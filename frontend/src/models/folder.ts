@@ -1,5 +1,5 @@
 import {FeedCls, FeedId, FeedTitle, FeedView} from "./feed";
-import {ArticleListEntry, FeedEntry, MarkState} from "../utils/types";
+import {ArticleListEntry, MarkState} from "../utils/types";
 import {ArticleId} from "./article";
 
 /** FolderId is the ID of a Folder object. */
@@ -70,29 +70,19 @@ export class FolderCls {
 
   public GetArticleEntry(articleId: ArticleId, feedId: FeedId): ArticleListEntry[] {
     const feed: FeedCls = this.getFeedOrThrow(feedId);
-    return [
-      [...feed.GetArticleEntry(articleId), this.id],
-    ];
+    return feed.GetArticleEntry(articleId, this.id);
   }
 
   public GetFeedEntry(feedId: FeedId): ArticleListEntry[] {
-    const entries: ArticleListEntry[] = [];
     const feed: FeedCls = this.getFeedOrThrow(feedId);
-
-    feed.GetFeedEntry().forEach((e: FeedEntry): void => {
-      entries.push([...e, this.id]);
-    })
-
-    return entries;
+    return feed.GetFeedEntry(this.id);
   }
 
   public GetFolderEntry(): ArticleListEntry[] {
-    const entries: ArticleListEntry[] = [];
+    let entries: ArticleListEntry[] = [];
 
     this.feeds.forEach((f: FeedCls): void => {
-      f.GetFeedEntry().forEach((e: FeedEntry): void => {
-        entries.push([...e, this.id]);
-      })
+      entries = entries.concat(f.GetFeedEntry(this.id));
     });
 
     return entries;

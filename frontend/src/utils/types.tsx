@@ -2,7 +2,7 @@
 
 import {ArticleId, ArticleView} from "../models/article";
 import {FolderId} from "../models/folder";
-import {Favicon, FeedId, FeedTitle} from "../models/feed";
+import {FeedId} from "../models/feed";
 
 /** Well-known paths for the frontend. */
 export enum GoliathPath {
@@ -58,10 +58,8 @@ export enum ArticleListView {
   Split = 1,
 }
 
-export type ArticleEntry = ArticleView;
-export type FeedEntry = [ArticleEntry, FeedTitle, Favicon, FeedId];
 /** ArticleListEntry also holds metadata associated with a displayed Article. */
-export type ArticleListEntry = [...FeedEntry, FolderId];
+export type ArticleListEntry = ArticleView;
 
 /** ArticleImagePreview holds cropping information for image previews. */
 export type ArticleImagePreview = {

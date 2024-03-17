@@ -262,14 +262,13 @@ export default class App extends React.Component<AppProps, AppState> {
   }
 
   articleIsUnread(articleEntry: ArticleListEntry): boolean {
-    const [article] = articleEntry;
-    return !(article.is_read === 1) as boolean;
+    return !(articleEntry.is_read === 1) as boolean;
   }
 
   sortArticles(articles: ArticleListEntry[]) {
     // Sort by descending time.
     return articles.sort(
       (a: ArticleListEntry, b: ArticleListEntry) =>
-        b[0].created_on_time - a[0].created_on_time);
+        b.created_on_time - a.created_on_time);
   }
 }

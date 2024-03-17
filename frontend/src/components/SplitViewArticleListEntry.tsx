@@ -3,9 +3,10 @@ import {ArticleImagePreview, ArticleListEntry} from "../utils/types";
 import {Avatar, Chip, Divider, Grid, Paper, Typography} from "@mui/material";
 import {extractText, formatFriendly} from "../utils/helpers";
 import RssFeedIcon from "@mui/icons-material/RssFeed";
+import {ArticleView} from "../models/article";
 
 export interface SplitViewArticleListEntryProps {
-  article: ArticleListEntry,
+  articleView: ArticleListEntry,
   preview: ArticleImagePreview | undefined,
   selected: boolean
 }
@@ -19,35 +20,34 @@ export default class SplitViewArticleListEntry
   extends React.PureComponent<SplitViewArticleListEntryProps, SplitViewArticleListEntryState> {
   constructor(props: SplitViewArticleListEntryProps) {
     super(props);
-    const [article] = props.article;
     this.state = {
-      extractedTitle: extractText(article.title) || "",
-      extractedContent: extractText(article.html) || ""
+      extractedTitle: extractText(this.props.articleView.title) || "",
+      extractedContent: extractText(this.props.articleView.html) || ""
     }
   }
 
   componentDidUpdate(prevProps: SplitViewArticleListEntryProps) {
-    const [article] = this.props.article;
-    const [prevArticle] = prevProps.article;
+    const curArticle: ArticleView = this.props.articleView;
+    const prevArticle: ArticleView = prevProps.articleView;
 
-    if (article.id === prevArticle.id) {
+    if (curArticle.id === prevArticle.id) {
       return;
     }
 
     this.setState({
-      extractedTitle: extractText(article.title) || "",
-      extractedContent: extractText(article.html) || ""
+      extractedTitle: extractText(curArticle.title) || "",
+      extractedContent: extractText(curArticle.html) || ""
     });
   }
 
   render() {
-    const [article] = this.props.article;
+    const articleView: ArticleView = this.props.articleView;
 
     let elevation = 3, extraClasses = ["GoliathArticleListBase"];
     if (this.props.selected) {
       elevation = 10;
       extraClasses.push("GoliathArticleListSelected");
-    } else if (article.is_read === 1) {
+    } else if (articleView.is_read === 1) {
       elevation = 0;
       extraClasses.push("GoliathArticleListRead");
     }
@@ -87,15 +87,16 @@ export default class SplitViewArticleListEntry
   }
 
   renderMeta() {
-    const [article, , favicon] = this.props.article;
+    const articleView: ArticleView = this.props.articleView;
     const extractedTitle = this.state.extractedTitle;
-    const date = new Date(article.created_on_time * 1000);
-    if (favicon) {
+    const date = new Date(articleView.created_on_time * 1000);
+    if (articleView.favicon) {
       return (
         <Chip
           size="small"
           className="GoliathArticleListMetaChip"
-          avatar={<Avatar src={`data:${favicon}`} alt={extractedTitle}/>}
+          avatar={<Avatar
+            src={`data:${articleView.favicon}`} alt={extractedTitle}/>}
           label={formatFriendly(date)}/>);
     } else {
       return (

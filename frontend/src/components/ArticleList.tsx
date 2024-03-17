@@ -98,7 +98,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     } else {
       const articles = this.state.articleEntries;
       const renderIndex = Math.max(0, this.state.scrollIndex);
-      const [article, title, favicon] = articles[renderIndex];
+      const articleView = articles[renderIndex];
 
       if (this.state.articleViewToggleState === ArticleListView.Combined) {
         return (
@@ -132,10 +132,10 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
             </Grid>
             <Grid item xs className="GoliathSplitViewArticleOuter">
               <SplitViewArticleCard
-                key={article.id.toString()}
-                article={article}
-                title={title}
-                favicon={favicon}
+                key={articleView.id}
+                article={articleView}
+                title={articleView.title}
+                favicon={articleView.favicon}
                 isSelected={true}/>
             </Grid>
           </Grid>
@@ -145,25 +145,24 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
   }
 
   renderSplitViewArticleListEntry(index: number) {
-    const articleEntry = this.state.articleEntries[index];
-    const [article] = articleEntry;
-    this.generateImagePreview(article).then();
+    const articleView: ArticleView = this.state.articleEntries[index];
+    this.generateImagePreview(articleView).then();
 
     return <SplitViewArticleListEntry
-      key={article.id.toString()}
-      article={articleEntry}
-      preview={this.state.articleImagePreviews.get(article.id)}
+      key={articleView.id}
+      articleView={articleView}
+      preview={this.state.articleImagePreviews.get(articleView.id)}
       selected={index === this.state.scrollIndex}/>
   }
 
   renderArticle(index: number) {
-    const [article, title, favicon] = this.state.articleEntries[index];
+    const articleView: ArticleView = this.state.articleEntries[index];
 
     return <ArticleCard
-      key={article.id.toString()}
-      article={article}
-      title={title}
-      favicon={favicon}
+      key={articleView.id}
+      article={articleView}
+      title={articleView.title}
+      favicon={articleView.favicon}
       isSelected={index === this.state.scrollIndex}
       shouldRerender={() => this.handleRerender()}/>
   }
@@ -289,7 +288,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       let scrollIndex = prevState.scrollIndex;
       let articleEntries = Array.from(prevState.articleEntries);
       let articleViewToggleState = prevState.articleViewToggleState;
-      const [article] = this.state.articleEntries[scrollIndex];
+      const articleView: ArticleView = this.state.articleEntries[scrollIndex];
 
       // Add new keypress to buffer, dropping the oldest entry.
       let keypressBuffer = [...prevState.keypressBuffer.slice(1), event.key];
@@ -301,10 +300,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       } else if (markAllReadSequence.every((e, i) => e === keypressBuffer[i])) {
         this.props.handleMark(
           'read', this.props.selectionKey, this.props.selectionType);
-        articleEntries.forEach((e: ArticleListEntry) => {
-          const [article] = e;
-          article.is_read = 1
-        });
+        articleEntries.forEach((e: ArticleListEntry) => e.is_read = 1);
         keypressBuffer = new Array(keyBufLength);
       } else {
         switch (event.key) {
@@ -336,7 +332,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
             scrollIndex = 0;
           }
 
-          window.open(article.url, '_blank');
+          window.open(articleView.url, '_blank');
           break;
         default:
           // No known key pressed, just ignore.
@@ -344,13 +340,11 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         }
       }
 
-      const entry = articleEntries[prevState.scrollIndex];
-      const [, , , feedId, folderId] = entry;
-
-      if (!(article.is_read === 1)) {
+      if (!(articleView.is_read === 1)) {
         this.props.handleMark(
-          'read', [article.id, feedId, folderId], SelectionType.Article);
-        article.is_read = 1;
+          'read', [articleView.id, articleView.feed_id, articleView.folder_id],
+          SelectionType.Article);
+        articleView.is_read = 1;
       }
 
       return {
