@@ -77,28 +77,27 @@ export default class App extends React.Component<AppProps, AppState> {
         });
         return;
       }
-
-      window.addEventListener('keydown', this.handleKeyDown);
-
-      await this.fetchVersion();
-      console.log("Fetched version info.")
-
-      const treeCls: ContentTreeCls = await this.fetchApi.InitializeContent(
-        this.updateState);
-      console.log("Completed all Fever requests.")
-      this.setState({
-        contentTreeCls: treeCls,
-        status: Status.Ready
-      });
+      await this.init();
     })
   }
 
-  async fetchVersion(): Promise<void> {
+  async init(): Promise<void> {
+    window.addEventListener('keydown', this.handleKeyDown);
+
     const versionData: VersionData = await GetVersion();
     this.setState({
       buildTimestamp: versionData.build_timestamp,
       buildHash: versionData.build_hash
     })
+    console.log("Fetched version info.")
+
+    const treeCls: ContentTreeCls = await this.fetchApi.InitializeContent(
+      this.updateState);
+    this.setState({
+      contentTreeCls: treeCls,
+      status: Status.Ready
+    });
+    console.log("Completed all Fever requests.")
   }
 
   updateState = (status: Status): void => {
@@ -144,6 +143,25 @@ export default class App extends React.Component<AppProps, AppState> {
       selectionType: type,
     });
   };
+
+  handleKeyDown = (event: KeyboardEvent) => {
+    // Ignore keypress events when some modifiers are also enabled to avoid
+    // triggering on (e.g.) browser shortcuts. Shift is the exception here since
+    // we do care about Shift+I.
+    if (event.altKey || event.metaKey || event.ctrlKey) {
+      return;
+    }
+
+    switch (event.key) {
+    case 't':
+      this.setState((prevState: Readonly<AppState>) => {
+        return {
+          theme: prevState.theme === Theme.Default ? Theme.Dark : Theme.Default
+        }
+      });
+      break;
+    }
+  }
 
   render() {
     let themeClasses: string, paletteMode: PaletteMode;
@@ -238,24 +256,5 @@ export default class App extends React.Component<AppProps, AppState> {
         </Box>
       </ThemeProvider>
     );
-  }
-
-  handleKeyDown = (event: KeyboardEvent) => {
-    // Ignore keypress events when some modifiers are also enabled to avoid
-    // triggering on (e.g.) browser shortcuts. Shift is the exception here since
-    // we do care about Shift+I.
-    if (event.altKey || event.metaKey || event.ctrlKey) {
-      return;
-    }
-
-    switch (event.key) {
-    case 't':
-      this.setState((prevState: Readonly<AppState>) => {
-        return {
-          theme: prevState.theme === Theme.Default ? Theme.Dark : Theme.Default
-        }
-      });
-      break;
-    }
   }
 }
