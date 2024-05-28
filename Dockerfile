@@ -44,8 +44,6 @@ RUN go build -v -mod=mod -ldflags  \
 
 FROM node:lts AS frontend_builder_prod
 
-ENV NODE_ENV production
-
 WORKDIR /
 
 RUN echo "Populating dependencies..."
@@ -56,6 +54,7 @@ RUN echo "Copying sources..."
 COPY frontend/ .
 
 RUN echo "Building Goliath frontend..."
+ENV NODE_ENV production
 RUN npm run build
 
 # Final deployment image
