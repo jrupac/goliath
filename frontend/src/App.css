@@ -211,6 +211,7 @@
 
 .GoliathMainContainer {
   flex-grow: 1;
+  flex-wrap: nowrap;
 }
 
 /******************************************************************************
@@ -257,7 +258,6 @@
 
 .GoliathSplitViewArticleListBox.MuiBox-root {
   height: 100vh;
-  width: 100vh;
   overflow-y: auto;
 }
 
