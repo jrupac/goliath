@@ -19,7 +19,11 @@ export default defineConfig(() => {
       }),
       viteTsconfigPaths(),
       VitePWA({
-        injectRegister: 'auto'
+        registerType: 'autoUpdate',
+        manifest: false,
+        devOptions: {
+          enabled: true
+        }
       })],
     server: {
       port: 3000,
