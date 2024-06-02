@@ -5,9 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/disintegration/imaging"
 	log "github.com/golang/glog"
 	"github.com/mat/besticon/v3/besticon"
+	"golang.org/x/image/draw"
 	"html"
 	"image"
 	"image/png"
@@ -34,7 +34,8 @@ func maybeResizeImage(folderId int64, feedId int64, bi besticon.Icon, i *image.I
 	if *normalizeFavicons {
 		var buff bytes.Buffer
 
-		resized := imaging.Resize(*i, 256, 256, imaging.Lanczos)
+		resized := image.NewRGBA(image.Rect(0, 0, 256, 256))
+		draw.CatmullRom.Scale(resized, resized.Rect, *i, (*i).Bounds(), draw.Over, nil)
 
 		err := png.Encode(&buff, resized)
 		if err != nil {
