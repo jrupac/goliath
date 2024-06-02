@@ -71,10 +71,11 @@ export default class App extends React.Component<AppProps, AppState> {
     // appropriate cookie is not present. This check is also done on the
     // server side and returns an HTTP redirect.
     this.fetchApi.VerifyAuth().then(async (ok: boolean): Promise<void> => {
+      console.log("Fetched login verification.");
       this.setState({loginVerified: ok});
       this.updateState(Status.LoginVerification);
-      // Don't try to initialize data if login verification failed since
-      // at render, this will result in a redirect to the login page anyway.
+      // Only try to initialize data if login verification succeeded. Otherwise,
+      // the user will be redirected to the login page anyway.
       if (ok) {
         await this.init();
       }
@@ -89,7 +90,7 @@ export default class App extends React.Component<AppProps, AppState> {
       buildTimestamp: versionData.build_timestamp,
       buildHash: versionData.build_hash
     })
-    console.log("Fetched version info.")
+    console.log("Fetched version info.");
 
     const treeCls: ContentTreeCls = await this.fetchApi.InitializeContent(
       this.updateState);
@@ -97,7 +98,7 @@ export default class App extends React.Component<AppProps, AppState> {
       contentTreeCls: treeCls,
       status: Status.Ready
     });
-    console.log("Completed all Fever requests.")
+    console.log("Completed all Fever requests.");
   }
 
   updateState = (status: Status): void => {
