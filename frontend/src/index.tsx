@@ -1,10 +1,13 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import {createRoot} from 'react-dom/client';
 import {BrowserRouter, Route, Switch} from 'react-router-dom';
 import App from './App';
 import Login from './components/Login';
 
-ReactDOM.render(
+const container = document.getElementById('root');
+const root = createRoot(container!);
+
+root.render(
   <BrowserRouter>
     <div className="App">
       <Switch>
@@ -12,6 +15,4 @@ ReactDOM.render(
         <Route path='/' component={App}/>
       </Switch>
     </div>
-  </BrowserRouter>,
-  document.getElementById('root')
-);
+  </BrowserRouter>);
