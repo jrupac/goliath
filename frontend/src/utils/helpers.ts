@@ -4,6 +4,8 @@ import {Readability} from "@mozilla/readability";
 import * as LosslessJSON from "lossless-json";
 
 import {ArticleId} from "../models/article";
+import {GoliathTheme, ThemeInfo} from "./types";
+import {createTheme, darkScrollbar, PaletteMode, Theme} from "@mui/material";
 
 export function extractText(html: string): string | null {
   return new DOMParser()
@@ -70,4 +72,30 @@ export function parseJson(text: string): any {
 export function cookieExists(name: string): boolean {
   const cookies: string[] = document.cookie.split(";");
   return cookies.some((cookie: string) => cookie.trim().startsWith(`${name}=`));
+}
+
+export function populateThemeInfo(themeSetting: GoliathTheme): ThemeInfo {
+  let themeClasses: string, paletteMode: PaletteMode;
+
+  if (themeSetting === GoliathTheme.Default) {
+    themeClasses = 'default-theme';
+    paletteMode = 'light';
+  } else {
+    themeClasses = 'dark-theme';
+    paletteMode = 'dark';
+  }
+
+  const theme: Theme = createTheme({
+    palette: {
+      mode: paletteMode,
+    },
+    components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          body: paletteMode === 'dark' ? darkScrollbar() : null,
+        },
+      },
+    },
+  });
+  return {themeClasses, theme};
 }

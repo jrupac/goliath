@@ -3,15 +3,13 @@ import {Navigate} from "react-router-dom";
 import {
   Box,
   Button,
-  createTheme,
   CssBaseline,
-  darkScrollbar,
-  PaletteMode,
   TextField,
   ThemeProvider
 } from "@mui/material";
 import {FetchAPI, FetchAPIFactory, LoginInfo} from "../api/interface";
-import {GoliathPath, Theme} from "../utils/types";
+import {GoliathPath, ThemeInfo} from "../utils/types";
+import {populateThemeInfo} from "../utils/helpers";
 
 export interface LoginProps {
 }
@@ -33,36 +31,16 @@ export default class Login extends React.Component<LoginProps, any> {
   }
 
   render() {
-    let themeClasses: string, paletteMode: PaletteMode;
-    if (this.state.theme === Theme.Default) {
-      themeClasses = 'default-theme';
-      paletteMode = 'light';
-    } else {
-      themeClasses = 'dark-theme';
-      paletteMode = 'dark';
-    }
-
-    const theme = createTheme({
-      palette: {
-        mode: paletteMode,
-      },
-      components: {
-        MuiCssBaseline: {
-          styleOverrides: {
-            body: paletteMode === 'dark' ? darkScrollbar() : null,
-          },
-        },
-      },
-    });
+    const themeInfo: ThemeInfo = populateThemeInfo(this.state.theme);
 
     if (this.state.loginSuccess) {
       return <Navigate to={GoliathPath.Default} replace={true}/>;
     }
 
     return (
-      <ThemeProvider theme={theme}>
+      <ThemeProvider theme={themeInfo.theme}>
         <CssBaseline/>
-        <Box className={`GoliathLoginPage ${themeClasses}`}>
+        <Box className={`GoliathLoginPage ${themeInfo.themeClasses}`}>
           <Box className='GoliathLoginPageLogo'>Goliath</Box>
           <Box className='GoliathLoginPageSecondary'>
             <Box

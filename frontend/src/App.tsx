@@ -5,30 +5,23 @@ import Loading from './components/Loading';
 import React from 'react';
 import {
   GoliathPath,
+  GoliathTheme,
   KeyAll,
   MarkState,
   SelectionKey,
   SelectionType,
   Status,
-  Theme
+  ThemeInfo
 } from "./utils/types";
 
 import './themes/default.css';
 import './themes/dark.css';
-import {
-  Box,
-  createTheme,
-  CssBaseline,
-  darkScrollbar,
-  Divider,
-  Drawer,
-  PaletteMode,
-  ThemeProvider
-} from "@mui/material";
+import {Box, CssBaseline, Divider, Drawer, ThemeProvider} from "@mui/material";
 import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion, VersionData} from "./api/goliath";
 import {Navigate} from "react-router-dom";
 import {ContentTreeCls} from "./models/contentTree";
+import {populateThemeInfo} from "./utils/helpers";
 
 export interface AppProps {
 }
@@ -40,7 +33,7 @@ export interface AppState {
   selectionType: SelectionType;
   status: Status;
   contentTreeCls: ContentTreeCls;
-  theme: Theme;
+  theme: GoliathTheme;
   loginVerified: boolean;
 }
 
@@ -56,7 +49,7 @@ export default class App extends React.Component<AppProps, AppState> {
       selectionType: SelectionType.All,
       status: Status.Start,
       contentTreeCls: ContentTreeCls.new(),
-      theme: Theme.Dark,
+      theme: GoliathTheme.Dark,
       loginVerified: false,
     };
     this.fetchApi = FetchAPIFactory.Create();
@@ -157,7 +150,8 @@ export default class App extends React.Component<AppProps, AppState> {
     case 't':
       this.setState((prevState: Readonly<AppState>) => {
         return {
-          theme: prevState.theme === Theme.Default ? Theme.Dark : Theme.Default
+          theme: prevState.theme ===
+          GoliathTheme.Default ? GoliathTheme.Dark : GoliathTheme.Default
         }
       });
       break;
@@ -165,27 +159,7 @@ export default class App extends React.Component<AppProps, AppState> {
   }
 
   render() {
-    let themeClasses: string, paletteMode: PaletteMode;
-    if (this.state.theme === Theme.Default) {
-      themeClasses = 'default-theme';
-      paletteMode = 'light';
-    } else {
-      themeClasses = 'dark-theme';
-      paletteMode = 'dark';
-    }
-
-    const theme = createTheme({
-      palette: {
-        mode: paletteMode,
-      },
-      components: {
-        MuiCssBaseline: {
-          styleOverrides: {
-            body: paletteMode === 'dark' ? darkScrollbar() : null,
-          },
-        },
-      },
-    });
+    const themeInfo: ThemeInfo = populateThemeInfo(this.state.theme);
 
     // If login verification has completed and failed, redirect to login page.
     if ((this.state.status & Status.LoginVerification) &&
@@ -195,7 +169,7 @@ export default class App extends React.Component<AppProps, AppState> {
 
     if (this.state.status !== Status.Ready) {
       return (
-        <ThemeProvider theme={theme}>
+        <ThemeProvider theme={themeInfo.theme}>
           <CssBaseline/>
           <Loading status={this.state.status}/>
         </ThemeProvider>);
@@ -205,18 +179,18 @@ export default class App extends React.Component<AppProps, AppState> {
     if (unreadCount === 0) {
       document.title = 'Goliath RSS';
     } else {
-      document.title = `(${unreadCount})  Goliath RSS`;
+      document.title = `(${unreadCount}) Goliath RSS`;
     }
 
     const selectionKey: SelectionKey = this.state.selectionKey;
     const selectionType: SelectionType = this.state.selectionType;
 
     return (
-      <ThemeProvider theme={theme}>
+      <ThemeProvider theme={themeInfo.theme}>
         {/* TODO: Is there a better way to inject overrides than this? */}
         <Box
           sx={{display: 'flex', overflow: 'hidden', height: '100vh'}}
-          className={`${themeClasses}`}>
+          className={`${themeInfo.themeClasses}`}>
           <CssBaseline/>
           <Drawer
             variant="permanent"

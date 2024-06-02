@@ -3,6 +3,7 @@
 import {ArticleId} from "../models/article";
 import {FolderId} from "../models/folder";
 import {FeedId} from "../models/feed";
+import {Theme} from "@mui/material";
 
 /** Well-known paths for the frontend. */
 export enum GoliathPath {
@@ -13,9 +14,14 @@ export enum GoliathPath {
 }
 
 /** Theme is a list of possible theme values for the application. */
-export enum Theme {
+export enum GoliathTheme {
   Default = 0,
   Dark = 1,
+}
+
+export type ThemeInfo = {
+  themeClasses: string,
+  theme: Theme
 }
 
 /** Status describes which items have been fetched so far via the Fever API. */
