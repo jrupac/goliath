@@ -196,9 +196,9 @@ func serve(ctx context.Context, d *storage.Database) error {
 	mux.HandleFunc("/fever/", api.FeverHandler(d))
 	mux.HandleFunc("/greader/", api.GReaderHandler(d))
 	mux.HandleFunc("/version", handleVersion)
-	mux.Handle("/cache", auth.WithAuth(cache.NewImageProxy(), d, *publicFolder, cache.AuthErrorRedirect))
+	mux.Handle("/cache", auth.WithAuth(cache.NewImageProxy(), d, *publicFolder, cache.AuthErrorRedirect, true))
 	mux.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))
-	mux.Handle("/", auth.WithAuth(http.FileServer(http.Dir(*publicFolder)), d, *publicFolder, nil))
+	mux.Handle("/", auth.WithAuth(http.FileServer(http.Dir(*publicFolder)), d, *publicFolder, nil, false))
 	log.Infof("Starting HTTP server on %s", srv.Addr)
 	return srv.ListenAndServe()
 }
