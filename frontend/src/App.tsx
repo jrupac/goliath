@@ -27,13 +27,11 @@ import {
 } from "@mui/material";
 import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion, VersionData} from "./api/goliath";
-import {RouteComponentProps} from "react-router-dom";
+import {Navigate} from "react-router-dom";
 import {ContentTreeCls} from "./models/contentTree";
 
-// AppProps needs to extend RouteComponentProps to get "history".
-export interface AppProps extends RouteComponentProps {
+export interface AppProps {
 }
-
 
 export interface AppState {
   buildTimestamp: string;
@@ -43,10 +41,11 @@ export interface AppState {
   status: Status;
   contentTreeCls: ContentTreeCls;
   theme: Theme;
+  loginVerified: boolean;
 }
 
 export default class App extends React.Component<AppProps, AppState> {
-  fetchApi: FetchAPI;
+  private fetchApi: FetchAPI;
 
   constructor(props: AppProps) {
     super(props);
@@ -58,6 +57,7 @@ export default class App extends React.Component<AppProps, AppState> {
       status: Status.Start,
       contentTreeCls: ContentTreeCls.new(),
       theme: Theme.Dark,
+      loginVerified: false,
     };
     this.fetchApi = FetchAPIFactory.Create();
   }
@@ -71,13 +71,13 @@ export default class App extends React.Component<AppProps, AppState> {
     // appropriate cookie is not present. This check is also done on the
     // server side and returns an HTTP redirect.
     this.fetchApi.VerifyAuth().then(async (ok: boolean): Promise<void> => {
-      if (!ok) {
-        this.props.history.push({
-          pathname: GoliathPath.Login
-        });
-        return;
+      this.setState({loginVerified: ok});
+      this.updateState(Status.LoginVerification);
+      // Don't try to initialize data if login verification failed since
+      // at render, this will result in a redirect to the login page anyway.
+      if (ok) {
+        await this.init();
       }
-      await this.init();
     })
   }
 
@@ -185,6 +185,12 @@ export default class App extends React.Component<AppProps, AppState> {
         },
       },
     });
+
+    // If login verification has completed and failed, redirect to login page.
+    if ((this.state.status & Status.LoginVerification) &&
+      !this.state.loginVerified) {
+      return <Navigate to={GoliathPath.Login} replace={true}/>;
+    }
 
     if (this.state.status !== Status.Ready) {
       return (

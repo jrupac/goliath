@@ -47,14 +47,13 @@
   background-color: #243941;
   justify-content: flex-end;
   padding-right: 20px;
-  font-family: var(--primary-sans-serif-font), cursive;
+  font-family: var(--primary-logo-font), cursive;
   color: #e6f2f7;
   font-size: 48px;
   width: 40%;
 }
 
 .GoliathLoginPageSecondary {
-  background-color: #e6f2f7;
   justify-content: flex-start;
   padding-left: 20px;
   width: 60%;
@@ -96,7 +95,7 @@
 
 .GoliathLogo {
   text-align: center;
-  font-family: 'Pacifico', cursive;
+  font-family: var(--primary-logo-font), cursive;
   color: var(--primary-font-color);
   background-color: var(--primary-background-color);
   font-size: 48px;
@@ -236,7 +235,7 @@
 }
 
 .GoliathArticleListEmptyText.MuiTypography-root {
-  color: var(--article-list-empty-text-font-color);;
+  color: var(--article-list-empty-text-font-color);
   vertical-align: middle;
   font-family: var(--empty-list-font), sans-serif;
   font-size: 32px;

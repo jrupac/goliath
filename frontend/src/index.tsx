@@ -1,6 +1,6 @@
 import React from "react";
 import {createRoot} from 'react-dom/client';
-import {BrowserRouter, Route, Switch} from 'react-router-dom';
+import {BrowserRouter, Route, Routes} from 'react-router-dom';
 import App from './App';
 import Login from './components/Login';
 
@@ -10,9 +10,9 @@ const root = createRoot(container!);
 root.render(
   <BrowserRouter>
     <div className="App">
-      <Switch>
-        <Route exact path='/login' component={Login}/>
-        <Route path='/' component={App}/>
-      </Switch>
+      <Routes>
+        <Route path='/login' element={<Login/>}/>
+        <Route path='/' element={<App/>}/>
+      </Routes>
     </div>
   </BrowserRouter>);

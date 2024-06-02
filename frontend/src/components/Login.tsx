@@ -1,27 +1,29 @@
 import React, {ChangeEvent, FormEvent, ReactNode} from 'react';
-import {RouteComponentProps, withRouter} from "react-router-dom";
+import {Navigate} from "react-router-dom";
 import {
   Box,
   Button,
   createTheme,
   CssBaseline,
+  darkScrollbar,
+  PaletteMode,
   TextField,
   ThemeProvider
 } from "@mui/material";
 import {FetchAPI, FetchAPIFactory, LoginInfo} from "../api/interface";
-import {GoliathPath} from "../utils/types";
+import {GoliathPath, Theme} from "../utils/types";
 
-// WrappedLoginProps needs to extend RouteComponentProps to get "history".
-export interface WrappedLoginProps extends RouteComponentProps {
+export interface LoginProps {
 }
 
-class WrappedLogin extends React.Component<WrappedLoginProps, any> {
+export default class Login extends React.Component<LoginProps, any> {
   private fetchApi: FetchAPI;
 
-  constructor(props: WrappedLoginProps) {
+  constructor(props: LoginProps) {
     super(props);
     this.state = {
-      loginFailed: false,
+      loginAttempted: false,
+      loginSuccess: false,
       usernameMissing: false,
       passwordMissing: false,
       username: "",
@@ -31,12 +33,36 @@ class WrappedLogin extends React.Component<WrappedLoginProps, any> {
   }
 
   render() {
-    const theme = createTheme();
+    let themeClasses: string, paletteMode: PaletteMode;
+    if (this.state.theme === Theme.Default) {
+      themeClasses = 'default-theme';
+      paletteMode = 'light';
+    } else {
+      themeClasses = 'dark-theme';
+      paletteMode = 'dark';
+    }
+
+    const theme = createTheme({
+      palette: {
+        mode: paletteMode,
+      },
+      components: {
+        MuiCssBaseline: {
+          styleOverrides: {
+            body: paletteMode === 'dark' ? darkScrollbar() : null,
+          },
+        },
+      },
+    });
+
+    if (this.state.loginSuccess) {
+      return <Navigate to={GoliathPath.Default} replace={true}/>;
+    }
 
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline/>
-        <Box className='GoliathLoginPage'>
+        <Box className={`GoliathLoginPage ${themeClasses}`}>
           <Box className='GoliathLoginPageLogo'>Goliath</Box>
           <Box className='GoliathLoginPageSecondary'>
             <Box
@@ -80,7 +106,7 @@ class WrappedLogin extends React.Component<WrappedLoginProps, any> {
   }
 
   showLoginFailedMessage = (): ReactNode => {
-    if (this.state.loginFailed) {
+    if (this.state.loginAttempted && !this.state.loginSuccess) {
       return <Box className="GoliathLoginFailedMessage">
         Invalid username or password.
       </Box>
@@ -108,16 +134,11 @@ class WrappedLogin extends React.Component<WrappedLoginProps, any> {
     }
 
     this.fetchApi.HandleAuth(loginInfo).then((ok: boolean) => {
-      if (ok) {
-        this.setState({loginFailed: false});
-        this.props.history.push({
-          pathname: GoliathPath.Default
-        });
-      } else {
-        this.setState({loginFailed: true});
-      }
+      this.setState({
+        loginAttempted: true,
+        loginSuccess: ok
+      });
     });
-
   }
 
   validateForm() {
@@ -134,5 +155,3 @@ class WrappedLogin extends React.Component<WrappedLoginProps, any> {
     return true;
   }
 }
-
-export default withRouter(WrappedLogin);

@@ -21,11 +21,12 @@ export enum Theme {
 /** Status describes which items have been fetched so far via the Fever API. */
 export enum Status {
   Start = 0,
-  Folder = 1 << 0,
-  Feed = 1 << 1,
-  Article = 1 << 2,
-  Favicon = 1 << 3,
-  Ready = 1 << 4,
+  LoginVerification = 1 << 0,
+  Folder = 1 << 1,
+  Feed = 1 << 2,
+  Article = 1 << 3,
+  Favicon = 1 << 4,
+  Ready = 1 << 5,
 }
 
 /** SelectionType is an indicator for the subset of entries being processed. */
