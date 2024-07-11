@@ -102,13 +102,14 @@ services:
       - "8080:8080"
     expose:
       - "26257"
-    command: "start-single-node --insecure --advertise-addr=crdb"
+    command: "start-single-node --insecure --advertise-addr=crdb --log-dir=/tmp"
     networks:
       - crdb-network
       - goliath-network
     volumes:
       - "crdb_volume:/cockroach/cockroach-data"
       - "./backend/schema:/cockroach/scripts"
+      - "/tmp:/tmp"
 
 networks:
   crdb-network: { }
