@@ -133,7 +133,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
               <SplitViewArticleCard
                 key={articleView.id}
                 article={articleView}
-                title={articleView.title}
+                title={articleView.feed_title}
                 favicon={articleView.favicon}
                 isSelected={true}/>
             </Grid>
