@@ -2,7 +2,7 @@
 
 # Build backend
 
-FROM docker.io/golang:1.21 AS backend_builder_prod
+FROM docker.io/golang:1.23 AS backend_builder_prod
 
 ENV CGO_ENABLED 0
 ENV GOOS linux
