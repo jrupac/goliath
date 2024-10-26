@@ -1,6 +1,7 @@
 import ArticleCard from './ArticleCard';
 import React from "react";
 import ReactList from 'react-list';
+import {animateScroll} from 'react-scroll';
 import {
   ArticleImagePreview,
   ArticleListView,
@@ -32,7 +33,7 @@ export interface ArticleListProps {
 export interface ArticleListState {
   articleEntries: ArticleView[];
   articleImagePreviews: LRUCache<ArticleId, ArticleImagePreview>;
-
+  showPreviews: boolean,
   scrollIndex: number;
   smoothScroll: boolean;
   keypressBuffer: Array<string>;
@@ -50,6 +51,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       articleImagePreviews: new LRUCache<ArticleId, ArticleImagePreview>({
         max: 100
       }),
+      showPreviews: false,
       scrollIndex: 0,
       smoothScroll: true,
       keypressBuffer: new Array(keyBufLength),
@@ -129,6 +131,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
                   itemRenderer={(e) => this.renderSplitViewArticleListEntry(e)}
                   length={articles.length}
                   threshold={500}
+                  useStaticSize={true}
                   type='uniform'/>
               </Box>
             </Grid>
@@ -151,7 +154,9 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
 
   renderSplitViewArticleListEntry(index: number) {
     const articleView: ArticleView = this.state.articleEntries[index];
-    this.generateImagePreview(articleView).then();
+    if (this.state.showPreviews) {
+      this.generateImagePreview(articleView).then();
+    }
 
     return <SplitViewArticleListEntry
       key={articleView.id}
@@ -289,6 +294,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     }
 
     this.setState((prevState) => {
+      let showPreviews = prevState.showPreviews;
       let smoothScroll = prevState.smoothScroll;
       let scrollIndex = prevState.scrollIndex;
       let articleEntries = Array.from(prevState.articleEntries);
@@ -323,6 +329,9 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         case 'k':
           scrollIndex = Math.max(prevState.scrollIndex - 1, 0);
           break;
+        case 'p':
+          showPreviews = !showPreviews;
+          break;
         case 's':
           if (articleViewToggleState === ArticleListView.Combined) {
             articleViewToggleState = ArticleListView.Split;
@@ -353,6 +362,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       }
 
       return {
+        showPreviews: showPreviews,
         smoothScroll: smoothScroll,
         scrollIndex: scrollIndex,
         articleEntries: articleEntries,
@@ -368,10 +378,13 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
 
         // The scrolling container is not trivial to figure out, but react-list
         // has already done the work to figure it out, so use it directly.
-        // @ts-ignore
-        this.list.scrollParent.scrollTo({
-          top: scrollPos,
-          behavior: this.state.smoothScroll ? 'smooth' : 'auto'
+        animateScroll.scrollTo(scrollPos, {
+          // @ts-ignore
+          container: this.list.scrollParent,
+          isDynamic: false,
+          smooth: 'linear',
+          duration: 100,
+          delay: 0
         });
       }
     });
