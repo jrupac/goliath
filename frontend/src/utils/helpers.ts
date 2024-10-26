@@ -61,7 +61,7 @@ export function fetchReadability(url: string): Promise<string> {
 export function parseJson(text: string): any {
   // Parse as Lossless numbers since values from the server are 64-bit
   // Integer, but then convert back to String for use going forward.
-  return LosslessJSON.parse(text, (k: string, v: any) => {
+  return LosslessJSON.parse(text, (_: string, v: any) => {
     if (v && v.isLosslessNumber) {
       return String(v);
     }
