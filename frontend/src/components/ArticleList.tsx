@@ -378,14 +378,21 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
 
         // The scrolling container is not trivial to figure out, but react-list
         // has already done the work to figure it out, so use it directly.
-        animateScroll.scrollTo(scrollPos, {
+        if (this.state.smoothScroll) {
+          animateScroll.scrollTo(scrollPos, {
+            // @ts-ignore
+            container: this.list.scrollParent,
+            isDynamic: false,
+            smooth: 'linear',
+            duration: 100
+          });
+        } else {
           // @ts-ignore
-          container: this.list.scrollParent,
-          isDynamic: false,
-          smooth: 'linear',
-          duration: 100,
-          delay: 0
-        });
+          this.list.scrollParent.scrollTo({
+            top: scrollPos,
+            behavior: 'instant'
+          });
+        }
       }
     });
   };
