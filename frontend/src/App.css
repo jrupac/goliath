@@ -255,11 +255,6 @@
   padding: 0;
 }
 
-.GoliathSplitViewArticleListBox.MuiBox-root {
-  height: 100vh;
-  overflow-y: auto;
-}
-
 .GoliathArticleListBase.MuiPaper-root {
   border: 1px solid transparent;
   /* Fixed size to optimize scrolling */

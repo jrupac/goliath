@@ -115,9 +115,15 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         <Container
           maxWidth={false}
           className="GoliathSplitViewArticleListContainer">
-          <Grid container>
+          <Grid container wrap="nowrap">
             <Grid container item xs={4}>
-              <Box className="GoliathSplitViewArticleListBox">
+              <Box
+                className="GoliathSplitViewArticleListBox"
+                sx={{
+                  height: '100vh',
+                  overflowY: 'auto',
+                  width: '100%'
+                }}>
                 <ReactList
                   ref={this.handleMounted}
                   itemRenderer={(e) => this.renderSplitViewArticleListEntry(e)}
