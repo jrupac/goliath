@@ -37,7 +37,7 @@ export function formatFriendly(date: Date) {
 export function maxDecimal(a: Decimal | ArticleId, b: Decimal | ArticleId): Decimal {
   a = new Decimal(a.toString());
   b = new Decimal(b.toString());
-  return a > b ? a : b;
+  return a.greaterThan(b) ? a : b;
 }
 
 export function fetchReadability(url: string): Promise<string> {
