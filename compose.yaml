@@ -9,6 +9,7 @@ services:
         - BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
         - BUILD_HASH=${BUILD_HASH}
     container_name: "goliath"
+    dns: 8.8.8.8
     profiles: [ "prod" ]
     depends_on:
       crdb:
@@ -103,6 +104,7 @@ services:
         condition: on-failure
         max_attempts: 10
         window: 120s
+    dns: 8.8.8.8
     expose:
       - "26257"
     healthcheck:
