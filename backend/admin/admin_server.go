@@ -21,7 +21,7 @@ var (
 
 type server struct {
 	UnimplementedAdminServiceServer
-	db *storage.Database
+	db storage.Database
 }
 
 // AddUser adds a specified user into the database.
@@ -211,13 +211,13 @@ func (s *server) EditFeed(_ context.Context, req *EditFeedRequest) (*EditFeedRes
 	return resp, nil
 }
 
-func newServer(d *storage.Database) AdminServiceServer {
+func newServer(d storage.Database) AdminServiceServer {
 	s := &server{db: d}
 	return s
 }
 
 // Start starts the gRPC admin server.
-func Start(ctx context.Context, d *storage.Database) {
+func Start(ctx context.Context, d storage.Database) {
 	log.Infof("Starting gRPC admin server.")
 
 	s := grpc.NewServer()

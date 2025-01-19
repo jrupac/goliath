@@ -24,7 +24,7 @@ func (a *auth) getAPIKey() (string, error) {
 }
 
 // HandleLogin returns a handler that implements logging into the application.
-func HandleLogin(d *storage.Database) func(http.ResponseWriter, *http.Request) {
+func HandleLogin(d storage.Database) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var a auth
 		decoder := json.NewDecoder(r.Body)

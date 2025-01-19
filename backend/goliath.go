@@ -89,7 +89,7 @@ func main() {
 	}
 }
 
-func processOpml(d *storage.Database) {
+func processOpml(d storage.Database) {
 	if *opmlImportPath == "" && *opmlExportPath == "" {
 		return
 	}
@@ -171,7 +171,7 @@ func serveMetrics(ctx context.Context) {
 	}
 }
 
-func serve(ctx context.Context, d *storage.Database) error {
+func serve(ctx context.Context, d storage.Database) error {
 	mux := http.NewServeMux()
 	srv := &http.Server{
 		Addr:           fmt.Sprintf(":%d", *port),

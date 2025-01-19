@@ -5,6 +5,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"image"
+	"io"
+	"net/url"
+	"sync"
+	"time"
+
 	"github.com/arbovm/levenshtein"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/cache"
@@ -14,11 +20,6 @@ import (
 	"github.com/jrupac/rss"
 	"github.com/mat/besticon/v3/besticon"
 	"github.com/microcosm-cc/bluemonday"
-	"image"
-	"io"
-	"net/url"
-	"sync"
-	"time"
 )
 
 var (
@@ -79,7 +80,7 @@ func New() *Fetcher {
 
 // Start starts continuous feed fetching and writes fetched articles to the
 // database.
-func (f Fetcher) Start(ctx context.Context, d *storage.Database, r *cache.RetrievalCache) {
+func (f Fetcher) Start(ctx context.Context, d storage.Database, r *cache.RetrievalCache) {
 	log.Infof("Starting continuous feed fetching.")
 
 	// Add additional time layouts that sometimes appear in feeds.
@@ -114,7 +115,7 @@ func (f Fetcher) Start(ctx context.Context, d *storage.Database, r *cache.Retrie
 	}
 }
 
-func (f Fetcher) startFetchLoop(ctx context.Context, parent *sync.WaitGroup, d *storage.Database, r *cache.RetrievalCache) {
+func (f Fetcher) startFetchLoop(ctx context.Context, parent *sync.WaitGroup, d storage.Database, r *cache.RetrievalCache) {
 	defer parent.Done()
 
 	users, err := d.GetAllUsers()
@@ -136,7 +137,7 @@ func (f Fetcher) startFetchLoop(ctx context.Context, parent *sync.WaitGroup, d *
 	usersLoopWg.Wait()
 }
 
-func (f Fetcher) startFetchLoopForUser(d *storage.Database, ctx context.Context, r *cache.RetrievalCache, u models.User) {
+func (f Fetcher) startFetchLoopForUser(d storage.Database, ctx context.Context, r *cache.RetrievalCache, u models.User) {
 	feeds, err := d.GetAllFeedsForUser(u)
 	if err != nil {
 		log.Errorf("Failed to fetch all feeds for user %s: %s", u, err)
@@ -178,7 +179,7 @@ func (f Fetcher) startFetchLoopForUser(d *storage.Database, ctx context.Context,
 	}
 }
 
-func (f Fetcher) fetchLoopForFeed(ctx context.Context, d *storage.Database, r *cache.RetrievalCache, ac chan models.Article, ic chan imagePair, feed models.Feed, u models.User) {
+func (f Fetcher) fetchLoopForFeed(ctx context.Context, d storage.Database, r *cache.RetrievalCache, ac chan models.Article, ic chan imagePair, feed models.Feed, u models.User) {
 	log.Infof("Fetching URL '%s'", feed.URL)
 	tick := make(<-chan time.Time)
 	initalFetch := make(chan struct{})
@@ -224,7 +225,7 @@ func (f Fetcher) fetchLoopForFeed(ctx context.Context, d *storage.Database, r *c
 	}
 }
 
-func (f Fetcher) updateFeedMetadataForUser(d *storage.Database, mf *models.Feed, rf *rss.Feed, u models.User) {
+func (f Fetcher) updateFeedMetadataForUser(d storage.Database, mf *models.Feed, rf *rss.Feed, u models.User) {
 	if rf.Title != "" {
 		t := maybeUnescapeHtml(rf.Title)
 		mf.Title = extractTextFromHtml(t)
@@ -243,7 +244,7 @@ func (f Fetcher) updateFeedMetadataForUser(d *storage.Database, mf *models.Feed,
 	}
 }
 
-func (f Fetcher) handleItemsForUser(ctx context.Context, feed *models.Feed, d *storage.Database, r *cache.RetrievalCache, items []*rss.Item, send chan models.Article, u models.User) {
+func (f Fetcher) handleItemsForUser(ctx context.Context, feed *models.Feed, d storage.Database, r *cache.RetrievalCache, items []*rss.Item, send chan models.Article, u models.User) {
 	latest := feed.Latest
 	newLatest := latest
 

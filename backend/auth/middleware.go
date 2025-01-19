@@ -19,14 +19,14 @@ type Redirector = func(http.ResponseWriter, *http.Request)
 // Middleware is a wrapper around a http.Handler that contains a pointer to the database connection.
 type Middleware struct {
 	wrapped      http.Handler
-	d            *storage.Database
+	d            storage.Database
 	root         string
 	redirector   Redirector
 	verifyCookie bool
 }
 
 // WithAuth returns a Middleware that checks authentication before forwarding requests to the given handler.
-func WithAuth(h http.Handler, d *storage.Database, root string, redirector Redirector, verifyCookie bool) Middleware {
+func WithAuth(h http.Handler, d storage.Database, root string, redirector Redirector, verifyCookie bool) Middleware {
 	return Middleware{h, d, root, redirector, verifyCookie}
 }
 
@@ -59,7 +59,7 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // VerifyCookie checks a request for an auth cookie and authenticates it against the database.
-func VerifyCookie(d *storage.Database, r *http.Request) (models.User, error) {
+func VerifyCookie(d storage.Database, r *http.Request) (models.User, error) {
 	cookie, err := r.Cookie(authCookie)
 	// Only ErrNoCookie can be returned here, which just means that the specified
 	// cookie doesn't exist.

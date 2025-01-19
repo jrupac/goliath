@@ -3,8 +3,9 @@ package storage
 import (
 	"context"
 	"flag"
-	log "github.com/golang/glog"
 	"time"
+
+	log "github.com/golang/glog"
 )
 
 var (
@@ -13,7 +14,7 @@ var (
 )
 
 // StartGC starts continuously garbage-collecting old read articles on a regular interval.
-func StartGC(ctx context.Context, d *Database) {
+func StartGC(ctx context.Context, d Database) {
 	log.Infof("Starting initial GC run.")
 	performGCRun(d)
 
@@ -31,7 +32,7 @@ func StartGC(ctx context.Context, d *Database) {
 	}
 }
 
-func performGCRun(d *Database) {
+func performGCRun(d Database) {
 	users, err := d.GetAllUsers()
 	if err != nil {
 		log.Warningf("Failed to query all users: %s", err)

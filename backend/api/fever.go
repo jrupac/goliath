@@ -76,12 +76,12 @@ type Fever struct {
 }
 
 // FeverHandler returns a new Fever handler.
-func FeverHandler(d *storage.Database) http.HandlerFunc {
+func FeverHandler(d storage.Database) http.HandlerFunc {
 	return Fever{}.Handler(d)
 }
 
 // Handler returns a handler function that implements the Fever API.
-func (a Fever) Handler(d *storage.Database) http.HandlerFunc {
+func (a Fever) Handler(d storage.Database) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		a.handle(d, w, r)
 	}
@@ -94,7 +94,7 @@ func (a Fever) recordLatency(t time.Time, label string) {
 	})
 }
 
-func (a Fever) handle(d *storage.Database, w http.ResponseWriter, r *http.Request) {
+func (a Fever) handle(d storage.Database, w http.ResponseWriter, r *http.Request) {
 	// Record the total server latency of each call.
 	defer a.recordLatency(time.Now(), "server")
 
@@ -214,7 +214,7 @@ func (a Fever) returnSuccess(w http.ResponseWriter, resp map[string]interface{})
 	}
 }
 
-func (a Fever) handleAuth(d *storage.Database, r *http.Request) (models.User, int) {
+func (a Fever) handleAuth(d storage.Database, r *http.Request) (models.User, int) {
 	defer a.recordLatency(time.Now(), "auth")
 
 	// A request can be authenticated by cookie or api key in request.
@@ -231,7 +231,7 @@ func (a Fever) handleAuth(d *storage.Database, r *http.Request) (models.User, in
 	}
 }
 
-func (a Fever) handleGroups(d *storage.Database, u models.User, resp *responseType) error {
+func (a Fever) handleGroups(d storage.Database, u models.User, resp *responseType) error {
 	defer a.recordLatency(time.Now(), "groups")
 
 	folders, err := d.GetAllFoldersForUser(u)
@@ -254,7 +254,7 @@ func (a Fever) handleGroups(d *storage.Database, u models.User, resp *responseTy
 	return nil
 }
 
-func (a Fever) handleFeeds(d *storage.Database, u models.User, resp *responseType) error {
+func (a Fever) handleFeeds(d storage.Database, u models.User, resp *responseType) error {
 	defer a.recordLatency(time.Now(), "feeds")
 
 	fetchedFeeds, err := d.GetAllFeedsForUser(u)
@@ -282,7 +282,7 @@ func (a Fever) handleFeeds(d *storage.Database, u models.User, resp *responseTyp
 	return nil
 }
 
-func (a Fever) handleFavicons(d *storage.Database, u models.User, resp *responseType) error {
+func (a Fever) handleFavicons(d storage.Database, u models.User, resp *responseType) error {
 	faviconMap, err := d.GetAllFaviconsForUser(u)
 	if err != nil {
 		return &apiError{err, true}
@@ -299,7 +299,7 @@ func (a Fever) handleFavicons(d *storage.Database, u models.User, resp *response
 	return nil
 }
 
-func (a Fever) handleItems(d *storage.Database, u models.User, resp *responseType, r *http.Request) error {
+func (a Fever) handleItems(d storage.Database, u models.User, resp *responseType, r *http.Request) error {
 	defer a.recordLatency(time.Now(), "items")
 
 	// TODO: support "max_id" and "with_ids".
@@ -337,7 +337,7 @@ func (a Fever) handleItems(d *storage.Database, u models.User, resp *responseTyp
 	return nil
 }
 
-func (a Fever) handleLinks(_ *storage.Database, _ models.User, resp *responseType) error {
+func (a Fever) handleLinks(_ storage.Database, _ models.User, resp *responseType) error {
 	defer a.recordLatency(time.Now(), "links")
 
 	// Perhaps add support for links in the future.
@@ -345,7 +345,7 @@ func (a Fever) handleLinks(_ *storage.Database, _ models.User, resp *responseTyp
 	return nil
 }
 
-func (a Fever) handleUnreadItemIDs(d *storage.Database, u models.User, resp *responseType) error {
+func (a Fever) handleUnreadItemIDs(d storage.Database, u models.User, resp *responseType) error {
 	defer a.recordLatency(time.Now(), "unread_item_ids")
 
 	articles, err := d.GetUnreadArticlesForUser(u, -1, -1)
@@ -360,7 +360,7 @@ func (a Fever) handleUnreadItemIDs(d *storage.Database, u models.User, resp *res
 	return nil
 }
 
-func (a Fever) handleSavedItemIDs(_ *storage.Database, _ models.User, resp *responseType) error {
+func (a Fever) handleSavedItemIDs(_ storage.Database, _ models.User, resp *responseType) error {
 	defer a.recordLatency(time.Now(), "saved_item_ids")
 
 	// Perhaps add support for saving items in the future.
@@ -368,7 +368,7 @@ func (a Fever) handleSavedItemIDs(_ *storage.Database, _ models.User, resp *resp
 	return nil
 }
 
-func (a Fever) handleMark(d *storage.Database, u models.User, _ *responseType, r *http.Request) error {
+func (a Fever) handleMark(d storage.Database, u models.User, _ *responseType, r *http.Request) error {
 	defer a.recordLatency(time.Now(), "mark")
 
 	// TODO: Support "before" argument.
@@ -404,7 +404,7 @@ func (a Fever) handleMark(d *storage.Database, u models.User, _ *responseType, r
 	return nil
 }
 
-func (a Fever) constructFeedsGroups(d *storage.Database, u models.User) ([]feedsGroupType, error) {
+func (a Fever) constructFeedsGroups(d storage.Database, u models.User) ([]feedsGroupType, error) {
 	var feedGroups []feedsGroupType
 	feedsPerFolder, err := d.GetFeedsPerFolderForUser(u)
 	if err != nil {

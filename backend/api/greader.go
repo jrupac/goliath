@@ -41,11 +41,11 @@ func init() {
 
 // GReader is an implementation of the GReader API.
 type GReader struct {
-	d *storage.Database
+	d storage.Database
 }
 
 // GReaderHandler returns a new GReader handler.
-func GReaderHandler(d *storage.Database) http.HandlerFunc {
+func GReaderHandler(d storage.Database) http.HandlerFunc {
 	return GReader{d}.Handler()
 }
 

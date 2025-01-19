@@ -24,7 +24,7 @@ type RetrievalCache struct {
 }
 
 // StartRetrievalCache creates a new RetrievalCache and starts background processing.
-func StartRetrievalCache(ctx context.Context, d *storage.Database) *RetrievalCache {
+func StartRetrievalCache(ctx context.Context, d storage.Database) *RetrievalCache {
 	r := RetrievalCache{}
 	r.loadCache(d)
 	go r.startPeriodicWriter(ctx, d)
@@ -68,7 +68,7 @@ func (r *RetrievalCache) Lookup(u models.User, entry string) bool {
 	}
 }
 
-func (r *RetrievalCache) loadCache(d *storage.Database) {
+func (r *RetrievalCache) loadCache(d storage.Database) {
 	r.caches = map[string]*cuckoo.ScalableCuckooFilter{}
 
 	retrievalCaches, err := d.GetAllRetrievalCaches()
@@ -107,7 +107,7 @@ func (r *RetrievalCache) loadCache(d *storage.Database) {
 	r.ready.Store(true)
 }
 
-func (r *RetrievalCache) startPeriodicWriter(ctx context.Context, d *storage.Database) {
+func (r *RetrievalCache) startPeriodicWriter(ctx context.Context, d storage.Database) {
 	initial := make(chan struct{})
 	tick := make(<-chan time.Time)
 
@@ -131,7 +131,7 @@ func (r *RetrievalCache) startPeriodicWriter(ctx context.Context, d *storage.Dat
 	}
 }
 
-func (r *RetrievalCache) persistCache(d *storage.Database) {
+func (r *RetrievalCache) persistCache(d storage.Database) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	log.Infof("Persisting retrieval cache.")
