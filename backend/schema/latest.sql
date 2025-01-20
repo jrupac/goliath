@@ -18,6 +18,22 @@ CREATE TABLE IF NOT EXISTS UserTable
 CREATE UNIQUE INDEX ON UserTable (username) STORING (key);
 CREATE UNIQUE INDEX ON UserTable (key) STORING (username);
 
+CREATE TABLE IF NOT EXISTS UserPrefs
+(
+    -- Key columns
+    userid     UUID NOT NULL REFERENCES UserTable (id) PRIMARY KEY,
+    -- Data columns
+    mute_words STRING[]
+);
+
+CREATE TABLE IF NOT EXISTS RetrievalCache
+(
+    -- Key columns
+    userid UUID PRIMARY KEY,
+    -- Data columns
+    cache  STRING
+);
+
 CREATE TABLE IF NOT EXISTS Folder
 (
     -- Key columns
@@ -95,11 +111,3 @@ CREATE
 CREATE
     INDEX ON Article (userid, id, read)
     STORING (title, summary, content, parsed, link, date);
-
-CREATE TABLE IF NOT EXISTS RetrievalCache
-(
-    -- Key columns
-    userid UUID PRIMARY KEY,
-    -- Data columns
-    cache  STRING
-);
