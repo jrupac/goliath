@@ -32,27 +32,57 @@ func init() {
 
 // Database defines an interface for all public methods in the database package.
 type Database interface {
+
+	// General
+
 	Open(string) error
 	Close() error
+
+	// User management
+
 	InsertUser(models.User) error
 	GetAllUsers() ([]models.User, error)
 	GetUserByKey(string) (models.User, error)
 	GetUserByUsername(string) (models.User, error)
+
+	// User preferences
+
+	ListMuteWordsForUser(models.User) ([]string, error)
+	UpdateMuteWordsForUser(models.User, []string) error
+	DeleteMuteWordsForUser(models.User, []string) error
+
+	// Retrieval cache
+
 	GetAllRetrievalCaches() (map[string]string, error)
 	PersistAllRetrievalCaches(map[string][]byte) error
+
+	// Content insertion
+
 	InsertArticleForUser(models.User, models.Article) error
 	InsertFaviconForUser(models.User, int64, int64, string, []byte) error
 	InsertFeedForUser(models.User, models.Feed, int64) (int64, error)
 	InsertFolderForUser(models.User, models.Folder, int64) (int64, error)
+
+	// Content deletion
+
 	DeleteArticlesForUser(models.User, time.Time) (int64, error)
 	DeleteArticlesByIdForUser(models.User, []int64) error
 	DeleteFeedForUser(models.User, int64, int64) error
+
+	// Marking
+
 	MarkArticleForUser(models.User, int64, string) error
 	MarkFeedForUser(models.User, int64, string) error
 	MarkFolderForUser(models.User, int64, string) error
+
+	// Metadata update
+
 	UpdateFeedMetadataForUser(models.User, models.Feed) error
 	UpdateLatestTimeForFeedForUser(models.User, int64, int64, time.Time) error
 	UpdateFolderForFeedForUser(models.User, int64, int64) error
+
+	// Content retrieval
+
 	GetFolderChildrenForUser(models.User, int64) ([]int64, error)
 	GetAllFoldersForUser(models.User) ([]models.Folder, error)
 	GetAllFeedsForUser(models.User) ([]models.Feed, error)
@@ -64,6 +94,9 @@ type Database interface {
 	GetArticlesForUser(models.User, []int64) ([]models.Article, error)
 	GetUnreadArticlesForUser(models.User, int, int64) ([]models.Article, error)
 	GetArticlesForFeedForUser(models.User, int64) ([]models.Article, error)
+
+	// OPML
+
 	ImportOpmlForUser(models.User, *opml.Opml) error
 }
 

@@ -1,11 +1,11 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	log "github.com/golang/glog"
@@ -19,6 +19,7 @@ const (
 	maxFetchedRows     = 10000
 	slowOpLogThreshold = 50 * time.Millisecond
 	retryBackoff       = 1 * time.Second
+	maxOpTime = 30 * time.Second
 )
 
 // Crdb is a wrapper type around a database connection.
@@ -78,14 +79,15 @@ func (crdb *Crdb) Close() error {
 }
 
 /*******************************************************************************
- * User methods
+ * User management
  ******************************************************************************/
 
 // InsertUser inserts the given user into the database.
 func (crdb *Crdb) InsertUser(u models.User) error {
 	defer logElapsedTime(time.Now(), "InsertUser")
 
-	_, err := crdb.db.Exec(`INSERT INTO UserTable (id, username, key) VALUES($1, $2, $3)`, u.UserId, u.Username, u.Key)
+	query := `INSERT INTO UserTable (id, username, key) VALUES($1, $2, $3)`
+	_, err := crdb.db.Exec(query, u.UserId, u.Username, u.Key)
 
 	return err
 }
@@ -95,11 +97,14 @@ func (crdb *Crdb) GetAllUsers() ([]models.User, error) {
 	defer logElapsedTime(time.Now(), "GetAllUsers")
 
 	var users []models.User
-	rows, err := crdb.db.Query(`SELECT id, username, key FROM UserTable`)
+
+	query := `SELECT id, username, key FROM UserTable`
+	rows, err := crdb.db.Query(query)
+	defer closeSilent(rows)
+
 	if err != nil {
 		return users, err
 	}
-	defer closeSilent(rows)
 
 	for rows.Next() {
 		u := models.User{}
@@ -117,9 +122,10 @@ func (crdb *Crdb) GetUserByKey(key string) (models.User, error) {
 	defer logElapsedTime(time.Now(), "GetUserByKey")
 
 	var u models.User
-	err := crdb.db.QueryRow(
-		`SELECT id, username, key FROM UserTable WHERE key = $1`, key).Scan(
-		&u.UserId, &u.Username, &u.Key)
+
+	query := `SELECT id, username, key, hashpass FROM UserTable WHERE key = $1`
+	err := crdb.db.QueryRow(query, key).Scan(&u.UserId, &u.Username, &u.Key, &u.HashPass)
+
 	if !u.Valid() {
 		return models.User{}, errors.New("could not find user")
 	}
@@ -132,24 +138,90 @@ func (crdb *Crdb) GetUserByUsername(username string) (models.User, error) {
 	defer logElapsedTime(time.Now(), "GetUserByUsername")
 
 	var u models.User
-	err := crdb.db.QueryRow(
-		`SELECT id, username, key, hashpass FROM UserTable WHERE username = $1`, username).Scan(
-		&u.UserId, &u.Username, &u.Key, &u.HashPass)
+
+	query := `SELECT id, username, key, hashpass FROM UserTable WHERE username = $1`
+	err := crdb.db.QueryRow(query, username).Scan(&u.UserId, &u.Username, &u.Key, &u.HashPass)
+
 	if !u.Valid() {
 		return models.User{}, errors.New("could not find user")
 	}
 	return u, err
 }
 
+/*******************************************************************************
+ * User preferences
+ ******************************************************************************/
+
+// ListMuteWordsForUser returns a list of mute words for the given user.
+func (crdb *Crdb) ListMuteWordsForUser(u models.User) ([]string, error) {
+	defer logElapsedTime(time.Now(), "ListMuteWordsForUser")
+
+	var words []string
+
+	query := `SELECT word FROM MuteWords WHERE userid = $1`
+	err := crdb.db.QueryRow(query, u.UserId).Scan(&words)
+
+	return words, err
+}
+
+// UpdateMuteWordsForUser updates the mute words for a given user with the
+// provided mute words, maintaining a sorted order.
+func (crdb *Crdb) UpdateMuteWordsForUser(u models.User, words []string) error {
+	defer logElapsedTime(time.Now(), "UpdateMuteWordsForUser")
+
+	query := `
+		INSERT INTO UserPrefs (userid, mute_words)
+		VALUES ($1, $2)
+		ON CONFLICT (id) DO UPDATE
+		SET mute_words = (
+			SELECT array_agg(word ORDER BY word) 
+			FROM (
+				SELECT DISTINCT unnest(array_cat(UserPrefs.mute_words, $2::STRING[])) AS word
+			) AS unique_words
+		)
+	`
+	_, err := crdb.db.Exec(query, u.UserId, pq.Array(words))
+
+	return err
+}
+
+// DeleteMuteWordsForUser deletes the mute words for a given user, maintaining
+// the sorted order.
+func (crdb *Crdb) DeleteMuteWordsForUser(u models.User, words []string) error {
+	defer logElapsedTime(time.Now(), "DeleteMuteWordsForUser")
+
+	query := `
+		UPDATE UserPrefs
+		SET mute_words = (
+			SELECT array_agg(word ORDER BY word)
+			FROM (
+				SELECT DISTINCT unnest(mute_words) AS word
+				EXCEPT
+				SELECT unnest($2::STRING[])
+			) AS filtered_words
+		)
+		WHERE userid = $1
+	`
+	_, err := crdb.db.Exec(query, u.UserId, pq.Array(words))
+
+	return err
+}
+
+/*******************************************************************************
+ * Retrieval cache
+ ******************************************************************************/
+
 // GetAllRetrievalCaches retrieves the cache for all users.
 func (crdb *Crdb) GetAllRetrievalCaches() (map[string]string, error) {
 	defer logElapsedTime(time.Now(), "GetAllRetrievalCaches")
 
-	rows, err := crdb.db.Query(`SELECT userid, cache FROM RetrievalCache`)
+	query := `SELECT userid, cache FROM RetrievalCache`
+	rows, err := crdb.db.Query(query)
+	defer closeSilent(rows)
+
 	if err != nil {
 		return nil, err
 	}
-	defer closeSilent(rows)
 
 	ret := map[string]string{}
 
@@ -162,6 +234,10 @@ func (crdb *Crdb) GetAllRetrievalCaches() (map[string]string, error) {
 		ret[id] = cache
 	}
 
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+
 	return ret, nil
 }
 
@@ -169,47 +245,61 @@ func (crdb *Crdb) GetAllRetrievalCaches() (map[string]string, error) {
 func (crdb *Crdb) PersistAllRetrievalCaches(entries map[string][]byte) error {
 	defer logElapsedTime(time.Now(), "PersistAllRetrievalCaches")
 
-	var values []string
-	for id, cache := range entries {
-		values = append(values, fmt.Sprintf("('%s', x'%x'::STRING)", id, cache))
+	ctx, cancel := context.WithTimeout(context.Background(), maxOpTime)
+	defer cancel()
+	tx, err := crdb.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	valueStr := strings.Join(values, ",")
+	defer rollbackSilent(tx)
 
-	_, err := crdb.db.Exec(`UPSERT INTO RetrievalCache(userid, cache) VALUES` + valueStr)
+	query := ` UPSERT INTO RetrievalCache (userid, cache) VALUES ($1, $2) `
+	stmt, err := tx.PrepareContext(ctx, query)
+	if err != nil {
+		return fmt.Errorf("failed to prepare statement: %w", err)
+	}
 
-	return err
+	for id, cache := range entries {
+		_, err = stmt.ExecContext(ctx, id, cache)
+		if err != nil {
+			return fmt.Errorf("failed to execute statement: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 /*******************************************************************************
- * Insertion/deletion methods
+ * Content insertion
  ******************************************************************************/
 
 // InsertArticleForUser inserts the given article object into the database.
 func (crdb *Crdb) InsertArticleForUser(u models.User, a models.Article) error {
 	defer logElapsedTime(time.Now(), "InsertArticleForUser")
 
-	var articleID int64
-	var count int
-	err := crdb.db.QueryRow(
-		`SELECT COUNT(*) FROM Article WHERE userid = $1 AND hash = $2`,
-		u.UserId, a.Hash()).Scan(&count)
+	query := `
+		INSERT INTO Article (userid, folder, feed, hash, title, summary, content, parsed, link, read, date, retrieved)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		ON CONFLICT (userid, hash) DO NOTHING
+		RETURNING id
+	`
+	err := crdb.db.QueryRow(query,
+		u.UserId, a.FolderID, a.FeedID, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Date, a.Retrieved,
+	).Scan(&a.ID)
+
 	if err != nil {
-		return err
-	}
-	if count > 0 {
-		log.V(2).Infof("Duplicate article entry, skipping (hash): %s", a.Hash())
-		return nil
+		// If no rows were returned, it means a duplicate was found
+		if errors.Is(err, sql.ErrNoRows) {
+			log.V(2).Infof("Duplicate article entry, skipping (hash): %s", a.Hash())
+			return nil
+		}
+		return fmt.Errorf("failed to insert article: %w", err)
 	}
 
-	err = crdb.db.QueryRow(
-		`INSERT INTO Article
-		(userid, feed, folder, hash, title, summary, content, parsed, link, read, date, retrieved)
-		VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
-		u.UserId, a.FeedID, a.FolderID, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Date, a.Retrieved).Scan(&articleID)
-	if err != nil {
-		return err
-	}
-	a.ID = articleID
 	return nil
 }
 
@@ -219,29 +309,36 @@ func (crdb *Crdb) InsertFaviconForUser(u models.User, folderId int64, feedId int
 	defer logElapsedTime(time.Now(), "InsertFaviconForUser")
 
 	// TODO: Consider wrapping this into a Favicon model type.
-	var count int
-	err := crdb.db.QueryRow(
-		`SELECT COUNT(*) FROM Feed WHERE userid = $1 AND folder = $2 AND id = $3`,
-		u.UserId, folderId, feedId).Scan(&count)
-	if err != nil {
-		return err
-	}
-	if count == 0 {
-		return fmt.Errorf("original feed not in table: %crdb", feedId)
-	}
-
 	// Convert to a base64 encoded string before inserting
 	h := base64.StdEncoding.EncodeToString(img)
 
-	_, err = crdb.db.Exec(
-		`UPDATE Feed SET favicon = $1, mime = $2 WHERE userid = $3 AND folder = $4 AND id = $5`,
-		h, mime, u.UserId, folderId, feedId)
-	return err
+	query := `
+		UPDATE Feed 
+		SET favicon = $1, mime = $2 
+		WHERE userid = $3 AND folder = $4 AND id = $5
+		  AND EXISTS (SELECT 1 FROM Feed WHERE userid = $3 AND folder = $4 AND id = $5)
+	`
+	result, err := crdb.db.Exec(query, h, mime, u.UserId, folderId, feedId)
+	if err != nil {
+		return fmt.Errorf("failed to update favicon: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("original feed not found for user %s, folder %d, feed %d", u.UserId, folderId, feedId)
+	}
+
+	return nil
 }
 
 // InsertFeedForUser inserts a new feed into the database. If `folderId` is 0,
 // the feed is assumed to be a top-level entry. Otherwise, the feed will be
-// nested under the folder with that ID.
+// nested under the folder with that ID. If the root folder does not exist,
+// returns -1 as the feed ID.
 func (crdb *Crdb) InsertFeedForUser(u models.User, f models.Feed, folderId int64) (int64, error) {
 	defer logElapsedTime(time.Now(), "InsertFeedForUser")
 
@@ -250,50 +347,82 @@ func (crdb *Crdb) InsertFeedForUser(u models.User, f models.Feed, folderId int64
 	// If the feed is assumed to be a top-level entry, determine the ID of the
 	// root folder that it actually is under.
 	if folderId == 0 {
-		err := crdb.db.QueryRow(`SELECT id FROM Folder WHERE userid = $1 AND name = $2`,
-			u.UserId, models.RootFolder).Scan(&folderId)
+		query := `SELECT id FROM Folder WHERE userid = $1 AND name = $2`
+		err := crdb.db.QueryRow(query, u.UserId, models.RootFolder).Scan(&folderId)
 		if err != nil {
-			return feedID, nil
+			if errors.Is(err, sql.ErrNoRows) {
+				return -1, fmt.Errorf("root folder (%s) not found for user %s", models.RootFolder, u.UserId)
+			} else {
+				return -1, fmt.Errorf("failed to get root folder ID: %w", err)
+			}
 		}
 	}
 
-	err := crdb.db.QueryRow(
-		`INSERT INTO Feed(userid, folder, hash, title, description, url, link)
-			VALUES($1, $2, $3, $4, $5, $6, $7)
-			ON CONFLICT(hash) DO UPDATE SET hash = excluded.hash RETURNING id`,
-		u.UserId, folderId, f.Hash(), f.Title, f.Description, f.URL, f.Link).Scan(&feedID)
+	query := `
+		INSERT INTO Feed(userid, folder, hash, title, description, url, link)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT(userid, hash) DO UPDATE SET
+			folder = excluded.folder,
+			title = excluded.title,
+			description = excluded.description,
+			url = excluded.url,
+			link = excluded.link
+		RETURNING id
+	`
+	err := crdb.db.QueryRow(query, u.UserId, folderId, f.Hash(), f.Title, f.Description, f.URL, f.Link).Scan(&feedID)
 	return feedID, err
 }
 
 // InsertFolderForUser inserts a new folder into the database. If `parentId` is
 // 0, the folder is assumed to be the root folder. Otherwise, the folder will be
-// nested under the folder with that ID.
+// nested under the folder with that ID. On error, -1 is returned for the folder
+// ID.
 func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId int64) (int64, error) {
 	defer logElapsedTime(time.Now(), "InsertFolderForUser")
 
-	var folderID int64
+	errFolderId := int64(-1)
 
-	err := crdb.db.QueryRow(
-		`INSERT INTO Folder(userid, name) VALUES($1, $2)
-    	 ON CONFLICT(name) DO UPDATE SET name = excluded.name RETURNING id`, u.UserId, f.Name).Scan(&folderID)
+	ctx, cancel := context.WithTimeout(context.Background(), maxOpTime)
+	defer cancel()
+	tx, err := crdb.db.BeginTx(ctx, nil)
 	if err != nil {
-		return folderID, err
+		return errFolderId, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer rollbackSilent(tx)
+
+	var folderID int64
+	query := `
+		INSERT INTO Folder(userid, name) VALUES($1, $2)
+		ON CONFLICT(userid, name) DO UPDATE SET name = excluded.name 
+		RETURNING id
+	`
+	err = tx.QueryRowContext(ctx, query, u.UserId, f.Name).Scan(&folderID)
+	if err != nil {
+		return errFolderId, fmt.Errorf("failed to insert folder: %w", err)
 	}
 
-	// TODO: Assert that there is not already a root folder.
-
-	// If this is the root folder, then it has no parents, so no need to update
-	// the folder mapping table.
 	if parentId != 0 {
-		_, err = crdb.db.Exec(
-			`UPSERT INTO FolderChildren(userid, parent, child) VALUES($1, $2, $3)`, u.UserId, parentId, folderID)
+		query = `
+			INSERT INTO FolderChildren(userid, parent, child) 
+			VALUES($1, $2, $3)
+			ON CONFLICT (userid, parent, child) DO NOTHING
+		`
+		_, err = tx.ExecContext(ctx, query, u.UserId, parentId, folderID)
 		if err != nil {
-			return folderID, err
+			return errFolderId, fmt.Errorf("failed to insert into FolderChildren: %w", err)
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errFolderId, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return folderID, nil
 }
+
+/*******************************************************************************
+ * Content deletion
+ ******************************************************************************/
 
 // DeleteArticlesForUser deletes all articles earlier than the given timestamp
 // and returns the number deleted.
@@ -338,7 +467,7 @@ func (crdb *Crdb) DeleteFeedForUser(u models.User, feedId int64, folderId int64)
 }
 
 /*******************************************************************************
- * Modification methods
+ * Marking
  ******************************************************************************/
 
 // MarkArticleForUser sets the read status of the given article to the given
@@ -410,6 +539,10 @@ func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, status string
 	return err
 }
 
+/*******************************************************************************
+ * Metadata update
+ ******************************************************************************/
+
 // UpdateFeedMetadataForUser updates various fields for the row corresponding to
 // given models.Feed object with the values in that object.
 func (crdb *Crdb) UpdateFeedMetadataForUser(u models.User, f models.Feed) error {
@@ -448,7 +581,7 @@ func (crdb *Crdb) UpdateFolderForFeedForUser(u models.User, feedId int64, folder
 }
 
 /*******************************************************************************
- * Getter methods
+ * Content retrieval
  ******************************************************************************/
 
 // GetFolderChildrenForUser returns a list of IDs corresponding to folders
@@ -780,7 +913,7 @@ func (crdb *Crdb) GetArticlesForFeedForUser(u models.User, feedId int64) ([]mode
 }
 
 /*******************************************************************************
- * Import methods
+ * OPML
  ******************************************************************************/
 
 // ImportOpmlForUser inserts folders from the given OPML object into the
@@ -839,8 +972,24 @@ func parseState(status string) (bool, error) {
 }
 
 func closeSilent(rows *sql.Rows) {
+	if rows == nil {
+		log.Warningf("WARNING: Rows object is nil, nothing to close.")
+		return
+	}
+
 	err := rows.Close()
 	if err != nil {
 		log.Warningf("Failed to close rows: %+v", rows)
+	}
+}
+
+func rollbackSilent(tx *sql.Tx) {
+	if tx == nil {
+		log.Warningf("WARNING: Transaction object is nil, nothing to rollback.")
+		return
+	}
+	err := tx.Rollback()
+	if err != nil {
+		log.Warningf("Failed to rollback transaction: %+v", tx)
 	}
 }
