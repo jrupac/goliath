@@ -7,6 +7,7 @@ require (
 	github.com/arbovm/levenshtein v0.0.0-20160628152529-48b4e1c0c4d0
 	github.com/golang/glog v1.2.2
 	github.com/jrupac/rss v1.0.7
+	github.com/kljensen/snowball v0.10.0
 	github.com/lib/pq v1.10.9
 	github.com/mat/besticon/v3 v3.18.0
 	github.com/microcosm-cc/bluemonday v1.0.26
@@ -15,7 +16,7 @@ require (
 	github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de
 	golang.org/x/crypto v0.31.0
 	golang.org/x/image v0.18.0
-	golang.org/x/net v0.28.0
+	golang.org/x/net v0.33.0
 	google.golang.org/grpc v1.67.1
 )
 
@@ -29,7 +30,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
-	github.com/kljensen/snowball v0.10.0 // indirect
 	github.com/prometheus/client_model v0.6.0 // indirect
 	github.com/prometheus/common v0.49.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
