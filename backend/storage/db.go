@@ -47,7 +47,7 @@ type Database interface {
 
 	// User preferences
 
-	ListMuteWordsForUser(models.User) ([]string, error)
+	GetMuteWordsForUser(models.User) ([]string, error)
 	UpdateMuteWordsForUser(models.User, []string) error
 	DeleteMuteWordsForUser(models.User, []string) error
 

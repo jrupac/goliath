@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"net"
+	"sort"
 )
 
 var (
@@ -28,6 +29,106 @@ type server struct {
 // NOTE: This method is currently unimplemented.
 func (s *server) AddUser(_ context.Context, _ *AddUserRequest) (*AddUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "not yet implemented")
+}
+
+// GetMuteWords retrieves the current muted words for the user.
+func (s *server) GetMuteWords(_ context.Context, req *GetMuteWordsRequest) (*GetMuteWordsResponse, error) {
+	resp := &GetMuteWordsResponse{}
+
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	mutedWords, err := s.db.GetMuteWordsForUser(user)
+	if err != nil {
+		log.Warningf("while retrieving muted words for user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not retrieve muted words for user")
+	}
+
+	for _, m := range mutedWords {
+		resp.MuteWord = append(resp.MuteWord, m)
+	}
+
+	return resp, nil
+}
+
+// AddMuteWord adds specified mute words for a user.
+func (s *server) AddMuteWord(_ context.Context, req *AddMuteWordRequest) (*AddMuteWordResponse, error) {
+	resp := &AddMuteWordResponse{}
+
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	if len(req.GetMuteWord()) == 0 {
+		return resp, nil
+	}
+
+	// Make a unique, sorted list from the input
+	uniqueMap := make(map[string]bool)
+	for _, str := range req.GetMuteWord() {
+		uniqueMap[str] = true
+	}
+	muteWords := make([]string, 0, len(uniqueMap))
+	for str := range uniqueMap {
+		muteWords = append(muteWords, str)
+	}
+	sort.Strings(muteWords)
+
+	err = s.db.UpdateMuteWordsForUser(user, muteWords)
+	if err != nil {
+		log.Warningf("while adding muted words for user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not insert mute words")
+	}
+
+	return resp, nil
+}
+
+// DeleteMuteWord removes the specified mute words for a user.
+func (s *server) DeleteMuteWord(_ context.Context, req *DeleteMuteWordRequest) (*DeleteMuteWordResponse, error) {
+	resp := &DeleteMuteWordResponse{}
+
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	if len(req.GetMuteWord()) == 0 {
+		return resp, nil
+	}
+
+	// Make a unique, sorted list from the input
+	uniqueMap := make(map[string]bool)
+	for _, str := range req.GetMuteWord() {
+		uniqueMap[str] = true
+	}
+	muteWords := make([]string, 0, len(uniqueMap))
+	for str := range uniqueMap {
+		muteWords = append(muteWords, str)
+	}
+	sort.Strings(muteWords)
+
+	err = s.db.DeleteMuteWordsForUser(user, muteWords)
+	if err != nil {
+		log.Warningf("while deleting muted words for user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not delete mute words")
+	}
+
+	return resp, nil
 }
 
 // AddFeed adds the specified feed into the database.

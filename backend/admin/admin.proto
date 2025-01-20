@@ -19,6 +19,40 @@ message AddUserRequest {
 message AddUserResponse {
 }
 
+message GetMuteWordsRequest {
+  // Required. Username for user for whom this feed should be added.
+  string Username = 1;
+}
+
+message GetMuteWordsResponse {
+  repeated string MuteWord = 1;
+}
+
+message AddMuteWordRequest {
+  // Required. Username for user for whom this feed should be added.
+  string Username = 1;
+
+  // Optional. If set, each (unique) mute word will be added for the user.
+  repeated string MuteWord = 2;
+}
+
+// Empty response. Success is indicated by gRPC-level status code.
+message AddMuteWordResponse {
+}
+
+message DeleteMuteWordRequest {
+  // Required. Username for user for whom this feed should be added.
+  string Username = 1;
+
+  // Optional. If set, each (unique) mute word will be removed for the user.
+  repeated string MuteWord = 2;
+}
+
+// Empty response. Success is indicated by gRPC-level status code.
+message DeleteMuteWordResponse {
+}
+
+
 message AddFeedRequest {
   // Required. Logical title of feed. It is possible to have multiple feeds of
   // the same title, so this is not checked for uniqueness.
@@ -95,6 +129,15 @@ message EditFeedResponse {
 service AdminService {
   // Add a new user into the system.
   rpc AddUser (AddUserRequest) returns (AddUserResponse);
+
+  // Get current muted words for a user.
+  rpc GetMuteWords (GetMuteWordsRequest) returns (GetMuteWordsResponse);
+
+  // Add mute words for a user.
+  rpc AddMuteWord (AddMuteWordRequest) returns (AddMuteWordResponse);
+
+  // Delete muted word for a user.
+  rpc DeleteMuteWord (DeleteMuteWordRequest) returns (DeleteMuteWordResponse);
 
   // Return all feeds for a user.
   rpc GetFeeds (GetFeedsRequest) returns (GetFeedsResponse);

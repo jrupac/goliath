@@ -88,6 +88,16 @@ func (crdb *Crdb) InsertUser(u models.User) error {
 
 	query := `INSERT INTO UserTable (id, username, key) VALUES($1, $2, $3)`
 	_, err := crdb.db.Exec(query, u.UserId, u.Username, u.Key)
+	if err != nil {
+		return err
+	}
+
+	// Also add an empty mute_word column for the new user
+	query = `
+		INSERT INTO UserPrefs (userid, mute_words)
+		VALUES($1, ARRAY[]::STRING[])
+	`
+	_, err = crdb.db.Exec(query, u.UserId)
 
 	return err
 }
@@ -152,13 +162,13 @@ func (crdb *Crdb) GetUserByUsername(username string) (models.User, error) {
  * User preferences
  ******************************************************************************/
 
-// ListMuteWordsForUser returns a list of mute words for the given user.
-func (crdb *Crdb) ListMuteWordsForUser(u models.User) ([]string, error) {
-	defer logElapsedTime(time.Now(), "ListMuteWordsForUser")
+// GetMuteWordsForUser returns a list of mute words for the given user.
+func (crdb *Crdb) GetMuteWordsForUser(u models.User) ([]string, error) {
+	defer logElapsedTime(time.Now(), "GetMuteWordsForUser")
 
-	var words []string
+	var words pq.StringArray
 
-	query := `SELECT word FROM MuteWords WHERE userid = $1`
+	query := `SELECT mute_words FROM UserPrefs WHERE userid = $1`
 	err := crdb.db.QueryRow(query, u.UserId).Scan(&words)
 
 	return words, err
@@ -172,7 +182,7 @@ func (crdb *Crdb) UpdateMuteWordsForUser(u models.User, words []string) error {
 	query := `
 		INSERT INTO UserPrefs (userid, mute_words)
 		VALUES ($1, $2)
-		ON CONFLICT (id) DO UPDATE
+		ON CONFLICT (userid) DO UPDATE
 		SET mute_words = (
 			SELECT array_agg(word ORDER BY word) 
 			FROM (
@@ -253,7 +263,7 @@ func (crdb *Crdb) PersistAllRetrievalCaches(entries map[string][]byte) error {
 	}
 	defer rollbackSilent(tx)
 
-	query := ` UPSERT INTO RetrievalCache (userid, cache) VALUES ($1, $2) `
+	query := `UPSERT INTO RetrievalCache (userid, cache) VALUES ($1, $2)`
 	stmt, err := tx.PrepareContext(ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
