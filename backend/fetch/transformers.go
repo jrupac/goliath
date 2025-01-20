@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/models"
+	"github.com/kljensen/snowball"
 	"github.com/mat/besticon/v3/besticon"
 	"golang.org/x/image/draw"
 	"html"
 	"image"
 	"image/png"
 	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -138,9 +141,9 @@ func extractTextFromHtml(s string) string {
 	return doc.Text()
 }
 
-// PrependMediaToHtml prepends the image included in the RSS enclosure to the
+// prependMediaToHtml prepends the image included in the RSS enclosure to the
 // HTML content specified.
-func PrependMediaToHtml(img string, s string) string {
+func prependMediaToHtml(img string, s string) string {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
 	if err != nil {
 		log.Warningf("Failed to parse HTML: %s", err)
@@ -157,4 +160,43 @@ func PrependMediaToHtml(img string, s string) string {
 	}
 
 	return resp
+}
+
+// stemWord returns the stemmed version of the word in English using the Porter
+// Stemming algorithm.
+func stemWord(s string) string {
+	ret := s
+
+	// Filter out some punctuation and other marks. Do not include single quote
+	// since stemming should usually handle that.
+	reg, err := regexp.Compile(`[.,!?():;"]`)
+	if err != nil {
+		return ret
+	}
+	ret = reg.ReplaceAllString(ret, "")
+
+	stemmed, _ := snowball.Stem(ret, "english", true)
+	return stemmed
+}
+
+// maybeMuteArticle returns true if any of the article's title or contents
+// match any of the muted words.
+func maybeMuteArticle(a models.Article, muteWords []string) bool {
+	wordMap := make(map[string]bool)
+	for _, word := range muteWords {
+		wordMap[stemWord(word)] = true
+	}
+
+	textWords := strings.Fields(a.Title)
+	textWords = append(textWords, strings.Fields(a.Summary)...)
+	textWords = append(textWords, strings.Fields(a.Content)...)
+
+	for _, textWord := range textWords {
+		if wordMap[stemWord(textWord)] {
+			log.Infof("Filtering article %+v due to muted word: %s", a, textWord)
+			return true
+		}
+	}
+
+	return false
 }

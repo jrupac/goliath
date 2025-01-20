@@ -248,10 +248,14 @@ func (f Fetcher) handleItemsForUser(ctx context.Context, feed *models.Feed, d st
 	latest := feed.Latest
 	newLatest := latest
 
-	var existingArticles []models.Article
 	existingArticles, err := d.GetArticlesForFeedForUser(u, feed.ID)
 	if err != nil {
-		log.Warningf("Error while fetching existing articles for feed %s: %s", feed.ID, err)
+		log.Warningf("while fetching existing articles for feed %d: %+v", feed.ID, err)
+	}
+
+	muteWords, err := d.GetMuteWordsForUser(u)
+	if err != nil {
+		log.Warningf("while fetching muted words: %+v", err)
 	}
 
 Loop:
@@ -274,8 +278,8 @@ Loop:
 
 		if item.Enclosures != nil {
 			for _, enc := range item.Enclosures {
-				contents = PrependMediaToHtml(enc.URL, contents)
-				parsed = PrependMediaToHtml(enc.URL, parsed)
+				contents = prependMediaToHtml(enc.URL, contents)
+				parsed = prependMediaToHtml(enc.URL, parsed)
 			}
 		}
 
@@ -318,7 +322,9 @@ Loop:
 			SyntheticDate: syntheticDate,
 		}
 
-		if !a.Date.After(latest) {
+		if maybeMuteArticle(a, muteWords) {
+			log.V(2).Infof("Not persisting because article contained mute word: %+v", a)
+		} else if !a.Date.After(latest) {
 			log.V(2).Infof("Not persisting too old article: %+v", a)
 		} else if r.Lookup(u, a.Hash()) {
 			log.V(2).Infof("Not persisting because present in retrieval cache: %+v", a)
