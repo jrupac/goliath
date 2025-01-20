@@ -637,12 +637,14 @@ func (crdb *Crdb) GetFolderChildrenForUser(u models.User, id int64) ([]int64, er
 	defer logElapsedTime(time.Now(), "GetFolderChildrenForUser")
 
 	var children []int64
-	rows, err := crdb.db.Query(
-		`SELECT child FROM FolderChildren WHERE userid = $1 AND parent = $2`, u.UserId, id)
+
+	query := `SELECT child FROM FolderChildren WHERE userid = $1 AND parent = $2`
+	rows, err := crdb.db.Query(query, u.UserId, id)
+	defer closeSilent(rows)
+
 	if err != nil {
 		return children, err
 	}
-	defer closeSilent(rows)
 
 	var childID int64
 	for rows.Next() {
@@ -661,11 +663,14 @@ func (crdb *Crdb) GetAllFoldersForUser(u models.User) ([]models.Folder, error) {
 
 	// TODO: Consider returning a map[int64]models.Folder instead.
 	var folders []models.Folder
-	rows, err := crdb.db.Query(`SELECT id, name FROM Folder WHERE userid = $1`, u.UserId)
+
+	query := `SELECT id, name FROM Folder WHERE userid = $1`
+	rows, err := crdb.db.Query(query, u.UserId)
+	defer closeSilent(rows)
+
 	if err != nil {
 		return folders, err
 	}
-	defer closeSilent(rows)
 
 	for rows.Next() {
 		f := models.Folder{}
@@ -684,12 +689,18 @@ func (crdb *Crdb) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
 	defer logElapsedTime(time.Now(), "GetAllFeedsForUser")
 
 	var feeds []models.Feed
-	rows, err := crdb.db.Query(
-		`SELECT id, folder, title, description, url, link, latest FROM Feed WHERE userid = $1`, u.UserId)
+
+	query := `
+		SELECT id, folder, title, description, url, link, latest
+		FROM Feed
+		WHERE userid = $1
+	`
+	rows, err := crdb.db.Query(query, u.UserId)
+	defer closeSilent(rows)
+
 	if err != nil {
 		return feeds, err
 	}
-	defer closeSilent(rows)
 
 	for rows.Next() {
 		f := models.Feed{}
@@ -709,12 +720,13 @@ func (crdb *Crdb) GetFeedsInFolderForUser(u models.User, folderId int64) ([]mode
 
 	var feeds []models.Feed
 
-	rows, err := crdb.db.Query(
-		`SELECT id, title, url FROM Feed WHERE userid = $1 AND folder = $2`, u.UserId, folderId)
+	query := `SELECT id, title, url FROM Feed WHERE userid = $1 AND folder = $2`
+	rows, err := crdb.db.Query(query, u.UserId, folderId)
+	defer closeSilent(rows)
+
 	if err != nil {
 		return feeds, err
 	}
-	defer closeSilent(rows)
 
 	for rows.Next() {
 		feed := models.Feed{}
@@ -732,11 +744,13 @@ func (crdb *Crdb) GetFeedsPerFolderForUser(u models.User) (map[int64][]int64, er
 
 	resp := map[int64][]int64{}
 
-	rows, err := crdb.db.Query(`SELECT folder, id FROM Feed WHERE userid = $1`, u.UserId)
+	query := `SELECT folder, id FROM Feed WHERE userid = $1`
+	rows, err := crdb.db.Query(query, u.UserId)
+	defer closeSilent(rows)
+
 	if err != nil {
 		return resp, err
 	}
-	defer closeSilent(rows)
 
 	var folderID, feedID int64
 	for rows.Next() {
@@ -754,58 +768,70 @@ func (crdb *Crdb) GetFeedsPerFolderForUser(u models.User) (map[int64][]int64, er
 func (crdb *Crdb) GetFolderFeedTreeForUser(u models.User) (*models.Folder, error) {
 	defer logElapsedTime(time.Now(), "GetFolderFeedTreeForUser")
 
-	rootFolder := &models.Folder{}
+	// TODO: Make this method into a transaction.
+
 	var rootId int64
 
 	// First determine the root ID
-	err := crdb.db.QueryRow(
-		`SELECT id from Folder WHERE userid = $1 AND name = $2`, u.UserId, models.RootFolder).Scan(&rootId)
+	query := `SELECT id from Folder WHERE userid = $1 AND name = $2`
+	err := crdb.db.QueryRow(query, u.UserId, models.RootFolder).Scan(&rootId)
 	if err != nil {
-		return rootFolder, err
+		return nil, err
 	}
-	rootFolder.ID = rootId
-	rootFolder.Name = "Root"
 
 	// Create map from ID to Folder
 	folders, err := crdb.GetAllFoldersForUser(u)
 	if err != nil {
-		return rootFolder, err
-	}
-	folderMap := map[int64]models.Folder{}
-	for _, f := range folders {
-		folderMap[f.ID] = f
+		return nil, fmt.Errorf("error getting all folder for user: %w", err)
 	}
 
-	// Forward declaration so that this can be recursively invoked.
-	var buildTree func(*models.Folder) error
+	folderMap := make(map[int64]*models.Folder)
+	for id := range folders {
+		folderMap[folders[id].ID] = &folders[id]
+	}
 
-	// Given a pointer to a folder, populate all feeds and folders within it.
-	buildTree = func(node *models.Folder) error {
-		feeds, err := crdb.GetFeedsInFolderForUser(u, node.ID)
-		if err != nil {
-			return err
+	// Assemble the folder parent/child relationships
+	query = `SELECT parent, child FROM FolderChildren WHERE userid = $1`
+	folderChildren, err := crdb.db.Query(query, u.UserId)
+	defer closeSilent(folderChildren)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get folder hierarchy: %w", err)
+	}
+
+	for folderChildren.Next() {
+		var parentID, childID int64
+		if err := folderChildren.Scan(&parentID, &childID); err != nil {
+			return nil, fmt.Errorf("failed to scan folder child relationship: %w", err)
 		}
-		node.Feed = feeds
-
-		childFolders, err := crdb.GetFolderChildrenForUser(u, node.ID)
-		if err != nil {
-			return err
-		}
-
-		for _, c := range childFolders {
-			ch := folderMap[c]
-			child := &models.Folder{ID: ch.ID, Name: ch.Name}
-			err := buildTree(child)
-			if err != nil {
-				return err
+		if parent, ok := folderMap[parentID]; ok {
+			if child, ok := folderMap[childID]; ok {
+				parent.Folders = append(parent.Folders, *child)
 			}
-			node.Folders = append(node.Folders, *child)
 		}
-		return nil
+	}
+	if err = folderChildren.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over folder hierarchy: %w", err)
 	}
 
-	err = buildTree(rootFolder)
-	return rootFolder, err
+	// Map all feeds to their respective folders
+	feeds, err := crdb.GetAllFeedsForUser(u)
+	if err != nil {
+		return nil, fmt.Errorf("error getting all feeds for user: %w", err)
+	}
+
+	for _, f := range feeds {
+		if folder, ok := folderMap[f.FolderID]; ok {
+			folder.Feed = append(folder.Feed, f)
+		}
+	}
+
+	rootFolder, ok := folderMap[rootId]
+	if !ok {
+		return nil, fmt.Errorf("root folder not found in folder map for user %s", u.UserId)
+	}
+
+	return rootFolder, nil
 }
 
 // GetAllFaviconsForUser returns a map of feed ID to a base64 representation of
@@ -815,12 +841,18 @@ func (crdb *Crdb) GetAllFaviconsForUser(u models.User) (map[int64]string, error)
 
 	// TODO: Consider returning a Favicon model type.
 	favicons := map[int64]string{}
-	rows, err := crdb.db.Query(
-		`SELECT id, mime, favicon FROM Feed WHERE userid = $1 AND favicon IS NOT NULL`, u.UserId)
+
+	query := `
+		SELECT id, mime, favicon
+		FROM Feed
+		WHERE userid = $1 AND favicon IS NOT NULL
+	`
+	rows, err := crdb.db.Query(query, u.UserId)
+	defer closeSilent(rows)
+
 	if err != nil {
 		return favicons, err
 	}
-	defer closeSilent(rows)
 
 	var id int64
 	var mime string
@@ -850,13 +882,18 @@ func (crdb *Crdb) GetUnreadArticleMetaForUser(u models.User, limit int, sinceID 
 		sinceID = 0
 	}
 
-	rows, err = crdb.db.Query(
-		`SELECT id, feed, folder, date FROM Article
-		WHERE userid = $1 AND id > $2 AND NOT read ORDER BY id LIMIT $3`, u.UserId, sinceID, limit)
+	query := `
+		SELECT id, feed, folder, date
+		FROM Article
+		WHERE userid = $1 AND id > $2 AND NOT read
+		ORDER BY id LIMIT $3
+	`
+	rows, err = crdb.db.Query(query, u.UserId, sinceID, limit)
+	defer closeSilent(rows)
+
 	if err != nil {
 		return articles, err
 	}
-	defer closeSilent(rows)
 
 	for rows.Next() {
 		a := models.Article{}
@@ -877,13 +914,17 @@ func (crdb *Crdb) GetArticlesForUser(u models.User, ids []int64) ([]models.Artic
 	var rows *sql.Rows
 	var err error
 
-	rows, err = crdb.db.Query(
-		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM Article
-		WHERE userid = $1 AND id = ANY($2)`, u.UserId, pq.Array(ids))
+	query := `
+		SELECT id, feed, folder, title, summary, content, parsed, link, date
+		FROM Article
+		WHERE userid = $1 AND id = ANY($2)
+	`
+	rows, err = crdb.db.Query(query, u.UserId, pq.Array(ids))
+	defer closeSilent(rows)
+
 	if err != nil {
 		return articles, err
 	}
-	defer closeSilent(rows)
 
 	for rows.Next() {
 		a := models.Article{}
@@ -912,13 +953,18 @@ func (crdb *Crdb) GetUnreadArticlesForUser(u models.User, limit int, sinceID int
 		sinceID = 0
 	}
 
-	rows, err = crdb.db.Query(
-		`SELECT id, feed, folder, title, summary, content, parsed, link, date FROM Article
-		WHERE userid = $1 AND id > $2 AND NOT read ORDER BY id LIMIT $3`, u.UserId, sinceID, limit)
+	query := `
+		SELECT id, feed, folder, title, summary, content, parsed, link, date
+		FROM Article
+		WHERE userid = $1 AND id > $2 AND NOT read
+		ORDER BY id LIMIT $3
+	`
+	rows, err = crdb.db.Query(query, u.UserId, sinceID, limit)
+	defer closeSilent(rows)
+
 	if err != nil {
 		return articles, err
 	}
-	defer closeSilent(rows)
 
 	for rows.Next() {
 		a := models.Article{}
@@ -940,13 +986,17 @@ func (crdb *Crdb) GetArticlesForFeedForUser(u models.User, feedId int64) ([]mode
 	var rows *sql.Rows
 	var err error
 
-	rows, err = crdb.db.Query(
-		`SELECT id, feed, folder, title, summary, content, parsed, link, read, date FROM Article
-		WHERE userid = $1 AND feed = $2`, u.UserId, feedId)
+	query := `
+		SELECT id, feed, folder, title, summary, content, parsed, link, read, date
+		FROM Article
+		WHERE userid = $1 AND feed = $2
+	`
+	rows, err = crdb.db.Query(query, u.UserId, feedId)
+	defer closeSilent(rows)
+
 	if err != nil {
 		return articles, err
 	}
-	defer closeSilent(rows)
 
 	for rows.Next() {
 		a := models.Article{}
@@ -1008,7 +1058,7 @@ func parseState(status string) (bool, error) {
 	var state bool
 	switch status {
 	case "saved", "unsaved":
-		// Perhaps add support for saving articles in the future.
+		// TODO: Considering adding support for saving articles.
 		return false, errors.New("Unsupported status: %s" + status)
 	case "read":
 		state = true
