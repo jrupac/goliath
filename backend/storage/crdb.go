@@ -401,6 +401,8 @@ func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId i
 		return errFolderId, fmt.Errorf("failed to insert folder: %w", err)
 	}
 
+	// If the parentID is not the root, update the FolderChildren mapping.
+	// If the parentID is root, there is nothing to update.
 	if parentId != 0 {
 		query = `
 			INSERT INTO FolderChildren(userid, parent, child) 
@@ -425,25 +427,36 @@ func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId i
  ******************************************************************************/
 
 // DeleteArticlesForUser deletes all articles earlier than the given timestamp
-// and returns the number deleted.
+// and returns the number deleted. On error, -1 is returned for the number of
+// articles deleted.
 func (crdb *Crdb) DeleteArticlesForUser(u models.User, minTimestamp time.Time) (int64, error) {
 	defer logElapsedTime(time.Now(), "DeleteArticlesForUser")
 
-	r, err := crdb.db.Exec(
-		`DELETE FROM Article WHERE userid = $1 AND read AND (retrieved IS NULL OR retrieved < $2) RETURNING id`,
-		u.UserId, minTimestamp)
+	query := `
+		DELETE FROM Article 
+		WHERE userid = $1 
+		  AND read 
+		  AND (retrieved IS NULL OR retrieved < $2)
+	`
+	result, err := crdb.db.Exec(query, u.UserId, minTimestamp)
 	if err != nil {
-		return 0, err
+		return -1, fmt.Errorf("failed to delete articles: %w", err)
 	}
-	return r.RowsAffected()
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return -1, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	return rowsAffected, nil
 }
 
 // DeleteArticlesByIdForUser deletes articles in the given list of IDs for the given user.
 func (crdb *Crdb) DeleteArticlesByIdForUser(u models.User, ids []int64) error {
 	defer logElapsedTime(time.Now(), "DeleteArticlesByIdForUser")
 
-	_, err := crdb.db.Exec(
-		`DELETE FROM Article WHERE userid = $1 AND id = ANY($2)`, u.UserId, pq.Array(ids))
+	query := `DELETE FROM Article WHERE userid = $1 AND id = ANY($2)`
+	_, err := crdb.db.Exec(query, u.UserId, pq.Array(ids))
 	return err
 }
 
@@ -451,19 +464,33 @@ func (crdb *Crdb) DeleteArticlesByIdForUser(u models.User, ids []int64) error {
 func (crdb *Crdb) DeleteFeedForUser(u models.User, feedId int64, folderId int64) error {
 	defer logElapsedTime(time.Now(), "DeleteFeedForUser")
 
-	// TODO: Make the following queries into a single transaction.
-	_, err := crdb.db.Exec(
-		`DELETE FROM Article WHERE userid = $1 AND folder = $2 AND feed = $3`,
-		u.UserId, folderId, feedId)
+	// TODO: Add an `ON DELETE CASCADE` constraint to `Article` to simplify.
+
+	ctx, cancel := context.WithTimeout(context.Background(), maxOpTime)
+	defer cancel()
+	tx, err := crdb.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer rollbackSilent(tx)
+
+	query := `DELETE FROM Article WHERE userid = $1 AND folder = $2 AND feed = $3`
+	_, err = tx.ExecContext(ctx, query, u.UserId, folderId, feedId)
+	if err != nil {
+		return fmt.Errorf("failed to delete articles: %w", err)
 	}
 
-	_, err = crdb.db.Exec(
-		`DELETE FROM Feed WHERE userid = $1 AND folder = $2 AND id = $3`,
-		u.UserId, folderId, feedId)
+	query = `DELETE FROM Feed WHERE userid = $1 AND folder = $2 AND id = $3`
+	_, err = tx.ExecContext(ctx, query, u.UserId, folderId, feedId)
+	if err != nil {
+		return fmt.Errorf("failed to delete feed: %w", err)
+	}
 
-	return err
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 /*******************************************************************************
@@ -481,8 +508,8 @@ func (crdb *Crdb) MarkArticleForUser(u models.User, articleId int64, status stri
 		return err
 	}
 
-	_, err = crdb.db.Exec(
-		`UPDATE Article SET read = $1 WHERE userid = $2 AND id = $3`, state, u.UserId, articleId)
+	query := `UPDATE Article SET read = $1 WHERE userid = $2 AND id = $3`
+	_, err = crdb.db.Exec(query, state, u.UserId, articleId)
 	return err
 }
 
@@ -497,8 +524,8 @@ func (crdb *Crdb) MarkFeedForUser(u models.User, feedId int64, status string) er
 		return err
 	}
 
-	_, err = crdb.db.Exec(
-		`UPDATE Article SET read = $1 WHERE userid = $2 AND feed = $3`, state, u.UserId, feedId)
+	query := `UPDATE Article SET read = $1 WHERE userid = $2 AND feed = $3`
+	_, err = crdb.db.Exec(query, state, u.UserId, feedId)
 	return err
 }
 
@@ -514,29 +541,43 @@ func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, status string
 		return err
 	}
 
-	// Special-case id=0 to mean everything (the root folder).
+	// With folderID = 0, just mark everything as read.
 	if folderId == 0 {
-		_, err = crdb.db.Exec(`UPDATE Article SET read = $1 WHERE userid = $2`, state, u.UserId)
-		return err
-	}
-
-	_, err = crdb.db.Exec(
-		`UPDATE Article SET read = $1 WHERE userid = $2 AND folder = $3`, state, u.UserId, folderId)
-	if err != nil {
-		return err
-	}
-
-	// Recursively mark child folders also with the same status.
-	children, err := crdb.GetFolderChildrenForUser(u, folderId)
-	if err != nil {
-		return err
-	}
-	for _, c := range children {
-		if err2 := crdb.MarkFolderForUser(u, c, status); err2 != nil {
-			return err2
+		query := `UPDATE Article SET read = $1 WHERE userid = $2`
+		_, err = crdb.db.Exec(query, state, u.UserId)
+		if err != nil {
+			return fmt.Errorf("failed to update articles for all folders: %w", err)
+		}
+	} else {
+		// Enumerate all descendant folders of folderId in a recursive CTE and then
+		// mark all articles in any of that set of folders (including the original
+		// folder itself) in one update.
+		query := `
+			WITH RECURSIVE RecursiveFolders AS (
+				SELECT child
+				FROM FolderChildren
+				WHERE userid = $1 AND parent = $2
+				UNION ALL
+				SELECT fc.child
+				FROM FolderChildren fc
+				INNER JOIN RecursiveFolders rf ON fc.parent = rf.child
+				WHERE fc.userid = $1
+			)
+			UPDATE Article AS a
+			SET read = $3
+			WHERE a.userid = $1
+			  AND (
+				a.folder IN (SELECT child FROM RecursiveFolders)
+				OR a.folder = $2
+			  );
+		`
+		_, err = crdb.db.Exec(query, u.UserId, folderId, state)
+		if err != nil {
+			return fmt.Errorf("failed to update articles for folder %d and its descendants: %w", folderId, err)
 		}
 	}
-	return err
+
+	return nil
 }
 
 /*******************************************************************************
@@ -548,9 +589,13 @@ func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, status string
 func (crdb *Crdb) UpdateFeedMetadataForUser(u models.User, f models.Feed) error {
 	defer logElapsedTime(time.Now(), "UpdateFeedMetadataForUser")
 
+	query := `
+		UPDATE Feed
+		SET hash = $1, title = $2, description = $3, link = $4
+		WHERE userid = $5 AND folder = $6 AND id = $7
+	`
 	_, err := crdb.db.Exec(
-		`UPDATE Feed SET hash = $1, title = $2, description = $3, link = $4 WHERE userid = $5 AND folder = $6 AND id = $7`,
-		f.Hash(), f.Title, f.Description, f.Link, u.UserId, f.FolderID, f.ID)
+		query, f.Hash(), f.Title, f.Description, f.Link, u.UserId, f.FolderID, f.ID)
 	return err
 }
 
@@ -559,9 +604,12 @@ func (crdb *Crdb) UpdateFeedMetadataForUser(u models.User, f models.Feed) error 
 func (crdb *Crdb) UpdateLatestTimeForFeedForUser(u models.User, folderId int64, id int64, latest time.Time) error {
 	defer logElapsedTime(time.Now(), "UpdateLatestTimeForFeedForUser")
 
-	_, err := crdb.db.Exec(
-		`UPDATE Feed SET latest = $1 WHERE userid = $2 AND folder = $3 AND id = $4`,
-		latest, u.UserId, folderId, id)
+	query := `
+		UPDATE Feed
+		SET latest = $1
+		WHERE userid = $2 AND folder = $3 AND id = $4
+	`
+	_, err := crdb.db.Exec(query, latest, u.UserId, folderId, id)
 	return err
 }
 
@@ -574,9 +622,8 @@ func (crdb *Crdb) UpdateFolderForFeedForUser(u models.User, feedId int64, folder
 	// The corresponding rows in the `Article` table will also be updated via the
 	// `ON UPDATE CASCADE` setting of the foreign key constraint on that table, so
 	// no need to directly update `Article` here.
-	_, err := crdb.db.Exec(
-		`UPDATE Feed SET folder = $1 WHERE userid = $2 and id = $3`,
-		folderId, u.UserId, feedId)
+	query := `UPDATE Feed SET folder = $1 WHERE userid = $2 and id = $3`
+	_, err := crdb.db.Exec(query, folderId, u.UserId, feedId)
 	return err
 }
 
