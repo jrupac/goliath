@@ -41,7 +41,8 @@ CREATE TABLE IF NOT EXISTS Folder
     id     SERIAL NOT NULL UNIQUE,
     PRIMARY KEY (userid, id),
     -- Data columns
-    name   STRING UNIQUE
+    name STRING,
+    CONSTRAINT unique_userid_name UNIQUE (userid, name)
     );
 
 CREATE TABLE IF NOT EXISTS FolderChildren
@@ -63,7 +64,7 @@ CREATE TABLE IF NOT EXISTS Feed
     CONSTRAINT fk_folder_cascade FOREIGN KEY (userid, folder)
         REFERENCES Folder ON UPDATE CASCADE,
     -- Metadata columns
-    hash        STRING UNIQUE,
+    hash   STRING,
     -- Data columns
     title       STRING,
     description STRING,
@@ -74,7 +75,8 @@ CREATE TABLE IF NOT EXISTS Feed
     -- Base64 encoding of favicon
     favicon     STRING,
     -- Latest timestamp of articles in this feed
-    latest      TIMESTAMPTZ DEFAULT CAST(0 AS TIMESTAMPTZ)
+    latest TIMESTAMPTZ DEFAULT CAST(0 AS TIMESTAMPTZ),
+    CONSTRAINT unique_userid_hash UNIQUE (userid, hash)
     );
 
 CREATE INDEX ON Feed (userid) STORING (title, description, url, link, latest);
@@ -90,7 +92,7 @@ CREATE TABLE IF NOT EXISTS Article
     CONSTRAINT fk_feed_folder_cascade FOREIGN KEY (userid, folder, feed)
         REFERENCES Feed ON UPDATE CASCADE,
     -- Metadata columns
-    hash      STRING UNIQUE,
+    hash      STRING,
     -- Data columns
     title     STRING,
     summary   STRING,
@@ -101,7 +103,8 @@ CREATE TABLE IF NOT EXISTS Article
     -- Publication timestamp
     date      TIMESTAMPTZ,
     -- Retrieval timestamp
-    retrieved TIMESTAMPTZ
+    retrieved TIMESTAMPTZ,
+    CONSTRAINT unique_userid_feed_hash UNIQUE (userid, feed, hash)
     );
 
 CREATE

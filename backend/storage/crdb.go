@@ -286,7 +286,7 @@ func (crdb *Crdb) InsertArticleForUser(u models.User, a models.Article) error {
 	query := `
 		INSERT INTO Article (userid, folder, feed, hash, title, summary, content, parsed, link, read, date, retrieved)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-		ON CONFLICT (userid, hash) DO NOTHING
+		ON CONFLICT (userid, feed, hash) DO NOTHING
 		RETURNING id
 	`
 	err := crdb.db.QueryRow(query,
