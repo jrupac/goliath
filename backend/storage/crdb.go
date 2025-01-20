@@ -19,7 +19,7 @@ const (
 	maxFetchedRows     = 10000
 	slowOpLogThreshold = 50 * time.Millisecond
 	retryBackoff       = 1 * time.Second
-	maxOpTime = 30 * time.Second
+	maxOperationTime   = 30 * time.Second
 )
 
 // Crdb is a wrapper type around a database connection.
@@ -255,7 +255,7 @@ func (crdb *Crdb) GetAllRetrievalCaches() (map[string]string, error) {
 func (crdb *Crdb) PersistAllRetrievalCaches(entries map[string][]byte) error {
 	defer logElapsedTime(time.Now(), "PersistAllRetrievalCaches")
 
-	ctx, cancel := context.WithTimeout(context.Background(), maxOpTime)
+	ctx, cancel := context.WithTimeout(context.Background(), maxOperationTime)
 	defer cancel()
 	tx, err := crdb.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -394,7 +394,7 @@ func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId i
 
 	errFolderId := int64(-1)
 
-	ctx, cancel := context.WithTimeout(context.Background(), maxOpTime)
+	ctx, cancel := context.WithTimeout(context.Background(), maxOperationTime)
 	defer cancel()
 	tx, err := crdb.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -478,7 +478,7 @@ func (crdb *Crdb) DeleteFeedForUser(u models.User, feedId int64, folderId int64)
 
 	// TODO: Add an `ON DELETE CASCADE` constraint to `Article` to simplify.
 
-	ctx, cancel := context.WithTimeout(context.Background(), maxOpTime)
+	ctx, cancel := context.WithTimeout(context.Background(), maxOperationTime)
 	defer cancel()
 	tx, err := crdb.db.BeginTx(ctx, nil)
 	if err != nil {
