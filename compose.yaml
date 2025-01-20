@@ -28,7 +28,7 @@ services:
   # Dev Environment
   ##############################################################################
 
-  frontend-dev: &frontend_dev_template
+  frontend-dev: &frontend_template
     build:
       context: frontend
       dockerfile: dev.Dockerfile
@@ -44,13 +44,13 @@ services:
     volumes:
       - ./frontend:/frontend
 
-  backend-dev: &backend_dev_template
+  backend-dev: &backend_template
     build:
       dockerfile: dev.Dockerfile
     container_name: "backend_dev"
     profiles: [ "dev" ]
     depends_on:
-      crdb:
+      crdb-dev:
         condition: service_started
     networks:
       - crdb-network
@@ -63,23 +63,44 @@ services:
       - "./config.ini:/config.ini"
       - "/tmp:/tmp"
 
+  crdb-dev: &crdb_template
+    image: cockroachdb/cockroach:v23.2.2
+    container_name: "crdb-dev"
+    command: "start-single-node --insecure --advertise-addr=crdb --log-dir=/tmp"
+    hostname: crdb
+    dns: 8.8.8.8
+    profiles: [ "dev" ]
+    ports:
+      # Also map 26257 to the host in the non-prod
+      - "26257:26257"
+    networks:
+      - crdb-network
+      - goliath-network
+    volumes:
+      - "crdb_volume:/cockroach/cockroach-data"
+      - "./backend/schema:/cockroach/scripts"
+      - "/tmp:/tmp"
+
   ##############################################################################
   # Debug Environment
   ##############################################################################
 
   frontend-debug:
-    <<: *frontend_dev_template
+    <<: *frontend_template
     container_name: "frontend-debug"
     profiles: [ "debug" ]
     links:
       - "backend-debug:goliath-dev"
 
   backend-debug:
-    <<: *backend_dev_template
+    <<: *backend_template
     build:
       dockerfile: debug.Dockerfile
     container_name: "backend-debug"
     profiles: [ "debug" ]
+    depends_on:
+      crdb-debug:
+        condition: service_started
     cap_add:
       - SYS_PTRACE
     ports:
@@ -90,11 +111,30 @@ services:
     security_opt:
       - seccomp:unconfined
 
+  crdb-debug: &crdb_template
+    image: cockroachdb/cockroach:v23.2.2
+    hostname: crdb
+    command: "start-single-node --insecure --advertise-addr=crdb --log-dir=/tmp"
+    container_name: "crdb-debug"
+    dns: 8.8.8.8
+    profiles: [ "debug" ]
+    ports:
+      # Also map 26257 to the host in the non-prod
+      - "26257:26257"
+    networks:
+      - crdb-network
+      - goliath-network
+    volumes:
+      - "crdb_volume:/cockroach/cockroach-data"
+      - "./backend/schema:/cockroach/scripts"
+      - "/tmp:/tmp"
+
   ##############################################################################
   # External Services
   ##############################################################################
 
   crdb:
+    <<: *crdb_template
     image: cockroachdb/cockroach:v23.2.2
     hostname: crdb
     command: "start-single-node --insecure --advertise-addr=crdb --log-dir=/tmp"
@@ -105,6 +145,7 @@ services:
         max_attempts: 10
         window: 120s
     dns: 8.8.8.8
+    profiles: [ "prod" ]
     expose:
       - "26257"
     healthcheck:
