@@ -1087,8 +1087,5 @@ func rollbackSilent(tx *sql.Tx) {
 		log.Warningf("WARNING: Transaction object is nil, nothing to rollback.")
 		return
 	}
-	err := tx.Rollback()
-	if err != nil {
-		log.Warningf("Failed to rollback transaction: %+v", tx)
-	}
+	_ = tx.Rollback()
 }
