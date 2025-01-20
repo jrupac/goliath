@@ -260,7 +260,9 @@ func (crdb *Crdb) PersistAllRetrievalCaches(entries map[string][]byte) error {
 	}
 
 	for id, cache := range entries {
-		_, err = stmt.ExecContext(ctx, id, cache)
+		// TODO: Change to BYTE type for this column instead of string encoding
+		encodedCache := base64.StdEncoding.EncodeToString(cache)
+		_, err = stmt.ExecContext(ctx, id, encodedCache)
 		if err != nil {
 			return fmt.Errorf("failed to execute statement: %w", err)
 		}
