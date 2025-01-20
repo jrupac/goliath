@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 	"net"
 	"sort"
+	"strings"
 )
 
 var (
@@ -77,11 +78,11 @@ func (s *server) AddMuteWord(_ context.Context, req *AddMuteWordRequest) (*AddMu
 	// Make a unique, sorted list from the input
 	uniqueMap := make(map[string]bool)
 	for _, str := range req.GetMuteWord() {
-		uniqueMap[str] = true
+		uniqueMap[strings.ToLower(str)] = true
 	}
 	muteWords := make([]string, 0, len(uniqueMap))
 	for str := range uniqueMap {
-		muteWords = append(muteWords, str)
+		muteWords = append(muteWords, strings.ToLower(str))
 	}
 	sort.Strings(muteWords)
 
@@ -114,11 +115,11 @@ func (s *server) DeleteMuteWord(_ context.Context, req *DeleteMuteWordRequest) (
 	// Make a unique, sorted list from the input
 	uniqueMap := make(map[string]bool)
 	for _, str := range req.GetMuteWord() {
-		uniqueMap[str] = true
+		uniqueMap[strings.ToLower(str)] = true
 	}
 	muteWords := make([]string, 0, len(uniqueMap))
 	for str := range uniqueMap {
-		muteWords = append(muteWords, str)
+		muteWords = append(muteWords, strings.ToLower(str))
 	}
 	sort.Strings(muteWords)
 

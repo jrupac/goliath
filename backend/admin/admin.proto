@@ -33,6 +33,8 @@ message AddMuteWordRequest {
   string Username = 1;
 
   // Optional. If set, each (unique) mute word will be added for the user.
+  // Mute words are case-insensitive and the lowercase version of the word
+  // will be persisted.
   repeated string MuteWord = 2;
 }
 
@@ -45,6 +47,8 @@ message DeleteMuteWordRequest {
   string Username = 1;
 
   // Optional. If set, each (unique) mute word will be removed for the user.
+  // Mute words are case-insensitive so the lowercase version of the word
+  // specified here will be removed if present.
   repeated string MuteWord = 2;
 }
 
