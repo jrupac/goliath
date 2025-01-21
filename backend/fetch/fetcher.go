@@ -249,7 +249,7 @@ func (f Fetcher) handleItemsForUser(ctx context.Context, feed *models.Feed, d st
 	newLatest := latest
 
 	numTotal := len(items)
-	var numInserted, numUpdatedExisting, numExistingRemoved, numTooOld, numRetrievalCache, numMuted int
+	var numInserted, numMarkedRead, numUpdatedExisting, numExistingRemoved, numTooOld, numRetrievalCache, numMuted int
 
 	existingArticles, err := d.GetArticlesForFeedForUser(u, feed.ID)
 	if err != nil {
@@ -344,6 +344,7 @@ Loop:
 				// If all similar articles are read, mark the new one as read too to avoid "resurrecting" it.
 				// This is preferable to just skipping it as it progresses the "latest" timestamp.
 				log.V(2).Infof("Marking new article for %d read since all similar ones are read: %s", feed.ID, a.Title)
+				numMarkedRead += 1
 				a.Read = true
 			} else if len(unreadIds) > 0 {
 				log.V(2).Infof("Found %d similar articles to \"%s\": %+v", len(unreadIds), a.Title, unreadIds)
@@ -376,8 +377,8 @@ Loop:
 	}
 
 	log.Infof(
-		"Fetch stats for user %s and feed \"%s\": total=%d, inserted=%d (updated existing=%d, existing removed=%d), too old=%d, retrieval cache=%d, muted=%d",
-		u, feed.Title, numTotal, numInserted, numUpdatedExisting, numExistingRemoved, numTooOld, numRetrievalCache, numMuted)
+		"Fetch stats:\n\tUser: %s\n\tFeed: \"%s\"\n\ttotal=%d, inserted=%d (marked read=%d, updated existing=%d, existing removed=%d), too old=%d, retrieval cache=%d, muted=%d",
+		u, feed.Title, numTotal, numInserted, numMarkedRead, numUpdatedExisting, numExistingRemoved, numTooOld, numRetrievalCache, numMuted)
 }
 
 func (f Fetcher) handleImage(ctx context.Context, feed models.Feed, fetch *rss.Feed, send chan imagePair) {

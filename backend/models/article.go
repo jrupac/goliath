@@ -61,6 +61,6 @@ func (a *Article) DebugString() string {
 	n := 100
 
 	return fmt.Sprintf(
-		"\n\t(Folder, Feed, Article): (%d, %d, %d)\n\tTitle: %s\n\tSummary: %s\n\tContent: %s\n",
-		a.FolderID, a.FeedID, a.ID, utils.Substring(a.Title, n), utils.Substring(a.Summary, n), utils.Substring(a.Content, n))
+		"\n\t(Folder, Feed, Article): (%d, %d, %d)\n\tLink: %s\n\tTitle: %s\n\tSummary: %s\n\tContent: %s\n",
+		a.FolderID, a.FeedID, a.ID, a.Link, utils.Substring(a.Title, n), utils.Substring(a.Summary, n), utils.Substring(a.Content, n))
 }
