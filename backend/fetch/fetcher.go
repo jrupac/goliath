@@ -160,9 +160,9 @@ func (f Fetcher) startFetchLoopForUser(d storage.Database, ctx context.Context, 
 	for {
 		select {
 		case a := <-ac:
-			utils.DebugPrint("Received a new article:", a)
+			utils.DebugPrint("Received a new article:", a.DebugString())
 			if err2 := d.InsertArticleForUser(u, a); err2 != nil {
-				log.Warningf("Failed to persist article for user %s: %+v: %s", u, a, err2)
+				log.Warningf("Failed to persist article for user %s due to %s: %s", u, err2, a.DebugString())
 			}
 			r.Add(u, a.Hash())
 		case ip := <-ic:
@@ -182,7 +182,7 @@ func (f Fetcher) startFetchLoopForUser(d storage.Database, ctx context.Context, 
 func (f Fetcher) fetchLoopForFeed(ctx context.Context, d storage.Database, r *cache.RetrievalCache, ac chan models.Article, ic chan imagePair, feed models.Feed, u models.User) {
 	log.Infof("Fetching URL '%s'", feed.URL)
 	tick := make(<-chan time.Time)
-	initalFetch := make(chan struct{})
+	initialFetch := make(chan struct{})
 
 	go func() {
 		fetch, err := rss.Fetch(feed.URL)
@@ -198,12 +198,12 @@ func (f Fetcher) fetchLoopForFeed(ctx context.Context, d storage.Database, r *ca
 
 		tick = time.After(time.Until(fetch.Refresh))
 		log.Infof("Initial waiting to fetch %s until %s for user %s\n", feed.URL, fetch.Refresh, u)
-		initalFetch <- struct{}{}
+		initialFetch <- struct{}{}
 	}()
 
 	for {
 		select {
-		case <-initalFetch:
+		case <-initialFetch:
 			// Block on initial fetch here so that we can return early if needed
 			continue
 		case <-tick:
@@ -240,13 +240,16 @@ func (f Fetcher) updateFeedMetadataForUser(d storage.Database, mf *models.Feed, 
 
 	err := d.UpdateFeedMetadataForUser(u, *mf)
 	if err != nil {
-		log.Warningf("Error while updated feed metadata for feed %s: %s", mf.ID, err)
+		log.Warningf("Error while updated feed metadata for feed %d: %s", mf.ID, err)
 	}
 }
 
 func (f Fetcher) handleItemsForUser(ctx context.Context, feed *models.Feed, d storage.Database, r *cache.RetrievalCache, items []*rss.Item, send chan models.Article, u models.User) {
 	latest := feed.Latest
 	newLatest := latest
+
+	numTotal := len(items)
+	var numInserted, numUpdatedExisting, numExistingRemoved, numTooOld, numRetrievalCache, numMuted int
 
 	existingArticles, err := d.GetArticlesForFeedForUser(u, feed.ID)
 	if err != nil {
@@ -322,26 +325,33 @@ Loop:
 			SyntheticDate: syntheticDate,
 		}
 
-		if maybeMuteArticle(a, muteWords) {
-			log.V(2).Infof("Not persisting because article contained mute word: %+v", a)
-		} else if !a.Date.After(latest) {
-			log.V(2).Infof("Not persisting too old article: %+v", a)
+		if !a.Date.After(latest) {
+			log.V(2).Infof("Not persisting too old article: %s", a.DebugString())
+			numTooOld += 1
 		} else if r.Lookup(u, a.Hash()) {
-			log.V(2).Infof("Not persisting because present in retrieval cache: %+v", a)
+			log.V(2).Infof("Not persisting because present in retrieval cache: %s", a.DebugString())
+			numRetrievalCache += 1
+		} else if maybeMuteArticle(a, muteWords) {
+			log.V(2).Infof("Not persisting because of muted word: %s", a.DebugString())
+			numMuted += 1
 		} else {
+			numInserted += 1
+
 			// Remove existing articles that are similar to the newly fetched one.
 			unreadIds, readIds := getSimilarExistingArticles(existingArticles, a)
 
 			if len(unreadIds) == 0 && len(readIds) > 0 {
 				// If all similar articles are read, mark the new one as read too to avoid "resurrecting" it.
 				// This is preferable to just skipping it as it progresses the "latest" timestamp.
-				log.V(2).Infof("Marking new article for %s read since all similar ones are read: %s", feed.ID, a.Title)
+				log.V(2).Infof("Marking new article for %d read since all similar ones are read: %s", feed.ID, a.Title)
 				a.Read = true
 			} else if len(unreadIds) > 0 {
-				log.Infof("Found %d similar articles to %s: %+v", len(unreadIds), a.Title, unreadIds)
+				log.V(2).Infof("Found %d similar articles to \"%s\": %+v", len(unreadIds), a.Title, unreadIds)
+				numUpdatedExisting += 1
+				numExistingRemoved += len(unreadIds)
 				err = d.DeleteArticlesByIdForUser(u, unreadIds)
 				if err != nil {
-					log.Warningf("Failed to delete similar articles for feed %s: %s", feed.ID, err)
+					log.Warningf("Failed to delete similar articles for feed %d: %s", feed.ID, err)
 				}
 			}
 
@@ -364,6 +374,10 @@ Loop:
 	} else {
 		feed.Latest = newLatest
 	}
+
+	log.Infof(
+		"Fetch stats for user %s and feed \"%s\": total=%d, inserted=%d (updated existing=%d, existing removed=%d), too old=%d, retrieval cache=%d, muted=%d",
+		u, feed.Title, numTotal, numInserted, numUpdatedExisting, numExistingRemoved, numTooOld, numRetrievalCache, numMuted)
 }
 
 func (f Fetcher) handleImage(ctx context.Context, feed models.Feed, fetch *rss.Feed, send chan imagePair) {

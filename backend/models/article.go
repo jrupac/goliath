@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/utils"
 	"golang.org/x/crypto/sha3"
 	"time"
 )
@@ -53,4 +54,13 @@ func (a *Article) GetContents(serveParsed bool) string {
 		content = a.Summary
 	}
 	return content
+}
+
+func (a *Article) DebugString() string {
+	// Substring length to print out for string fields
+	n := 100
+
+	return fmt.Sprintf(
+		"\n\t(Folder, Feed, Article): (%d, %d, %d)\n\tTitle: %s\n\tSummary: %s\n\tContent: %s\n",
+		a.FolderID, a.FeedID, a.ID, utils.Substring(a.Title, n), utils.Substring(a.Summary, n), utils.Substring(a.Content, n))
 }

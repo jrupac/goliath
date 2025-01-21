@@ -182,9 +182,9 @@ func stemWord(s string) string {
 // maybeMuteArticle returns true if any of the article's title or contents
 // match any of the muted words.
 func maybeMuteArticle(a models.Article, muteWords []string) bool {
-	wordMap := make(map[string]bool)
+	muteWordMap := make(map[string]string)
 	for _, word := range muteWords {
-		wordMap[stemWord(word)] = true
+		muteWordMap[stemWord(word)] = word
 	}
 
 	textWords := strings.Fields(a.Title)
@@ -192,8 +192,10 @@ func maybeMuteArticle(a models.Article, muteWords []string) bool {
 	textWords = append(textWords, strings.Fields(a.Content)...)
 
 	for _, textWord := range textWords {
-		if wordMap[stemWord(textWord)] {
-			log.Infof("Filtering article %+v due to muted word: %s", a, textWord)
+		if muteWord, ok := muteWordMap[stemWord(textWord)]; ok {
+			log.Infof(
+				"Filtering article due to muted word \"%s\" -> \"%s\": %s",
+				muteWord, textWord, a.DebugString())
 			return true
 		}
 	}
