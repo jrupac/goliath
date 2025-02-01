@@ -1,8 +1,7 @@
 .dark-theme {
-  --primary-sans-serif-font: 'Source Sans Pro';
-  --primary-serif-font: 'Adobe-Caslon-Pro';
+  --primary-sans-serif-font: 'Source Sans 3';
+  --primary-serif-font: 'Vollkorn';
   --primary-logo-font: 'Pacifico';
-  --empty-list-font: 'Josefin Sans';
 
   --primary-background-color: #243941;
   --primary-selected-color: #1b292f;

@@ -9,7 +9,7 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-import {Box, Container, Divider, Grid, Typography} from "@mui/material";
+import {Box, Container, Divider, Grid} from "@mui/material";
 import SplitViewArticleCard from "./SplitViewArticleCard";
 import SplitViewArticleListEntry from "./SplitViewArticleListEntry";
 import LRUCache from "lru-cache";
@@ -90,9 +90,6 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
         <Container fixed className="GoliathArticleListContainer">
           <Box className="GoliathArticleListEmpty">
             <DoneAllRounded className="GoliathArticleListEmptyIcon"/>
-            <Typography className="GoliathArticleListEmptyText">
-              All done!
-            </Typography>
           </Box>
         </Container>
       )

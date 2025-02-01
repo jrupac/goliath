@@ -1,16 +1,4 @@
 /******************************************************************************
- * Global Elements
- ******************************************************************************/
-
-@font-face {
-  font-family: 'Adobe-Caslon-Pro';
-  src: local(Adobe-Caslon-Pro),
-  url(./fonts/Adobe-Caslon-Pro-Regular.ttf) format('ttf'),
-  url(./fonts/Adobe-Caslon-Pro-Regular.woff) format('woff'),
-  url(./fonts/Adobe-Caslon-Pro-Regular.woff2) format('woff2');
-}
-
-/******************************************************************************
  * Loading Page
  ******************************************************************************/
 
@@ -234,13 +222,6 @@
   width: 100%;
 }
 
-.GoliathArticleListEmptyText.MuiTypography-root {
-  color: var(--article-list-empty-text-font-color);
-  vertical-align: middle;
-  font-family: var(--empty-list-font), sans-serif;
-  font-size: 32px;
-}
-
 /** Combined article list */
 
 .GoliathArticleListBox.MuiBox-root {
@@ -279,7 +260,7 @@
 
 .GoliathArticleListTitleType.MuiTypography-root {
   width: 100%;
-  font-family: 'Adobe-Caslon-Pro', serif;
+  font-family: var(--primary-serif-font), serif;
   font-size: 20px;
 }
 
@@ -322,7 +303,7 @@
 
 .GoliathArticleContentPreview.MuiTypography-root {
   font-size: 16px;
-  font-family: 'Adobe-Caslon-Pro', serif;
+  font-family: var(--primary-serif-font), serif;
   overflow: hidden;
   text-overflow: "ellipsis";
   display: -webkit-box;
@@ -368,7 +349,7 @@
 
 .GoliathArticleTitle {
   width: 100%;
-  font-family: 'Adobe-Caslon-Pro', serif;
+  font-family: var(--primary-serif-font), serif;
   font-size: 24px;
 }
 
@@ -376,7 +357,7 @@
   display: flex;
   padding-top: 5px;
   line-height: 16px;
-  font-family: 'Adobe-Caslon-Pro', serif;
+  font-family: var(--primary-serif-font), serif;
 }
 
 .GoliathArticleFeed {
@@ -393,14 +374,14 @@
 
 .GoliathArticleFeedTitle.MuiTypography-root {
   padding-left: 5px;
-  font-family: 'Adobe-Caslon-Pro', serif;
+  font-family: var(--primary-serif-font), serif;
   margin: 0;
   font-variant-caps: petite-caps;
 }
 
 .GoliathArticleDate {
   color: var(--article-date-color);
-  font-family: 'Adobe-Caslon-Pro', serif;
+  font-family: var(--primary-serif-font), serif;
   padding-left: 10px;
   font-size: 16px;
   text-align: right;
@@ -410,14 +391,14 @@
 
 .GoliathArticleContent {
   font-size: 16px;
-  font-family: 'Adobe-Caslon-Pro', serif;
+  font-family: var(--primary-serif-font), serif;
   color: var(--article-font-color);
   padding: 0;
 }
 
 .GoliathSplitViewArticleContent {
   font-size: 18px;
-  font-family: 'Adobe-Caslon-Pro', serif;
+  font-family: var(--primary-serif-font), serif;
   color: var(--article-font-color);
   padding: 24px;
   overflow-y: auto;
@@ -426,7 +407,7 @@
 
 .GoliathArticleContent {
   font-size: 18px;
-  font-family: 'Adobe-Caslon-Pro', serif;
+  font-family: var(--primary-serif-font), serif;
   color: var(--article-font-color);
   padding: 24px;
 }
