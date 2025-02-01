@@ -1,7 +1,9 @@
 .dark-theme {
-  --primary-sans-serif-font: 'Source Sans 3';
+  --primary-sans-serif-font: 'Sen';
   --primary-serif-font: 'Vollkorn';
   --primary-logo-font: 'Pacifico';
+
+  --primary-sans-serif-letter-spacing: -0.03em;
 
   --primary-background-color: #243941;
   --primary-selected-color: #1b292f;
