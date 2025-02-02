@@ -86,6 +86,8 @@ func (f Fetcher) Start(ctx context.Context, d storage.Database, r *cache.Retriev
 	// Add additional time layouts that sometimes appear in feeds.
 	rss.TimeLayouts = append(rss.TimeLayouts, "2006-01-02")
 	rss.TimeLayouts = append(rss.TimeLayouts, "Monday, 02 Jan 2006 15:04:05 MST")
+	rss.TimeLayouts = append(rss.TimeLayouts, "Mon, 02 Jan 2006 15:04:05 MST")
+	rss.TimeLayouts = append(rss.TimeLayouts, "Mon, 2 Jan 2006 15:04:05 MST")
 	rss.TimeLayouts = append(rss.TimeLayouts, "Mon, 02 Jan 2006")
 
 	fctx, cancel := context.WithCancel(ctx)
@@ -306,7 +308,7 @@ Loop:
 		if item.DateValid && !item.Date.IsZero() {
 			date = item.Date
 		} else {
-			log.V(2).Infof("Could not find date for item: %+v", item)
+			log.Warningf("Could not find date for item in feed: %s (%s)", feed.URL, feed.Title)
 			date = retrieved
 			syntheticDate = true
 		}
@@ -425,8 +427,8 @@ func getSimilarExistingArticles(articles []models.Article, a models.Article) ([]
 	for _, old := range articles {
 		if old.Link == a.Link {
 			if *strictDedup ||
-				(editDistPercent(old.Title, a.Title) < *maxEditDedup &&
-					editDistPercent(old.Summary, a.Summary) < *maxEditDedup) {
+					(editDistPercent(old.Title, a.Title) < *maxEditDedup &&
+							editDistPercent(old.Summary, a.Summary) < *maxEditDedup) {
 				if old.Read {
 					readIds = append(readIds, old.ID)
 				} else {

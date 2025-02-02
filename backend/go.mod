@@ -6,7 +6,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.9.1
 	github.com/arbovm/levenshtein v0.0.0-20160628152529-48b4e1c0c4d0
 	github.com/golang/glog v1.2.2
-	github.com/jrupac/rss v1.0.7
+	github.com/jrupac/rss v1.0.8
 	github.com/kljensen/snowball v0.10.0
 	github.com/lib/pq v1.10.9
 	github.com/mat/besticon/v3 v3.18.0
@@ -18,6 +18,7 @@ require (
 	golang.org/x/image v0.18.0
 	golang.org/x/net v0.33.0
 	google.golang.org/grpc v1.67.1
+	google.golang.org/protobuf v1.34.2
 )
 
 require (
@@ -36,5 +37,4 @@ require (
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240814211410-ddb44dafa142 // indirect
-	google.golang.org/protobuf v1.34.2 // indirect
 )
