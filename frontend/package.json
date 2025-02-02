@@ -55,7 +55,7 @@
     "eslint": "^8.56.0",
     "eslint-plugin-react": "^7.34.2",
     "source-map-explorer": "^2.5.2",
-    "vite": "^5.4.6",
+    "vite": "^5.4.14",
     "vite-plugin-pwa": "^0.20.0",
     "vite-tsconfig-paths": "^4.3.2"
   },
