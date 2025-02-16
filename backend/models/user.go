@@ -1,5 +1,7 @@
 package models
 
+import "fmt"
+
 // UserId is a unique reference to a single user in the system.
 type UserId string
 
@@ -13,6 +15,10 @@ type User struct {
 }
 
 // Valid returns true if this object is well-formed.
-func (u *User) Valid() bool {
+func (u User) Valid() bool {
 	return u.UserId != "" && u.Username != "" && u.Key != ""
+}
+
+func (u User) String() string {
+	return fmt.Sprintf("User{UserId:\"%s\"}", u.UserId)
 }

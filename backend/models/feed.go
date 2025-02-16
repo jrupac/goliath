@@ -20,11 +20,15 @@ type Feed struct {
 }
 
 // Hash returns a SHA256 hash of this object.
-func (a *Feed) Hash() string {
+func (f Feed) Hash() string {
 	h := sha3.New256()
-	h.Write([]byte(a.Title))
-	h.Write([]byte(a.Description))
-	h.Write([]byte(a.URL))
-	h.Write([]byte(a.Link))
+	h.Write([]byte(f.Title))
+	h.Write([]byte(f.Description))
+	h.Write([]byte(f.URL))
+	h.Write([]byte(f.Link))
 	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func (f Feed) String() string {
+	return fmt.Sprintf("Feed{Folder:%d, ID:%d, Title:\"%s\", Link:\"%s\"}", f.FolderID, f.ID, f.Title, f.Link)
 }

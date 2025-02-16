@@ -28,7 +28,7 @@ type Article struct {
 }
 
 // Hash returns a SHA256 hash of this object.
-func (a *Article) Hash() string {
+func (a Article) Hash() string {
 	h := sha3.New256()
 	h.Write([]byte(a.Title))
 	h.Write([]byte(a.Summary))
@@ -42,7 +42,7 @@ func (a *Article) Hash() string {
 }
 
 // GetContents tries to return a non-empty content field for this article.
-func (a *Article) GetContents(serveParsed bool) string {
+func (a Article) GetContents(serveParsed bool) string {
 	var content string
 	if serveParsed && a.Parsed != "" {
 		log.V(2).Infof("Serving parsed content for title: %s", a.Title)
@@ -56,11 +56,11 @@ func (a *Article) GetContents(serveParsed bool) string {
 	return content
 }
 
-func (a *Article) DebugString() string {
+func (a Article) String() string {
 	// Substring length to print out for string fields
 	n := 100
 
 	return fmt.Sprintf(
-		"\n\t(Folder, Feed, Article): (%d, %d, %d)\n\tLink: %s\n\tTitle: %s\n\tSummary: %s\n\tContent: %s\n",
-		a.FolderID, a.FeedID, a.ID, a.Link, utils.Substring(a.Title, n), utils.Substring(a.Summary, n), utils.Substring(a.Content, n))
+		"\nArticle{Folder:%d, Feed:%d, ID:%d, Link:\"%s\", Title:\"%s\"}",
+		a.FolderID, a.FeedID, a.ID, a.Link, utils.Substring(a.Title, n))
 }
