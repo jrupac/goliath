@@ -77,9 +77,9 @@ func main() {
 	installSignalHandler(cancel)
 
 	retrievalCache := cache.StartRetrievalCache(ctx, d)
-	fetcher := fetch.New()
+	fetcher := fetch.New(d, retrievalCache)
 
-	go fetcher.Start(ctx, d, retrievalCache)
+	go fetcher.Start(ctx)
 	go storage.StartGC(ctx, d)
 	go admin.Start(ctx, d)
 	go serveMetrics(ctx)

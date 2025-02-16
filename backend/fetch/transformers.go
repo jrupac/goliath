@@ -5,17 +5,21 @@ import (
 	"flag"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
+	"github.com/arbovm/levenshtein"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
+	"github.com/jrupac/rss"
 	"github.com/kljensen/snowball"
 	"github.com/mat/besticon/v3/besticon"
 	"golang.org/x/image/draw"
-	"html"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 	"image"
 	"image/png"
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 const (
@@ -27,6 +31,71 @@ var (
 	proxySecureImages   = flag.Bool("proxySecureImages", false, "If true, also rewritten images served over HTTPS to a proxy server.")
 	proxyUrlBase        = flag.String("proxyUrlBase", "", "Base URL to reverse image proxy server.")
 )
+
+// processItem creates a models.Article object from an RSS item, applying
+// transformations and sanitizations as needed.
+func processItem(feed *models.Feed, item *rss.Item) models.Article {
+	title := item.Title
+	// An empty title can cause rendering problems and just looks wrong when
+	// being displayed, so rewrite.
+	if title == "" {
+		title = "(Untitled)"
+	}
+
+	// Try both item.Content and item.Summary to see if they have any values
+	contents := item.Content
+	if contents == "" {
+		contents = item.Summary
+	}
+
+	// Some feeds give back content that is HTML-escaped. When this happens,
+	// sanitization makes the content appear as raw, escaped text. There's not
+	// a canonical way of determining if the content is given here as escaped
+	// or not, so we use a heuristic.
+	contents = maybeUnescapeHtml(contents)
+
+	parsed := maybeParseArticleContent(item.Link)
+
+	if item.Enclosures != nil {
+		for _, enc := range item.Enclosures {
+			contents = prependMediaToHtml(enc.URL, contents)
+			parsed = prependMediaToHtml(enc.URL, parsed)
+		}
+	}
+
+	if *sanitizeHTML {
+		title = bluemondayTitlePolicy.Sanitize(title)
+		contents = bluemondayBodyPolicy.Sanitize(contents)
+		parsed = bluemondayBodyPolicy.Sanitize(parsed)
+	}
+
+	contents = maybeRewriteImageSourceUrls(contents)
+
+	syntheticDate := false
+	retrieved := time.Now()
+	var date time.Time
+	if item.DateValid && !item.Date.IsZero() {
+		date = item.Date
+	} else {
+		log.Warningf("could not find date for item in %s", feed)
+		date = retrieved
+		syntheticDate = true
+	}
+
+	return models.Article{
+		FeedID:        feed.ID,
+		FolderID:      feed.FolderID,
+		Title:         title,
+		Summary:       contents,
+		Content:       contents,
+		Parsed:        parsed,
+		Link:          item.Link,
+		Date:          date,
+		Read:          item.Read,
+		Retrieved:     retrieved,
+		SyntheticDate: syntheticDate,
+	}
+}
 
 // maybeResizeImage converts the provided besticon.Icon to a 256x256 PNG image
 // and returns an imagePair struct containing the base64-encoded image and
@@ -86,7 +155,7 @@ func maybeRewriteImageSourceUrls(s string) string {
 
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
 	if err != nil {
-		log.Warningf("Failed to parse HTML: %s", err)
+		log.Warningf("while parsing HTML: %s", err)
 		return s
 	}
 
@@ -96,7 +165,7 @@ func maybeRewriteImageSourceUrls(s string) string {
 
 				imgUrl, err := url.Parse(attr.Val)
 				if err != nil {
-					log.Warningf("Could not parse img src %s: %s", attr.Val, err)
+					log.Warningf("while parsing img src %s: %s", attr.Val, err)
 				}
 
 				if imgUrl.Scheme == "https" && !*proxySecureImages {
@@ -105,7 +174,7 @@ func maybeRewriteImageSourceUrls(s string) string {
 
 				newUrl, err := url.Parse(fmt.Sprintf("%s/%s", *proxyUrlBase, cacheEndpoint))
 				if err != nil {
-					log.Warningf("Invalid proxy base URL %s: %s", *proxyUrlBase, err)
+					log.Warningf("invalid proxy base URL %s: %s", *proxyUrlBase, err)
 					break
 				}
 
@@ -122,7 +191,7 @@ func maybeRewriteImageSourceUrls(s string) string {
 
 	resp, err := doc.Html()
 	if err != nil {
-		log.Warningf("Failed to render rewritten HTML: %s", err)
+		log.Warningf("while rendering rewritten HTML: %s", err)
 		return s
 	}
 
@@ -134,7 +203,7 @@ func maybeRewriteImageSourceUrls(s string) string {
 func extractTextFromHtml(s string) string {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
 	if err != nil {
-		log.Warningf("Failed to parse HTML: %s", err)
+		log.Warningf("while parsing HTML: %s", err)
 		return s
 	}
 
@@ -143,19 +212,27 @@ func extractTextFromHtml(s string) string {
 
 // prependMediaToHtml prepends the image included in the RSS enclosure to the
 // HTML content specified.
-func prependMediaToHtml(img string, s string) string {
+func prependMediaToHtml(imgSrc string, s string) string {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
 	if err != nil {
-		log.Warningf("Failed to parse HTML: %s", err)
+		log.Warningf("while parsing HTML: %s", err)
 		return s
 	}
 
-	doc.Find("body").First().PrependHtml(
-		fmt.Sprintf("<img src=\"%s\">", img))
+	imgNode := &html.Node{
+		Type:     html.ElementNode,
+		Data:     "img",
+		DataAtom: atom.Img,
+		Attr: []html.Attribute{
+			{Key: "src", Val: html.EscapeString(imgSrc)},
+		},
+	}
+
+	doc.Find("body").First().PrependNodes(imgNode)
 
 	resp, err := doc.Html()
 	if err != nil {
-		log.Warningf("Failed to render rewritten HTML: %s", err)
+		log.Warningf("while rendering rewritten HTML: %s", err)
 		return s
 	}
 
@@ -187,18 +264,43 @@ func maybeMuteArticle(a models.Article, muteWords []string) bool {
 		muteWordMap[stemWord(word)] = word
 	}
 
-	textWords := strings.Fields(a.Title)
-	textWords = append(textWords, strings.Fields(a.Summary)...)
-	textWords = append(textWords, strings.Fields(a.Content)...)
+	textWords := strings.Fields(extractTextFromHtml(a.Title))
+	textWords = append(textWords, strings.Fields(extractTextFromHtml(a.Summary))...)
+	textWords = append(textWords, strings.Fields(extractTextFromHtml(a.Content))...)
 
 	for _, textWord := range textWords {
 		if muteWord, ok := muteWordMap[stemWord(textWord)]; ok {
 			log.Infof(
 				"Filtering article due to muted word \"%s\" -> \"%s\": %s",
-				muteWord, textWord, a.DebugString())
+				muteWord, textWord, a.String())
 			return true
 		}
 	}
 
 	return false
+}
+
+func getSimilarExistingArticles(articles []models.Article, a models.Article) ([]int64, []int64) {
+	var unreadIds, readIds []int64
+
+	editDistPercent := func(base string, comp string) float64 {
+		edit := float64(levenshtein.Distance(base, comp)) / float64(len(base))
+		return edit
+	}
+
+	for _, old := range articles {
+		if old.Link == a.Link {
+			if *strictDedup ||
+					(editDistPercent(old.Title, a.Title) < *maxEditDedup &&
+							editDistPercent(old.Summary, a.Summary) < *maxEditDedup) {
+				if old.Read {
+					readIds = append(readIds, old.ID)
+				} else {
+					unreadIds = append(unreadIds, old.ID)
+				}
+			}
+		}
+	}
+
+	return unreadIds, readIds
 }
