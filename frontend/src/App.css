@@ -95,7 +95,6 @@
   width: 300px;
   flex-shrink: 0;
   font-family: var(--primary-sans-serif-font), sans-serif;
-  letter-spacing: var(--primary-sans-serif-letter-spacing);
 }
 
 .GoliathDrawer .MuiDrawer-paper {
@@ -150,7 +149,6 @@
   font-family: var(--primary-sans-serif-font), sans-serif;
   color: var(--primary-font-color);
   font-size: 14px;
-  letter-spacing: var(--primary-sans-serif-letter-spacing);
 }
 
 .GoliathFeedRow .MuiTreeItem-content .MuiTreeItem-iconContainer {
@@ -178,7 +176,6 @@
   text-overflow: ellipsis;
   color: var(--primary-font-color);
   font-family: var(--primary-sans-serif-font), sans-serif;
-  letter-spacing: var(--primary-sans-serif-letter-spacing);
   margin: 0;
 }
 
@@ -189,7 +186,6 @@
 .GoliathFooter {
   text-align: center;
   font-family: var(--primary-sans-serif-font), sans-serif;
-  letter-spacing: var(--primary-sans-serif-letter-spacing);
   color: var(--primary-font-color);
   background-color: var(--primary-background-color);
   padding-top: 10px;
@@ -275,7 +271,6 @@
 
 .GoliathArticleListMetaChip.MuiChip-root {
   font-family: var(--primary-sans-serif-font), sans-serif;
-  letter-spacing: var(--primary-sans-serif-letter-spacing);
 }
 
 .GoliathArticleListContent {

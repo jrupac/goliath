@@ -1,9 +1,7 @@
 .default-theme {
-  --primary-sans-serif-font: 'Sen';
+  --primary-sans-serif-font: sans-serif;
   --primary-serif-font: 'Vollkorn';
   --primary-logo-font: 'Pacifico';
-
-  --primary-sans-serif-letter-spacing: -0.03em;
 
   --primary-background-color: #2c4650;
   --primary-selected-color: #263a42;
