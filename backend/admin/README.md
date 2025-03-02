@@ -2,104 +2,156 @@
 
 ## Admin Server gRPC
 
-### Get all feeds
+### Feed Management
+
+#### Get all feeds
 
 ```shell
-$ grpc_cli call <URL> AdminService.GetFeeds <<EOF
-Username: "<Username>"
-EOF
+$ grpc_cli call <URL> AdminService.GetFeeds 'Username: "<username>"'
 ```
 
-### Add new feed
+#### Add new feed
 
 ```shell
 $ grpc_cli call <URL> AdminService.AddFeed <<EOF
-Username: "<Username>"
-Title: "<Title>"
+Username: "<username>"
+Title: "<title>"
 URL: "<URL of feed>"
 Link: "<URL of homepage>"
-Folder: "<Folder>"
+Folder: "<folder>"
 EOF
 ```
 
-### Remove a feed
+#### Remove a feed
 
 ```shell
 $ grpc_cli call <URL> AdminService.RemoveFeed <<EOF
-Username: "<Username>"
+Username: "<username>"
 Id: <id>
 EOF
 ```
 
-### Edit a feed
+#### Edit a feed
 
 ```shell
 $ grpc_cli call <URL> AdminService.EditFeed <<EOF
-Username: "<Username>"
+Username: "<username>"
 Id: <id>
 Folder: "<Name of folder>"
 EOF
 ```
 
-### Get mute words
+### User Preferences
+
+#### Get mute words
 
 ```shell
-$ grpc_cli call <URL> AdminService.GetMuteWords <<EOF
-Username: "<Username>"
-EOF
+$ grpc_cli call <URL> AdminService.GetMuteWords 'Username: "<username>"'
 ```
 
-### Add mute words
+#### Add mute words
 
 ```shell
 $ grpc_cli call <URL> AdminService.AddMuteWord <<EOF
-Username: "<Username>"
+Username: "<username>"
 MuteWord: "<word>"
 EOF
 ```
 
-### Delete mute words
+#### Delete mute words
 
 ```shell
 $ grpc_cli call <URL> AdminService.DeleteMuteWord <<EOF
-Username: "<Username>"
+Username: "<username>"
 MuteWord: "<word>"
 EOF
 ```
 
-### Get unmuted feeds
+#### Get unmuted feeds
 
 ```shell
-$ grpc_cli call <URL> AdminService.GetUnmutedFeeds <<EOF
-Username: "<Username>"
-EOF
+$ grpc_cli call <URL> AdminService.GetUnmutedFeeds 'Username: "<username>"'
 ```
 
-### Add unmuted feeds
+#### Add unmuted feeds
 
 ```shell
 $ grpc_cli call <URL> AdminService.AddUnmutedFeed <<EOF
-Username: "<Username>"
+Username: "<username>"
 UnmutedFeedId: <id>
 EOF
 ```
 
-### Delete unmuted feeds
+#### Delete unmuted feeds
 
 ```shell
 $ grpc_cli call <URL> AdminService.DeleteUnmutedFeed <<EOF
-Username: "<Username>"
+Username: "<username>"
 UnmutedFeedId: <id>
 EOF
 ```
 
-## CRDB Debugging
+## Schema Updates
 
-To get access to the CRDB sql shell, run:
+When running in Dockerized mode, execute the following command against the
+CockroachDB container:
+
+> [!CAUTION]
+> Running schema updates while serving traffic can give unexpected results.
+
+```bash
+$ ./goliath.sh up
+
+$ VERSION=<version> # such as v17
+$ docker exec -it crdb-service ./cockroach sql --insecure < scripts/${VERSION}.sql
+```
+
+## CRDB SQL Shell
+
+To get access to the CRDB SQL shell, run:
 
 ```shell
-$ docker exec -it crdb-service /bin/bash
-[root@crdb cockroach]# ./cockroach sql --insecure --database=goliath
+# Against the `prod` profile:
+$ docker exec -it crdb-service ./cockroach sql --insecure --database=goliath
+
+# Against the `dev` profile:
+$ docker exec -it crdb-dev ./cockroach sql --insecure --database=goliath
+
+# Against the `debug` profile:
+$ docker exec -it crdb-debug ./cockroach sql --insecure --database=goliath
+```
+
+### Example Queries
+
+#### Get all feed names and ids:
+
+```cockroach
+SELECT id, title
+from Feed;
+```
+
+#### Delete all articles associated with a feed
+
+```cockroach
+DELETE
+from article
+where feed = $id;
+```
+
+#### Reset last retrieved timestamp of feed (to force refresh)
+
+```cockroach
+UPDATE feed
+set latest = TIMESTAMPTZ '1970-01-01'
+WHERE id = $id;
+```
+
+#### Update feed URL of existing feed
+
+```cockroach
+UPDATE feed
+set url = '<URL>'
+where id = $id;
 ```
 
 ## Debugger Support
@@ -109,3 +161,15 @@ Run the Docker Compose containers in the `debug` profile:
 ```shell
 $ ./goliath.sh up --env debug --attached -- --build
 ```
+
+This builds the backend binary in a debugging configuration
+(`-gcflags="all=-N -l"`) and runs the binary under the `dlv` binary listening on
+port 40000. This port is also exposed on the `debug` profile when running the
+containers.
+
+Set up a configuration where the debugger can be attached to. In IntelliJ, this
+is a `Go Remote` run configuration that attaches to port 40000.
+
+Once the containers are started, `dlv` will wait to start the process until the
+run configuration in IntelliJ is begun. After that point, use the debugger in
+IntelliJ as normal, setting breakpoints, examining local variables, etc.
