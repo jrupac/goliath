@@ -404,6 +404,17 @@
   padding: 24px;
   overflow-y: auto;
   height: 90vh;
+  max-width: 100%;
+}
+
+.GoliathSplitViewArticleContent * {
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.GoliathSplitViewArticleContent pre,
+.GoliathSplitViewArticleContent code {
+  white-space: pre-wrap;
 }
 
 .GoliathArticleContent {
