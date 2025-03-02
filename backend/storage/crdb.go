@@ -217,6 +217,59 @@ func (crdb *Crdb) DeleteMuteWordsForUser(u models.User, words []string) error {
 	return err
 }
 
+// GetUnmuteFeedsForUser returns a list of unmute feed IDs for the given user.
+func (crdb *Crdb) GetUnmuteFeedsForUser(u models.User) ([]int64, error) {
+	defer logElapsedTime(time.Now(), "GetUnmuteFeedsForUser")
+
+	var feedIds []int64
+
+	query := `SELECT feedid FROM UserUnmuteFeeds WHERE userid = $1`
+	rows, err := crdb.db.Query(query, u.UserId)
+	defer closeSilent(rows)
+	if err != nil {
+		return feedIds, err
+	}
+
+	for rows.Next() {
+		var feedId int64
+		if err = rows.Scan(&feedId); err != nil {
+			return feedIds, err
+		}
+		feedIds = append(feedIds, feedId)
+	}
+	return feedIds, err
+}
+
+// UpdateUnmuteFeedsForUser inserts unmute feed IDs for the given user.
+func (crdb *Crdb) UpdateUnmuteFeedsForUser(u models.User, feedIds []int64) error {
+	defer logElapsedTime(time.Now(), "UpdateUnmuteFeedsForUser")
+
+	for _, feedId := range feedIds {
+		query := `INSERT INTO UserUnmuteFeeds(userid, feedid) VALUES ($1, $2) ON CONFLICT DO NOTHING`
+		_, err := crdb.db.Exec(query, u.UserId, feedId)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// DeleteUnmuteFeedsForUser deletes unmute feed IDs for a given user.
+func (crdb *Crdb) DeleteUnmuteFeedsForUser(u models.User, feedIds []int64) error {
+	defer logElapsedTime(time.Now(), "DeleteUnmuteFeedsForUser")
+
+	if len(feedIds) == 0 {
+		return nil
+	}
+
+	query := `DELETE FROM UserUnmuteFeeds WHERE userid = $1 AND feedid = ANY($2)`
+
+	_, err := crdb.db.Exec(query, u.UserId, pq.Array(feedIds))
+
+	return err
+
+}
+
 /*******************************************************************************
  * Retrieval cache
  ******************************************************************************/

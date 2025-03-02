@@ -132,6 +132,104 @@ func (s *server) DeleteMuteWord(_ context.Context, req *DeleteMuteWordRequest) (
 	return resp, nil
 }
 
+// GetUnmutedFeeds retrieves the current unmuted feeds for the user.
+func (s *server) GetUnmutedFeeds(_ context.Context, req *GetUnmutedFeedsRequest) (*GetUnmutedFeedsResponse, error) {
+	resp := &GetUnmutedFeedsResponse{}
+
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	unmutedFeeds, err := s.db.GetUnmuteFeedsForUser(user)
+	if err != nil {
+		log.Warningf("while retrieving unmuted feeds for user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not retrieve unmuted feeds for user")
+	}
+
+	for _, m := range unmutedFeeds {
+		resp.UnmutedFeedId = append(resp.UnmutedFeedId, m)
+	}
+
+	return resp, nil
+}
+
+// AddUnmutedFeed adds specified unmuted feeds for a user.
+func (s *server) AddUnmutedFeed(_ context.Context, req *AddUnmutedFeedRequest) (*AddUnmutedFeedResponse, error) {
+	resp := &AddUnmutedFeedResponse{}
+
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	if len(req.GetUnmutedFeedId()) == 0 {
+		return resp, nil
+	}
+
+	// Make a unique list from the input
+	uniqueMap := make(map[int64]bool)
+	for _, id := range req.GetUnmutedFeedId() {
+		uniqueMap[id] = true
+	}
+	unmutedFeeds := make([]int64, 0, len(uniqueMap))
+	for id := range uniqueMap {
+		unmutedFeeds = append(unmutedFeeds, id)
+	}
+
+	err = s.db.UpdateUnmuteFeedsForUser(user, unmutedFeeds)
+	if err != nil {
+		log.Warningf("while adding unmute feeds for user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not insert unmuted feeds")
+	}
+
+	return resp, nil
+}
+
+// DeleteUnmutedFeed removes the specified unmuted feeds for a user.
+func (s *server) DeleteUnmutedFeed(_ context.Context, req *DeleteUnmutedFeedRequest) (*DeleteUnmutedFeedResponse, error) {
+	resp := &DeleteUnmutedFeedResponse{}
+
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	if len(req.GetUnmutedFeedId()) == 0 {
+		return resp, nil
+	}
+
+	// Make a unique list from the input
+	uniqueMap := make(map[int64]bool)
+	for _, id := range req.GetUnmutedFeedId() {
+		uniqueMap[id] = true
+	}
+	unmutedFeeds := make([]int64, 0, len(uniqueMap))
+	for id := range uniqueMap {
+		unmutedFeeds = append(unmutedFeeds, id)
+	}
+
+	err = s.db.DeleteUnmuteFeedsForUser(user, unmutedFeeds)
+	if err != nil {
+		log.Warningf("while deleting unmuted feeds for user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not delete unmuted feeds")
+	}
+
+	return resp, nil
+}
+
 // AddFeed adds the specified feed into the database.
 // During the operation of adding a feed, fetching is paused and restarted.
 func (s *server) AddFeed(_ context.Context, req *AddFeedRequest) (*AddFeedResponse, error) {

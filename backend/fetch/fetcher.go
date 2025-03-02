@@ -230,7 +230,12 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 
 	muteWords, err := f.d.GetMuteWordsForUser(user)
 	if err != nil {
-		log.Warningf("while fetching muted words: %s", err)
+		log.Warningf("while fetching muted words for user %s: %s", user, err)
+	}
+
+	unmuteFeeds, err := f.d.GetUnmuteFeedsForUser(user)
+	if err != nil {
+		log.Warningf("while fetching unmuted feeds for user %s: %s", user, err)
 	}
 
 	for _, item := range items {
@@ -247,7 +252,7 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 		} else if f.retCache.Lookup(user, a.Hash()) {
 			log.V(2).Infof("Not persisting because present in retrieval cache: %s", a)
 			numRetrievalCache += 1
-		} else if maybeMuteArticle(a, muteWords) {
+		} else if maybeMuteArticle(a, muteWords, unmuteFeeds) {
 			log.V(2).Infof("Not persisting because of muted word: %s", a)
 			numMuted += 1
 		} else {

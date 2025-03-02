@@ -41,6 +41,58 @@ Folder: "<Name of folder>"
 EOF
 ```
 
+### Get mute words
+
+```shell
+$ grpc_cli call <URL> AdminService.GetMuteWords <<EOF
+Username: "<Username>"
+EOF
+```
+
+### Add mute words
+
+```shell
+$ grpc_cli call <URL> AdminService.AddMuteWord <<EOF
+Username: "<Username>"
+MuteWord: "<word>"
+EOF
+```
+
+### Delete mute words
+
+```shell
+$ grpc_cli call <URL> AdminService.DeleteMuteWord <<EOF
+Username: "<Username>"
+MuteWord: "<word>"
+EOF
+```
+
+### Get unmuted feeds
+
+```shell
+$ grpc_cli call <URL> AdminService.GetUnmutedFeeds <<EOF
+Username: "<Username>"
+EOF
+```
+
+### Add unmuted feeds
+
+```shell
+$ grpc_cli call <URL> AdminService.AddUnmutedFeed <<EOF
+Username: "<Username>"
+UnmutedFeedId: <id>
+EOF
+```
+
+### Delete unmuted feeds
+
+```shell
+$ grpc_cli call <URL> AdminService.DeleteUnmutedFeed <<EOF
+Username: "<Username>"
+UnmutedFeedId: <id>
+EOF
+```
+
 ## CRDB Debugging
 
 To get access to the CRDB sql shell, run:

@@ -258,8 +258,17 @@ func stemWord(s string) string {
 
 // maybeMuteArticle returns true if any of the article's title or contents
 // match any of the muted words.
-func maybeMuteArticle(a models.Article, muteWords []string) bool {
+func maybeMuteArticle(a models.Article, muteWords []string, unmuteFeeds []int64) bool {
 	muteWordMap := make(map[string]string)
+
+	// If the feed of the article is an unmuted feed, never mute it.
+	for _, feedId := range unmuteFeeds {
+		if feedId == a.FeedID {
+			log.Infof("Not filtering article due to unmuted feed %d: %s", feedId, a.String())
+			return false
+		}
+	}
+
 	for _, word := range muteWords {
 		muteWordMap[stemWord(word)] = word
 	}

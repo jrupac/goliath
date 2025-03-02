@@ -51,6 +51,10 @@ type Database interface {
 	UpdateMuteWordsForUser(models.User, []string) error
 	DeleteMuteWordsForUser(models.User, []string) error
 
+	GetUnmuteFeedsForUser(models.User) ([]int64, error)
+	UpdateUnmuteFeedsForUser(models.User, []int64) error
+	DeleteUnmuteFeedsForUser(models.User, []int64) error
+
 	// Retrieval cache
 
 	GetAllRetrievalCaches() (map[string]string, error)

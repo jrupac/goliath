@@ -20,7 +20,7 @@ message AddUserResponse {
 }
 
 message GetMuteWordsRequest {
-  // Required. Username for user for whom this feed should be added.
+  // Required. Username for user for whom mute words should be retrieved.
   string Username = 1;
 }
 
@@ -29,7 +29,7 @@ message GetMuteWordsResponse {
 }
 
 message AddMuteWordRequest {
-  // Required. Username for user for whom this feed should be added.
+  // Required. Username for user for whom mute words should be added.
   string Username = 1;
 
   // Optional. If set, each (unique) mute word will be added for the user.
@@ -43,7 +43,7 @@ message AddMuteWordResponse {
 }
 
 message DeleteMuteWordRequest {
-  // Required. Username for user for whom this feed should be added.
+  // Required. Username for user for whom mute words should be removed.
   string Username = 1;
 
   // Optional. If set, each (unique) mute word will be removed for the user.
@@ -56,6 +56,38 @@ message DeleteMuteWordRequest {
 message DeleteMuteWordResponse {
 }
 
+message GetUnmutedFeedsRequest {
+  // Required. Username for user for whom unmuted feeds should be retrieved.
+  string Username = 1;
+}
+
+message GetUnmutedFeedsResponse {
+  repeated int64 UnmutedFeedId = 1;
+}
+
+message AddUnmutedFeedRequest {
+  // Required. Username for user for whom unmuted feeds should be added.
+  string Username = 1;
+
+  // Optional. If set, each (unique) feed id will be added for the user.
+  repeated int64 UnmutedFeedId = 2;
+}
+
+// Empty response. Success is indicated by gRPC-level status code.
+message AddUnmutedFeedResponse {
+}
+
+message DeleteUnmutedFeedRequest {
+  // Required. Username for user for whom unmuted feeds should be removed.
+  string Username = 1;
+
+  // Optional. If set, each (unique) feed id will be removed for the user.
+  repeated int64 UnmutedFeedId = 2;
+}
+
+// Empty response. Success is indicated by gRPC-level status code.
+message DeleteUnmutedFeedResponse {
+}
 
 message AddFeedRequest {
   // Required. Logical title of feed. It is possible to have multiple feeds of
@@ -142,6 +174,15 @@ service AdminService {
 
   // Delete muted word for a user.
   rpc DeleteMuteWord (DeleteMuteWordRequest) returns (DeleteMuteWordResponse);
+
+  // Get current unmuted feeds for a user.
+  rpc GetUnmutedFeeds (GetUnmutedFeedsRequest) returns (GetUnmutedFeedsResponse);
+
+  // Add unmute feed for a user.
+  rpc AddUnmutedFeed (AddUnmutedFeedRequest) returns (AddUnmutedFeedResponse);
+
+  // Delete unmute feed for a user.
+  rpc DeleteUnmutedFeed (DeleteUnmutedFeedRequest) returns (DeleteUnmutedFeedResponse);
 
   // Return all feeds for a user.
   rpc GetFeeds (GetFeedsRequest) returns (GetFeedsResponse);
