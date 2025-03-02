@@ -76,7 +76,11 @@ func main() {
 	ctx, cancel := context.WithCancel(ctx)
 	installSignalHandler(cancel)
 
-	retrievalCache := cache.StartRetrievalCache(ctx, d)
+	retrievalCache, err := cache.StartRetrievalCache(ctx, d)
+	if err != nil {
+		log.Fatalf("Fatal error while starting retrieval cache: %s", err)
+	}
+
 	fetcher := fetch.New(d, retrievalCache)
 
 	go fetcher.Start(ctx)
