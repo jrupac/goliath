@@ -168,7 +168,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
     return <ArticleCard
       key={articleView.id}
       article={articleView}
-      title={articleView.title}
+      title={articleView.feed_title}
       favicon={articleView.favicon}
       isSelected={index === this.state.scrollIndex}
       shouldRerender={() => this.handleRerender()}/>
