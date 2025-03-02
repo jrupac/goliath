@@ -92,12 +92,14 @@ func (f Fetcher) Start(ctx context.Context) {
 
 	// Create a new cancel-able context since fetching may be paused and resumed
 	// separately from the parent context.
-	ctx, cancel := context.WithCancel(ctx)
+	// Note: We need to keep the original context around too because we're waiting
+	// on a cancellation of the *parent* context in the select statement below.
+	fetchCtx, cancel := context.WithCancel(ctx)
 
 	// A WaitGroup of size 1 to wait on all fetching to complete.
 	fetchCond := &sync.WaitGroup{}
 	fetchCond.Add(1)
-	go f.start(ctx, fetchCond)
+	go f.start(fetchCtx, fetchCond)
 
 	for {
 		select {
@@ -107,10 +109,10 @@ func (f Fetcher) Start(ctx context.Context) {
 			log.Info("Fetcher paused.")
 			pauseChanDone <- struct{}{}
 		case <-resumeChan:
-			// Create a new context when resuming
-			ctx, cancel = context.WithCancel(ctx)
+			// Create a new context from the parent context when resuming
+			fetchCtx, cancel = context.WithCancel(ctx)
 			fetchCond.Add(1)
-			go f.start(ctx, fetchCond)
+			go f.start(fetchCtx, fetchCond)
 			log.Info("Fetcher resumed.")
 		case <-ctx.Done():
 			// Explicitly cancel the child context when returning to avoid leaking it
