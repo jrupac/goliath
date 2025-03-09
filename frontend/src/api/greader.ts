@@ -217,11 +217,14 @@ export default class GReader implements FetchAPI {
   }
 
   public async MarkAll(_: string, entity: SelectionKey): Promise<Response> {
-    return await fetch(
-      '/greader/reader/api/0/mark-all-as-read' +
-      '?T=' + this.postToken +
-      '&t=' + entity,
-      {credentials: 'include'});
+    const formData = new FormData();
+    // TODO: Check if this is actually setting the right value.
+    formData.set("t", entity as string);
+
+    return this.doFetch({
+      uri: '/greader/reader/api/0/mark-all-as-read',
+      formData: formData,
+    });
   }
 
   private async fetchSubscriptions(cb: (status: Status) => void): Promise<void> {

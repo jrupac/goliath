@@ -105,16 +105,16 @@ export default class App extends React.Component<AppProps, AppState> {
 
     switch (type) {
     case SelectionType.Article:
-      functor = (m: string, e: SelectionKey) => this.fetchApi.MarkArticle(m, e);
+      functor = (m: MarkState, e: SelectionKey) => this.fetchApi.MarkArticle(m, e);
       break;
     case SelectionType.Feed:
-      functor = (m: string, e: SelectionKey) => this.fetchApi.MarkFeed(m, e);
+      functor = (m: MarkState, e: SelectionKey) => this.fetchApi.MarkFeed(m, e);
       break;
     case SelectionType.Folder:
-      functor = (m: string, e: SelectionKey) => this.fetchApi.MarkFolder(m, e);
+      functor = (m: MarkState, e: SelectionKey) => this.fetchApi.MarkFolder(m, e);
       break;
     case SelectionType.All:
-      functor = (m: string, e: SelectionKey) => this.fetchApi.MarkAll(m, e);
+      functor = (m: MarkState, e: SelectionKey) => this.fetchApi.MarkAll(m, e);
       break;
     default:
       throw new Error(`Unexpected enclosing type: ${type}`);
