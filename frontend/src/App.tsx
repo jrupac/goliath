@@ -91,7 +91,7 @@ export default class App extends React.Component<AppProps, AppState> {
       contentTreeCls: treeCls,
       status: Status.Ready
     });
-    console.log("Completed all Fever requests.");
+    console.log("Completed all Fetch API requests.");
   }
 
   updateState = (status: Status): void => {
