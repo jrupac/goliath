@@ -82,9 +82,15 @@ interface GReaderItemRef {
   timestampUsec: string;
 }
 
-interface GReaderStream {
-  items: GReaderItemContent[];
+interface GReaderStreamIds {
   itemRefs: GReaderItemRef[];
+  continuation: string;
+}
+
+interface GReaderStreamContents {
+  id: string;
+  updated: number;
+  items: GReaderItemContent[];
 }
 
 export default class GReader implements FetchAPI {
@@ -239,11 +245,8 @@ export default class GReader implements FetchAPI {
   }
 
   private async fetchArticles(cb: (status: Status) => void): Promise<void> {
-    const articleRefLimit = 10000;
+    const articleRefLimit = 1000;
     const articleContentLimit = 100;
-
-    // TODO: Implement continuation tokens.
-    let keepFetching = false;
 
     const formData = new FormData();
     formData.set("s", "user/-/state/com.google/reading-list");
@@ -264,23 +267,24 @@ export default class GReader implements FetchAPI {
       }
 
       const result: string = await res.text();
-      const stream: GReaderStream = await parseJson(result);
+      const stream: GReaderStreamIds = await parseJson(result);
 
       stream.itemRefs.forEach(
         (greaderStreamRef: GReaderItemRef) => {
-          // The ID is given as a 64-bit base-10 number as a string. This needs
-          // a BigInt type to hold. But when requesting contents, send it as a
-          // hex string. This seems to match other real-world client behavior.
-          articleIdStrs.push(BigInt(greaderStreamRef.id).toString(16));
+          // The ID is a 64-bit base-10 number as a string, so parse as BigInt.
+          const id: bigint = BigInt(greaderStreamRef.id);
+
+          // When requesting article IDs, pass a hex string. This seems to match
+          // other real-world client behavior.
+          articleIdStrs.push(id.toString(16));
         }
       )
 
-      // Keep fetching until we see less than the max items returned.
+      // Keep fetching until we see less than the max items returned. This can
+      // also be determined by the existence of the continuation token, but
+      // this is a safer approach.
       if (stream.itemRefs.length === articleRefLimit) {
-        if (!keepFetching) {
-          console.log("WARNING: %s items returned, more may exist.", articleRefLimit);
-          break;
-        }
+        formData.set("c", stream.continuation);
       } else {
         break;
       }
@@ -302,7 +306,7 @@ export default class GReader implements FetchAPI {
       }
 
       const result: string = await res.text();
-      const streamItemContents: GReaderStream = await parseJson(result);
+      const streamItemContents: GReaderStreamContents = await parseJson(result);
 
       streamItemContents.items.forEach(
         (item: GReaderItemContent) => {
