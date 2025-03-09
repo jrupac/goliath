@@ -63,9 +63,42 @@ func (a GReader) recordLatency(t time.Time, label string) {
 	})
 }
 
+func (a GReader) preprocessRequest(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		log.Warningf("Failed to parse request form: %s", err)
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	log.Infof("GReader request URL: %s", r.URL.String())
+	log.Infof("Greader request method: %s", r.Method)
+
+	contentType := r.Header.Get("Content-Type")
+
+	if contentType == "application/x-www-form-urlencoded" {
+		err := r.ParseForm()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	} else if strings.HasPrefix(contentType, "multipart/form-data") {
+		err := r.ParseMultipartForm(10 << 20) // 10 MB limit
+		if err != nil {
+			log.Warningf("Failed to parse multipart form: %s", err)
+			a.returnError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	log.Infof("GReader request form: %+v", r.PostForm.Encode())
+}
+
 func (a GReader) route(w http.ResponseWriter, r *http.Request) {
 	// Record the total server latency of each call.
 	defer a.recordLatency(time.Now(), "server")
+
+	a.preprocessRequest(w, r)
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -84,6 +117,8 @@ func (a GReader) route(w http.ResponseWriter, r *http.Request) {
 		a.withAuth(w, r, a.handleStreamItemsContents)
 	case "/greader/reader/api/0/edit-tag":
 		a.withAuth(w, r, a.handleEditTag)
+	case "/greader/reader/api/0/mark-all-as-read":
+		a.withAuth(w, r, a.markAllAsRead)
 	default:
 		log.Warningf("Got unexpected route: %s", r.URL.String())
 		dump, err := httputil.DumpRequest(r, true)
@@ -96,33 +131,12 @@ func (a GReader) route(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a GReader) handleLogin(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
-		a.returnError(w, http.StatusBadRequest)
+	token, status := a.validateLoginForm(r)
+	if status != http.StatusOK {
+		a.returnError(w, status)
 		return
 	}
-
-	formUser := r.Form.Get("Email")
-	formPass := r.Form.Get("Passwd")
-
-	user, err := a.d.GetUserByUsername(formUser)
-	if err != nil {
-		log.Warningf("Failed to find user: %s", formUser)
-		a.returnError(w, http.StatusUnauthorized)
-		return
-	}
-
-	ok := bcrypt.CompareHashAndPassword([]byte(user.HashPass), []byte(formPass))
-	if ok == nil {
-		token, err := createAuthToken(user.HashPass, formUser)
-		if err != nil {
-			a.returnError(w, http.StatusInternalServerError)
-			return
-		}
-		a.returnSuccess(w, greaderHandlelogin{Auth: token})
-	} else {
-		a.returnError(w, http.StatusUnauthorized)
-	}
+	a.returnSuccess(w, greaderHandlelogin{Auth: token})
 }
 
 func (a GReader) handleUserInfo(w http.ResponseWriter, _ *http.Request, user models.User) {
@@ -228,6 +242,7 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 
 	for _, article := range articles {
 		streamItemIds.ItemRefs = append(streamItemIds.ItemRefs, greaderItemRef{
+			// Note: This is writing the article ID as decimal in this one case.
 			Id: strconv.FormatInt(article.ID, 10),
 			DirectStreamIds: []string{
 				greaderFeedId(article.FeedID),
@@ -260,8 +275,10 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 	articleIdsValue := r.Form["i"]
 	var articleIds []int64
 	for _, articleIdStr := range articleIdsValue {
+		// Note: This is parsing the article ID as hex.
 		id, err := strconv.ParseInt(articleIdStr, 16, 64)
 		if err != nil {
+			log.Warningf("Invalid article ID: %s", err)
 			a.returnError(w, http.StatusInternalServerError)
 			return
 		}
@@ -270,6 +287,7 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 
 	articles, err := a.d.GetArticlesForUser(user, articleIds)
 	if err != nil {
+		log.Warningf("Failed to get articles: %v", err)
 		a.returnError(w, http.StatusInternalServerError)
 		return
 	}
@@ -324,6 +342,7 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 	articleIdsValue := r.Form["i"]
 	var articleIds []int64
 	for _, articleIdStr := range articleIdsValue {
+		// Note: This is parsing the article ID as hex.
 		id, err := strconv.ParseInt(articleIdStr, 16, 64)
 		if err != nil {
 			a.returnError(w, http.StatusInternalServerError)
@@ -357,52 +376,117 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 	a.returnSuccess(w, nil)
 }
 
+func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user models.User) {
+	err := r.ParseForm()
+	if err != nil {
+		log.Warningf("Failed to parse request: %s", err)
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	if !validatePostToken(r.Form.Get("T")) {
+		log.Warningf("Invalid token")
+		a.returnError(w, http.StatusUnauthorized)
+		return
+	}
+
+	// This method is only for making feeds and folders as read. Only articles
+	// can be marked as unread, using the "edit tag" method.
+	status := "read"
+
+	if folderStr := r.Form.Get("t"); folderStr != "" {
+		folderId, err := strconv.ParseInt(folderStr, 10, 64)
+		if err != nil {
+			log.Warningf("Invalid folder ID: %s", folderStr)
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+
+		err = a.d.MarkFolderForUser(user, folderId, status)
+		if err != nil {
+			log.Warningf("Failed to mark folder: %s", folderStr)
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+	} else if feedStr := r.Form.Get("s"); feedStr != "" {
+		feedId, err := strconv.ParseInt(feedStr, 10, 64)
+		if err != nil {
+			log.Warningf("Invalid feed ID: %s", feedStr)
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+
+		err = a.d.MarkFeedForUser(user, feedId, status)
+		if err != nil {
+			log.Warningf("Failed to mark feed: %d", feedId)
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+	} else {
+		log.Warningf("Missing feed or folder ID")
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	_, _ = w.Write([]byte("OK"))
+	a.returnSuccess(w, nil)
+}
+
 func (a GReader) withAuth(w http.ResponseWriter, r *http.Request, handler func(http.ResponseWriter, *http.Request, models.User)) {
 	// Header should be in format:
 	//   Authorization: GoogleLogin auth=<token>
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
+		log.Warningf("Missing authorization header")
 		a.returnError(w, http.StatusUnauthorized)
 		return
 	}
 
 	authFields := strings.Fields(authHeader)
 	if len(authFields) != 2 || !strings.EqualFold(authFields[0], "GoogleLogin") {
+		log.Warningf("Invalid authorization header: %s", authHeader)
 		a.returnError(w, http.StatusBadRequest)
 		return
 	}
 
 	authStr, tokenStr, found := strings.Cut(authFields[1], "=")
 	if !found {
+		log.Warningf("Invalid authorization header: %s", authHeader)
 		a.returnError(w, http.StatusBadRequest)
 		return
 	}
 
 	if !strings.EqualFold(authStr, "auth") {
+		log.Warningf("Invalid authorization header: %s", authHeader)
 		a.returnError(w, http.StatusBadRequest)
 		return
 	}
 
 	username, token, err := extractAuthToken(tokenStr)
 	if err != nil {
+		log.Warningf("Invalid authorization header: %s", authHeader)
 		a.returnError(w, http.StatusBadRequest)
 		return
 	}
 
 	user, err := a.d.GetUserByUsername(username)
 	if err != nil {
+		log.Warningf("Failed to find user: %s", username)
 		a.returnError(w, http.StatusUnauthorized)
 		return
 	}
 
-	if validateAuthToken(token, username, user.HashPass) {
-		handler(w, r, user)
-	} else {
+	if !validateAuthToken(token, username, user.HashPass) {
+		log.Warningf("Invalid token for user: %s", username)
 		a.returnError(w, http.StatusUnauthorized)
+		return
 	}
+
+	handler(w, r, user)
 }
 
 func greaderArticleId(articleId int64) string {
+	// Note: This is writing the article ID as hex.
 	return fmt.Sprintf("tag:google.com,2005:reader/item/%x", articleId)
 }
 
@@ -412,6 +496,33 @@ func greaderFeedId(feedId int64) string {
 
 func greaderFolderId(folderId int64) string {
 	return fmt.Sprintf("user/-/label/%d", folderId)
+}
+
+func (a GReader) validateLoginForm(r *http.Request) (string, int) {
+	token := ""
+
+	formUser := r.Form.Get("Email")
+	formPass := r.Form.Get("Passwd")
+
+	user, err := a.d.GetUserByUsername(formUser)
+	if err != nil {
+		log.Warningf("Failed to find user: %s", formUser)
+		return token, http.StatusUnauthorized
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.HashPass), []byte(formPass))
+	if err != nil {
+		log.Warningf("Failed to validate password: %v", err)
+		return token, http.StatusUnauthorized
+	}
+
+	token, err = createAuthToken(user.HashPass, formUser)
+	if err != nil {
+		log.Warningf("Failed to create auth token: %v", err)
+		return token, http.StatusInternalServerError
+	}
+
+	return token, http.StatusOK
 }
 
 func (a GReader) returnError(w http.ResponseWriter, status int) {

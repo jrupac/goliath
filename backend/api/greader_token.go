@@ -24,7 +24,7 @@ func validatePostToken(token string) bool {
 
 func createAuthToken(hashPass string, username string) (string, error) {
 	// This roughly follows what FreshRSS uses for the auth token
-	// The token format is a JSON object containing:
+	// The token format is a base64 encoding of a JSON object containing:
 	// {
 	//   Username: username,
 	//   Token: base64(sha256(tokenSalt + username + bcrypt(salt + password)))
@@ -43,12 +43,18 @@ func createAuthToken(hashPass string, username string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(t), nil
+	return base64.URLEncoding.EncodeToString(t), nil
 }
 
 func extractAuthToken(token string) (string, []byte, error) {
 	var t greaderTokenType
-	err := json.Unmarshal([]byte(token), &t)
+
+	jsn, err := base64.URLEncoding.DecodeString(token)
+	if err != nil {
+		return "", []byte{}, err
+	}
+
+	err = json.Unmarshal(jsn, &t)
 	if err != nil {
 		return "", []byte{}, err
 	}
