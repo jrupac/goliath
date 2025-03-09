@@ -7,7 +7,12 @@ import {
   TextField,
   ThemeProvider
 } from "@mui/material";
-import {FetchAPI, FetchAPIFactory, LoginInfo} from "../api/interface";
+import {
+  FetchAPI,
+  FetchAPIFactory,
+  FetchType,
+  LoginInfo
+} from "../api/interface";
 import {GoliathPath, ThemeInfo} from "../utils/types";
 import {populateThemeInfo} from "../utils/helpers";
 
@@ -27,7 +32,7 @@ export default class Login extends React.Component<LoginProps, any> {
       username: "",
       password: ""
     };
-    this.fetchApi = FetchAPIFactory.Create();
+    this.fetchApi = FetchAPIFactory.Create(FetchType.GReader);
   }
 
   render() {

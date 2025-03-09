@@ -17,7 +17,7 @@ import {
 import './themes/default.css';
 import './themes/dark.css';
 import {Box, CssBaseline, Divider, Drawer, ThemeProvider} from "@mui/material";
-import {FetchAPI, FetchAPIFactory} from "./api/interface";
+import {FetchAPI, FetchAPIFactory, FetchType} from "./api/interface";
 import {GetVersion, VersionData} from "./api/goliath";
 import {Navigate} from "react-router-dom";
 import {ContentTreeCls} from "./models/contentTree";
@@ -52,7 +52,7 @@ export default class App extends React.Component<AppProps, AppState> {
       theme: GoliathTheme.Dark,
       loginVerified: false,
     };
-    this.fetchApi = FetchAPIFactory.Create();
+    this.fetchApi = FetchAPIFactory.Create(FetchType.GReader);
   }
 
   componentWillUnmount() {
@@ -105,16 +105,16 @@ export default class App extends React.Component<AppProps, AppState> {
 
     switch (type) {
     case SelectionType.Article:
-      functor = this.fetchApi.MarkArticle;
+      functor = (m: string, e: SelectionKey) => this.fetchApi.MarkArticle(m, e);
       break;
     case SelectionType.Feed:
-      functor = this.fetchApi.MarkFeed;
+      functor = (m: string, e: SelectionKey) => this.fetchApi.MarkFeed(m, e);
       break;
     case SelectionType.Folder:
-      functor = this.fetchApi.MarkFolder;
+      functor = (m: string, e: SelectionKey) => this.fetchApi.MarkFolder(m, e);
       break;
     case SelectionType.All:
-      functor = this.fetchApi.MarkAll;
+      functor = (m: string, e: SelectionKey) => this.fetchApi.MarkAll(m, e);
       break;
     default:
       throw new Error(`Unexpected enclosing type: ${type}`);

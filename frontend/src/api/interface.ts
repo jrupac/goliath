@@ -1,10 +1,16 @@
 import {SelectionKey, Status} from "../utils/types";
 import Fever from "./fever";
 import {ContentTreeCls} from "../models/contentTree";
+import GReader from "./greader";
 
 export type LoginInfo = {
   username: string,
   password: string
+}
+
+export enum FetchType {
+  Fever = 0,
+  GReader = 1
 }
 
 export interface FetchAPI {
@@ -40,8 +46,12 @@ export interface FetchAPI {
 
 export class FetchAPIFactory {
   // Create returns a concrete implementation of a FetchAPI.
-  static Create(): FetchAPI {
-    // TODO: Support other APIs.
-    return new Fever();
+  static Create(fetchType: FetchType): FetchAPI {
+    switch (fetchType) {
+    case FetchType.Fever:
+      return new Fever();
+    case FetchType.GReader:
+      return new GReader();
+    }
   }
 }
