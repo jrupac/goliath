@@ -70,8 +70,8 @@ type greaderItemRef struct {
 }
 
 type greaderStreamItemIds struct {
-	Items    []greaderItemContent `json:"items"`
-	ItemRefs []greaderItemRef     `json:"itemRefs"`
+	ItemRefs     []greaderItemRef `json:"itemRefs"`
+	Continuation string           `json:"continuation,omitempty"`
 }
 
 type greaderStreamItemsContents struct {

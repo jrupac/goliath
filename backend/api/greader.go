@@ -231,14 +231,25 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 
-	// TODO: Support continuation tokens
-	articles, err := a.d.GetUnreadArticleMetaForUser(user, limit, -1)
+	sinceId := int64(-1)
+	if c := r.Form.Get("c"); c != "" {
+		// Note: This is parsing the continuation token as hex.
+		sinceId, err = strconv.ParseInt(c, 16, 64)
+		if err != nil {
+			log.Warningf("Invalid continuation token: %s", c)
+			a.returnError(w, http.StatusBadRequest)
+			return
+		}
+	}
+
+	articles, err := a.d.GetUnreadArticleMetaForUser(user, limit, sinceId)
 	if err != nil {
 		a.returnError(w, http.StatusInternalServerError)
 		return
 	}
 
 	streamItemIds := greaderStreamItemIds{}
+	contToken := int64(0)
 
 	for _, article := range articles {
 		streamItemIds.ItemRefs = append(streamItemIds.ItemRefs, greaderItemRef{
@@ -250,6 +261,16 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 			},
 			TimestampUsec: strconv.FormatInt(article.Date.UnixMicro(), 10),
 		})
+
+		if article.ID > contToken {
+			contToken = article.ID
+		}
+	}
+
+	// If we may have more article IDs remaining, set a continuation token.
+	if len(articles) == limit && contToken > 0 {
+		// Note: This is writing the continuation token as hex.
+		streamItemIds.Continuation = fmt.Sprintf("%x", contToken)
 	}
 
 	a.returnSuccess(w, streamItemIds)
