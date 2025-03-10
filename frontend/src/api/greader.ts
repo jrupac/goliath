@@ -249,7 +249,10 @@ export default class GReader implements FetchAPI {
     const result: string = await res.text();
     const subscriptionList: GReaderSubscriptionList = await parseJson(result);
 
-    this.populateFolderFeeds(subscriptionList.subscriptions);
+    // Only populate if there are any subscriptions returned.
+    if (subscriptionList.subscriptions) {
+      this.populateFolderFeeds(subscriptionList.subscriptions);
+    }
 
     cb(Status.Folder);
     cb(Status.Favicon);
@@ -282,7 +285,7 @@ export default class GReader implements FetchAPI {
       const stream: GReaderStreamIds = await parseJson(result);
 
       // If no articles are returned, this list might be null.
-      if (stream.itemRefs === null) {
+      if (!stream.itemRefs) {
         break;
       }
 
@@ -325,7 +328,7 @@ export default class GReader implements FetchAPI {
       const result: string = await res.text();
       const streamItemContents: GReaderStreamContents = await parseJson(result);
 
-      if (streamItemContents.items === null) {
+      if (!streamItemContents.items) {
         return;
       }
 
@@ -337,7 +340,7 @@ export default class GReader implements FetchAPI {
 
           const feedId = this.parseFeedID(item.categories[1]);
           const articles = this.feedToArticles.get(feedId);
-          if (articles === undefined) {
+          if (!articles) {
             this.feedToArticles.set(feedId, [article]);
           } else {
             articles.push(article);
@@ -349,10 +352,6 @@ export default class GReader implements FetchAPI {
   }
 
   private populateFolderFeeds(subscriptions: GReaderSubscription[]) {
-    if (subscriptions === null) {
-      return;
-    }
-
     subscriptions.forEach(
       (sub: GReaderSubscription) => {
         const feed = new FeedCls(
@@ -363,13 +362,13 @@ export default class GReader implements FetchAPI {
         const folderTitle = sub.categories[0].label;
 
         let folder = this.folderMap.get(folderId);
-        if (folder === undefined) {
+        if (!folder) {
           folder = new FolderCls(folderId, folderTitle);
           this.folderMap.set(folderId, folder);
         }
 
         let feeds = this.folderFeeds.get(folderId);
-        if (feeds === undefined) {
+        if (!feeds) {
           feeds = [];
         }
         feeds.push(feed);
@@ -384,7 +383,7 @@ export default class GReader implements FetchAPI {
       (folder: FolderCls, folderId: FolderId) => {
         const feeds = this.folderFeeds.get(folderId);
         // Not all folders have feeds, so nothing more to be done here.
-        if (feeds === undefined) {
+        if (!feeds) {
           return;
         }
 
@@ -408,7 +407,7 @@ export default class GReader implements FetchAPI {
   }
 
   private doFetch(fetchParams: GReaderFetch): Promise<Response> {
-    if (fetchParams.init === undefined) {
+    if (!fetchParams.init) {
       fetchParams.init = {};
     }
 
@@ -425,7 +424,7 @@ export default class GReader implements FetchAPI {
     // Unless explicitly specified otherwise, set the "T" value to the post
     // token in each request.
     if (!fetchParams.omitPostToken) {
-      if (fetchParams.formData === undefined) {
+      if (!fetchParams.formData) {
         fetchParams.formData = new FormData();
       }
       fetchParams.formData.set("T", this.postToken);
@@ -433,7 +432,7 @@ export default class GReader implements FetchAPI {
 
     // If the request has form data, override the method to 'POST' since it
     // will be encoded as a multipart form.
-    if (fetchParams.formData !== undefined) {
+    if (!fetchParams.formData) {
       fetchParams.init.method = 'POST';
       fetchParams.init.body = fetchParams.formData;
     }
