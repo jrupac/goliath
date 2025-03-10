@@ -432,7 +432,7 @@ export default class GReader implements FetchAPI {
 
     // If the request has form data, override the method to 'POST' since it
     // will be encoded as a multipart form.
-    if (!fetchParams.formData) {
+    if (fetchParams.formData) {
       fetchParams.init.method = 'POST';
       fetchParams.init.body = fetchParams.formData;
     }
