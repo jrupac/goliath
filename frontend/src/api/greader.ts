@@ -3,6 +3,7 @@ import {
   ArticleSelection,
   FeedSelection,
   FolderSelection,
+  MarkState,
   SelectionKey,
   Status
 } from "../utils/types";
@@ -182,10 +183,18 @@ export default class GReader implements FetchAPI {
     return this.buildTree();
   }
 
-  public async MarkArticle(mark: string, entity: SelectionKey): Promise<Response> {
+  public async MarkArticle(mark: MarkState, entity: SelectionKey): Promise<Response> {
     const greaderId: string = (entity as ArticleSelection)[0] as string;
     const formData = new FormData();
-    formData.set("a", mark);
+
+    let tag: string = "";
+    if (mark === "read") {
+      tag = "user/-/state/com.google/read";
+    } else {
+      console.log("Unexpected mark state: " + mark);
+    }
+
+    formData.set("a", tag);
     formData.set("i", greaderId);
 
     return this.doFetch({
@@ -272,6 +281,11 @@ export default class GReader implements FetchAPI {
       const result: string = await res.text();
       const stream: GReaderStreamIds = await parseJson(result);
 
+      // If no articles are returned, this list might be null.
+      if (stream.itemRefs === null) {
+        break;
+      }
+
       stream.itemRefs.forEach(
         (greaderStreamRef: GReaderItemRef) => {
           // The ID is a 64-bit base-10 number as a string, so parse as BigInt.
@@ -311,6 +325,10 @@ export default class GReader implements FetchAPI {
       const result: string = await res.text();
       const streamItemContents: GReaderStreamContents = await parseJson(result);
 
+      if (streamItemContents.items === null) {
+        return;
+      }
+
       streamItemContents.items.forEach(
         (item: GReaderItemContent) => {
           const article = new ArticleCls(
@@ -331,6 +349,10 @@ export default class GReader implements FetchAPI {
   }
 
   private populateFolderFeeds(subscriptions: GReaderSubscription[]) {
+    if (subscriptions === null) {
+      return;
+    }
+
     subscriptions.forEach(
       (sub: GReaderSubscription) => {
         const feed = new FeedCls(
