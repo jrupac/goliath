@@ -70,7 +70,7 @@ type greaderItemRef struct {
 }
 
 type greaderStreamItemIds struct {
-	ItemRefs     []greaderItemRef `json:"itemRefs"`
+	ItemRefs     []greaderItemRef `json:"itemRefs,omitempty"`
 	Continuation string           `json:"continuation,omitempty"`
 }
 

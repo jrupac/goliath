@@ -17,11 +17,12 @@ import (
 )
 
 const (
-	readingListStreamId string = "user/-/state/com.google/reading-list"
-	readStreamId        string = "user/-/state/com.google/read"
-	unreadStreamId      string = "user/-/state/com.google/kept-unread"
-	starredStreamId     string = "user/-/state/com.google/starred"
-	broadcastStreamId   string = "user/-/state/com.google/broadcast"
+	readingListStreamId    string = "user/-/state/com.google/reading-list"
+	readStreamId           string = "user/-/state/com.google/read"
+	unreadStreamId         string = "user/-/state/com.google/kept-unread"
+	starredStreamId        string = "user/-/state/com.google/starred"
+	broadcastStreamId      string = "user/-/state/com.google/broadcast"
+	invalidPostTokenHeader string = "X-Reader-Google-Bad-Token"
 )
 
 var (
@@ -288,8 +289,9 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if !validatePostToken(r.Form.Get("T")) {
-		a.returnError(w, http.StatusUnauthorized)
+	postToken := r.Form.Get("T")
+	if !validatePostToken(postToken) {
+		a.returnInvalidPostToken(w, postToken)
 		return
 	}
 
@@ -355,8 +357,9 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 		return
 	}
 
-	if !validatePostToken(r.Form.Get("T")) {
-		a.returnError(w, http.StatusUnauthorized)
+	postToken := r.Form.Get("T")
+	if !validatePostToken(postToken) {
+		a.returnInvalidPostToken(w, postToken)
 		return
 	}
 
@@ -366,7 +369,8 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 		// Note: This is parsing the article ID as hex.
 		id, err := strconv.ParseInt(articleIdStr, 16, 64)
 		if err != nil {
-			a.returnError(w, http.StatusInternalServerError)
+			log.Warningf("Invalid article ID: %s", err)
+			a.returnError(w, http.StatusBadRequest)
 			return
 		}
 		articleIds = append(articleIds, id)
@@ -383,11 +387,16 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 		// TODO: Support starring items
 		a.returnError(w, http.StatusNotImplemented)
 		return
+	default:
+		log.Warningf("Unexpected 'a' parameter: %s", r.Form.Get("a"))
+		a.returnError(w, http.StatusBadRequest)
+		return
 	}
 
 	for _, articleId := range articleIds {
 		err = a.d.MarkArticleForUser(user, articleId, status)
 		if err != nil {
+			log.Warningf("Failed to mark article %d: %s", articleId, err)
 			a.returnError(w, http.StatusInternalServerError)
 			return
 		}
@@ -405,9 +414,9 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 		return
 	}
 
-	if !validatePostToken(r.Form.Get("T")) {
-		log.Warningf("Invalid token")
-		a.returnError(w, http.StatusUnauthorized)
+	postToken := r.Form.Get("T")
+	if !validatePostToken(postToken) {
+		a.returnInvalidPostToken(w, postToken)
 		return
 	}
 
@@ -548,6 +557,12 @@ func (a GReader) validateLoginForm(r *http.Request) (string, int) {
 
 func (a GReader) returnError(w http.ResponseWriter, status int) {
 	w.WriteHeader(status)
+}
+
+func (a GReader) returnInvalidPostToken(w http.ResponseWriter, token string) {
+	log.Warningf("Invalid post token: %s", token)
+	w.WriteHeader(http.StatusUnauthorized)
+	w.Header().Set(invalidPostTokenHeader, "true")
 }
 
 func (a GReader) returnSuccess(w http.ResponseWriter, resp any) {
