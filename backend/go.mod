@@ -14,11 +14,10 @@ require (
 	github.com/prometheus/client_golang v1.19.0
 	github.com/seiflotfy/cuckoofilter v0.0.0-20220411075957-e3b120b3f5fb
 	github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de
-	golang.org/x/crypto v0.31.0
+	golang.org/x/crypto v0.35.0
 	golang.org/x/image v0.18.0
-	golang.org/x/net v0.33.0
+	golang.org/x/net v0.36.0
 	google.golang.org/grpc v1.67.1
-	google.golang.org/protobuf v1.34.2
 )
 
 require (
@@ -34,7 +33,8 @@ require (
 	github.com/prometheus/client_model v0.6.0 // indirect
 	github.com/prometheus/common v0.49.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/text v0.22.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240814211410-ddb44dafa142 // indirect
+	google.golang.org/protobuf v1.34.2 // indirect
 )
