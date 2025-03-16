@@ -1,5 +1,5 @@
-import ArticleCard from './ArticleCard';
-import React from "react";
+import {ArticleCard} from './ArticleCard';
+import React, {ReactNode} from "react";
 import ReactList from 'react-list';
 import {animateScroll} from 'react-scroll';
 import {
@@ -162,7 +162,7 @@ export default class ArticleList extends React.Component<ArticleListProps, Artic
       selected={index === this.state.scrollIndex}/>
   }
 
-  renderArticle(index: number) {
+  renderArticle(index: number): ReactNode {
     const articleView: ArticleView = this.state.articleEntries[index];
 
     return <ArticleCard

@@ -18,7 +18,8 @@ export default class Loading extends React.Component<LoadingProps, never> {
         <LinearProgress
           value={100 * progress}
           className="GoliathLoadingProgress"
-          variant="determinate"/>
+          variant="determinate"
+          data-testid="loading-progress"/>
       </Box>
     )
   }

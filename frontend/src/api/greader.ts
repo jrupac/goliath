@@ -129,7 +129,15 @@ export default class GReader implements FetchAPI {
     }
 
     const result: string = await res.text();
-    const loginResult: GReaderHandleLogin = await parseJson(result);
+    let loginResult: GReaderHandleLogin;
+
+    try {
+      loginResult = parseJson(result);
+    } catch (e) {
+      console.log("Failed to parse login result:" + e)
+      return false;
+    }
+
     this.sessionToken = loginResult.Auth;
 
     // Set the session ID as a cookie to support session persistence. The

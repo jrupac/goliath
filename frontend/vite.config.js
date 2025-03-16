@@ -3,6 +3,7 @@ import path from 'path';
 import {defineConfig} from 'vite';
 import {VitePWA} from 'vite-plugin-pwa'
 import viteTsconfigPaths from 'vite-tsconfig-paths';
+import {configDefaults} from 'vitest/config';
 
 export default defineConfig(() => {
   return {
@@ -39,6 +40,12 @@ export default defineConfig(() => {
       alias: {
         "@": path.resolve(__dirname, "./src"),
       }
+    },
+    test: {
+      environment: 'happy-dom',
+      globals: true,
+      exclude: [...configDefaults.exclude, '**/e2e/**'],
+      setupFiles: ['./setupTests.ts']
     }
   };
 });

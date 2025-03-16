@@ -1,6 +1,7 @@
 import Fever from '../fever';
-import { LoginInfo } from '../interface';
-import Fever from '../fever';
+import {LoginInfo} from '../interface';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
+import * as helpers from '../../utils/helpers';
 
 describe('Fever', () => {
   it('initializes', () => {
@@ -8,20 +9,29 @@ describe('Fever', () => {
     new Fever();
   });
 });
+
 describe('Fever', () => {
   let fever: Fever;
-  let mockFetch: jest.Mock;
+  let mockFetch: vi.Mock;
+  let mockCookieExists: vi.SpyOn;
+  const loginInfo: LoginInfo = {username: 'test_user', password: 'password'};
 
   beforeEach(() => {
     fever = new Fever();
-    mockFetch = jest.fn();
+    mockFetch = vi.fn();
     global.fetch = mockFetch;
+    mockCookieExists = vi.spyOn(helpers, 'cookieExists');
   });
 
   it('HandleAuth returns true on successful login', async () => {
-    const loginInfo: LoginInfo = { username: 'testuser', password: 'password' };
-    mockFetch.mockResolvedValue({ ok: true });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({})
+    });
+    mockCookieExists.mockReturnValue(true);
+
     const result = await fever.HandleAuth(loginInfo);
+
     expect(result).toBe(true);
     expect(mockFetch).toHaveBeenCalledWith('/auth', {
       method: 'POST',
@@ -31,9 +41,25 @@ describe('Fever', () => {
   });
 
   it('HandleAuth returns false on failed login', async () => {
-    const loginInfo: LoginInfo = { username: 'testuser', password: 'password' };
-    mockFetch.mockResolvedValue({ ok: false });
+    mockFetch.mockResolvedValue({
+      ok: false,
+      json: vi.fn().mockResolvedValue({})
+    });
+
     const result = await fever.HandleAuth(loginInfo);
+
+    expect(result).toBe(false);
+  });
+
+  it('HandleAuth returns false when the auth cookie is missing', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({})
+    });
+    mockCookieExists.mockReturnValue(false);
+
+    const result = await fever.HandleAuth(loginInfo);
+
     expect(result).toBe(false);
   });
 });

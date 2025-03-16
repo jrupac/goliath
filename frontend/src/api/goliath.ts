@@ -23,7 +23,8 @@ export async function GetVersion(): Promise<VersionData> {
         build_timestamp: body.build_timestamp, build_hash: body.build_hash
       };
     }).catch((e): VersionData => {
-      console.log(e);
+      console.log(
+        "Error while fetching version, returning unknown version info: " + e);
       return {build_timestamp: "<unknown>", build_hash: "<unknown>"};
     });
 }
