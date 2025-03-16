@@ -1,5 +1,6 @@
 import Fever from '../fever';
 import {LoginInfo} from '../interface';
+import type {Mock, MockInstance} from 'vitest';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import * as helpers from '../../utils/helpers';
 
@@ -12,8 +13,8 @@ describe('Fever', () => {
 
 describe('Fever', () => {
   let fever: Fever;
-  let mockFetch: vi.Mock;
-  let mockCookieExists: vi.SpyOn;
+  let mockFetch: Mock;
+  let mockCookieExists: MockInstance;
   const loginInfo: LoginInfo = {username: 'test_user', password: 'password'};
 
   beforeEach(() => {

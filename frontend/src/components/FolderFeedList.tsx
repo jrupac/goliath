@@ -1,4 +1,4 @@
-import React, {ReactNode, ReactText} from 'react';
+import React, {ReactNode} from 'react';
 import {KeyAll, SelectionKey, SelectionType} from "../utils/types";
 import {Box} from "@mui/material";
 import InboxIcon from "@mui/icons-material/Inbox";
@@ -18,7 +18,7 @@ export interface FolderFeedListProps {
 }
 
 export interface FolderFeedListState {
-  keyCache: Map<ReactText, [SelectionType, SelectionKey]>;
+  keyCache: Map<string, [SelectionType, SelectionKey]>;
 }
 
 export default class FolderFeedList extends React.Component<FolderFeedListProps, FolderFeedListState> {
@@ -133,7 +133,7 @@ export default class FolderFeedList extends React.Component<FolderFeedListProps,
     }
   }
 
-  renderFeed(feedView: FeedView) {
+  renderFeed(feedView: FeedView): ReactNode {
     let img: ReactNode;
     if (feedView.favicon === null) {
       img = <RssFeedOutlinedIcon fontSize="small"/>

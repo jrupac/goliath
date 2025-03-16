@@ -1,11 +1,12 @@
 import Greader from '../greader';
 import {LoginInfo} from '../interface';
+import type {Mock, MockInstance} from 'vitest';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 
 describe('Greader', () => {
   let greader: Greader;
-  let mockFetch: vi.Mock;
-  let mockSetCookie: vi.SpyOn;
+  let mockFetch: Mock;
+  let mockSetCookie: MockInstance;
   const loginInfo: LoginInfo = {username: 'test_user', password: 'password'};
 
   beforeEach(() => {

@@ -1,8 +1,9 @@
+import type {Mock} from 'vitest';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {GetVersion, VersionData} from '../goliath';
 
 describe('GetVersion', () => {
-  let mockFetch: vi.Mock;
+  let mockFetch: Mock;
 
   beforeEach(() => {
     mockFetch = vi.fn();
