@@ -43,7 +43,8 @@
     "analyze": "source-map-explorer build/static/js/main.*",
     "start": "vite --host",
     "build": "vite build",
-    "serve": "vite preview"
+    "serve": "vite preview",
+    "test": "vitest"
   },
   "devDependencies": {
     "@types/react": "^17.0.43",
@@ -54,10 +55,13 @@
     "@vitejs/plugin-react": "^4.3.0",
     "eslint": "^8.56.0",
     "eslint-plugin-react": "^7.34.2",
+    "happy-dom": "^14.10.11",
     "source-map-explorer": "^2.5.2",
     "vite": "^5.4.14",
     "vite-plugin-pwa": "^0.20.0",
-    "vite-tsconfig-paths": "^4.3.2"
+    "vite-tsconfig-paths": "^4.3.2",
+    "vitest": "^1.6.0",
+    "@vitest/ui": "^1.6.0"
   },
   "browserslist": [
     ">0.2%",
