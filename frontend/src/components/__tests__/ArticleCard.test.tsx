@@ -1,5 +1,5 @@
 import React from 'react';
-import {ArticleCard} from '../ArticleCard';
+import ArticleCard from '../ArticleCard';
 import {describe, expect, it, vi} from 'vitest';
 import {render, screen} from '@testing-library/react';
 import {ArticleView} from '../../models/article';
