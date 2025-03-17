@@ -25,13 +25,13 @@ export interface ArticleProps {
   shouldRerender: () => void;
 }
 
-export interface ArticleState {
+interface ArticleState {
   parsed: string | null;
   showParsed: boolean;
   loading: boolean;
 }
 
-export const ArticleCard: (props: ArticleProps) => React.ReactElement = (props: ArticleProps) => {
+const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
   const [state, setState] = useState<ArticleState>({
     parsed: null,
     showParsed: false,
@@ -195,4 +195,6 @@ export const ArticleCard: (props: ArticleProps) => React.ReactElement = (props: 
       </Card>
     </Box>
   )
-}
+};
+
+export default ArticleCard;

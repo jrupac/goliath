@@ -1,14 +1,13 @@
-import React, {ReactNode} from "react";
+import React, {ReactNode, useEffect, useState} from "react";
 import {Box, Card, CardHeader, Skeleton, Tooltip} from "@mui/material";
 import {
   fetchReadability,
   formatFriendly,
   formatFull,
-  makeAbsolute
+  makeAbsolute,
 } from "../utils/helpers";
 import RssFeedOutlinedIcon from "@mui/icons-material/RssFeedOutlined";
 import {ArticleView} from "../models/article";
-
 
 export interface ArticleProps {
   article: ArticleView;
@@ -17,153 +16,58 @@ export interface ArticleProps {
   isSelected: boolean;
 }
 
-export interface ArticleState {
+interface ArticleState {
   parsed: string | null;
   showParsed: boolean;
   loading: boolean;
 }
 
-export default class SplitViewArticleCard extends React.Component<ArticleProps, ArticleState> {
-  constructor(props: ArticleProps) {
-    super(props);
-    this.state = {
-      parsed: null,
-      showParsed: false,
-      loading: false,
-    }
-  }
+const SplitViewArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
+  const [state, setState] = useState<ArticleState>({
+    parsed: null,
+    showParsed: false,
+    loading: false,
+  });
 
-  componentDidMount() {
-    window.addEventListener('keydown', this.handleKeyDown);
-  }
-
-  componentWillUnmount() {
-    window.removeEventListener('keydown', this.handleKeyDown);
-  }
-
-  render() {
-    const date = new Date(this.props.article.created_on_time * 1000);
-    const feedTitle = this.props.title;
-
-    let headerClass = '';
-    let elevation;
-
-    if (this.props.isSelected) {
-      elevation = 1;
-    } else if (this.props.article.is_read === 1) {
-      headerClass = 'GoliathArticleHeaderRead';
-      elevation = 0;
-    } else {
-      elevation = 2;
-    }
-
-    return (
-      <Box className="GoliathArticleOuter">
-        <Card elevation={elevation} className="GoliathHeaderContainer">
-          <CardHeader
-            className={`GoliathArticleHeader ${headerClass}`}
-            title={
-              <Box className="GoliathArticleTitle">
-                <a
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  href={this.props.article.url}>
-                  <div>
-                    <div
-                      dangerouslySetInnerHTML={{__html: this.props.article.title}}/>
-                  </div>
-                </a>
-              </Box>
-            }
-            subheader={
-              <Box className="GoliathArticleMeta">
-                <Box className="GoliathArticleFeed">
-                  {this.renderFavicon()}
-                  <p className="GoliathArticleFeedTitle">{feedTitle}</p>
-                </Box>
-                <Tooltip
-                  title={formatFull(date)}>
-                  <Box className="GoliathArticleDate">
-                    {formatFriendly(date)}
-                  </Box>
-                </Tooltip>
-              </Box>
-            }/>
-        </Card>
-        <div
-          className="GoliathSplitViewArticleContent GoliathArticleContentStyling">
-          {this.renderContent()}
-        </div>
-      </Box>
-    )
-  }
-
-  renderFavicon() {
-    const favicon = this.props.favicon;
-    if (!favicon) {
-      return <RssFeedOutlinedIcon fontSize="small"/>
-    } else {
-      return <img src={`data:${favicon}`} height={16} width={16} alt=''/>
-    }
-  }
-
-  renderContent(): ReactNode {
-    if (this.state.loading) {
-      return <Box>
-        <Skeleton variant="text" animation="wave"/>
-        <Skeleton variant="text" animation="wave"/>
-        <Skeleton variant="text" animation="wave"/>
-      </Box>;
-    } else {
-      return <div
-        dangerouslySetInnerHTML={{__html: this.getArticleContent()}}/>;
-    }
-  }
-
-  getArticleContent(): string {
-    if (this.state.showParsed) {
-      // This field is checked for non-nullity before being set.
-      return this.state.parsed!;
-    }
-    return this.props.article.html;
-  }
-
-  toggleParseContent() {
+  const toggleParseContent = () => {
     // If already showing parsed content, disable showing it.
-    if (this.state.showParsed) {
-      this.setState({showParsed: false});
+    if (state.showParsed) {
+      setState({...state, showParsed: false});
       return;
     }
 
     // If already parsed before, just enabling showing it.
-    if (this.state.parsed !== null) {
-      this.setState({showParsed: true});
+    if (state.parsed !== null) {
+      setState({...state, showParsed: true});
       return;
     }
 
     // It's okay if this state change doesn't happen fast enough, it'll just get
     // reset lower down anyway.
-    this.setState({loading: true});
+    setState({...state, loading: true});
 
-    const url = makeAbsolute("/cache?url=" + encodeURI(this.props.article.url));
-    fetchReadability(url).then((content) => {
-      this.setState({
-        parsed: content,
-        showParsed: true,
-        loading: false
+    const url = makeAbsolute("/cache?url=" + encodeURI(props.article.url));
+    fetchReadability(url)
+      .then((content) => {
+        setState({
+          parsed: content,
+          showParsed: true,
+          loading: false,
+        });
+      })
+      .catch((e) => {
+        console.log("Could not parse URL %s: %s", url, e);
+        setState({
+          ...state,
+          showParsed: false,
+          loading: false,
+        });
       });
-    }).catch((e) => {
-      console.log("Could not parse URL %s: %s", url, e);
-      this.setState({
-        showParsed: false,
-        loading: false
-      });
-    })
-  }
+  };
 
-  handleKeyDown = (event: KeyboardEvent) => {
+  const handleKeyDown = (event: KeyboardEvent) => {
     // Ignore all key events unless this is the selected article.
-    if (!this.props.isSelected) {
+    if (!props.isSelected) {
       return;
     }
 
@@ -173,8 +77,107 @@ export default class SplitViewArticleCard extends React.Component<ArticleProps, 
       return;
     }
 
-    if (event.key === 'm') {
-      this.toggleParseContent();
+    if (event.key === "m") {
+      toggleParseContent();
     }
+  };
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  const date = new Date(props.article.created_on_time * 1000);
+  const feedTitle = props.title;
+
+  let headerClass = "";
+  let elevation;
+
+  if (props.isSelected) {
+    elevation = 1;
+  } else if (props.article.is_read === 1) {
+    headerClass = "GoliathArticleHeaderRead";
+    elevation = 0;
+  } else {
+    elevation = 2;
   }
-}
+
+  const renderFavicon = (): ReactNode => {
+    const favicon = props.favicon;
+    if (!favicon) {
+      return <RssFeedOutlinedIcon fontSize="small"/>;
+    } else {
+      return <img src={`data:${favicon}`} height={16} width={16} alt=""/>;
+    }
+  };
+
+  const getArticleContent = (): string => {
+    if (state.showParsed) {
+      // This field is checked for non-nullity before being set.
+      return state.parsed!;
+    }
+    return props.article.html;
+  };
+
+  const renderContent = (): ReactNode => {
+    if (state.loading) {
+      return (
+        <Box>
+          <Skeleton variant="text" animation="wave"/>
+          <Skeleton variant="text" animation="wave"/>
+          <Skeleton variant="text" animation="wave"/>
+        </Box>
+      );
+    } else {
+      return <div dangerouslySetInnerHTML={{__html: getArticleContent()}}/>;
+    }
+  };
+
+  return (
+    <Box className="GoliathArticleOuter">
+      <Card elevation={elevation} className="GoliathHeaderContainer">
+        <CardHeader
+          className={`GoliathArticleHeader ${headerClass}`}
+          title={
+            <Box className="GoliathArticleTitle">
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href={props.article.url}
+              >
+                <div>
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html: props.article.title,
+                    }}
+                  />
+                </div>
+              </a>
+            </Box>
+          }
+          subheader={
+            <Box className="GoliathArticleMeta">
+              <Box className="GoliathArticleFeed">
+                {renderFavicon()}
+                <p className="GoliathArticleFeedTitle">{feedTitle}</p>
+              </Box>
+              <Tooltip title={formatFull(date)}>
+                <Box className="GoliathArticleDate">
+                  {formatFriendly(date)}
+                </Box>
+              </Tooltip>
+            </Box>
+          }
+        />
+      </Card>
+      <div
+        className="GoliathSplitViewArticleContent GoliathArticleContentStyling">
+        {renderContent()}
+      </div>
+    </Box>
+  );
+};
+
+export default SplitViewArticleCard;

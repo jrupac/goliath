@@ -1,4 +1,4 @@
-import React, {ChangeEvent, FormEvent, ReactNode} from 'react';
+import React, {FormEvent, ReactNode, useState} from 'react';
 import {Navigate} from "react-router-dom";
 import {
   Box,
@@ -19,77 +19,18 @@ import {populateThemeInfo} from "../utils/helpers";
 export interface LoginProps {
 }
 
-export default class Login extends React.Component<LoginProps, any> {
-  private fetchApi: FetchAPI;
+const Login: React.FC<LoginProps> = () => {
+  const [loginAttempted, setLoginAttempted] = useState<boolean>(false);
+  const [loginSuccess, setLoginSuccess] = useState<boolean>(false);
+  const [usernameMissing, setUsernameMissing] = useState<boolean>(false);
+  const [passwordMissing, setPasswordMissing] = useState<boolean>(false);
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [theme] = useState<any>(null);
+  const fetchApi: FetchAPI = FetchAPIFactory.Create(FetchType.GReader);
 
-  constructor(props: LoginProps) {
-    super(props);
-    this.state = {
-      loginAttempted: false,
-      loginSuccess: false,
-      usernameMissing: false,
-      passwordMissing: false,
-      username: "",
-      password: ""
-    };
-    this.fetchApi = FetchAPIFactory.Create(FetchType.GReader);
-  }
-
-  render() {
-    const themeInfo: ThemeInfo = populateThemeInfo(this.state.theme);
-
-    if (this.state.loginSuccess) {
-      return <Navigate to={GoliathPath.Default} replace={true}/>;
-    }
-
-    return (
-      <ThemeProvider theme={themeInfo.theme}>
-        <CssBaseline/>
-        <Box className={`GoliathLoginPage ${themeInfo.themeClasses}`}>
-          <Box className='GoliathLoginPageLogo'>Goliath</Box>
-          <Box className='GoliathLoginPageSecondary'>
-            <Box
-              className="GoliathLoginPageForm">
-              {this.showLoginFailedMessage()}
-              <form
-                onSubmit={(e: FormEvent) => this.handleSubmit(e)}
-                className="login-page-form">
-                <TextField
-                  name="username"
-                  label="Username"
-                  error={this.state.usernameMissing}
-                  value={this.state.username}
-                  required
-                  helperText={this.state.usernameMissing ? "Missing Username" : ""}
-                  onChange={(e: ChangeEvent) => this.handleChange(e)}
-                />
-                <TextField
-                  name="password"
-                  label="Password"
-                  type="password"
-                  error={this.state.passwordMissing}
-                  value={this.state.password}
-                  required
-                  helperText={this.state.passwordMissing ? "Missing Password" : ""}
-                  onChange={(e: ChangeEvent) => this.handleChange(e)}
-                />
-                <Button
-                  variant="contained"
-                  type="submit"
-                  onClick={(e: FormEvent) => this.handleSubmit(e)}
-                  className="GoliathLoginFormButton">
-                  Log in
-                </Button>
-              </form>
-            </Box>
-          </Box>
-        </Box>
-      </ThemeProvider>
-    )
-  }
-
-  showLoginFailedMessage = (): ReactNode => {
-    if (this.state.loginAttempted && !this.state.loginSuccess) {
+  const showLoginFailedMessage = (): ReactNode => {
+    if (loginAttempted && !loginSuccess) {
       return <Box className="GoliathLoginFailedMessage">
         Invalid username or password.
       </Box>
@@ -98,43 +39,94 @@ export default class Login extends React.Component<LoginProps, any> {
     }
   };
 
-  handleChange(e: any) {
-    this.setState({
-      [e.target.name]: e.target.value
-    })
-  }
+  const handleChange = (e: any) => {
+    const {name, value} = e.target;
+    if (name === "username") {
+      setUsername(value);
+    } else if (name === "password") {
+      setPassword(value);
+    }
+  };
 
-  handleSubmit(e: React.FormEvent) {
+  const validateForm = () => {
+    const usernameMissingValue = username === "";
+    const passwordMissingValue = password === "";
+
+    if (usernameMissingValue || passwordMissingValue) {
+      setUsernameMissing(usernameMissingValue);
+      setPasswordMissing(passwordMissingValue);
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
-    if (!this.validateForm()) {
+    if (!validateForm()) {
       return;
     }
 
     const loginInfo: LoginInfo = {
-      username: this.state.username,
-      password: this.state.password
+      username: username,
+      password: password
     }
 
-    this.fetchApi.HandleAuth(loginInfo).then((ok: boolean) => {
-      this.setState({
-        loginAttempted: true,
-        loginSuccess: ok
-      });
+    fetchApi.HandleAuth(loginInfo).then((ok: boolean) => {
+      setLoginAttempted(true);
+      setLoginSuccess(ok);
     });
+  };
+  const themeInfo: ThemeInfo = populateThemeInfo(theme);
+
+  if (loginSuccess) {
+    return <Navigate to={GoliathPath.Default} replace={true}/>;
   }
 
-  validateForm() {
-    const usernameMissing = this.state.username === "";
-    const passwordMissing = this.state.password === "";
+  return (
+    <ThemeProvider theme={themeInfo.theme}>
+      <CssBaseline/>
+      <Box className={`GoliathLoginPage ${themeInfo.themeClasses}`}>
+        <Box className='GoliathLoginPageLogo'>Goliath</Box>
+        <Box className='GoliathLoginPageSecondary'>
+          <Box
+            className="GoliathLoginPageForm">
+            {showLoginFailedMessage()}
+            <form
+              onSubmit={handleSubmit}
+              className="login-page-form">
+              <TextField
+                name="username"
+                label="Username"
+                error={usernameMissing}
+                value={username}
+                required
+                helperText={usernameMissing ? "Missing Username" : ""}
+                onChange={handleChange}
+              />
+              <TextField
+                name="password"
+                label="Password"
+                type="password"
+                error={passwordMissing}
+                value={password}
+                required
+                helperText={passwordMissing ? "Missing Password" : ""}
+                onChange={handleChange}
+              />
+              <Button
+                variant="contained"
+                type="submit"
+                onClick={handleSubmit}
+                className="GoliathLoginFormButton">
+                Log in
+              </Button>
+            </form>
+          </Box>
+        </Box>
+      </Box>
+    </ThemeProvider>
+  );
+};
 
-    if (usernameMissing || passwordMissing) {
-      this.setState({
-        usernameMissing,
-        passwordMissing
-      });
-      return false;
-    }
-    return true;
-  }
-}
+export default Login;

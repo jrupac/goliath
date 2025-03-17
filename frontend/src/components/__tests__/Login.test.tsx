@@ -6,6 +6,6 @@ import Login from '../Login';
 describe('Login', () => {
   it('renders', () => {
     // Minimal rendering test
-    render(<Login />);
+    render(<Login/>);
   });
 });
