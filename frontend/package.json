@@ -5,7 +5,7 @@
   "dependencies": {
     "@emotion/react": "^11.4.1",
     "@emotion/styled": "^11.8.1",
-    "@mozilla/readability": "^0.4.2",
+    "@mozilla/readability": "^0.6.0",
     "@mui/icons-material": "^5.15.9",
     "@mui/material": "^5.0.3",
     "@mui/x-tree-view": "^6.17.0",
