@@ -4,7 +4,16 @@ module.exports = {
     "plugin:react/recommended"
   ],
   "rules": {
-    "@typescript-eslint/no-unused-vars": "warn",
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": ["warn", {
+      "args": "all",
+      "argsIgnorePattern": "^_",
+      "caughtErrors": "all",
+      "caughtErrorsIgnorePattern": "^_",
+      "destructuredArrayIgnorePattern": "^_",
+      "varsIgnorePattern": "^_",
+      "ignoreRestSiblings": true
+    }],
     "@typescript-eslint/no-use-before-define": ["warn"],
     "default-case": "off",
     "func-style": 0,
