@@ -154,11 +154,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
       };
     });
   }, [
-    selectAllCallback,
-    handleMark,
-    selectionKey,
-    selectionType,
-    state.articleEntries,
+    selectAllCallback, handleMark, selectionKey, selectionType,
+    state.articleEntries, state.showPreviews, state.smoothScroll,
+    state.scrollIndex, state.articleViewToggleState, state.keypressBuffer,
   ]);
 
   const generateImagePreview = useCallback(async (article: ArticleView) => {
@@ -260,14 +258,14 @@ const ArticleList: React.FC<ArticleListProps> = ({
         };
       });
     }
-  }, [state.articleImagePreviews]);
+  }, [state.articleImagePreviews, inflightPreview, state.articleEntries]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [handleKeyDown]);
 
   const prevSelectionKey = useRef<SelectionKey>(selectionKey);
 
@@ -297,7 +295,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       // the new size can be accounted for correctly.
       listRef.current.forceUpdate();
     }
-  }, []);
+  }, [listRef]);
 
   const renderArticle = useCallback((index: number): ReactElement => {
     const articleView: ArticleView = state.articleEntries[index];
@@ -310,7 +308,10 @@ const ArticleList: React.FC<ArticleListProps> = ({
       isSelected={index === state.scrollIndex}
       shouldRerender={handleRerender}
     />;
-  }, [state.articleEntries, state.scrollIndex, handleRerender]);
+  }, [
+    state.articleEntries, state.scrollIndex, handleRerender,
+    state.articleViewToggleState
+  ]);
 
   const renderSplitViewArticleListEntry = useCallback((index: number): ReactElement => {
     const articleView: ArticleView = state.articleEntries[index];
@@ -324,7 +325,12 @@ const ArticleList: React.FC<ArticleListProps> = ({
       preview={state.articleImagePreviews.get(articleView.id)}
       selected={index === state.scrollIndex}
     />;
-  }, [state.articleEntries, state.scrollIndex, state.articleImagePreviews, state.showPreviews, generateImagePreview]);
+  }, [
+    state.articleEntries,
+    state.scrollIndex, state.articleImagePreviews,
+    state.showPreviews, generateImagePreview,
+    state.articleViewToggleState
+  ]);
 
   const handleMounted = useCallback((list: ReactList) => {
     listRef.current = list;
@@ -355,7 +361,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
         });
       }
     }
-  }, [state.scrollIndex, state.smoothScroll]);
+  }, [state.scrollIndex, state.smoothScroll, listRef]);
 
   if (state.articleEntries.length === 0) {
     return (
