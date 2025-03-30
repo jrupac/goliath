@@ -3,6 +3,7 @@ import {
   ArticleSelection,
   FeedSelection,
   FolderSelection,
+  KeyAll,
   MarkState,
   SelectionKey,
   Status
@@ -235,8 +236,12 @@ export default class GReader implements FetchAPI {
 
   public async MarkAll(_: string, entity: SelectionKey): Promise<Response> {
     const formData = new FormData();
-    // TODO: Check if this is actually setting the right value.
-    formData.set("t", entity as string);
+    if (entity === KeyAll) {
+      // The value 0 means "all folders" when marking.
+      formData.set("t", "0" as string);
+    } else {
+      formData.set("t", entity as FolderSelection);
+    }
 
     return this.doFetch({
       uri: '/greader/reader/api/0/mark-all-as-read',
