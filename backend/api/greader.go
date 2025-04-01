@@ -377,8 +377,12 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 	}
 
 	var status string
-	// Only support updating one tag
+
+	// The "a" key refers to tags that are added
 	switch r.Form.Get("a") {
+	case "":
+		// Can be empty, nothing to do
+		break
 	case readStreamId:
 		status = "read"
 	case unreadStreamId:
@@ -387,8 +391,25 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 		// TODO: Support starring items
 		a.returnError(w, http.StatusNotImplemented)
 		return
-	default:
-		log.Warningf("Unexpected 'a' parameter: %s", r.Form.Get("a"))
+	}
+
+	// The "r" key refers to tags that are removed
+	switch r.Form.Get("r") {
+	case "":
+		// Can be empty, nothing to do
+		break
+	case readStreamId:
+		status = "unread"
+	case unreadStreamId:
+		status = "read"
+	case starredStreamId, broadcastStreamId:
+		// TODO: Support starring items
+		a.returnError(w, http.StatusNotImplemented)
+		return
+	}
+
+	if status == "" {
+		log.Warningf("Did not specify either 'a' or 'r' parameter")
 		a.returnError(w, http.StatusBadRequest)
 		return
 	}
