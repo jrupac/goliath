@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+// ArticleMeta return only some metadata fields for a single article.
+type ArticleMeta struct {
+	ID       int64
+	FeedID   int64
+	FolderID int64
+	Date     time.Time
+}
+
 // Article is a single fetched article.
 type Article struct {
 	// Primary key
@@ -21,6 +29,7 @@ type Article struct {
 	Parsed    string
 	Link      string
 	Read      bool
+	Saved     bool
 	Date      time.Time
 	Retrieved time.Time
 	// Metadata
@@ -48,7 +57,7 @@ func (a Article) GetContents(serveParsed bool) string {
 		log.V(2).Infof("Serving parsed content for title: %s", a.Title)
 		content = a.Parsed
 	} else if a.Content != "" {
-		// The "content" field usually has more text, but is not always set.
+		// The "content" field usually has more text but is not always set.
 		content = a.Content
 	} else {
 		content = a.Summary
