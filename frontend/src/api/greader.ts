@@ -168,7 +168,7 @@ export default class GReader implements FetchAPI {
     }
 
     // Second, if a session token exists, generate a post token. It is both
-    // needed for future operations and serves as verification of the session
+    // necessary for future operations and serves as verification of the session
     // token.
     const res: Response = await this.doFetch({
       uri: '/greader/reader/api/0/token',
@@ -285,52 +285,12 @@ export default class GReader implements FetchAPI {
     formData.set("xt", "user/-/state/com.google/read")
     formData.set("n", articleRefLimit.toString());
 
-    const articleIdStrs: string[] = [];
-
-    for (; ;) {
-      const res: Response = await this.doFetch({
-        uri: '/greader/reader/api/0/stream/items/ids',
-        formData: formData
-      });
-
-      if (!res.ok) {
-        console.log("Fetching item ids failed: %s" + res.statusText);
-        return Promise.reject(res.statusText);
-      }
-
-      const result: string = await res.text();
-      const stream: GReaderStreamIds = await parseJson(result);
-
-      // If no articles are returned, this list might be null.
-      if (!stream.itemRefs) {
-        break;
-      }
-
-      stream.itemRefs.forEach(
-        (greaderStreamRef: GReaderItemRef) => {
-          // The ID is a 64-bit base-10 number as a string, so parse as BigInt.
-          const id: bigint = BigInt(greaderStreamRef.id);
-
-          // When requesting article IDs, pass a hex string. This seems to match
-          // other real-world client behavior.
-          articleIdStrs.push(id.toString(16));
-        }
-      )
-
-      // Keep fetching until we see less than the max items returned. This can
-      // also be determined by the existence of the continuation token, but
-      // this is a safer approach.
-      if (stream.itemRefs.length === articleRefLimit) {
-        formData.set("c", stream.continuation);
-      } else {
-        break;
-      }
-    }
+    const articleIdStrs = await this.fetchStreamIds(formData, articleRefLimit);
 
     for (let i = 0; i < articleIdStrs.length; i += articleContentLimit) {
       const articleContentsForm = new FormData();
       articleIdStrs.slice(i, i + articleContentLimit).forEach(
-        (id) => articleContentsForm.append("i", id));
+        ([id, _feedId, _folderId]) => articleContentsForm.append("i", id));
 
       const res: Response = await this.doFetch({
         uri: '/greader/reader/api/0/stream/items/contents',
@@ -366,6 +326,60 @@ export default class GReader implements FetchAPI {
     }
 
     cb(Status.Article);
+  }
+
+  private async fetchStreamIds(formData: FormData, limit: number): Promise<string[][]> {
+    const articleIdStrs: string[][] = [];
+
+    for (; ;) {
+      const res: Response = await this.doFetch({
+        uri: '/greader/reader/api/0/stream/items/ids',
+        formData: formData
+      });
+
+      if (!res.ok) {
+        console.log("Fetching item ids failed: %s" + res.statusText);
+        return Promise.reject(res.statusText);
+      }
+
+      const result: string = await res.text();
+      const stream: GReaderStreamIds = await parseJson(result);
+
+      // If no articles are returned, this list might be null.
+      if (!stream.itemRefs) {
+        break;
+      }
+
+      stream.itemRefs.forEach(
+        (greaderStreamRef: GReaderItemRef) => {
+          // The ID is a 64-bit base-10 number as a string, so parse as BigInt.
+          const id: bigint = BigInt(greaderStreamRef.id);
+          const feedId: bigint = BigInt(
+            this.parseFeedID(greaderStreamRef.directStreamIds[0]));
+          const folderId: bigint = BigInt(
+            this.parseFolderID(greaderStreamRef.directStreamIds[1]));
+
+          // When requesting article IDs, pass a hex string. This seems to match
+          // other real-world client behavior.
+          articleIdStrs.push([
+            id.toString(16),
+            feedId.toString(16),
+            folderId.toString(16)
+          ]);
+        }
+      )
+
+      // Keep fetching until we see less than the max items returned. This can
+      // also be determined by the existence of the continuation token, but
+      // this is a safer approach.
+      if (stream.itemRefs.length === limit) {
+        formData.set("c", stream.continuation);
+      } else {
+        break;
+      }
+    }
+
+    return articleIdStrs;
   }
 
   private populateFolderFeeds(subscriptions: GReaderSubscription[]) {
