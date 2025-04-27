@@ -293,21 +293,31 @@ func maybeMuteArticle(a models.Article, muteWords []string, unmuteFeeds []int64)
 func getSimilarExistingArticles(articles []models.Article, a models.Article) ([]int64, []int64) {
 	var unreadIds, readIds []int64
 
-	editDistPercent := func(base string, comp string) float64 {
-		edit := float64(levenshtein.Distance(base, comp)) / float64(len(base))
-		return edit
+	isSimilar := func(o models.Article, n models.Article) bool {
+		if o.Link != n.Link {
+			return false
+		}
+
+		if *strictDedup {
+			return true
+		}
+
+		editDistPercent := func(base string, comp string) float64 {
+			return float64(levenshtein.Distance(base, comp)) / float64(len(base))
+		}
+
+		distTitle := editDistPercent(o.Title, a.Title)
+		distSummary := editDistPercent(o.Summary, a.Summary)
+
+		return distTitle < *maxEditDedup && distSummary < *maxEditDedup
 	}
 
 	for _, old := range articles {
-		if old.Link == a.Link {
-			if *strictDedup ||
-					(editDistPercent(old.Title, a.Title) < *maxEditDedup &&
-							editDistPercent(old.Summary, a.Summary) < *maxEditDedup) {
-				if old.Read {
-					readIds = append(readIds, old.ID)
-				} else {
-					unreadIds = append(unreadIds, old.ID)
-				}
+		if isSimilar(old, a) {
+			if old.Read {
+				readIds = append(readIds, old.ID)
+			} else {
+				unreadIds = append(unreadIds, old.ID)
 			}
 		}
 	}
