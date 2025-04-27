@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/auth"
@@ -191,7 +192,8 @@ func (a Fever) handle(d storage.Database, w http.ResponseWriter, r *http.Request
 
 func (a Fever) returnError(w http.ResponseWriter, msg string, err error) {
 	log.Warningf(msg, err)
-	if fe, ok := err.(*apiError); ok {
+	var fe *apiError
+	if errors.As(err, &fe) {
 		if fe.internal {
 			w.WriteHeader(http.StatusInternalServerError)
 		} else {
@@ -217,7 +219,7 @@ func (a Fever) returnSuccess(w http.ResponseWriter, resp map[string]interface{})
 func (a Fever) handleAuth(d storage.Database, r *http.Request) (models.User, int) {
 	defer a.recordLatency(time.Now(), "auth")
 
-	// A request can be authenticated by cookie or api key in request.
+	// A request can be authenticated by a cookie or an api key in the request.
 	if user, err := auth.VerifyCookie(d, r); err == nil {
 		log.V(2).Infof("Verified cookie: %+v", r)
 		return user, 1
@@ -313,7 +315,7 @@ func (a Fever) handleItems(d storage.Database, u models.User, resp *responseType
 		}
 	}
 
-	articles, err := d.GetUnreadArticlesForUser(u, 50, sinceID)
+	articles, err := d.GetArticlesWithFilterForUser(u, models.StreamFilterUnread, 50, sinceID)
 	if err != nil {
 		return &apiError{err, true}
 	}
@@ -348,7 +350,7 @@ func (a Fever) handleLinks(_ storage.Database, _ models.User, resp *responseType
 func (a Fever) handleUnreadItemIDs(d storage.Database, u models.User, resp *responseType) error {
 	defer a.recordLatency(time.Now(), "unread_item_ids")
 
-	articles, err := d.GetUnreadArticlesForUser(u, -1, -1)
+	articles, err := d.GetArticleMetaWithFilterForUser(u, models.StreamFilterUnread, -1, -1)
 	if err != nil {
 		return &apiError{err, true}
 	}
@@ -372,10 +374,16 @@ func (a Fever) handleMark(d storage.Database, u models.User, _ *responseType, r 
 	defer a.recordLatency(time.Now(), "mark")
 
 	// TODO: Support "before" argument.
-	var as string
+	var as models.MarkAction
 	switch r.FormValue("as") {
-	case "read", "unread", "saved", "unsaved":
-		as = r.FormValue("as")
+	case "read":
+		as = models.MarkActionRead
+	case "unread":
+		as = models.MarkActionUnread
+	case "saved":
+		as = models.MarkActionSaved
+	case "unsaved":
+		as = models.MarkActionUnsaved
 	default:
 		return &apiError{fmt.Errorf("unknown 'as' value: %s", r.FormValue("as")), false}
 	}

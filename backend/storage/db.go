@@ -75,9 +75,9 @@ type Database interface {
 
 	// Marking
 
-	MarkArticleForUser(models.User, int64, string) error
-	MarkFeedForUser(models.User, int64, string) error
-	MarkFolderForUser(models.User, int64, string) error
+	MarkArticleForUser(models.User, int64, models.MarkAction) error
+	MarkFeedForUser(models.User, int64, models.MarkAction) error
+	MarkFolderForUser(models.User, int64, models.MarkAction) error
 
 	// Metadata update
 
@@ -94,9 +94,10 @@ type Database interface {
 	GetFeedsPerFolderForUser(models.User) (map[int64][]int64, error)
 	GetFolderFeedTreeForUser(models.User) (*models.Folder, error)
 	GetAllFaviconsForUser(models.User) (map[int64]string, error)
-	GetUnreadArticleMetaForUser(models.User, int, int64) ([]models.Article, error)
+
+	GetArticleMetaWithFilterForUser(models.User, models.StreamFilter, int, int64) ([]models.ArticleMeta, error)
 	GetArticlesForUser(models.User, []int64) ([]models.Article, error)
-	GetUnreadArticlesForUser(models.User, int, int64) ([]models.Article, error)
+	GetArticlesWithFilterForUser(models.User, models.StreamFilter, int, int64) ([]models.Article, error)
 	GetArticlesForFeedForUser(models.User, int64) ([]models.Article, error)
 
 	// OPML

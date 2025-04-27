@@ -206,32 +206,6 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 		limit = 10000
 	}
 
-	switch s := r.Form.Get("s"); s {
-	case starredStreamId:
-		// TODO: Support starred items
-		a.returnSuccess(w, greaderStreamItemIds{})
-		return
-	case readStreamId:
-		// Never return read items to the client, it's just simpler
-		a.returnSuccess(w, greaderStreamItemIds{})
-		return
-	case readingListStreamId:
-		// Handled below
-		break
-	default:
-		log.Warningf("Saw unexpected 's' parameter: %s", s)
-		a.returnError(w, http.StatusNotImplemented)
-		return
-	}
-
-	xt := r.Form.Get("xt")
-	if xt != readStreamId {
-		// Only support excluding read items
-		log.Warningf("Saw unexpected 'xt' parameter: %s", xt)
-		a.returnError(w, http.StatusNotImplemented)
-		return
-	}
-
 	sinceId := int64(-1)
 	if c := r.Form.Get("c"); c != "" {
 		// Note: This is parsing the continuation token as hex.
@@ -243,9 +217,57 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 		}
 	}
 
-	articles, err := a.d.GetUnreadArticleMetaForUser(user, limit, sinceId)
-	if err != nil {
-		a.returnError(w, http.StatusInternalServerError)
+	if xt := r.Form.Get("xt"); xt != "" {
+		if xt != readStreamId {
+			log.Warningf("Saw unexpected 'xt' parameter: %s", xt)
+			a.returnError(w, http.StatusNotImplemented)
+			return
+		}
+	}
+
+	if ot := r.Form.Get("ot"); ot != "" {
+		if sinceId != -1 {
+			log.Warningf("Saw unexpected 'ot' parameter with 'c' parameter already set: %s", ot)
+		}
+
+		// Note: This is parsing the "ot" token as decimal.
+		sinceId, err = strconv.ParseInt(ot, 10, 64)
+		if err != nil {
+			log.Warningf("Invalid continuation token: %s", ot)
+			a.returnError(w, http.StatusBadRequest)
+			return
+		}
+	}
+	if nt := r.Form.Get("nt"); nt != "" {
+		log.Warningf("Saw unexpected 'nt' parameter: %s", nt)
+		a.returnError(w, http.StatusNotImplemented)
+		return
+	}
+
+	var articles []models.ArticleMeta
+
+	s := r.Form.Get("s")
+	switch s {
+	case starredStreamId:
+		articles, err = a.d.GetArticleMetaWithFilterForUser(user, models.StreamFilterSaved, limit, sinceId)
+		if err != nil {
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+	case readingListStreamId:
+		articles, err = a.d.GetArticleMetaWithFilterForUser(user, models.StreamFilterUnread, limit, sinceId)
+		if err != nil {
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+	case readStreamId:
+		// Never return read items to the client, it's just simpler
+		// Only support excluding read items
+		a.returnSuccess(w, greaderStreamItemIds{})
+		return
+	default:
+		log.Warningf("Saw unexpected 's' parameter: %s", s)
+		a.returnError(w, http.StatusNotImplemented)
 		return
 	}
 
@@ -376,7 +398,7 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 		articleIds = append(articleIds, id)
 	}
 
-	var status string
+	mark := models.MarkActionUnknown
 
 	// The "a" key refers to tags that are added
 	switch r.Form.Get("a") {
@@ -384,38 +406,43 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 		// Can be empty, nothing to do
 		break
 	case readStreamId:
-		status = "read"
+		mark = models.MarkActionRead
 	case unreadStreamId:
-		status = "unread"
-	case starredStreamId, broadcastStreamId:
-		// TODO: Support starring items
+		mark = models.MarkActionUnread
+	case starredStreamId:
+		mark = models.MarkActionSaved
+	case broadcastStreamId:
+		log.Warningf("Got unexpected 'a' parameter: %s", r.Form.Get("a"))
 		a.returnError(w, http.StatusNotImplemented)
 		return
 	}
 
 	// The "r" key refers to tags that are removed
+	// Note: This is processed after the "a" key, so it takes precedence.
 	switch r.Form.Get("r") {
 	case "":
 		// Can be empty, nothing to do
 		break
 	case readStreamId:
-		status = "unread"
+		mark = models.MarkActionUnread
 	case unreadStreamId:
-		status = "read"
-	case starredStreamId, broadcastStreamId:
-		// TODO: Support starring items
+		mark = models.MarkActionRead
+	case starredStreamId:
+		mark = models.MarkActionUnsaved
+	case broadcastStreamId:
+		log.Warningf("Got unexpected 'r' parameter: %s", r.Form.Get("r"))
 		a.returnError(w, http.StatusNotImplemented)
 		return
 	}
 
-	if status == "" {
+	if mark == models.MarkActionUnknown {
 		log.Warningf("Did not specify either 'a' or 'r' parameter")
 		a.returnError(w, http.StatusBadRequest)
 		return
 	}
 
 	for _, articleId := range articleIds {
-		err = a.d.MarkArticleForUser(user, articleId, status)
+		err = a.d.MarkArticleForUser(user, articleId, mark)
 		if err != nil {
 			log.Warningf("Failed to mark article %d: %s", articleId, err)
 			a.returnError(w, http.StatusInternalServerError)
@@ -443,8 +470,6 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 
 	// This method is only for making feeds and folders as read. Only articles
 	// can be marked as unread, using the "edit tag" method.
-	status := "read"
-
 	if folderStr := r.Form.Get("t"); folderStr != "" {
 		folderId, err := strconv.ParseInt(folderStr, 10, 64)
 		if err != nil {
@@ -453,7 +478,7 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 			return
 		}
 
-		err = a.d.MarkFolderForUser(user, folderId, status)
+		err = a.d.MarkFolderForUser(user, folderId, models.MarkActionRead)
 		if err != nil {
 			log.Warningf("Failed to mark folder: %s", folderStr)
 			a.returnError(w, http.StatusInternalServerError)
@@ -467,7 +492,7 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 			return
 		}
 
-		err = a.d.MarkFeedForUser(user, feedId, status)
+		err = a.d.MarkFeedForUser(user, feedId, models.MarkActionRead)
 		if err != nil {
 			log.Warningf("Failed to mark feed: %d", feedId)
 			a.returnError(w, http.StatusInternalServerError)

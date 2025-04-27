@@ -217,7 +217,7 @@ func (crdb *Crdb) DeleteMuteWordsForUser(u models.User, words []string) error {
 	return err
 }
 
-// GetUnmuteFeedsForUser returns a list of unmute feed IDs for the given user.
+// GetUnmuteFeedsForUser returns a list of unmuted feed IDs for the given user.
 func (crdb *Crdb) GetUnmuteFeedsForUser(u models.User) ([]int64, error) {
 	defer logElapsedTime(time.Now(), "GetUnmuteFeedsForUser")
 
@@ -347,13 +347,13 @@ func (crdb *Crdb) InsertArticleForUser(u models.User, a models.Article) error {
 	defer logElapsedTime(time.Now(), "InsertArticleForUser")
 
 	query := `
-		INSERT INTO Article (userid, folder, feed, hash, title, summary, content, parsed, link, read, date, retrieved)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		INSERT INTO Article (userid, folder, feed, hash, title, summary, content, parsed, link, read, saved, date, retrieved)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		ON CONFLICT (userid, feed, hash) DO NOTHING
 		RETURNING id
 	`
 	err := crdb.db.QueryRow(query,
-		u.UserId, a.FolderID, a.FeedID, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Date, a.Retrieved,
+		u.UserId, a.FolderID, a.FeedID, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Saved, a.Date, a.Retrieved,
 	).Scan(&a.ID)
 
 	if err != nil {
@@ -493,14 +493,15 @@ func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId i
 
 // DeleteArticlesForUser deletes all articles earlier than the given timestamp
 // and returns the number deleted. On error, -1 is returned for the number of
-// articles deleted.
+// articles deleted. Only articles that are read and not saved are deleted.
 func (crdb *Crdb) DeleteArticlesForUser(u models.User, minTimestamp time.Time) (int64, error) {
 	defer logElapsedTime(time.Now(), "DeleteArticlesForUser")
 
 	query := `
 		DELETE FROM Article 
 		WHERE userid = $1 
-		  AND read 
+		  AND read
+		  AND not saved
 		  AND (retrieved IS NULL OR retrieved < $2)
 	`
 	result, err := crdb.db.Exec(query, u.UserId, minTimestamp)
@@ -562,54 +563,65 @@ func (crdb *Crdb) DeleteFeedForUser(u models.User, feedId int64, folderId int64)
  * Marking
  ******************************************************************************/
 
-// MarkArticleForUser sets the read status of the given article to the given
-// status.
-func (crdb *Crdb) MarkArticleForUser(u models.User, articleId int64, status string) error {
+// MarkArticleForUser sets the mark status of `articleId` to `mark`.
+func (crdb *Crdb) MarkArticleForUser(u models.User, articleId int64, mark models.MarkAction) error {
 	defer logElapsedTime(time.Now(), "MarkArticleForUser")
 
-	// TODO: Consider creating a type for the status string.
-	state, err := parseState(status)
+	markType, value, err := mark.Parse()
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid mark action: %+v", mark)
 	}
 
-	query := `UPDATE Article SET read = $1 WHERE userid = $2 AND id = $3`
-	_, err = crdb.db.Exec(query, state, u.UserId, articleId)
+	var query string
+	switch markType {
+	case models.MarkTypeRead:
+		query = `UPDATE Article SET read = $1 WHERE userid = $2 AND id = $3`
+	case models.MarkTypeSaved:
+		query = `UPDATE Article SET saved = $1 WHERE userid = $2 AND id = $3`
+	default:
+		return fmt.Errorf("invalid mark type: %+v", mark)
+	}
+
+	_, err = crdb.db.Exec(query, value, u.UserId, articleId)
 	return err
 }
 
-// MarkFeedForUser sets the read status of all articles in the given feed to the
-// given status.
-func (crdb *Crdb) MarkFeedForUser(u models.User, feedId int64, status string) error {
+// MarkFeedForUser sets the mark status of all articles in `feedId` to `mark`.
+func (crdb *Crdb) MarkFeedForUser(u models.User, feedId int64, mark models.MarkAction) error {
 	defer logElapsedTime(time.Now(), "MarkFeedForUser")
 
-	// TODO: Consider creating a type for the status string.
-	state, err := parseState(status)
+	if mark != models.MarkActionRead {
+		return fmt.Errorf("feeds can only be marked as read")
+	}
+
+	_, value, err := mark.Parse()
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid mark action: %+v", mark)
 	}
 
 	query := `UPDATE Article SET read = $1 WHERE userid = $2 AND feed = $3`
-	_, err = crdb.db.Exec(query, state, u.UserId, feedId)
+	_, err = crdb.db.Exec(query, value, u.UserId, feedId)
 	return err
 }
 
-// MarkFolderForUser sets the read status of all articles in the given folder to
-// the given status. An ID of 0 will mark all articles in all folders to the
-// given status.
-func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, status string) error {
+// MarkFolderForUser sets the mark status of all articles in `folderId`to
+// `mark`. An ID of 0 will mark all articles in all folders to the given status.
+func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, mark models.MarkAction) error {
 	defer logElapsedTime(time.Now(), "MarkFolderForUser")
 
-	// TODO: Consider creating a type for the status string.
-	state, err := parseState(status)
-	if err != nil {
-		return err
+	if mark != models.MarkActionRead {
+		return fmt.Errorf("folders can only be marked as read")
 	}
 
-	// With folderID = 0, just mark everything as read.
+	_, value, err := mark.Parse()
+	if err != nil {
+		return fmt.Errorf("invalid mark action: %+v", mark)
+	}
+
+	// With folderID = 0, mark everything as read.
 	if folderId == 0 {
 		query := `UPDATE Article SET read = $1 WHERE userid = $2`
-		_, err = crdb.db.Exec(query, state, u.UserId)
+		_, err = crdb.db.Exec(query, value, u.UserId)
 		if err != nil {
 			return fmt.Errorf("failed to update articles for all folders: %w", err)
 		}
@@ -636,7 +648,7 @@ func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, status string
 				OR a.folder = $2
 			  );
 		`
-		_, err = crdb.db.Exec(query, u.UserId, folderId, state)
+		_, err = crdb.db.Exec(query, u.UserId, folderId, value)
 		if err != nil {
 			return fmt.Errorf("failed to update articles for folder %d and its descendants: %w", folderId, err)
 		}
@@ -650,7 +662,7 @@ func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, status string
  ******************************************************************************/
 
 // UpdateFeedMetadataForUser updates various fields for the row corresponding to
-// given models.Feed object with the values in that object.
+// given models.Feed with the values in that object.
 func (crdb *Crdb) UpdateFeedMetadataForUser(u models.User, f models.Feed) error {
 	defer logElapsedTime(time.Now(), "UpdateFeedMetadataForUser")
 
@@ -829,7 +841,7 @@ func (crdb *Crdb) GetFeedsPerFolderForUser(u models.User) (map[int64][]int64, er
 }
 
 // GetFolderFeedTreeForUser returns a root Folder object with associated feeds
-// and recursively populated sub-folders.
+// and recursively populated subfolders.
 func (crdb *Crdb) GetFolderFeedTreeForUser(u models.User) (*models.Folder, error) {
 	defer logElapsedTime(time.Now(), "GetFolderFeedTreeForUser")
 
@@ -837,14 +849,14 @@ func (crdb *Crdb) GetFolderFeedTreeForUser(u models.User) (*models.Folder, error
 
 	var rootId int64
 
-	// First determine the root ID
+	// Determine the root ID
 	query := `SELECT id from Folder WHERE userid = $1 AND name = $2`
 	err := crdb.db.QueryRow(query, u.UserId, models.RootFolder).Scan(&rootId)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create map from ID to Folder
+	// Create a map from ID to Folder
 	folders, err := crdb.GetAllFoldersForUser(u)
 	if err != nil {
 		return nil, fmt.Errorf("error getting all folder for user: %w", err)
@@ -931,12 +943,12 @@ func (crdb *Crdb) GetAllFaviconsForUser(u models.User) (map[int64]string, error)
 	return favicons, err
 }
 
-// GetUnreadArticleMetaForUser returns a list of at most the given limit of
-// articles after the given ID. Only metadata fields are returned, not content.
-func (crdb *Crdb) GetUnreadArticleMetaForUser(u models.User, limit int, sinceID int64) ([]models.Article, error) {
-	defer logElapsedTime(time.Now(), "GetUnreadArticlesForUser")
+// GetArticleMetaWithFilterForUser returns a list of <=`limit` articles with
+// `filter` after `sinceID`. Only metadata fields are returned, not content.
+func (crdb *Crdb) GetArticleMetaWithFilterForUser(u models.User, filter models.StreamFilter, limit int, sinceID int64) ([]models.ArticleMeta, error) {
+	defer logElapsedTime(time.Now(), "GetUnreadArticleMetaForUser")
 
-	var articles []models.Article
+	var articles []models.ArticleMeta
 	var rows *sql.Rows
 	var err error
 
@@ -947,12 +959,41 @@ func (crdb *Crdb) GetUnreadArticleMetaForUser(u models.User, limit int, sinceID 
 		sinceID = 0
 	}
 
-	query := `
+	var query string
+
+	switch filter {
+	case models.StreamFilterRead:
+		query = `
+		SELECT id, feed, folder, date
+		FROM Article
+		WHERE userid = $1 AND id > $2 AND read
+		ORDER BY id LIMIT $3
+	`
+	case models.StreamFilterUnread:
+		query = `
 		SELECT id, feed, folder, date
 		FROM Article
 		WHERE userid = $1 AND id > $2 AND NOT read
 		ORDER BY id LIMIT $3
 	`
+	case models.StreamFilterSaved:
+		query = `
+		SELECT id, feed, folder, date
+		FROM Article
+		WHERE userid = $1 AND id > $2 AND saved
+		ORDER BY id LIMIT $3
+	`
+	case models.StreamFilterUnsaved:
+		query = `
+		SELECT id, feed, folder, date
+		FROM Article
+		WHERE userid = $1 AND id > $2 AND NOT saved
+		ORDER BY id LIMIT $3
+	`
+	default:
+		return articles, fmt.Errorf("invalid filter: %+v", filter)
+	}
+
 	rows, err = crdb.db.Query(query, u.UserId, sinceID, limit)
 	defer closeSilent(rows)
 
@@ -961,7 +1002,7 @@ func (crdb *Crdb) GetUnreadArticleMetaForUser(u models.User, limit int, sinceID 
 	}
 
 	for rows.Next() {
-		a := models.Article{}
+		a := models.ArticleMeta{}
 		if err = rows.Scan(
 			&a.ID, &a.FeedID, &a.FolderID, &a.Date); err != nil {
 			return articles, err
@@ -1002,9 +1043,9 @@ func (crdb *Crdb) GetArticlesForUser(u models.User, ids []int64) ([]models.Artic
 	return articles, err
 }
 
-// GetUnreadArticlesForUser returns a list of at most the given limit of
-// articles after the given ID.
-func (crdb *Crdb) GetUnreadArticlesForUser(u models.User, limit int, sinceID int64) ([]models.Article, error) {
+// GetArticlesWithFilterForUser returns a list of <=`limit` articles with
+// `filter` after `sinceId`.
+func (crdb *Crdb) GetArticlesWithFilterForUser(u models.User, filter models.StreamFilter, limit int, sinceID int64) ([]models.Article, error) {
 	defer logElapsedTime(time.Now(), "GetUnreadArticlesForUser")
 
 	var articles []models.Article
@@ -1018,12 +1059,41 @@ func (crdb *Crdb) GetUnreadArticlesForUser(u models.User, limit int, sinceID int
 		sinceID = 0
 	}
 
-	query := `
+	var query string
+
+	switch filter {
+	case models.StreamFilterRead:
+		query = `
+		SELECT id, feed, folder, title, summary, content, parsed, link, date
+		FROM Article
+		WHERE userid = $1 AND id > $2 AND read
+		ORDER BY id LIMIT $3
+	`
+	case models.StreamFilterUnread:
+		query = `
 		SELECT id, feed, folder, title, summary, content, parsed, link, date
 		FROM Article
 		WHERE userid = $1 AND id > $2 AND NOT read
 		ORDER BY id LIMIT $3
 	`
+	case models.StreamFilterSaved:
+		query = `
+		SELECT id, feed, folder, title, summary, content, parsed, link, date
+		FROM Article
+		WHERE userid = $1 AND id > $2 AND saved
+		ORDER BY id LIMIT $3
+	`
+	case models.StreamFilterUnsaved:
+		query = `
+		SELECT id, feed, folder, title, summary, content, parsed, link, date
+		FROM Article
+		WHERE userid = $1 AND id > $2 AND NOT saved
+		ORDER BY id LIMIT $3
+	`
+	default:
+		return articles, fmt.Errorf("invalid filter: %+v", filter)
+	}
+
 	rows, err = crdb.db.Query(query, u.UserId, sinceID, limit)
 	defer closeSilent(rows)
 
@@ -1052,7 +1122,7 @@ func (crdb *Crdb) GetArticlesForFeedForUser(u models.User, feedId int64) ([]mode
 	var err error
 
 	query := `
-		SELECT id, feed, folder, title, summary, content, parsed, link, read, date
+		SELECT id, feed, folder, title, summary, content, parsed, link, read, saved, date
 		FROM Article
 		WHERE userid = $1 AND feed = $2
 	`
@@ -1066,7 +1136,7 @@ func (crdb *Crdb) GetArticlesForFeedForUser(u models.User, feedId int64) ([]mode
 	for rows.Next() {
 		a := models.Article{}
 		if err = rows.Scan(
-			&a.ID, &a.FeedID, &a.FolderID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Read, &a.Date); err != nil {
+			&a.ID, &a.FeedID, &a.FolderID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Read, &a.Saved, &a.Date); err != nil {
 			return articles, err
 		}
 		articles = append(articles, a)
@@ -1118,20 +1188,6 @@ func importChildrenForUser(crdb *Crdb, u models.User, parent models.Folder) erro
 /*******************************************************************************
  * Helper methods
  ******************************************************************************/
-
-func parseState(status string) (bool, error) {
-	var state bool
-	switch status {
-	case "saved", "unsaved":
-		// TODO: Considering adding support for saving articles.
-		return false, errors.New("Unsupported status: %s" + status)
-	case "read":
-		state = true
-	case "unread":
-		state = false
-	}
-	return state, nil
-}
 
 func closeSilent(rows *sql.Rows) {
 	if rows == nil {
