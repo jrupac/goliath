@@ -102,8 +102,8 @@ CockroachDB container:
 ```bash
 $ ./goliath.sh up
 
-$ VERSION=<version> # such as v17
-$ docker exec -it crdb-service bash -c './cockroach sql --insecure < scripts/${VERSION}.sql'
+$ VERSION=<version> # such as "v19_add_saved_to_article.sql"
+$ docker exec -it crdb-service bash -c "./cockroach sql --insecure < scripts/${VERSION}"
 ```
 
 ## CRDB SQL Shell
