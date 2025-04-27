@@ -128,6 +128,7 @@ CREATE TABLE IF NOT EXISTS Article
     parsed    STRING,
     link      STRING,
     read      BOOL,
+    saved BOOL DEFAULT false,
     -- Publication timestamp
     date      TIMESTAMPTZ,
     -- Retrieval timestamp
