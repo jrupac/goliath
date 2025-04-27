@@ -118,14 +118,14 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   };
 
   let selectedKeyString = '';
-  let allSelectedClass = 'GoliathAllItems';
+  let allSelectedClass = 'GoliathStreamSelector';
   // TODO: Support saved items CSS classes.
-  let savedSelectedClass = 'GoliathAllItems';
+  let savedSelectedClass = 'GoliathStreamSelector';
 
   if (!selectedKey || selectedKey === KeyAll) {
-    allSelectedClass = 'GoliathAllItemsSelected';
+    allSelectedClass = 'GoliathStreamSelectorSelected';
   } else if (selectedKey === KeySaved) {
-    savedSelectedClass = 'GoliathAllItemsSelected';
+    savedSelectedClass = 'GoliathStreamSelectorSelected';
   } else {
     switch (selectionType) {
     case SelectionType.Article:
@@ -141,7 +141,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     }
     case SelectionType.All: // fallthrough
     default:
-      allSelectedClass = 'GoliathAllItemsSelected';
+      allSelectedClass = 'GoliathStreamSelectorSelected';
     }
   }
 

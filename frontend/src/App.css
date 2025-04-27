@@ -105,30 +105,23 @@
   border: none;
 }
 
-.GoliathAllItems.MuiBox-root,
-.GoliathAllItemsSelected.MuiBox-root {
+.GoliathStreamSelector.MuiBox-root,
+.GoliathStreamSelectorSelected.MuiBox-root {
   display: flex;
   align-items: center;
   padding-left: 8px;
   line-height: 46px;
-}
-
-.GoliathAllItems,
-.GoliathAllItemsSelected {
   background-color: var(--primary-background-color);
   padding-right: 15px;
-  padding-left: 30px;
-  display: inline-block;
   transition: all 0.1s ease;
   color: var(--primary-font-color);
   font-size: 14px;
   width: 100%;
   cursor: pointer;
-  line-height: 46px;
 }
 
-.GoliathAllItems.MuiBox-root:hover,
-.GoliathAllItemsSelected.MuiBox-root {
+.GoliathStreamSelector.MuiBox-root:hover,
+.GoliathStreamSelectorSelected.MuiBox-root {
   background-color: var(--primary-selected-color);
 }
 
