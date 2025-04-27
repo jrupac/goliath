@@ -42,7 +42,7 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 		title = "(Untitled)"
 	}
 
-	// Try both item.Content and item.Summary to see if they have any values
+	// Try `item.Content` and `item.Summary` to see if they have any values
 	contents := item.Content
 	if contents == "" {
 		contents = item.Summary
@@ -92,6 +92,7 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 		Link:          item.Link,
 		Date:          date,
 		Read:          item.Read,
+		Saved:         false,
 		Retrieved:     retrieved,
 		SyntheticDate: syntheticDate,
 	}
@@ -244,7 +245,7 @@ func prependMediaToHtml(imgSrc string, s string) string {
 func stemWord(s string) string {
 	ret := s
 
-	// Filter out some punctuation and other marks. Do not include single quote
+	// Filter out some punctuation and other marks. Do not include a single quote
 	// since stemming should usually handle that.
 	reg, err := regexp.Compile(`[.,!?():;"]`)
 	if err != nil {
