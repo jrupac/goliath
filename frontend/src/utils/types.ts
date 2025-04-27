@@ -41,6 +41,7 @@ export enum SelectionType {
   Folder = 1,
   Feed = 2,
   Article = 3,
+  Saved = 4,
 }
 
 /** SelectionKey is a unique descriptor for a corresponding SelectionType. */
@@ -49,12 +50,15 @@ export type FeedSelection = [FeedId, FolderId];
 export type FolderSelection = FolderId;
 export type AllSelection = string;
 export const KeyAll: AllSelection = "ALL";
+export type SavedSelection = string;
+export const KeySaved: SavedSelection = "SAVED";
 
 export type SelectionKey =
   ArticleSelection
   | FeedSelection
   | FolderSelection
-  | AllSelection;
+  | AllSelection
+  | SavedSelection;
 
 /** MarkState describes the desired state of a mark operation. */
 export type MarkState = "read";

@@ -4,6 +4,7 @@ import {
   FeedSelection,
   FolderSelection,
   KeyAll,
+  KeySaved,
   MarkState,
   SelectionKey,
   Status
@@ -236,8 +237,11 @@ export default class GReader implements FetchAPI {
 
   public async MarkAll(_: string, entity: SelectionKey): Promise<Response> {
     const formData = new FormData();
-    if (entity === KeyAll) {
-      // The value 0 means "all folders" when marking.
+    if (entity === KeySaved) {
+      // TODO: Support saved articles.
+      return Promise.reject("Marking saved articles not yet supported!");
+    } else if (entity === KeyAll) {
+      // Value 0 means "all folders" when marking.
       formData.set("t", "0" as string);
     } else {
       formData.set("t", entity as FolderSelection);

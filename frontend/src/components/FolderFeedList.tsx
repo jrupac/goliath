@@ -1,11 +1,12 @@
 import React, {ReactNode, useEffect, useState} from 'react';
-import {KeyAll, SelectionKey, SelectionType} from "../utils/types";
+import {KeyAll, KeySaved, SelectionKey, SelectionType} from "../utils/types";
 import {Box} from "@mui/material";
-import InboxIcon from "@mui/icons-material/Inbox";
+import InboxTwoToneIcon from '@mui/icons-material/InboxTwoTone';
+import GradeTwoToneIcon from '@mui/icons-material/GradeTwoTone';
 import {TreeView} from '@mui/x-tree-view/TreeView';
 import {TreeItem} from '@mui/x-tree-view/TreeItem';
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
-import FolderIcon from '@mui/icons-material/Folder';
+import FolderOpenTwoToneIcon from '@mui/icons-material/FolderOpenTwoTone';
 import {FolderView} from "../models/folder";
 import {FeedView} from "../models/feed";
 
@@ -29,8 +30,9 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   const precomputeIdToSelectionKey = (folderFeedView: Map<FolderView, FeedView[]>): Map<string, [SelectionType, SelectionKey]> => {
     const cache: Map<string, [SelectionType, SelectionKey]> = new Map();
 
-    // Add a special entry for selecting everything.
+    // Add special entries for "all" and "saved".
     cache.set(KeyAll, [SelectionType.All, KeyAll]);
+    cache.set(KeySaved, [SelectionType.Saved, KeySaved]);
 
     folderFeedView.forEach((value: FeedView[], key: FolderView) => {
       cache.set(key.id, [SelectionType.Folder, key.id]);
@@ -72,6 +74,11 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     }
   };
 
+  const renderSavedItemsTitle = () => {
+    // TODO: Support showing number of saved items.
+    return 'Saved items';
+  };
+
   const renderFolder = (folderView: FolderView) => {
     if (folderView.unread_count === 0) {
       return <span className="GoliathFolderTitle">{folderView.title}</span>;
@@ -110,12 +117,15 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
       icon={img}/>;
   };
 
-  let selectedKeyString: string;
-  let allSelectedClass: string;
+  let selectedKeyString = '';
+  let allSelectedClass = 'GoliathAllItems';
+  // TODO: Support saved items CSS classes.
+  let savedSelectedClass = 'GoliathAllItems';
 
   if (!selectedKey || selectedKey === KeyAll) {
-    selectedKeyString = '';
     allSelectedClass = 'GoliathAllItemsSelected';
+  } else if (selectedKey === KeySaved) {
+    savedSelectedClass = 'GoliathAllItemsSelected';
   } else {
     switch (selectionType) {
     case SelectionType.Article:
@@ -123,17 +133,14 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         "Cannot render folder feed list with article selection");
     case SelectionType.Folder:
       selectedKeyString = selectedKey as string;
-      allSelectedClass = 'GoliathAllItems';
       break;
     case SelectionType.Feed: {
       const feedId = selectedKey[0];
       selectedKeyString = feedId as string;
-      allSelectedClass = 'GoliathAllItems';
       break;
     }
     case SelectionType.All: // fallthrough
     default:
-      selectedKeyString = '';
       allSelectedClass = 'GoliathAllItemsSelected';
     }
   }
@@ -143,9 +150,18 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
       <Box
         onClick={() => handleNodeSelect(null, KeyAll)}
         className={allSelectedClass}>
-        <InboxIcon fontSize="small"/>
+        <InboxTwoToneIcon fontSize="small"/>
         <Box className={allSelectedClass}>
           {renderAllItemsTitle()}
+        </Box>
+      </Box>
+
+      <Box
+        onClick={() => handleNodeSelect(null, KeySaved)}
+        className={savedSelectedClass}>
+        <GradeTwoToneIcon fontSize="small"/>
+        <Box className={savedSelectedClass}>
+          {renderSavedItemsTitle()}
         </Box>
       </Box>
 
@@ -154,7 +170,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         onNodeSelect={handleNodeSelect}
         selected={selectedKeyString}
         expanded={Array.from(folderFeedView.keys(), (k: FolderView) => k.id)}
-        defaultCollapseIcon={<FolderIcon/>}
+        defaultCollapseIcon={<FolderOpenTwoToneIcon/>}
       >
         {
           Array.from(

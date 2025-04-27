@@ -72,6 +72,10 @@ export class ContentTreeCls {
       });
       this.unread_count = unread;
       break;
+    case SelectionType.Saved:
+      // TODO: Support saved articles.
+      console.log("Saving articles not yet supported!")
+      break;
     }
 
     return this.unread_count;
@@ -99,6 +103,10 @@ export class ContentTreeCls {
       this.tree.forEach((f: FolderCls): void => {
         articleViews = articleViews.concat(f.GetArticleView());
       });
+      break;
+    case SelectionType.Saved:
+      // TODO: Support saved articles.
+      console.log("Showing saved articles not yet supported!")
       break;
     }
 
