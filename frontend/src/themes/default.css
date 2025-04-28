@@ -19,7 +19,8 @@
   --card-selected-border-color: white;
   --card-shadow-color: #d9d9d9;
 
-  --card-header-background-color: #ececec;
+  --card-header-actions-background-color: #d9d9d9bd;
+  --card-header-background-color: #ecececbd;
   --card-header-selected-background-color: #ececec;
 
   --article-header-unread-font-color: #222;

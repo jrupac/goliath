@@ -310,23 +310,34 @@
  ******************************************************************************/
 
 .GoliathArticleOuter {
-  border-top: 20px solid transparent;
 }
 
 .GoliathSplitViewArticleOuter {
-  padding-left: 24px;
+}
+
+.GoliathSplitViewArticleContainer {
+  overflow-y: scroll;
+}
+
+
+.GoliathSplitViewArticleContainer .MuiCard-root {
+  background-color: var(--card-header-background-color);
+  backdrop-filter: blur(10px);
+}
+
+.GoliathHeaderContainer .MuiCardHeader-root {
+  padding: 0;
 }
 
 .GoliathHeaderContainer {
-  margin-right: 20px;
-  margin-bottom: 10px;
+  position: sticky;
+  top: 0;
 }
 
 .GoliathArticleHeader {
   display: flex;
   align-items: stretch;
   justify-content: space-between;
-  background-color: var(--card-header-background-color);
 }
 
 .GoliathArticleHeader p,
@@ -345,6 +356,27 @@
   width: 100%;
   font-family: var(--primary-serif-font), serif;
   font-size: 24px;
+  padding: 10px 10px 0 24px
+}
+
+.GoliathHeaderActions {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 24px 10px 24px;
+  background-color: var(--article-background-color);
+}
+
+.GoliathHeaderActionButtons {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.GoliathArticleSubheader {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 24px 10px 24px
 }
 
 .GoliathArticleMeta {
@@ -355,9 +387,9 @@
 }
 
 .GoliathArticleFeed {
+  align-items: center;
   font-size: 16px;
   display: flex;
-  padding-left: 10px;
 }
 
 .GoliathArticleFeedTitle {
@@ -376,7 +408,6 @@
 .GoliathArticleDate {
   color: var(--article-date-color);
   font-family: var(--primary-serif-font), serif;
-  padding-left: 10px;
   font-size: 16px;
   text-align: right;
   display: flex;
@@ -387,7 +418,7 @@
   font-size: 16px;
   font-family: var(--primary-serif-font), serif;
   color: var(--article-font-color);
-  padding: 0;
+  padding: 0 0 0 30px;
 }
 
 .GoliathSplitViewArticleContent {
@@ -395,7 +426,6 @@
   font-family: var(--primary-serif-font), serif;
   color: var(--article-font-color);
   padding: 24px;
-  overflow-y: auto;
   height: 90vh;
   max-width: 100%;
 }

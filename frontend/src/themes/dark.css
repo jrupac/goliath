@@ -19,7 +19,8 @@
   --card-selected-border-color: #333;
   --card-shadow-color: #111111;
 
-  --card-header-background-color: #282828;
+  --card-header-actions-background-color: #303030bd;
+  --card-header-background-color: #1f1f1fbd;
   --card-header-selected-background-color: #282828;
 
   --article-header-unread-font-color: white;
@@ -27,7 +28,7 @@
 
   --article-feed-title-font-color: white;
 
-  --article-background-color: #211f1f;
+  --article-background-color: #121212;
   --article-date-color: #888;
   --article-font-color: white;
 }

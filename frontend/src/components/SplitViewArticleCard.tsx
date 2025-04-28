@@ -7,7 +7,11 @@ import {
   makeAbsolute,
 } from "../utils/helpers";
 import RssFeedOutlinedIcon from "@mui/icons-material/RssFeedOutlined";
+import CircleTwoToneIcon from '@mui/icons-material/CircleTwoTone';
+import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
+import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
 import {ArticleView} from "../models/article";
+import GradeTwoToneIcon from "@mui/icons-material/GradeTwoTone";
 
 export interface ArticleProps {
   article: ArticleView;
@@ -93,15 +97,9 @@ const SplitViewArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
   const feedTitle = props.title;
 
   let headerClass = "";
-  let elevation;
 
-  if (props.isSelected) {
-    elevation = 1;
-  } else if (props.article.is_read === 1) {
+  if (props.article.is_read === 1) {
     headerClass = "GoliathArticleHeaderRead";
-    elevation = 0;
-  } else {
-    elevation = 2;
   }
 
   const renderFavicon = (): ReactNode => {
@@ -136,38 +134,51 @@ const SplitViewArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
   };
 
   return (
-    <Box className="GoliathArticleOuter">
-      <Card elevation={elevation} className="GoliathHeaderContainer">
+    <Box className="GoliathSplitViewArticleContainer">
+      <Card elevation={0} className="GoliathHeaderContainer">
         <CardHeader
+          disableTypography={true}
           className={`GoliathArticleHeader ${headerClass}`}
           title={
-            <Box className="GoliathArticleTitle">
-              <a
-                target="_blank"
-                rel="noopener noreferrer"
-                href={props.article.url}
-              >
-                <div>
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html: props.article.title,
-                    }}
-                  />
-                </div>
-              </a>
-            </Box>
+            <div>
+              <Box className="GoliathHeaderActions">
+                <Box className="GoliathArticleFeed">
+                  {renderFavicon()}
+                  <p className="GoliathArticleFeedTitle">{feedTitle}</p>
+                </Box>
+                <Box className="GoliathHeaderActionButtons">
+                  <GradeTwoToneIcon/>
+                  <CircleTwoToneIcon/>
+                  <ExpandLessTwoToneIcon/>
+                  <ExpandMoreTwoToneIcon/>
+                </Box>
+              </Box>
+              <Box className="GoliathArticleTitle">
+                <a
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  href={props.article.url}
+                >
+                  <div>
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html: props.article.title,
+                      }}
+                    />
+                  </div>
+                </a>
+              </Box>
+            </div>
           }
           subheader={
-            <Box className="GoliathArticleMeta">
-              <Box className="GoliathArticleFeed">
-                {renderFavicon()}
-                <p className="GoliathArticleFeedTitle">{feedTitle}</p>
+            <Box className="GoliathArticleSubheader">
+              <Box className="GoliathArticleMeta">
+                <Tooltip title={formatFull(date)}>
+                  <Box className="GoliathArticleDate">
+                    {formatFriendly(date)}
+                  </Box>
+                </Tooltip>
               </Box>
-              <Tooltip title={formatFull(date)}>
-                <Box className="GoliathArticleDate">
-                  {formatFriendly(date)}
-                </Box>
-              </Tooltip>
             </Box>
           }
         />
