@@ -2,13 +2,13 @@ import React, {ReactNode, useEffect, useState} from 'react';
 import {KeyAll, KeySaved, SelectionKey, SelectionType} from "../utils/types";
 import {Box} from "@mui/material";
 import InboxTwoToneIcon from '@mui/icons-material/InboxTwoTone';
-import GradeTwoToneIcon from '@mui/icons-material/GradeTwoTone';
 import {TreeView} from '@mui/x-tree-view/TreeView';
 import {TreeItem} from '@mui/x-tree-view/TreeItem';
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
 import FolderOpenTwoToneIcon from '@mui/icons-material/FolderOpenTwoTone';
 import {FolderView} from "../models/folder";
 import {FeedView} from "../models/feed";
+import BookmarkTwoToneIcon from "@mui/icons-material/BookmarkTwoTone";
 
 export interface FolderFeedListProps {
   folderFeedView: Map<FolderView, FeedView[]>;
@@ -159,7 +159,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
       <Box
         onClick={() => handleNodeSelect(null, KeySaved)}
         className={savedSelectedClass}>
-        <GradeTwoToneIcon fontSize="small"/>
+        <BookmarkTwoToneIcon fontSize="small"/>
         <Box className={savedSelectedClass}>
           {renderSavedItemsTitle()}
         </Box>

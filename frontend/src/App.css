@@ -217,6 +217,20 @@
 
 /** Combined article list */
 
+.GoliathSplitViewArticleListActions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  gap: 10px;
+  padding: 10px 10px 10px 10px;
+}
+
+.GoliathSplitViewActionListActionsSpacer {
+  margin-left: auto;
+}
+
 .GoliathArticleListBox.MuiBox-root {
   height: 100vh;
   padding: 0 24px;
@@ -319,7 +333,6 @@
   overflow-y: scroll;
 }
 
-
 .GoliathSplitViewArticleContainer .MuiCard-root {
   background-color: var(--card-header-background-color);
   backdrop-filter: blur(10px);
@@ -362,7 +375,7 @@
 .GoliathHeaderActions {
   display: flex;
   justify-content: space-between;
-  padding: 10px 24px 10px 24px;
+  padding: 10px 10px 10px 24px;
   background-color: var(--article-background-color);
 }
 

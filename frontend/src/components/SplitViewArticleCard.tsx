@@ -7,11 +7,10 @@ import {
   makeAbsolute,
 } from "../utils/helpers";
 import RssFeedOutlinedIcon from "@mui/icons-material/RssFeedOutlined";
-import CircleTwoToneIcon from '@mui/icons-material/CircleTwoTone';
-import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
-import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
+import BookmarkTwoToneIcon from '@mui/icons-material/BookmarkTwoTone';
 import {ArticleView} from "../models/article";
-import GradeTwoToneIcon from "@mui/icons-material/GradeTwoTone";
+import CheckCircleOutlineTwoToneIcon
+  from "@mui/icons-material/CheckCircleOutlineTwoTone";
 
 export interface ArticleProps {
   article: ArticleView;
@@ -134,59 +133,60 @@ const SplitViewArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
   };
 
   return (
-    <Box className="GoliathSplitViewArticleContainer">
-      <Card elevation={0} className="GoliathHeaderContainer">
-        <CardHeader
-          disableTypography={true}
-          className={`GoliathArticleHeader ${headerClass}`}
-          title={
-            <div>
-              <Box className="GoliathHeaderActions">
-                <Box className="GoliathArticleFeed">
-                  {renderFavicon()}
-                  <p className="GoliathArticleFeedTitle">{feedTitle}</p>
+    <Box>
+      <Box className="GoliathHeaderActions">
+        <Box className="GoliathArticleFeed">
+          {renderFavicon()}
+          <p className="GoliathArticleFeedTitle">{feedTitle}</p>
+        </Box>
+        <Box className="GoliathHeaderActionButtons">
+          <BookmarkTwoToneIcon/>
+          <CheckCircleOutlineTwoToneIcon/>
+        </Box>
+      </Box>
+      <Box className="GoliathSplitViewArticleContainer">
+        <Card elevation={0} className="GoliathHeaderContainer">
+          <CardHeader
+            disableTypography={true}
+            className={`GoliathArticleHeader ${headerClass}`}
+            title={
+              <div>
+
+                <Box className="GoliathArticleTitle">
+                  <a
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    href={props.article.url}
+                  >
+                    <div>
+                      <div
+                        dangerouslySetInnerHTML={{
+                          __html: props.article.title,
+                        }}
+                      />
+                    </div>
+                  </a>
                 </Box>
-                <Box className="GoliathHeaderActionButtons">
-                  <GradeTwoToneIcon/>
-                  <CircleTwoToneIcon/>
-                  <ExpandLessTwoToneIcon/>
-                  <ExpandMoreTwoToneIcon/>
+              </div>
+            }
+            subheader={
+              <Box className="GoliathArticleSubheader">
+                <Box className="GoliathArticleMeta">
+                  <Tooltip title={formatFull(date)}>
+                    <Box className="GoliathArticleDate">
+                      {formatFriendly(date)}
+                    </Box>
+                  </Tooltip>
                 </Box>
               </Box>
-              <Box className="GoliathArticleTitle">
-                <a
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  href={props.article.url}
-                >
-                  <div>
-                    <div
-                      dangerouslySetInnerHTML={{
-                        __html: props.article.title,
-                      }}
-                    />
-                  </div>
-                </a>
-              </Box>
-            </div>
-          }
-          subheader={
-            <Box className="GoliathArticleSubheader">
-              <Box className="GoliathArticleMeta">
-                <Tooltip title={formatFull(date)}>
-                  <Box className="GoliathArticleDate">
-                    {formatFriendly(date)}
-                  </Box>
-                </Tooltip>
-              </Box>
-            </Box>
-          }
-        />
-      </Card>
-      <div
-        className="GoliathSplitViewArticleContent GoliathArticleContentStyling">
-        {renderContent()}
-      </div>
+            }
+          />
+        </Card>
+        <div
+          className="GoliathSplitViewArticleContent GoliathArticleContentStyling">
+          {renderContent()}
+        </div>
+      </Box>
     </Box>
   );
 };

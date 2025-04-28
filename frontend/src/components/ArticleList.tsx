@@ -23,6 +23,10 @@ import {DoneAllRounded} from "@mui/icons-material";
 import smartcrop from "smartcrop";
 
 import {ArticleId, ArticleView} from "../models/article";
+import ExpandLessTwoToneIcon from "@mui/icons-material/ExpandLessTwoTone";
+import ExpandMoreTwoToneIcon from "@mui/icons-material/ExpandMoreTwoTone";
+import CheckCircleOutlineTwoToneIcon
+  from '@mui/icons-material/CheckCircleOutlineTwoTone';
 
 const goToAllSequence = ['g', 'a'];
 const markAllReadSequence = ['Shift', 'I'];
@@ -396,6 +400,12 @@ const ArticleList: React.FC<ArticleListProps> = ({
       >
         <Grid container wrap="nowrap">
           <Grid container item xs={4}>
+            <Box className="GoliathSplitViewArticleListActions">
+              <CheckCircleOutlineTwoToneIcon/>
+              <div className="GoliathSplitViewActionListActionsSpacer"></div>
+              <ExpandLessTwoToneIcon/>
+              <ExpandMoreTwoToneIcon/>
+            </Box>
             <Box
               className="GoliathSplitViewArticleListBox"
               sx={{
