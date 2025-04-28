@@ -15,7 +15,7 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-import {Box, Container, Divider, Grid} from "@mui/material";
+import {Box, Container, Grid} from "@mui/material";
 import SplitViewArticleCard from "./SplitViewArticleCard";
 import SplitViewArticleListEntry from "./SplitViewArticleListEntry";
 import LRUCache from "lru-cache";
@@ -423,9 +423,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
                 type='uniform'
               />
             </Box>
-          </Grid>
-          <Grid item xs='auto'>
-            <Divider className="GoliathDivider" orientation="vertical"/>
           </Grid>
           <Grid item xs className="GoliathSplitViewArticleOuter">
             <SplitViewArticleCard

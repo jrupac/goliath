@@ -104,6 +104,7 @@
   justify-content: space-between;
   background-color: var(--primary-selected-color);
   padding: 10px 10px 10px 10px;
+  border-bottom: 1px solid var(--action-bar-border-color);
 }
 
 .GoliathLogo {
@@ -127,7 +128,7 @@
   box-sizing: border-box;
   background-color: var(--primary-background-color);
   color: var(--primary-font-color);
-  border: none;
+  border-right: 1px solid var(--action-bar-border-color);
   overflow: hidden;
 }
 
@@ -259,6 +260,7 @@
   height: fit-content;
   gap: 10px;
   padding: 10px 10px 10px 10px;
+  border-bottom: 1px solid var(--action-bar-border-color);
 }
 
 .GoliathArticleListBox.MuiBox-root {
@@ -281,6 +283,7 @@
   /*border: 1px solid transparent;*/
   /* Fixed size to optimize scrolling */
   height: 182px;
+  border-bottom: 1px solid var(--action-bar-border-color);
 }
 
 .GoliathArticleListRead.MuiPaper-root {
@@ -362,10 +365,11 @@
 }
 
 .GoliathSplitViewArticleOuter {
+  border-left: 1px solid var(--action-bar-border-color);
 }
 
 .GoliathSplitViewArticleContainer {
-  overflow-y: scroll;
+  overflow-y: auto;
 }
 
 .GoliathSplitViewArticleContainer .MuiCard-root {
@@ -412,6 +416,7 @@
   justify-content: space-between;
   padding: 10px 10px 10px 24px;
   background-color: var(--action-bar-background-color);
+  border-bottom: 1px solid var(--action-bar-border-color);
 }
 
 .GoliathHeaderActionButtons {

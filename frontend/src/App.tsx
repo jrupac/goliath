@@ -225,7 +225,6 @@ export default class App extends React.Component<AppProps, AppState> {
               {this.state.buildHash}
             </Box>
           </Drawer>
-          <Divider className="GoliathDivider" orientation="vertical"/>
           <Box
             component="main"
             className="GoliathMainContainer"
