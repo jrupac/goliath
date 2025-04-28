@@ -22,6 +22,8 @@ import {GetVersion, VersionData} from "./api/goliath";
 import {Navigate} from "react-router-dom";
 import {ContentTreeCls} from "./models/contentTree";
 import {populateThemeInfo} from "./utils/helpers";
+import AccountCircleTwoToneIcon from '@mui/icons-material/AccountCircleTwoTone';
+import LogoutTwoToneIcon from '@mui/icons-material/LogoutTwoTone';
 
 export interface AppProps {
 }
@@ -188,15 +190,20 @@ export default class App extends React.Component<AppProps, AppState> {
     return (
       <ThemeProvider theme={themeInfo.theme}>
         {/* TODO: Is there a better way to inject overrides than this? */}
+        <CssBaseline/>
         <Box
           sx={{display: 'flex', overflow: 'hidden', height: '100vh'}}
           className={`${themeInfo.themeClasses}`}>
-          <CssBaseline/>
           <Drawer
             variant="permanent"
             anchor="left"
             className="GoliathDrawer"
           >
+            <Box className="GoliathDrawerActionBar">
+              <AccountCircleTwoToneIcon/>
+              <div className="GoliathActionBarSpacer"></div>
+              <LogoutTwoToneIcon/>
+            </Box>
             <Box
               className="GoliathLogo">
               Goliath
@@ -218,7 +225,7 @@ export default class App extends React.Component<AppProps, AppState> {
               {this.state.buildHash}
             </Box>
           </Drawer>
-
+          <Divider className="GoliathDivider" orientation="vertical"/>
           <Box
             component="main"
             className="GoliathMainContainer"

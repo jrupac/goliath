@@ -1,4 +1,20 @@
 /******************************************************************************
+ * Common components
+ ******************************************************************************/
+
+.GoliathDivider.MuiDivider-root {
+  /*opacity: 10%;*/
+  /*border-width: 1px;*/
+  border-color: rgba(10, 10, 10, 0.25);
+  color: rgba(10, 10, 10, 0.25);
+  border-width: thin;
+}
+
+.GoliathActionBarSpacer {
+  margin-left: auto;
+}
+
+/******************************************************************************
  * Loading Page
  ******************************************************************************/
 
@@ -81,6 +97,15 @@
  * Sidebar
  ******************************************************************************/
 
+.GoliathDrawerActionBar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--primary-selected-color);
+  padding: 10px 10px 10px 10px;
+}
+
 .GoliathLogo {
   text-align: center;
   font-family: var(--primary-logo-font), cursive;
@@ -103,6 +128,7 @@
   background-color: var(--primary-background-color);
   color: var(--primary-font-color);
   border: none;
+  overflow: hidden;
 }
 
 .GoliathStreamSelector.MuiBox-root,
@@ -128,6 +154,12 @@
 /******************************************************************************
  * Sidebar Folder Feed List
  ******************************************************************************/
+
+.GoliathFolderFeedList {
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  height: 100vh;
+}
 
 .GoliathFolderFeedList.MuiTreeView-root {
   line-height: 14px;
@@ -217,18 +249,16 @@
 
 /** Combined article list */
 
-.GoliathSplitViewArticleListActions {
+.GoliathSplitViewArticleListActionBar {
+  background-color: var(--action-bar-background-color);
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: flex-end;
   width: 100%;
+  height: fit-content;
   gap: 10px;
   padding: 10px 10px 10px 10px;
-}
-
-.GoliathSplitViewActionListActionsSpacer {
-  margin-left: auto;
 }
 
 .GoliathArticleListBox.MuiBox-root {
@@ -243,19 +273,24 @@
   padding: 0;
 }
 
+.GoliathSplitViewArticleListContainer .MuiGrid-root {
+  height: fit-content;
+}
+
 .GoliathArticleListBase.MuiPaper-root {
-  border: 1px solid transparent;
+  /*border: 1px solid transparent;*/
   /* Fixed size to optimize scrolling */
   height: 182px;
 }
 
 .GoliathArticleListRead.MuiPaper-root {
   color: var(--article-header-read-font-color);
-  letter-spacing: -0.03em;
+  /*letter-spacing: -0.03em;*/
 }
 
 .GoliathArticleListSelected.MuiPaper-root {
-  border: 1px solid grey;
+  /*border: 1px solid grey;*/
+  background-color: var(--card-selected-background-color);
 }
 
 .GoliathArticleListGrid.MuiGrid-root {
@@ -369,14 +404,14 @@
   width: 100%;
   font-family: var(--primary-serif-font), serif;
   font-size: 24px;
-  padding: 10px 10px 0 24px
+  padding: 10px 10px 0 24px;
 }
 
-.GoliathHeaderActions {
+.GoliathSplitViewArticleCardActionBar {
   display: flex;
   justify-content: space-between;
   padding: 10px 10px 10px 24px;
-  background-color: var(--article-background-color);
+  background-color: var(--action-bar-background-color);
 }
 
 .GoliathHeaderActionButtons {

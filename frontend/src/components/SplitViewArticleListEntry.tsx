@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from "react";
 import {ArticleImagePreview} from "../utils/types";
-import {Avatar, Chip, Divider, Grid, Paper, Typography} from "@mui/material";
+import {Avatar, Chip, Grid, Paper, Typography} from "@mui/material";
 import {extractText, formatFriendly} from "../utils/helpers";
 import RssFeedIcon from "@mui/icons-material/RssFeed";
 import {ArticleView} from "../models/article";
@@ -116,7 +116,6 @@ const SplitViewArticleListEntry: React.FC<SplitViewArticleListEntryProps> = ({
           </Grid>
         </Grid>
       </Grid>
-      <Divider/>
     </Paper>
   );
 };

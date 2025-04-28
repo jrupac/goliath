@@ -134,7 +134,7 @@ const SplitViewArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
 
   return (
     <Box>
-      <Box className="GoliathHeaderActions">
+      <Box className="GoliathSplitViewArticleCardActionBar">
         <Box className="GoliathArticleFeed">
           {renderFavicon()}
           <p className="GoliathArticleFeedTitle">{feedTitle}</p>

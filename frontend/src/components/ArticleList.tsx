@@ -400,9 +400,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
       >
         <Grid container wrap="nowrap">
           <Grid container item xs={4}>
-            <Box className="GoliathSplitViewArticleListActions">
+            <Box className="GoliathSplitViewArticleListActionBar">
               <CheckCircleOutlineTwoToneIcon/>
-              <div className="GoliathSplitViewActionListActionsSpacer"></div>
+              <div className="GoliathActionBarSpacer"></div>
               <ExpandLessTwoToneIcon/>
               <ExpandMoreTwoToneIcon/>
             </Box>
@@ -425,7 +425,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
             </Box>
           </Grid>
           <Grid item xs='auto'>
-            <Divider orientation="vertical"/>
+            <Divider className="GoliathDivider" orientation="vertical"/>
           </Grid>
           <Grid item xs className="GoliathSplitViewArticleOuter">
             <SplitViewArticleCard
