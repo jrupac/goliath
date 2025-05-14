@@ -14,6 +14,18 @@ import {ContentTreeCls} from "../models/contentTree";
 import {FolderCls, FolderId} from "../models/folder";
 import {FaviconCls, FeedCls, FeedId} from "../models/feed";
 import {ArticleCls} from "../models/article";
+import {
+  GReaderHandleLogin,
+  GReaderItemContent,
+  GReaderItemRef,
+  GReaderStream,
+  GReaderStreamContents,
+  GReaderStreamIds,
+  GReaderSubscription,
+  GReaderSubscriptionList,
+  GReaderTag,
+  GReaderURI
+} from "./greader_types";
 
 interface GReaderFetch {
   uri: string,
@@ -21,79 +33,6 @@ interface GReaderFetch {
   formData?: FormData,
   omitSessionToken?: boolean,
   omitPostToken?: boolean
-}
-
-/**
- * The following several interfaces conform to the GReader API.
- */
-interface GReaderHandleLogin {
-  SID: string;
-  LSID: string;
-  Auth: string;
-}
-
-interface GReaderCategory {
-  id: string;
-  label: string;
-}
-
-interface GReaderSubscription {
-  title: string;
-  firstItemMsec: string;
-  htmlUrl: string;
-  iconUrl: string;
-  sortId: string;
-  id: string;
-  categories: GReaderCategory[];
-}
-
-interface GReaderSubscriptionList {
-  subscriptions: GReaderSubscription[];
-}
-
-interface GReaderCanonical {
-  href: string;
-}
-
-interface GReaderContent {
-  direction: string;
-  content: string;
-}
-
-interface GReaderOrigin {
-  streamId: string;
-  title: string;
-  htmlUrl: string;
-}
-
-interface GReaderItemContent {
-  crawlTimeMsec: string;
-  timestampUsec: string;
-  id: string;
-  categories: string[];
-  title: string;
-  published: number;
-  canonical: GReaderCanonical[];
-  alternate: GReaderCanonical[];
-  summary: GReaderContent;
-  origin: GReaderOrigin;
-}
-
-interface GReaderItemRef {
-  id: string;
-  directStreamIds: string[];
-  timestampUsec: string;
-}
-
-interface GReaderStreamIds {
-  itemRefs: GReaderItemRef[];
-  continuation: string;
-}
-
-interface GReaderStreamContents {
-  id: string;
-  updated: number;
-  items: GReaderItemContent[];
 }
 
 export default class GReader implements FetchAPI {
@@ -119,7 +58,7 @@ export default class GReader implements FetchAPI {
     formData.append("Passwd", loginInfo.password);
 
     const res: Response = await this.doFetch({
-      uri: '/greader/accounts/ClientLogin',
+      uri: GReaderURI.Login,
       formData: formData,
       omitSessionToken: true,
       omitPostToken: true
@@ -171,7 +110,7 @@ export default class GReader implements FetchAPI {
     // necessary for future operations and serves as verification of the session
     // token.
     const res: Response = await this.doFetch({
-      uri: '/greader/reader/api/0/token',
+      uri: GReaderURI.Token,
       omitPostToken: true
     });
 
@@ -199,7 +138,7 @@ export default class GReader implements FetchAPI {
 
     let tag: string = "";
     if (mark === "read") {
-      tag = "user/-/state/com.google/read";
+      tag = GReaderTag.MarkRead;
     } else {
       console.log("Unexpected mark state: " + mark);
     }
@@ -208,7 +147,7 @@ export default class GReader implements FetchAPI {
     formData.set("i", greaderId);
 
     return this.doFetch({
-      uri: '/greader/reader/api/0/edit-tag',
+      uri: GReaderURI.EditTag,
       formData: formData,
     });
   }
@@ -219,7 +158,7 @@ export default class GReader implements FetchAPI {
     formData.set("s", greaderId);
 
     return this.doFetch({
-      uri: '/greader/reader/api/0/mark-all-as-read',
+      uri: GReaderURI.MarkAllAsRead,
       formData: formData,
     });
   }
@@ -230,7 +169,7 @@ export default class GReader implements FetchAPI {
     formData.set("t", greaderId);
 
     return this.doFetch({
-      uri: '/greader/reader/api/0/mark-all-as-read',
+      uri: GReaderURI.MarkAllAsRead,
       formData: formData,
     });
   }
@@ -248,14 +187,14 @@ export default class GReader implements FetchAPI {
     }
 
     return this.doFetch({
-      uri: '/greader/reader/api/0/mark-all-as-read',
+      uri: GReaderURI.MarkAllAsRead,
       formData: formData,
     });
   }
 
   private async fetchSubscriptions(cb: (status: Status) => void): Promise<void> {
     const res: Response = await this.doFetch({
-      uri: '/greader/reader/api/0/subscription/list',
+      uri: GReaderURI.SubscriptionList,
     });
 
     if (!res.ok) {
@@ -281,8 +220,8 @@ export default class GReader implements FetchAPI {
     const articleContentLimit = 100;
 
     const formData = new FormData();
-    formData.set("s", "user/-/state/com.google/reading-list");
-    formData.set("xt", "user/-/state/com.google/read")
+    formData.set("s", GReaderStream.ReadingList);
+    formData.set("xt", GReaderTag.MarkRead)
     formData.set("n", articleRefLimit.toString());
 
     const articleIdStrs = await this.fetchStreamIds(formData, articleRefLimit);
@@ -293,7 +232,7 @@ export default class GReader implements FetchAPI {
         ([id, _feedId, _folderId]) => articleContentsForm.append("i", id));
 
       const res: Response = await this.doFetch({
-        uri: '/greader/reader/api/0/stream/items/contents',
+        uri: GReaderURI.StreamItemContents,
         formData: articleContentsForm
       });
 
@@ -333,7 +272,7 @@ export default class GReader implements FetchAPI {
 
     for (; ;) {
       const res: Response = await this.doFetch({
-        uri: '/greader/reader/api/0/stream/items/ids',
+        uri: GReaderURI.StreamItemIds,
         formData: formData
       });
 

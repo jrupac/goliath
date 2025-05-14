@@ -7,10 +7,6 @@ export type LoginInfo = {
   password: string
 }
 
-export enum FetchType {
-  GReader = 0
-}
-
 export interface FetchAPI {
   // HandleLogin will attempt to authenticate the user.
   // This method returns a Promise that when resolved will return a boolean
