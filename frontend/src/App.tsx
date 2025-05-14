@@ -17,7 +17,7 @@ import {
 import './themes/default.css';
 import './themes/dark.css';
 import {Box, CssBaseline, Divider, Drawer, ThemeProvider} from "@mui/material";
-import {FetchAPI, FetchAPIFactory, FetchType} from "./api/interface";
+import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion, VersionData} from "./api/goliath";
 import {Navigate} from "react-router-dom";
 import {ContentTreeCls} from "./models/contentTree";
@@ -54,7 +54,7 @@ export default class App extends React.Component<AppProps, AppState> {
       theme: GoliathTheme.Dark,
       loginVerified: false,
     };
-    this.fetchApi = FetchAPIFactory.Create(FetchType.GReader);
+    this.fetchApi = FetchAPIFactory.Create();
   }
 
   componentWillUnmount() {

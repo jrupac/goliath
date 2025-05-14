@@ -1,16 +1,10 @@
 import {describe, expect, it} from 'vitest';
-import {FetchAPIFactory, FetchType} from '../interface';
-import Fever from '../fever';
+import {FetchAPIFactory} from '../interface';
 import GReader from '../greader';
 
 describe('FetchAPIFactory', () => {
-  it('should return a Fever instance when FetchType.Fever is provided', () => {
-    const api = FetchAPIFactory.Create(FetchType.Fever);
-    expect(api).toBeInstanceOf(Fever);
-  });
-
   it('should return a GReader instance when FetchType.GReader is provided', () => {
-    const api = FetchAPIFactory.Create(FetchType.GReader);
+    const api = FetchAPIFactory.Create();
     expect(api).toBeInstanceOf(GReader);
   });
 });

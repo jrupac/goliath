@@ -1,5 +1,4 @@
 import {SelectionKey, Status} from "../utils/types";
-import Fever from "./fever";
 import {ContentTreeCls} from "../models/contentTree";
 import GReader from "./greader";
 
@@ -9,12 +8,11 @@ export type LoginInfo = {
 }
 
 export enum FetchType {
-  Fever = 0,
-  GReader = 1
+  GReader = 0
 }
 
 export interface FetchAPI {
-  // HandleLogin will attempt to authenticating the user.
+  // HandleLogin will attempt to authenticate the user.
   // This method returns a Promise that when resolved will return a boolean
   // indicating success or failure of the login attempt.
   HandleAuth(loginInfo: LoginInfo): Promise<boolean>;
@@ -46,12 +44,7 @@ export interface FetchAPI {
 
 export class FetchAPIFactory {
   // Create returns a concrete implementation of a FetchAPI.
-  static Create(fetchType: FetchType): FetchAPI {
-    switch (fetchType) {
-    case FetchType.Fever:
-      return new Fever();
-    case FetchType.GReader:
-      return new GReader();
-    }
+  static Create(): FetchAPI {
+    return new GReader();
   }
 }

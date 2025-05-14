@@ -7,12 +7,7 @@ import {
   TextField,
   ThemeProvider
 } from "@mui/material";
-import {
-  FetchAPI,
-  FetchAPIFactory,
-  FetchType,
-  LoginInfo
-} from "../api/interface";
+import {FetchAPI, FetchAPIFactory, LoginInfo} from "../api/interface";
 import {GoliathPath, ThemeInfo} from "../utils/types";
 import {populateThemeInfo} from "../utils/helpers";
 
@@ -27,7 +22,7 @@ const Login: React.FC<LoginProps> = () => {
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [theme] = useState<any>(null);
-  const fetchApi: FetchAPI = FetchAPIFactory.Create(FetchType.GReader);
+  const fetchApi: FetchAPI = FetchAPIFactory.Create();
 
   const showLoginFailedMessage = (): ReactNode => {
     if (loginAttempted && !loginSuccess) {
