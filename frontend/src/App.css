@@ -279,6 +279,18 @@
   height: fit-content;
 }
 
+.GoliathArticleFeed {
+  align-items: center;
+  font-size: 16px;
+  display: flex;
+}
+
+.GoliathArticleFeedTitle {
+  padding-left: 5px;
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  margin: 0;
+}
+
 .GoliathArticleListBase.MuiPaper-root {
   /*border: 1px solid transparent;*/
   /* Fixed size to optimize scrolling */
@@ -439,25 +451,6 @@
   font-family: var(--primary-serif-font), serif;
 }
 
-.GoliathArticleFeed {
-  align-items: center;
-  font-size: 16px;
-  display: flex;
-}
-
-.GoliathArticleFeedTitle {
-  padding-left: 5px;
-  margin: 0;
-  font-variant-caps: petite-caps;
-}
-
-.GoliathArticleFeedTitle.MuiTypography-root {
-  padding-left: 5px;
-  font-family: var(--primary-serif-font), serif;
-  margin: 0;
-  font-variant-caps: petite-caps;
-}
-
 .GoliathArticleDate {
   color: var(--article-date-color);
   font-family: var(--primary-serif-font), serif;
@@ -479,7 +472,7 @@
   font-family: var(--primary-serif-font), serif;
   color: var(--article-font-color);
   padding: 24px;
-  height: 90vh;
+  height: 100vh;
   max-width: 100%;
 }
 
