@@ -97,7 +97,7 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
 
   let headerClass = "";
 
-  if (props.article.is_read === 1) {
+  if (props.article.isRead) {
     headerClass = "GoliathArticleHeaderRead";
   }
 

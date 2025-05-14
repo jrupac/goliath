@@ -19,7 +19,8 @@ export interface ArticleView {
   author: string;
   html: string;
   url: string;
-  is_read: 0 | 1;
+  isRead: boolean;
+  isSaved: boolean;
   created_on_time: number;
 }
 
@@ -76,7 +77,8 @@ export class ArticleCls {
       author: this.author,
       html: this.html,
       url: this.url,
-      is_read: (this.readStatus === ReadStatus.Read) ? 1 : 0,
+      isRead: (this.readStatus === ReadStatus.Read),
+      isSaved: (this.savedStatus === SavedStatus.Saved),
       created_on_time: this.created_on_time,
     };
   }
@@ -99,7 +101,7 @@ export class ArticleCls {
   }
 
   public static SortAndFilterViews(articleViews: ArticleView[]): ArticleView[] {
-    const filterUnread = (a: ArticleView) => !(a.is_read === 1) as boolean;
+    const filterUnread = (a: ArticleView) => !a.isRead;
     const comparator = (a: ArticleView, b: ArticleView) =>
       b.created_on_time - a.created_on_time;
     return articleViews.filter(filterUnread).sort(comparator);

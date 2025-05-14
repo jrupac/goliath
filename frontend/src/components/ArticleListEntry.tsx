@@ -89,7 +89,7 @@ const ArticleListEntry: React.FC<SplitViewArticleListEntryProps> = ({
   if (selected) {
     elevation = 10;
     extraClasses.push("GoliathArticleListSelected");
-  } else if (articleView.is_read === 1) {
+  } else if (articleView.isRead) {
     elevation = 0;
     extraClasses.push("GoliathArticleListRead");
   }
