@@ -92,7 +92,7 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
     };
   }, []);
 
-  const date = new Date(props.article.created_on_time * 1000);
+  const date = new Date(props.article.creationTime * 1000);
   const feedTitle = props.title;
 
   let headerClass = "";

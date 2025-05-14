@@ -6,22 +6,23 @@ import {FolderId} from "./folder";
 export type ArticleId = string;
 
 /** ArticleView holds metadata associated with a displayed Article. */
-export interface ArticleView {
+export type ArticleView = {
   // Folder metadata
-  folder_id: FolderId;
+  readonly folderId: FolderId;
   // Feed metadata
-  feed_id: FeedId;
-  feed_title: FeedTitle;
-  favicon: Favicon;
-  // Article metadata and content
-  id: ArticleId;
-  title: string;
-  author: string;
-  html: string;
-  url: string;
+  readonly feedId: FeedId;
+  readonly feedTitle: FeedTitle;
+  readonly favicon: Favicon;
+  // Article metadata
+  readonly id: ArticleId;
+  readonly title: string;
+  readonly author: string;
+  readonly html: string;
+  readonly url: string;
+  readonly creationTime: number;
+  // Mutable fields
   isRead: boolean;
   isSaved: boolean;
-  created_on_time: number;
 }
 
 export enum ReadStatus {
@@ -40,22 +41,22 @@ export class ArticleCls {
   private readonly author: string;
   private readonly html: string;
   private readonly url: string;
-  private readonly created_on_time: number;
+  private readonly creationTime: number;
   private savedStatus: SavedStatus;
   private readStatus: ReadStatus;
 
   constructor(
     id: ArticleId, title: string, author: string, html: string,
-    url: string, saved_status: SavedStatus, created_on_time: number,
-    read_status: ReadStatus) {
+    url: string, savedStatus: SavedStatus, creationTime: number,
+    readStatus: ReadStatus) {
     this.id = id;
     this.title = title;
     this.author = author;
     this.html = html;
     this.url = url;
-    this.created_on_time = created_on_time;
-    this.readStatus = read_status;
-    this.savedStatus = saved_status;
+    this.creationTime = creationTime;
+    this.readStatus = readStatus;
+    this.savedStatus = savedStatus;
   }
 
   public MarkArticle(markState: MarkState): void {
@@ -68,9 +69,9 @@ export class ArticleCls {
     feedTitle: FeedTitle, favicon: Favicon, feedId: FeedId,
     folderId: FolderId): ArticleView {
     return {
-      folder_id: folderId,
-      feed_id: feedId,
-      feed_title: feedTitle,
+      folderId: folderId,
+      feedId: feedId,
+      feedTitle: feedTitle,
       favicon: favicon,
       id: this.id,
       title: this.title,
@@ -79,7 +80,7 @@ export class ArticleCls {
       url: this.url,
       isRead: (this.readStatus === ReadStatus.Read),
       isSaved: (this.savedStatus === SavedStatus.Saved),
-      created_on_time: this.created_on_time,
+      creationTime: this.creationTime,
     };
   }
 
@@ -97,13 +98,13 @@ export class ArticleCls {
 
   public static Comparator(a: ArticleCls, b: ArticleCls): number {
     // Sort by article creation time in descending order
-    return b.created_on_time - a.created_on_time;
+    return b.creationTime - a.creationTime;
   }
 
   public static SortAndFilterViews(articleViews: ArticleView[]): ArticleView[] {
     const filterUnread = (a: ArticleView) => !a.isRead;
     const comparator = (a: ArticleView, b: ArticleView) =>
-      b.created_on_time - a.created_on_time;
+      b.creationTime - a.creationTime;
     return articleViews.filter(filterUnread).sort(comparator);
   }
 }

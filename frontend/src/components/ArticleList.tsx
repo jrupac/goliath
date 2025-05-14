@@ -130,7 +130,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       if (!(articleView.isRead)) {
         handleMark(
           MarkState.Read,
-          [articleView.id, articleView.feed_id, articleView.folder_id],
+          [articleView.id, articleView.feedId, articleView.folderId],
           SelectionType.Article);
         articleView.isRead = true;
       }
@@ -376,7 +376,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
             <ArticleCard
               key={articleView.id}
               article={articleView}
-              title={articleView.feed_title}
+              title={articleView.feedTitle}
               favicon={articleView.favicon}
               isSelected={true}
             />

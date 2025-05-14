@@ -1,5 +1,5 @@
 import React from 'react';
-import {describe, it, vi} from 'vitest';
+import {describe, it} from 'vitest';
 import {render} from '@testing-library/react';
 import ArticleCard from '../ArticleCard';
 import {ArticleView} from "../../models/article";
@@ -9,22 +9,22 @@ describe('ArticleCard', () => {
     // Minimal rendering test
     const props = {
       article: {
+        folderId: "1",
+        feedId: "1",
+        feedTitle: 'Test Feed',
+        favicon: '',
         id: '1',
         title: 'Test Article',
         author: '',
+        html: '<p>Test content</p>',
         url: 'https://example.com',
-        created_on_time: 0,
-        html: '',
-        is_read: 0,
-        feed_id: "1",
-        folder_id: "1",
-        feed_title: 'Test Feed',
-        favicon: '',
+        creationTime: 1678886400, // March 15, 2023
+        isRead: false,
+        isSaved: false,
       } as ArticleView,
       title: 'Test Feed',
       favicon: '',
       isSelected: false,
-      shouldRerender: vi.fn(),
     };
     render(<ArticleCard {...props} />);
   });

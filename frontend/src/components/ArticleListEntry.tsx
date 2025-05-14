@@ -35,7 +35,7 @@ const ArticleListEntry: React.FC<SplitViewArticleListEntryProps> = ({
 
   const renderMeta = () => {
     const extractedTitle = state.extractedTitle;
-    const date = new Date(articleView.created_on_time * 1000);
+    const date = new Date(articleView.creationTime * 1000);
     if (articleView.favicon) {
       return (
         <Chip

@@ -7,17 +7,18 @@ import {ArticleView} from "../../models/article";
 describe('ArticleListEntry', () => {
   it('renders', () => {
     const mockArticleView: ArticleView = {
+      folderId: "1",
+      feedId: "1",
+      feedTitle: 'Test Feed',
+      favicon: '',
       id: '1',
       title: 'Test Article',
-      url: 'https://example.com',
-      created_on_time: 1678886400, // March 15, 2023
-      html: '<p>Test content</p>',
-      is_read: 0,
-      feed_id: "1",
-      folder_id: "1",
-      feed_title: 'Test Feed',
-      favicon: '',
       author: '',
+      html: '<p>Test content</p>',
+      url: 'https://example.com',
+      creationTime: 1678886400, // March 15, 2023
+      isRead: false,
+      isSaved: false,
     }
 
     const props = {

@@ -10,30 +10,32 @@ describe('ArticleList', () => {
     // Mock ArticleView data
     const mockArticles: ArticleView[] = [
       {
+        folderId: "1",
+        feedId: "1",
+        feedTitle: 'Test Feed 1',
+        favicon: '',
         id: '1',
         title: 'Test Article 1',
         author: '',
-        url: 'https://example.com/1',
-        created_on_time: 1678886400, // March 15, 2023
         html: '<p>Test content 1</p>',
-        is_read: 0,
-        feed_id: "1",
-        folder_id: "1",
-        feed_title: 'Test Feed 1',
-        favicon: '',
+        url: 'https://example.com/1',
+        creationTime: 1678886400, // March 15, 2023
+        isRead: false,
+        isSaved: false,
       },
       {
+        folderId: "2",
+        feedId: "2",
+        feedTitle: 'Test Feed 2',
+        favicon: '',
         id: '2',
         title: 'Test Article 2',
         author: '',
-        url: 'https://example.com/2',
-        created_on_time: 1678972800, // March 16, 2023
         html: '<p>Test content 2</p>',
-        is_read: 0,
-        feed_id: "2",
-        folder_id: "2",
-        feed_title: 'Test Feed 2',
-        favicon: '',
+        url: 'https://example.com/2',
+        creationTime: 1678972800, // March 16, 2023
+        isRead: false,
+        isSaved: false,
       },
     ];
 
