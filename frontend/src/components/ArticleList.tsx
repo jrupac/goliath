@@ -137,7 +137,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
           [articleView.id, articleView.feedId, articleView.folderId],
           SelectionType.Article);
         // Immutably change the article read status
-        articleEntries[scrollIndex] = {...articleView, isRead: true}
+        articleEntries[prevState.scrollIndex] = {...articleView, isRead: true}
       }
 
       return {
@@ -284,7 +284,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     prevSelectionKey.current = selectionKey;
   }, [selectionKey, articleEntriesCls]);
 
-  const renderSplitViewArticleListEntry = useCallback((index: number): ReactElement => {
+  const renderArticleListEntry = useCallback((index: number): ReactElement => {
     const articleView: ArticleView = state.articleEntries[index];
     if (state.showPreviews) {
       generateImagePreview(articleView).then();
@@ -369,7 +369,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
             >
               <ReactList
                 ref={handleMounted}
-                itemRenderer={renderSplitViewArticleListEntry}
+                itemRenderer={renderArticleListEntry}
                 length={articles.length}
                 threshold={500}
                 useStaticSize={true}
