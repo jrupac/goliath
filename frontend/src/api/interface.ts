@@ -1,4 +1,4 @@
-import {SelectionKey, Status} from "../utils/types";
+import {MarkState, SelectionKey, Status} from "../utils/types";
 import {ContentTreeCls} from "../models/contentTree";
 import GReader from "./greader";
 
@@ -26,16 +26,16 @@ export interface FetchAPI {
   InitializeContent(cb: (s: Status) => void): Promise<ContentTreeCls>;
 
   // MarkArticle will mark the specified article with the specified mark status.
-  MarkArticle(mark: string, entity: SelectionKey): Promise<Response>;
+  MarkArticle(mark: MarkState, entity: SelectionKey): Promise<Response>;
 
   // MarkFolder will mark the specified folder with the specified mark status.
-  MarkFolder(mark: string, entity: SelectionKey): Promise<Response>;
+  MarkFolder(mark: MarkState, entity: SelectionKey): Promise<Response>;
 
   // MarkFeed will mark the specified feed with the specified mark status.
-  MarkFeed(mark: string, entity: SelectionKey): Promise<Response>;
+  MarkFeed(mark: MarkState, entity: SelectionKey): Promise<Response>;
 
   // MarkAll will mark all items with the specified mark status.
-  MarkAll(mark: string, entity: SelectionKey): Promise<Response>;
+  MarkAll(mark: MarkState, entity: SelectionKey): Promise<Response>;
 }
 
 export class FetchAPIFactory {

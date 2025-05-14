@@ -48,8 +48,10 @@ export enum SelectionType {
 export type ArticleSelection = [ArticleId, FeedId, FolderId];
 export type FeedSelection = [FeedId, FolderId];
 export type FolderSelection = FolderId;
+
 export type AllSelection = string;
 export const KeyAll: AllSelection = "ALL";
+
 export type SavedSelection = string;
 export const KeySaved: SavedSelection = "SAVED";
 
@@ -61,7 +63,9 @@ export type SelectionKey =
   | SavedSelection;
 
 /** MarkState describes the desired state of a mark operation. */
-export type MarkState = "read";
+export enum MarkState {
+  Read = 0
+}
 
 /** ArticleImagePreview holds cropping information for image previews. */
 export type ArticleImagePreview = {

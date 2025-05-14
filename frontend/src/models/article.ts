@@ -53,7 +53,7 @@ export class ArticleCls {
   }
 
   public MarkArticle(markState: MarkState): ReadStatus {
-    if (markState === "read") {
+    if (markState === MarkState.Read) {
       this.readStatus = ReadStatus.Read;
     }
 

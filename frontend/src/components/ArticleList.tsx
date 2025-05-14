@@ -90,8 +90,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
         selectAllCallback();
         keypressBuffer = new Array(keyBufLength);
       } else if (markAllReadSequence.every((e, i) => e === keypressBuffer[i])) {
-        handleMark(
-          'read', selectionKey, selectionType);
+        handleMark(MarkState.Read, selectionKey, selectionType);
         articleEntries.forEach((e: ArticleView) => e.is_read = 1);
         keypressBuffer = new Array(keyBufLength);
       } else {
@@ -130,7 +129,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
       if (!(articleView.is_read === 1)) {
         handleMark(
-          'read', [articleView.id, articleView.feed_id, articleView.folder_id],
+          MarkState.Read,
+          [articleView.id, articleView.feed_id, articleView.folder_id],
           SelectionType.Article);
         articleView.is_read = 1;
       }

@@ -137,7 +137,7 @@ export default class GReader implements FetchAPI {
     const formData = new FormData();
 
     let tag: string = "";
-    if (mark === "read") {
+    if (mark === MarkState.Read) {
       tag = GReaderTag.MarkRead;
     } else {
       console.log("Unexpected mark state: " + mark);
@@ -152,7 +152,7 @@ export default class GReader implements FetchAPI {
     });
   }
 
-  public async MarkFeed(_: string, entity: SelectionKey): Promise<Response> {
+  public async MarkFeed(_: MarkState, entity: SelectionKey): Promise<Response> {
     const greaderId: string = (entity as FeedSelection)[0];
     const formData = new FormData();
     formData.set("s", greaderId);
@@ -163,7 +163,7 @@ export default class GReader implements FetchAPI {
     });
   }
 
-  public async MarkFolder(_: string, entity: SelectionKey): Promise<Response> {
+  public async MarkFolder(_: MarkState, entity: SelectionKey): Promise<Response> {
     const greaderId: string = (entity as FolderSelection);
     const formData = new FormData();
     formData.set("t", greaderId);
@@ -174,7 +174,7 @@ export default class GReader implements FetchAPI {
     });
   }
 
-  public async MarkAll(_: string, entity: SelectionKey): Promise<Response> {
+  public async MarkAll(_: MarkState, entity: SelectionKey): Promise<Response> {
     const formData = new FormData();
     if (entity === KeySaved) {
       // TODO: Support saved articles.
