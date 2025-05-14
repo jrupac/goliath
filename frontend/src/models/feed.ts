@@ -3,7 +3,7 @@ import {MarkState} from "../utils/types";
 import {FolderId} from "./folder";
 //import {Favicon} from "../api/fever";
 
-/** Feed is a content source which contains zero or more articles. */
+/** Feed is a content source that contains zero or more articles. */
 export type FeedId = string;
 /** FeedTitle is the textual title of a feed. */
 export type FeedTitle = string;
@@ -35,20 +35,18 @@ export class FeedCls {
   private readonly title: FeedTitle;
   private readonly url: string;
   private readonly site_url: string;
-  private readonly is_spark: 0 | 1;
   private readonly last_updated_on_time: number;
   private unread_count: number;
   private favicon: FaviconCls | null;
   private articles: Map<ArticleId, ArticleCls>;
 
   constructor(id: FeedId, title: FeedTitle, url: string,
-    site_url: string, is_spark: 0 | 1, last_updated_on_time: number) {
+    site_url: string, last_updated_on_time: number) {
     this.id = id;
     this.favicon = null;
     this.title = title;
     this.url = url;
     this.site_url = site_url;
-    this.is_spark = is_spark;
     this.last_updated_on_time = last_updated_on_time;
     this.unread_count = 0;
     this.articles = new Map<ArticleId, ArticleCls>();

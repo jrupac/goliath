@@ -325,7 +325,7 @@ export default class GReader implements FetchAPI {
     subscriptions.forEach(
       (sub: GReaderSubscription) => {
         const feed = new FeedCls(
-          this.parseFeedID(sub.id), sub.title, sub.htmlUrl, sub.htmlUrl, 0, 0);
+          this.parseFeedID(sub.id), sub.title, sub.htmlUrl, sub.htmlUrl, 0);
         feed.SetFavicon(new FaviconCls(sub.iconUrl));
 
         const folderId = this.parseFolderID(sub.categories[0].id);
