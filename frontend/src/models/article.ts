@@ -6,24 +6,23 @@ import {FolderId} from "./folder";
 export type ArticleId = string;
 
 /** ArticleView holds metadata associated with a displayed Article. */
-export type ArticleView = {
+export type ArticleView = Readonly<{
   // Folder metadata
-  readonly folderId: FolderId;
+  folderId: FolderId;
   // Feed metadata
-  readonly feedId: FeedId;
-  readonly feedTitle: FeedTitle;
-  readonly favicon: Favicon;
+  feedId: FeedId;
+  feedTitle: FeedTitle;
+  favicon: Favicon;
   // Article metadata
-  readonly id: ArticleId;
-  readonly title: string;
-  readonly author: string;
-  readonly html: string;
-  readonly url: string;
-  readonly creationTime: number;
-  // Mutable fields
+  id: ArticleId;
+  title: string;
+  author: string;
+  html: string;
+  url: string;
+  creationTime: number;
   isRead: boolean;
   isSaved: boolean;
-}
+}>
 
 export enum ReadStatus {
   Read = 0,

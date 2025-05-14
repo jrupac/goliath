@@ -88,10 +88,14 @@ const ArticleList: React.FC<ArticleListProps> = ({
       // If this sequence is fulfilled, reset the buffer and handle it.
       if (goToAllSequence.every((e, i) => e === keypressBuffer[i])) {
         selectAllCallback();
+        // Reset key buffer
         keypressBuffer = new Array(keyBufLength);
       } else if (markAllReadSequence.every((e, i) => e === keypressBuffer[i])) {
         handleMark(MarkState.Read, selectionKey, selectionType);
-        articleEntries.forEach((e: ArticleView) => e.isRead = true);
+        articleEntries = articleEntries.map((e: ArticleView): ArticleView => {
+          return {...e, isRead: true}
+        });
+        // Reset key buffer
         keypressBuffer = new Array(keyBufLength);
       } else {
         switch (event.key) {
@@ -132,7 +136,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
           MarkState.Read,
           [articleView.id, articleView.feedId, articleView.folderId],
           SelectionType.Article);
-        articleView.isRead = true;
+        // Immutably change the article read status
+        articleEntries[scrollIndex] = {...articleView, isRead: true}
       }
 
       return {
