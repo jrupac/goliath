@@ -28,36 +28,39 @@ export enum ReadStatus {
   Unread = 1
 }
 
+export enum SavedStatus {
+  Saved = 0,
+  Unsaved = 1
+}
+
 export class ArticleCls {
   private readonly id: ArticleId;
   private readonly title: string;
   private readonly author: string;
   private readonly html: string;
   private readonly url: string;
-  private readonly is_saved: 0 | 1;
   private readonly created_on_time: number;
+  private savedStatus: SavedStatus;
   private readStatus: ReadStatus;
 
   constructor(
     id: ArticleId, title: string, author: string, html: string,
-    url: string, is_saved: 0 | 1, created_on_time: number,
-    is_read: 0 | 1) {
+    url: string, saved_status: SavedStatus, created_on_time: number,
+    read_status: ReadStatus) {
     this.id = id;
     this.title = title;
     this.author = author;
     this.html = html;
     this.url = url;
-    this.is_saved = is_saved;
     this.created_on_time = created_on_time;
-    this.readStatus = (is_read === 1) ? ReadStatus.Read : ReadStatus.Unread;
+    this.readStatus = read_status;
+    this.savedStatus = saved_status;
   }
 
-  public MarkArticle(markState: MarkState): ReadStatus {
+  public MarkArticle(markState: MarkState): void {
     if (markState === MarkState.Read) {
       this.readStatus = ReadStatus.Read;
     }
-
-    return this.readStatus;
   }
 
   public GetArticleView(
@@ -78,8 +81,12 @@ export class ArticleCls {
     };
   }
 
-  public ReadStatus(): ReadStatus {
-    return this.readStatus;
+  public IsRead(): boolean {
+    return this.readStatus === ReadStatus.Read;
+  }
+
+  public IsSaved(): boolean {
+    return this.savedStatus === SavedStatus.Saved;
   }
 
   public Id(): ArticleId {

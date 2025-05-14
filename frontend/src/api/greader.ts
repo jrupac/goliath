@@ -13,7 +13,7 @@ import {parseJson} from "../utils/helpers";
 import {ContentTreeCls} from "../models/contentTree";
 import {FolderCls, FolderId} from "../models/folder";
 import {FaviconCls, FeedCls, FeedId} from "../models/feed";
-import {ArticleCls} from "../models/article";
+import {ArticleCls, ReadStatus, SavedStatus} from "../models/article";
 import {
   GReaderHandleLogin,
   GReaderItemContent,
@@ -138,7 +138,7 @@ export default class GReader implements FetchAPI {
 
     let tag: string = "";
     if (mark === MarkState.Read) {
-      tag = GReaderTag.MarkRead;
+      tag = GReaderTag.Read;
     } else {
       console.log("Unexpected mark state: " + mark);
     }
@@ -221,7 +221,7 @@ export default class GReader implements FetchAPI {
 
     const formData = new FormData();
     formData.set("s", GReaderStream.ReadingList);
-    formData.set("xt", GReaderTag.MarkRead)
+    formData.set("xt", GReaderTag.Read)
     formData.set("n", articleRefLimit.toString());
 
     const articleIdStrs = await this.fetchStreamIds(formData, articleRefLimit);
@@ -252,7 +252,7 @@ export default class GReader implements FetchAPI {
         (item: GReaderItemContent) => {
           const article = new ArticleCls(
             this.parseArticleID(item.id), item.title, "", item.summary.content,
-            item.canonical[0].href, 0, item.published, 0);
+            item.canonical[0].href, SavedStatus.Unsaved, item.published, ReadStatus.Unread);
 
           const feedId = this.parseFeedID(item.categories[1]);
           const articles = this.feedToArticles.get(feedId);

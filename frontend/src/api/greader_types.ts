@@ -9,7 +9,7 @@ export const enum GReaderURI {
 }
 
 export const enum GReaderTag {
-  MarkRead = 'user/-/state/com.google/read',
+  Read = 'user/-/state/com.google/read',
 }
 
 export const enum GReaderStream {

@@ -1,4 +1,4 @@
-import {ArticleCls, ArticleId, ArticleView, ReadStatus} from "./article";
+import {ArticleCls, ArticleId, ArticleView} from "./article";
 import {MarkState} from "../utils/types";
 import {FolderId} from "./folder";
 //import {Favicon} from "../api/fever";
@@ -73,13 +73,14 @@ export class FeedCls {
   public AddArticle(article: ArticleCls): void {
     this.articles.set(article.Id(), article);
     this.sort();
-    this.unread_count += (article.ReadStatus() === ReadStatus.Unread) ? 1 : 0;
+    this.unread_count += (article.IsRead() ? 0 : 1);
   }
 
   public MarkArticle(articleId: ArticleId, markState: MarkState): number {
     const article: ArticleCls = this.getArticleOrThrow(articleId);
-    this.unread_count -= article.ReadStatus();
-    this.unread_count += article.MarkArticle(markState);
+    this.unread_count -= (article.IsRead() ? 0 : 1);
+    article.MarkArticle(markState);
+    this.unread_count += (article.IsRead() ? 0 : 1);
     return this.unread_count;
   }
 
@@ -87,7 +88,8 @@ export class FeedCls {
     let unread: number = 0;
 
     this.articles.forEach((a: ArticleCls): void => {
-      unread += a.MarkArticle(markState);
+      a.MarkArticle(markState);
+      unread += (a.IsRead() ? 0 : 1);
     });
 
     this.unread_count = unread;
