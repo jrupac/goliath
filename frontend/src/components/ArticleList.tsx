@@ -1,4 +1,3 @@
-import ArticleCard from './ArticleCard';
 import React, {
   ReactElement,
   useCallback,
@@ -10,7 +9,6 @@ import ReactList from 'react-list';
 import {animateScroll} from 'react-scroll';
 import {
   ArticleImagePreview,
-  ArticleListView,
   MarkState,
   SelectionKey,
   SelectionType
@@ -47,7 +45,6 @@ interface ArticleListState {
   scrollIndex: number;
   smoothScroll: boolean;
   keypressBuffer: Array<string>;
-  articleViewToggleState: ArticleListView;
 }
 
 const ArticleList: React.FC<ArticleListProps> = ({
@@ -68,7 +65,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
     scrollIndex: 0,
     smoothScroll: true,
     keypressBuffer: new Array(keyBufLength),
-    articleViewToggleState: ArticleListView.Split
   });
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -84,7 +80,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
       let smoothScroll = prevState.smoothScroll;
       let scrollIndex = prevState.scrollIndex;
       let articleEntries = Array.from(prevState.articleEntries);
-      let articleViewToggleState = prevState.articleViewToggleState;
       const articleView: ArticleView = prevState.articleEntries[scrollIndex];
 
       // Add new keypress to buffer, dropping the oldest entry.
@@ -118,13 +113,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
         case 'p':
           showPreviews = !showPreviews;
           break;
-        case 's':
-          if (articleViewToggleState === ArticleListView.Combined) {
-            articleViewToggleState = ArticleListView.Split;
-          } else {
-            articleViewToggleState = ArticleListView.Combined;
-          }
-          break;
         case 'v':
           // If trying to open an article before any articles are selected,
           // treat it like a scroll to the first article.
@@ -154,13 +142,12 @@ const ArticleList: React.FC<ArticleListProps> = ({
         scrollIndex: scrollIndex,
         articleEntries: articleEntries,
         keypressBuffer: keypressBuffer,
-        articleViewToggleState: articleViewToggleState
       };
     });
   }, [
     selectAllCallback, handleMark, selectionKey, selectionType,
     state.articleEntries, state.showPreviews, state.smoothScroll,
-    state.scrollIndex, state.articleViewToggleState, state.keypressBuffer,
+    state.scrollIndex, state.keypressBuffer,
   ]);
 
   const generateImagePreview = useCallback(async (article: ArticleView) => {
@@ -274,7 +261,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   const prevSelectionKey = useRef<SelectionKey>(selectionKey);
 
   useEffect(() => {
-    // Reset scroll position when the enclosing key changes.
+    // Reset the scroll position when the enclosing key changes.
     if (selectionKey === prevSelectionKey.current) {
       return;
     }
@@ -292,31 +279,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
     prevSelectionKey.current = selectionKey;
   }, [selectionKey, articleEntriesCls]);
 
-  const handleRerender = useCallback(() => {
-    if (listRef.current !== null) {
-      // An element in the list has dynamically resized, so cached sizing
-      // calculations are incorrect. Forcibly trigger a render again so that
-      // the new size can be accounted for correctly.
-      listRef.current.forceUpdate();
-    }
-  }, [listRef]);
-
-  const renderArticle = useCallback((index: number): ReactElement => {
-    const articleView: ArticleView = state.articleEntries[index];
-
-    return <ArticleCard
-      key={articleView.id}
-      article={articleView}
-      title={articleView.feed_title}
-      favicon={articleView.favicon}
-      isSelected={index === state.scrollIndex}
-      shouldRerender={handleRerender}
-    />;
-  }, [
-    state.articleEntries, state.scrollIndex, handleRerender,
-    state.articleViewToggleState
-  ]);
-
   const renderSplitViewArticleListEntry = useCallback((index: number): ReactElement => {
     const articleView: ArticleView = state.articleEntries[index];
     if (state.showPreviews) {
@@ -333,7 +295,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
     state.articleEntries,
     state.scrollIndex, state.articleImagePreviews,
     state.showPreviews, generateImagePreview,
-    state.articleViewToggleState
   ]);
 
   const handleMounted = useCallback((list: ReactList) => {
@@ -347,7 +308,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       // @ts-ignore
       const scrollPos = listRef.current.getSpaceBefore(state.scrollIndex);
 
-      // The scrolling container is not trivial to figure out, but react-list
+      // The scrolling container is not trivial to figure out, but `react-list`
       // has already done the work to figure it out, so use it directly.
       if (state.smoothScroll) {
         animateScroll.scrollTo(scrollPos, {
@@ -379,19 +340,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
     const articles = state.articleEntries;
     const renderIndex = Math.max(0, state.scrollIndex);
     const articleView = articles[renderIndex];
-
-    if (state.articleViewToggleState === ArticleListView.Combined) {
-      return (
-        <Box className="GoliathArticleListBox">
-          <ReactList
-            ref={handleMounted}
-            itemRenderer={renderArticle}
-            length={articles.length}
-            type='variable'
-          />
-        </Box>
-      );
-    }
 
     return (
       <Container

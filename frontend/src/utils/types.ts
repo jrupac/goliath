@@ -63,12 +63,6 @@ export type SelectionKey =
 /** MarkState describes the desired state of a mark operation. */
 export type MarkState = "read";
 
-/** ArticleListView lists the UI options for the article list. */
-export enum ArticleListView {
-  Combined = 0,
-  Split = 1,
-}
-
 /** ArticleImagePreview holds cropping information for image previews. */
 export type ArticleImagePreview = {
   src: string;
