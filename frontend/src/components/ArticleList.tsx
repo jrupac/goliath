@@ -264,24 +264,51 @@ const ArticleList: React.FC<ArticleListProps> = ({
   }, [handleKeyDown]);
 
   const prevSelectionKey = useRef<SelectionKey>(selectionKey);
+  const prevArticleEntriesCls = useRef<ArticleView[]>(articleEntriesCls);
 
   useEffect(() => {
-    // Reset the scroll position when the enclosing key changes.
-    if (selectionKey === prevSelectionKey.current) {
-      return;
+    if (selectionKey !== prevSelectionKey.current) {
+      console.log("Selection key changed: " + selectionKey)
+
+      // The selection key has changed, so reset everything
+      if (listRef.current) {
+        listRef.current.scrollTo(0);
+        // @ts-ignore
+        listRef.current.forceUpdate();
+      }
+      setState((prevState) => ({
+        ...prevState,
+        articleEntries: Array.from(articleEntriesCls),
+        scrollIndex: 0,
+        keypressBuffer: new Array(keyBufLength)
+      }));
+    } else if (articleEntriesCls !== prevArticleEntriesCls.current) {
+      console.log("Article entries changed")
+
+      // The parent list of articles has changed despite the selection key being
+      // the same. Use that list but also merge in recently read articles to
+      // preserve scrollback history until the selection key changes.
+      setState((prevState) => {
+        const prevArticles: ArticleView[] = prevState.articleEntries;
+        let newArticles: ArticleView[] = [...articleEntriesCls];
+        const newPropArticlesMap = new Map(
+          articleEntriesCls.map(a => [a.id, a]));
+
+        for (const prevArticle of prevArticles) {
+          if (prevArticle.isRead && !newPropArticlesMap.has(prevArticle.id)) {
+            // Re-add articles recently marked read
+            newArticles.push(prevArticle);
+          }
+        }
+
+        newArticles.sort((a, b) => b.creationTime - a.creationTime);
+        return {...prevState, articleEntries: newArticles};
+      });
     }
-    if (listRef.current) {
-      listRef.current.scrollTo(0);
-      // @ts-ignore
-      listRef.current.forceUpdate();
-    }
-    setState((prevState) => ({
-      ...prevState,
-      articleEntries: Array.from(articleEntriesCls),
-      scrollIndex: 0,
-      keypressBuffer: new Array(keyBufLength)
-    }));
+
+    // Update refs
     prevSelectionKey.current = selectionKey;
+    prevArticleEntriesCls.current = articleEntriesCls;
   }, [selectionKey, articleEntriesCls]);
 
   const renderArticleListEntry = useCallback((index: number): ReactElement => {
