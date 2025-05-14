@@ -25,7 +25,7 @@ import {
   GReaderSubscriptionList,
   GReaderTag,
   GReaderURI
-} from "./greader_types";
+} from "./greaderTypes";
 
 interface GReaderFetch {
   uri: string,

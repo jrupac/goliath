@@ -1,5 +1,5 @@
 export const enum GReaderURI {
-  Login = '/greader/reader/api/0/login',
+  Login = '/greader/accounts/ClientLogin',
   Token = '/greader/reader/api/0/token',
   EditTag = '/greader/reader/api/0/edit-tag',
   SubscriptionList = '/greader/reader/api/0/subscription/list',
