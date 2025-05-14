@@ -16,7 +16,7 @@ interface SplitViewArticleListEntryState {
   extractedContent: string;
 }
 
-const SplitViewArticleListEntry: React.FC<SplitViewArticleListEntryProps> = ({
+const ArticleListEntry: React.FC<SplitViewArticleListEntryProps> = ({
   articleView,
   preview,
   selected,
@@ -105,11 +105,13 @@ const SplitViewArticleListEntry: React.FC<SplitViewArticleListEntryProps> = ({
         <Grid zeroMinWidth item xs>
           <div className="GoliathArticleListMeta">{renderMeta()}</div>
         </Grid>
-        <Grid container item wrap="nowrap"
-              className="GoliathArticleListContent">
+        <Grid
+          container item wrap="nowrap"
+          className="GoliathArticleListContent">
           <Grid item xs="auto">{renderImagePreview()}</Grid>
-          <Grid item zeroMinWidth xs
-                className="GoliathArticleContentPreviewGrid">
+          <Grid
+            item zeroMinWidth xs
+            className="GoliathArticleContentPreviewGrid">
             <Typography className="GoliathArticleContentPreview">
               {state.extractedContent}
             </Typography>
@@ -120,4 +122,4 @@ const SplitViewArticleListEntry: React.FC<SplitViewArticleListEntryProps> = ({
   );
 };
 
-export default SplitViewArticleListEntry;
+export default ArticleListEntry;

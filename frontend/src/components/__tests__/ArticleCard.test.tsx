@@ -1,10 +1,10 @@
 import React from 'react';
 import {describe, it, vi} from 'vitest';
 import {render} from '@testing-library/react';
-import SplitViewArticleCard from '../SplitViewArticleCard';
+import ArticleCard from '../ArticleCard';
 import {ArticleView} from "../../models/article";
 
-describe('SplitViewArticleCard', () => {
+describe('ArticleCard', () => {
   it('renders', () => {
     // Minimal rendering test
     const props = {
@@ -26,6 +26,6 @@ describe('SplitViewArticleCard', () => {
       isSelected: false,
       shouldRerender: vi.fn(),
     };
-    render(<SplitViewArticleCard {...props} />);
+    render(<ArticleCard {...props} />);
   });
 });

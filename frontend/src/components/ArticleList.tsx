@@ -14,8 +14,8 @@ import {
   SelectionType
 } from "../utils/types";
 import {Box, Container, Grid} from "@mui/material";
-import SplitViewArticleCard from "./SplitViewArticleCard";
-import SplitViewArticleListEntry from "./SplitViewArticleListEntry";
+import ArticleCard from "./ArticleCard";
+import ArticleListEntry from "./ArticleListEntry";
 import LRUCache from "lru-cache";
 import {DoneAllRounded} from "@mui/icons-material";
 import smartcrop from "smartcrop";
@@ -285,7 +285,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       generateImagePreview(articleView).then();
     }
 
-    return <SplitViewArticleListEntry
+    return <ArticleListEntry
       key={articleView.id}
       articleView={articleView}
       preview={state.articleImagePreviews.get(articleView.id)}
@@ -373,7 +373,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
             </Box>
           </Grid>
           <Grid item xs className="GoliathSplitViewArticleOuter">
-            <SplitViewArticleCard
+            <ArticleCard
               key={articleView.id}
               article={articleView}
               title={articleView.feed_title}

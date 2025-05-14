@@ -25,7 +25,7 @@ interface ArticleState {
   loading: boolean;
 }
 
-const SplitViewArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
+const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
   const [state, setState] = useState<ArticleState>({
     parsed: null,
     showParsed: false,
@@ -191,4 +191,4 @@ const SplitViewArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
   );
 };
 
-export default SplitViewArticleCard;
+export default ArticleCard;

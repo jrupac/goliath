@@ -1,10 +1,10 @@
 import React from 'react';
 import {render} from '@testing-library/react';
 import {describe, it} from 'vitest';
-import SplitViewArticleListEntry from '../SplitViewArticleListEntry';
+import ArticleListEntry from '../ArticleListEntry';
 import {ArticleView} from "../../models/article";
 
-describe('SplitViewArticleListEntry', () => {
+describe('ArticleListEntry', () => {
   it('renders', () => {
     const mockArticleView: ArticleView = {
       id: '1',
@@ -25,6 +25,6 @@ describe('SplitViewArticleListEntry', () => {
       preview: undefined,
       selected: false,
     };
-    render(<SplitViewArticleListEntry {...props} />);
+    render(<ArticleListEntry {...props} />);
   });
 });
