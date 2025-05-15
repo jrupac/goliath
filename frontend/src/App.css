@@ -118,8 +118,8 @@
 }
 
 .GoliathDrawer {
-  width: 300px;
-  flex-shrink: 0;
+  width: 10vw;
+  flex-basis: 300px;
   font-family: var(--primary-sans-serif-font), sans-serif;
 }
 
@@ -279,6 +279,16 @@
   height: fit-content;
 }
 
+.GoliathArticleListColumn {
+  width: 30vw;
+}
+
+.GoliathSplitViewArticleListBox {
+  overflow-y: auto;
+  width: 100%;
+  flex-grow: 1;
+}
+
 .GoliathArticleFeed {
   align-items: center;
   font-size: 16px;
@@ -377,6 +387,7 @@
 
 .GoliathSplitViewArticleOuter {
   border-left: 1px solid var(--action-bar-border-color);
+  width: 60vw;
 }
 
 .GoliathSplitViewArticleContainer {

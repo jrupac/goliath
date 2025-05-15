@@ -13,7 +13,7 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-import {Box, Container, Grid} from "@mui/material";
+import {Box, Container, Grid, Stack} from "@mui/material";
 import ArticleCard from "./ArticleCard";
 import ArticleListEntry from "./ArticleListEntry";
 import LRUCache from "lru-cache";
@@ -400,21 +400,14 @@ const ArticleList: React.FC<ArticleListProps> = ({
         className="GoliathSplitViewArticleListContainer"
       >
         <Grid container wrap="nowrap">
-          <Grid container item xs={4}>
+          <Stack className="GoliathArticleListColumn">
             <Box className="GoliathSplitViewArticleListActionBar">
               <CheckCircleOutlineTwoToneIcon/>
               <div className="GoliathActionBarSpacer"></div>
               <ExpandLessTwoToneIcon/>
               <ExpandMoreTwoToneIcon/>
             </Box>
-            <Box
-              className="GoliathSplitViewArticleListBox"
-              sx={{
-                height: '100vh',
-                overflowY: 'auto',
-                width: '100%',
-              }}
-            >
+            <Box className="GoliathSplitViewArticleListBox">
               <ReactList
                 ref={handleMounted}
                 itemRenderer={renderArticleListEntry}
@@ -424,7 +417,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
                 type='uniform'
               />
             </Box>
-          </Grid>
+          </Stack>
           <Grid item xs className="GoliathSplitViewArticleOuter">
             <ArticleCard
               key={articleView.id}
