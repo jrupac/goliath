@@ -1,5 +1,5 @@
 import {MarkState} from "../utils/types";
-import {Favicon, FeedId, FeedTitle} from "./feed";
+import {FeedId, FeedTitle} from "./feed";
 import {FolderId} from "./folder";
 
 /** ArticleId is the ID associated with an Article object. */
@@ -12,7 +12,6 @@ export type ArticleView = Readonly<{
   // Feed metadata
   feedId: FeedId;
   feedTitle: FeedTitle;
-  favicon: Favicon;
   // Article metadata
   id: ArticleId;
   title: string;
@@ -65,13 +64,11 @@ export class ArticleCls {
   }
 
   public GetArticleView(
-    feedTitle: FeedTitle, favicon: Favicon, feedId: FeedId,
-    folderId: FolderId): ArticleView {
+    feedTitle: FeedTitle, feedId: FeedId, folderId: FolderId): ArticleView {
     return {
       folderId: folderId,
       feedId: feedId,
       feedTitle: feedTitle,
-      favicon: favicon,
       id: this.id,
       title: this.title,
       author: this.author,
@@ -101,9 +98,10 @@ export class ArticleCls {
   }
 
   public static SortAndFilterViews(articleViews: ArticleView[]): ArticleView[] {
-    const filterUnread = (a: ArticleView) => !a.isRead;
-    const comparator = (a: ArticleView, b: ArticleView) =>
-      b.creationTime - a.creationTime;
-    return articleViews.filter(filterUnread).sort(comparator);
+    return articleViews.filter(ArticleCls.FilterUnread).sort(ArticleCls.ArticleViewComparator);
   }
+
+  private static FilterUnread = (a: ArticleView) => !a.isRead;
+  private static ArticleViewComparator = (a: ArticleView, b: ArticleView) => b.creationTime -
+    a.creationTime;
 }

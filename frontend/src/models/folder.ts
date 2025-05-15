@@ -1,4 +1,4 @@
-import {FeedCls, FeedId, FeedTitle, FeedView} from "./feed";
+import {FaviconCls, FeedCls, FeedId, FeedTitle, FeedView} from "./feed";
 import {MarkState} from "../utils/types";
 import {ArticleId, ArticleView} from "./article";
 
@@ -14,6 +14,7 @@ export interface FolderView {
 export class FolderCls {
   private readonly id: FolderId;
   private readonly title: string;
+  private readonly folderView: FolderView;
   private unread_count: number;
   private feeds: Map<FeedId, FeedCls>;
 
@@ -23,6 +24,11 @@ export class FolderCls {
 
     this.unread_count = 0;
     this.feeds = new Map<FeedId, FeedCls>();
+    this.folderView = {
+      id: this.id,
+      title: this.title,
+      unread_count: this.unread_count
+    }
   }
 
   public AddFeed(feed: FeedCls): void {
@@ -35,6 +41,7 @@ export class FolderCls {
     this.feeds.set(feed.Id(), feed);
     this.sort();
     this.unread_count += feed.UnreadCount();
+    this.folderView.unread_count = this.unread_count;
   }
 
   public MarkArticle(articleId: ArticleId, feedId: FeedId, markState: MarkState): number {
@@ -44,6 +51,7 @@ export class FolderCls {
     feed.MarkArticle(articleId, markState);
     this.unread_count += feed.UnreadCount();
 
+    this.folderView.unread_count = this.unread_count;
     return this.unread_count;
   }
 
@@ -54,6 +62,7 @@ export class FolderCls {
     feed.MarkFeed(markState);
     this.unread_count += feed.UnreadCount();
 
+    this.folderView.unread_count = this.unread_count;
     return this.unread_count;
   }
 
@@ -65,6 +74,7 @@ export class FolderCls {
     });
 
     this.unread_count = unread;
+    this.folderView.unread_count = this.unread_count;
     return this.unread_count;
   }
 
@@ -91,24 +101,26 @@ export class FolderCls {
 
     let entries: ArticleView[] = [];
     this.feeds.forEach((f: FeedCls): void => {
-      entries = entries.concat(f.GetArticleView(this.id));
+      entries.push(...f.GetArticleView(this.id));
     });
     return entries;
   }
 
   public GetFolderFeedView(): [FolderView, FeedView[]] {
-    const folderView: FolderView = {
-      id: this.id,
-      title: this.title,
-      unread_count: this.unread_count
-    };
-
     const feedViews: FeedView[] = [];
     this.feeds.forEach((f: FeedCls): void => {
-      feedViews.push(f.GetFolderFeedView(this.id));
+      feedViews.push(f.GetFolderFeedView());
     });
 
-    return [folderView, feedViews];
+    return [this.folderView, feedViews];
+  }
+
+  public GetFavicons(): Map<FeedId, FaviconCls> {
+    const favicons: Map<FeedId, FaviconCls> = new Map();
+    this.feeds.forEach((f: FeedCls): void => {
+      favicons.set(f.Id(), f.GetFavicon());
+    });
+    return favicons;
   }
 
   public static Comparator(a: FolderCls, b: FolderCls): number {

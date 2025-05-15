@@ -36,6 +36,7 @@ export interface AppState {
   status: Status;
   contentTreeCls: ContentTreeCls;
   theme: GoliathTheme;
+  themeInfo: ThemeInfo;
   loginVerified: boolean;
 }
 
@@ -52,6 +53,7 @@ export default class App extends React.Component<AppProps, AppState> {
       status: Status.Start,
       contentTreeCls: ContentTreeCls.new(),
       theme: GoliathTheme.Dark,
+      themeInfo: populateThemeInfo(GoliathTheme.Dark),
       loginVerified: false,
     };
     this.fetchApi = FetchAPIFactory.Create();
@@ -123,12 +125,13 @@ export default class App extends React.Component<AppProps, AppState> {
     }
 
     functor(mark, entity).then((): void => {
-      this.setState((prevState: AppState): Pick<AppState, keyof AppState> => {
+      this.setState((prevState: AppState): AppState => {
         const contentTreeCls: ContentTreeCls = prevState.contentTreeCls;
         contentTreeCls.Mark(mark, entity, type);
         return {
+          ...prevState,
           contentTreeCls: contentTreeCls,
-        } as AppState
+        }
       });
     });
   };
@@ -150,10 +153,12 @@ export default class App extends React.Component<AppProps, AppState> {
 
     switch (event.key) {
     case 't':
-      this.setState((prevState: Readonly<AppState>) => {
+      this.setState((prevState: AppState): AppState => {
         return {
+          ...prevState,
           theme: prevState.theme ===
-          GoliathTheme.Default ? GoliathTheme.Dark : GoliathTheme.Default
+          GoliathTheme.Default ? GoliathTheme.Dark : GoliathTheme.Default,
+          themeInfo: populateThemeInfo(prevState.theme)
         }
       });
       break;
@@ -161,9 +166,7 @@ export default class App extends React.Component<AppProps, AppState> {
   }
 
   render() {
-    const themeInfo: ThemeInfo = populateThemeInfo(this.state.theme);
-
-    // If login verification has completed and failed, redirect to login page.
+    // If verification has completed and failed, redirect to the login page.
     if ((this.state.status & Status.LoginVerification) &&
       !this.state.loginVerified) {
       return <Navigate to={GoliathPath.Login} replace={true}/>;
@@ -171,7 +174,7 @@ export default class App extends React.Component<AppProps, AppState> {
 
     if (this.state.status !== Status.Ready) {
       return (
-        <ThemeProvider theme={themeInfo.theme}>
+        <ThemeProvider theme={this.state.themeInfo.theme}>
           <CssBaseline/>
           <Loading status={this.state.status}/>
         </ThemeProvider>);
@@ -188,12 +191,12 @@ export default class App extends React.Component<AppProps, AppState> {
     const selectionType: SelectionType = this.state.selectionType;
 
     return (
-      <ThemeProvider theme={themeInfo.theme}>
+      <ThemeProvider theme={this.state.themeInfo.theme}>
         {/* TODO: Is there a better way to inject overrides than this? */}
         <CssBaseline/>
         <Box
           sx={{display: 'flex', overflow: 'hidden', height: '100vh'}}
-          className={`${themeInfo.themeClasses}`}>
+          className={`${this.state.themeInfo.themeClasses}`}>
           <Drawer
             variant="permanent"
             anchor="left"
@@ -233,6 +236,7 @@ export default class App extends React.Component<AppProps, AppState> {
               <ArticleList
                 articleEntriesCls={this.state.contentTreeCls.GetArticleView(
                   selectionKey, selectionType)}
+                faviconMap={this.state.contentTreeCls.GetFaviconMap()}
                 selectionKey={selectionKey}
                 selectionType={selectionType}
                 handleMark={this.handleMark}

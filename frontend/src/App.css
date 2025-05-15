@@ -292,19 +292,18 @@
 }
 
 .GoliathArticleListBase.MuiPaper-root {
-  /*border: 1px solid transparent;*/
   /* Fixed size to optimize scrolling */
   height: 182px;
   border-bottom: 1px solid var(--action-bar-border-color);
+  /* Explicitly set this to avoid non-composited animations when scrolling */
+  box-shadow: none;
 }
 
 .GoliathArticleListRead.MuiPaper-root {
   color: var(--article-header-read-font-color);
-  /*letter-spacing: -0.03em;*/
 }
 
 .GoliathArticleListSelected.MuiPaper-root {
-  /*border: 1px solid grey;*/
   background-color: var(--card-selected-background-color);
 }
 

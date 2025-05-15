@@ -1,5 +1,5 @@
 import {FolderCls, FolderId, FolderView} from "./folder";
-import {FeedId, FeedView} from "./feed";
+import {FaviconCls, FeedId, FeedView} from "./feed";
 import {
   ArticleSelection,
   FeedSelection,
@@ -14,10 +14,12 @@ import {ArticleCls, ArticleId, ArticleView,} from "./article";
 export class ContentTreeCls {
   private tree: Map<FolderId, FolderCls>;
   private unread_count: number;
+  private folderFeedView: Map<FolderView, FeedView[]>;
 
   private constructor() {
     this.tree = new Map<FolderId, FolderCls>();
     this.unread_count = 0;
+    this.folderFeedView = new Map<FolderView, FeedView[]>();
   }
 
   public AddFolder(folder: FolderCls): void {
@@ -101,7 +103,7 @@ export class ContentTreeCls {
       break;
     case SelectionType.All:
       this.tree.forEach((f: FolderCls): void => {
-        articleViews = articleViews.concat(f.GetArticleView());
+        articleViews.push(...f.GetArticleView());
       });
       break;
     case SelectionType.Saved:
@@ -114,11 +116,21 @@ export class ContentTreeCls {
   }
 
   public GetFolderFeedView(): Map<FolderView, FeedView[]> {
-    const view: Map<FolderView, FeedView[]> = new Map();
     this.tree.forEach((f: FolderCls): void => {
-      view.set(...f.GetFolderFeedView());
+      this.folderFeedView.set(...f.GetFolderFeedView());
     });
-    return view;
+    return this.folderFeedView;
+  }
+
+  public GetFaviconMap(): Map<FeedId, FaviconCls> {
+    const faviconMap: Map<FeedId, FaviconCls> = new Map();
+    this.tree.forEach((f: FolderCls): void => {
+      const folderFavicons = f.GetFavicons();
+      folderFavicons.forEach((favicon: FaviconCls, feedId: FeedId): void => {
+        faviconMap.set(feedId, favicon);
+      });
+    });
+    return faviconMap;
   }
 
   private getFolderOrThrow(folderId: FolderId): FolderCls {

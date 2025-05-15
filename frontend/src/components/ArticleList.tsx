@@ -25,6 +25,7 @@ import ExpandLessTwoToneIcon from "@mui/icons-material/ExpandLessTwoTone";
 import ExpandMoreTwoToneIcon from "@mui/icons-material/ExpandMoreTwoTone";
 import CheckCircleOutlineTwoToneIcon
   from '@mui/icons-material/CheckCircleOutlineTwoTone';
+import {FaviconCls, FeedId} from "../models/feed";
 
 const goToAllSequence = ['g', 'a'];
 const markAllReadSequence = ['Shift', 'I'];
@@ -32,6 +33,7 @@ const keyBufLength = 2;
 
 export interface ArticleListProps {
   articleEntriesCls: ArticleView[];
+  faviconMap: Map<FeedId, FaviconCls>;
   selectionKey: SelectionKey;
   selectionType: SelectionType;
   selectAllCallback: () => void;
@@ -49,6 +51,7 @@ interface ArticleListState {
 
 const ArticleList: React.FC<ArticleListProps> = ({
   articleEntriesCls,
+  faviconMap,
   selectionKey,
   selectionType,
   selectAllCallback,
@@ -81,6 +84,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       let scrollIndex = prevState.scrollIndex;
       let articleEntries = Array.from(prevState.articleEntries);
       const articleView: ArticleView = prevState.articleEntries[scrollIndex];
+      let shouldMarkRead: boolean = false;
 
       // Add new keypress to buffer, dropping the oldest entry.
       let keypressBuffer = [...prevState.keypressBuffer.slice(1), event.key];
@@ -106,7 +110,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
           event.preventDefault(); // fallthrough
         case 'j':
           scrollIndex = Math.min(
-            prevState.scrollIndex + 1, state.articleEntries.length - 1);
+            prevState.scrollIndex + 1, prevState.articleEntries.length - 1);
+          shouldMarkRead = true;
           break;
         case 'ArrowUp':
           event.preventDefault(); // fallthrough
@@ -119,11 +124,16 @@ const ArticleList: React.FC<ArticleListProps> = ({
         case 'v':
           // If trying to open an article before any articles are selected,
           // treat it like a scroll to the first article.
-          if (scrollIndex === -1) {
+          if (
+            prevState.scrollIndex === -1 &&
+            prevState.articleEntries.length > 0) {
             scrollIndex = 0;
           }
 
-          window.open(articleView.url, '_blank');
+          if (articleView) {
+            window.open(articleView.url, '_blank');
+            shouldMarkRead = true;
+          }
           break;
         default:
           // No known key pressed, just ignore.
@@ -131,13 +141,17 @@ const ArticleList: React.FC<ArticleListProps> = ({
         }
       }
 
-      if (!(articleView.isRead)) {
+      if (articleView && !articleView.isRead && shouldMarkRead) {
         handleMark(
           MarkState.Read,
           [articleView.id, articleView.feedId, articleView.folderId],
           SelectionType.Article);
         // Immutably change the article read status
-        articleEntries[prevState.scrollIndex] = {...articleView, isRead: true}
+        if (
+          prevState.scrollIndex >= 0 &&
+          prevState.scrollIndex < articleEntries.length) {
+          articleEntries[prevState.scrollIndex] = {...articleView, isRead: true}
+        }
       }
 
       return {
@@ -151,8 +165,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     });
   }, [
     selectAllCallback, handleMark, selectionKey, selectionType,
-    state.articleEntries, state.showPreviews, state.smoothScroll,
-    state.scrollIndex, state.keypressBuffer,
+    state.articleEntries,
   ]);
 
   const generateImagePreview = useCallback(async (article: ArticleView) => {
@@ -207,54 +220,61 @@ const ArticleList: React.FC<ArticleListProps> = ({
       }
     })
 
-    if (height > 0) {
-      const crop = await fetch(src)
-        .then((f) => f.blob())
-        .then(createImageBitmap)
-        .then((i) => smartcrop.crop(i, {
-          minScale: 0.001,
-          height: minPixelSize,
-          width: minPixelSize,
-          ruleOfThirds: false
-        }))
-        .catch(() => {
-          /* Ignore errors */
-        });
-
-      let imgPreview: ArticleImagePreview;
-
-      if (crop) {
-        imgPreview = {
-          src: src,
-          x: crop.topCrop.x,
-          y: crop.topCrop.y,
-          origWidth: width,
-          width: crop.topCrop.width,
-          height: crop.topCrop.height,
-        }
-      } else {
-        // Finding a good crop didn't work, so just show the original image
-        // This will be scaled appropriately when shown.
-        imgPreview = {
-          src: src,
-          x: 0,
-          y: 0,
-          origWidth: width,
-          width: width,
-          height: height,
-        }
-      }
-
-      setState((prevState) => {
-        prevState.articleImagePreviews.set(article.id, imgPreview);
-        inflightPreview.current.delete(article.id)
-        return {
-          ...prevState,
-          articleImagePreviews: prevState.articleImagePreviews
-        };
-      });
+    // Returned image was invalid, so just mark it complete.
+    if (height <= 0) {
+      inflightPreview.current.delete(article.id);
+      return;
     }
-  }, [state.articleImagePreviews, inflightPreview, state.articleEntries]);
+
+    const crop = await fetch(src)
+      .then((f) => f.blob())
+      .then(createImageBitmap)
+      .then((i) => smartcrop.crop(i, {
+        minScale: 0.001,
+        height: minPixelSize,
+        width: minPixelSize,
+        ruleOfThirds: false
+      }))
+      .catch(() => {
+        /* Ignore errors */
+      });
+
+    let imgPreview: ArticleImagePreview;
+
+    if (crop) {
+      imgPreview = {
+        src: src,
+        x: crop.topCrop.x,
+        y: crop.topCrop.y,
+        origWidth: width,
+        width: crop.topCrop.width,
+        height: crop.topCrop.height,
+      }
+    } else {
+      // Finding a good crop didn't work, so just show the original image
+      // This will be scaled appropriately when shown.
+      imgPreview = {
+        src: src,
+        x: 0,
+        y: 0,
+        origWidth: width,
+        width: width,
+        height: height,
+      }
+    }
+
+    setState((prevState) => {
+      const imagePreviews = prevState.articleImagePreviews;
+      imagePreviews.set(article.id, imgPreview);
+      inflightPreview.current.delete(article.id)
+
+      return {
+        ...prevState,
+        articleImagePreviews: imagePreviews
+      };
+    });
+
+  }, [state.articleImagePreviews, inflightPreview]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -320,6 +340,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     return <ArticleListEntry
       key={articleView.id}
       articleView={articleView}
+      favicon={faviconMap.get(articleView.feedId)}
       preview={state.articleImagePreviews.get(articleView.id)}
       selected={index === state.scrollIndex}
     />;
@@ -409,7 +430,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
               key={articleView.id}
               article={articleView}
               title={articleView.feedTitle}
-              favicon={articleView.favicon}
+              favicon={faviconMap.get(articleView.feedId)}
               isSelected={true}
             />
           </Grid>

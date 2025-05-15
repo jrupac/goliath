@@ -11,11 +11,12 @@ import BookmarkTwoToneIcon from '@mui/icons-material/BookmarkTwoTone';
 import {ArticleView} from "../models/article";
 import CheckCircleOutlineTwoToneIcon
   from "@mui/icons-material/CheckCircleOutlineTwoTone";
+import {FaviconCls} from "../models/feed";
 
 export interface ArticleProps {
   article: ArticleView;
   title: string;
-  favicon: string;
+  favicon: FaviconCls | undefined;
   isSelected: boolean;
 }
 
@@ -102,8 +103,8 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
   }
 
   const renderFavicon = (): ReactNode => {
-    const favicon = props.favicon;
-    if (!favicon) {
+    const favicon: string | undefined = props.favicon?.GetFavicon();
+    if (!favicon || favicon === "") {
       return <RssFeedOutlinedIcon fontSize="small"/>;
     } else {
       return <img src={`data:${favicon}`} height={16} width={16} alt=""/>;

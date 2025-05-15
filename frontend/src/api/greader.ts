@@ -368,6 +368,7 @@ export default class GReader implements FetchAPI {
                 (article: ArticleCls) => feed.AddArticle(article));
             }
             folder.AddFeed(feed);
+            feed.SetFolderId(folderId);
           }
         );
         treeCls.AddFolder(folder);

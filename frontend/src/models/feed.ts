@@ -36,20 +36,30 @@ export class FeedCls {
   private readonly url: string;
   private readonly site_url: string;
   private readonly last_updated_on_time: number;
+  private readonly feedView: FeedView;
   private unread_count: number;
-  private favicon: FaviconCls | null;
+  private favicon: FaviconCls;
   private articles: Map<ArticleId, ArticleCls>;
+  private folderId: FolderId;
 
   constructor(id: FeedId, title: FeedTitle, url: string,
     site_url: string, last_updated_on_time: number) {
     this.id = id;
-    this.favicon = null;
+    this.favicon = new FaviconCls(undefined);
     this.title = title;
     this.url = url;
     this.site_url = site_url;
     this.last_updated_on_time = last_updated_on_time;
     this.unread_count = 0;
     this.articles = new Map<ArticleId, ArticleCls>();
+    this.folderId = '';
+    this.feedView = {
+      id: this.id,
+      folder_id: this.folderId,
+      favicon: this.favicon,
+      title: this.title,
+      unread_count: this.unread_count,
+    };
   }
 
   public Title(): FeedTitle {
@@ -60,18 +70,29 @@ export class FeedCls {
     return this.id;
   }
 
+  public SetFolderId(id: FolderId) {
+    this.folderId = id;
+    this.feedView.folder_id = id;
+  }
+
   public UnreadCount(): number {
     return this.unread_count;
   }
 
   public SetFavicon(favicon: FaviconCls): void {
     this.favicon = favicon;
+    this.feedView.favicon = favicon;
+  }
+
+  public GetFavicon(): FaviconCls {
+    return this.favicon;
   }
 
   public AddArticle(article: ArticleCls): void {
     this.articles.set(article.Id(), article);
     this.sort();
     this.unread_count += (article.IsRead() ? 0 : 1);
+    this.feedView.unread_count = this.unread_count;
   }
 
   public MarkArticle(articleId: ArticleId, markState: MarkState): number {
@@ -79,6 +100,7 @@ export class FeedCls {
     this.unread_count -= (article.IsRead() ? 0 : 1);
     article.MarkArticle(markState);
     this.unread_count += (article.IsRead() ? 0 : 1);
+    this.feedView.unread_count = this.unread_count;
     return this.unread_count;
   }
 
@@ -91,33 +113,25 @@ export class FeedCls {
     });
 
     this.unread_count = unread;
+    this.feedView.unread_count = this.unread_count;
     return this.unread_count;
   }
 
   public GetArticleView(folderId: FolderId, articleId?: ArticleId): ArticleView[] {
-    const favicon: Favicon = (this.favicon ===
-      null) ? "" : this.favicon.GetFavicon();
-
     if (typeof articleId !== 'undefined') {
       const article: ArticleCls = this.getArticleOrThrow(articleId);
-      return [article.GetArticleView(this.title, favicon, this.id, folderId)];
+      return [article.GetArticleView(this.title, this.id, folderId)];
     }
 
     const entries: ArticleView[] = [];
     this.articles.forEach((a: ArticleCls): void => {
-      entries.push(a.GetArticleView(this.title, favicon, this.id, folderId));
+      entries.push(a.GetArticleView(this.title, this.id, folderId));
     });
     return entries;
   }
 
-  public GetFolderFeedView(folderId: FolderId): FeedView {
-    return {
-      id: this.id,
-      folder_id: folderId,
-      favicon: this.favicon,
-      title: this.title,
-      unread_count: this.unread_count,
-    };
+  public GetFolderFeedView(): FeedView {
+    return this.feedView;
   }
 
   public static Comparator(a: FeedCls, b: FeedCls): number {

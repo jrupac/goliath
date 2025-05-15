@@ -1,46 +1,39 @@
-import React, {memo, useEffect, useState} from "react";
+import React, {memo, useMemo} from "react";
 import {ArticleImagePreview} from "../utils/types";
 import {Avatar, Chip, Grid, Paper, Typography} from "@mui/material";
 import {extractText, formatFriendly} from "../utils/helpers";
 import RssFeedIcon from "@mui/icons-material/RssFeed";
 import {ArticleView} from "../models/article";
+import {FaviconCls} from "../models/feed";
 
 export interface ArticleListEntryProps {
   articleView: ArticleView;
+  favicon: FaviconCls | undefined;
   preview: ArticleImagePreview | undefined;
   selected: boolean;
 }
 
-interface ArticleListEntryState {
-  extractedTitle: string;
-  extractedContent: string;
-}
-
 const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
   function ArticleListEntry(
-    {articleView, preview, selected,}: ArticleListEntryProps) {
-    const [state, setState] = useState<ArticleListEntryState>({
-      extractedTitle: extractText(articleView.title) || "",
-      extractedContent: extractText(articleView.html) || "",
-    });
-
-    useEffect(() => {
-      setState({
-        extractedTitle: extractText(articleView.title) || "",
-        extractedContent: extractText(articleView.html) || "",
-      });
-    }, [articleView]);
+    {articleView, favicon, preview, selected,}: ArticleListEntryProps) {
+    const extractedTitle: string = useMemo(() => {
+      return extractText(articleView.title) || "";
+    }, [articleView.title]);
+    const extractedContent: string = useMemo(() => {
+      return extractText(articleView.html) || "";
+    }, [articleView.html]);
 
     const renderMeta = () => {
-      const extractedTitle = state.extractedTitle;
       const date = new Date(articleView.creationTime * 1000);
-      if (articleView.favicon) {
+      if (favicon && favicon.GetFavicon()) {
         return (
           <Chip
             size="small"
             className="GoliathArticleListMetaChip"
             avatar={
-              <Avatar src={`data:${articleView.favicon}`} alt={extractedTitle}/>
+              <Avatar
+                src={`data:${favicon.GetFavicon()}`}
+                alt={extractedTitle}/>
             }
             label={formatFriendly(date)}
           />
@@ -97,7 +90,7 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
         <Grid container direction="column" className="GoliathArticleListGrid">
           <Grid zeroMinWidth item className="GoliathArticleListTitleGrid">
             <Typography noWrap className="GoliathArticleListTitleType">
-              {state.extractedTitle}
+              {extractedTitle}
             </Typography>
           </Grid>
           <Grid zeroMinWidth item xs>
@@ -111,7 +104,7 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
               item zeroMinWidth xs
               className="GoliathArticleContentPreviewGrid">
               <Typography className="GoliathArticleContentPreview">
-                {state.extractedContent}
+                {extractedContent}
               </Typography>
             </Grid>
           </Grid>
