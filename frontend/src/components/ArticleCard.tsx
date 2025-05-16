@@ -1,5 +1,5 @@
 import React, {ReactNode, useEffect, useState} from "react";
-import {Box, Card, CardHeader, Skeleton, Tooltip} from "@mui/material";
+import {Box, Card, CardHeader, Skeleton, Stack, Tooltip} from "@mui/material";
 import {
   fetchReadability,
   formatFriendly,
@@ -134,7 +134,7 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
   };
 
   return (
-    <Box>
+    <Stack className="GoliathArticleCardColumn">
       <Box className="GoliathSplitViewArticleCardActionBar">
         <Box className="GoliathArticleFeed">
           {renderFavicon()}
@@ -188,7 +188,7 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
           {renderContent()}
         </div>
       </Box>
-    </Box>
+    </Stack>
   );
 };
 

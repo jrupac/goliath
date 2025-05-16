@@ -280,6 +280,7 @@
 }
 
 .GoliathArticleListColumn {
+  height: 100vh;
   width: 30vw;
 }
 
@@ -381,6 +382,10 @@
 /******************************************************************************
  * Article
  ******************************************************************************/
+
+.GoliathArticleCardColumn {
+  height: 100vh;
+}
 
 .GoliathArticleOuter {
 }
