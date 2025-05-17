@@ -97,6 +97,25 @@
  * Sidebar
  ******************************************************************************/
 
+.GoliathDrawer {
+  width: 10vw;
+  flex-basis: 300px;
+  font-family: var(--primary-sans-serif-font), sans-serif;
+
+}
+
+.GoliathDrawer .MuiDrawer-paper {
+  width: inherit;
+  box-sizing: border-box;
+  background-color: var(--primary-background-color);
+  color: var(--primary-font-color);
+  border-right: 1px solid var(--action-bar-border-color);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
 .GoliathDrawerActionBar {
   display: flex;
   flex-direction: row;
@@ -115,21 +134,6 @@
   font-size: 48px;
   padding-top: 24px;
   padding-bottom: 20px;
-}
-
-.GoliathDrawer {
-  width: 10vw;
-  flex-basis: 300px;
-  font-family: var(--primary-sans-serif-font), sans-serif;
-}
-
-.GoliathDrawer .MuiDrawer-paper {
-  width: inherit;
-  box-sizing: border-box;
-  background-color: var(--primary-background-color);
-  color: var(--primary-font-color);
-  border-right: 1px solid var(--action-bar-border-color);
-  overflow: hidden;
 }
 
 .GoliathStreamSelector.MuiBox-root,
@@ -159,7 +163,6 @@
 .GoliathFolderFeedList {
   overflow-y: scroll;
   scrollbar-width: thin;
-  height: 100vh;
 }
 
 .GoliathFolderFeedList.MuiTreeView-root {

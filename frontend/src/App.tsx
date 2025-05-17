@@ -211,14 +211,12 @@ export default class App extends React.Component<AppProps, AppState> {
               className="GoliathLogo">
               Goliath
             </Box>
-            <Box>
-              <FolderFeedList
-                folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
-                unreadCount={unreadCount}
-                selectedKey={selectionKey}
-                selectionType={selectionType}
-                handleSelect={this.handleSelect}/>
-            </Box>
+            <FolderFeedList
+              folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
+              unreadCount={unreadCount}
+              selectedKey={selectionKey}
+              selectionType={selectionType}
+              handleSelect={this.handleSelect}/>
             <Divider variant="middle"/>
             <Box className="GoliathFooter">
               Goliath RSS

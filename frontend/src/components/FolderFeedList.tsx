@@ -146,7 +146,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   }
 
   return (
-    <Box>
+    <>
       <Box
         onClick={() => handleNodeSelect(null, KeyAll)}
         className={allSelectedClass}>
@@ -185,7 +185,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
               </TreeItem>))
         }
       </TreeView>
-    </Box>
+    </>
   );
 };
 
