@@ -43,9 +43,7 @@ export interface ArticleListProps {
 interface ArticleListState {
   articleEntries: ArticleView[];
   articleImagePreviews: LRUCache<ArticleId, ArticleImagePreview>;
-  showPreviews: boolean;
   scrollIndex: number;
-  smoothScroll: boolean;
   keypressBuffer: Array<string>;
 }
 
@@ -64,11 +62,12 @@ const ArticleList: React.FC<ArticleListProps> = ({
     articleImagePreviews: new LRUCache<ArticleId, ArticleImagePreview>({
       max: 100
     }),
-    showPreviews: false,
     scrollIndex: 0,
-    smoothScroll: true,
     keypressBuffer: new Array(keyBufLength),
   });
+  const [showPreviews, setShowPreviews] = useState<boolean>(false);
+  const [smoothScroll, setSmoothScroll] = useState<boolean>(true);
+
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     // Ignore keypress events when some modifiers are also enabled to avoid
@@ -79,8 +78,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
     }
 
     setState((prevState) => {
-      let showPreviews = prevState.showPreviews;
-      let smoothScroll = prevState.smoothScroll;
       let scrollIndex = prevState.scrollIndex;
       let articleEntries = Array.from(prevState.articleEntries);
       const articleView: ArticleView = prevState.articleEntries[scrollIndex];
@@ -104,7 +101,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       } else {
         switch (event.key) {
         case 'f':
-          smoothScroll = !smoothScroll;
+          setSmoothScroll(smoothScroll => !smoothScroll);
           break;
         case 'ArrowDown':
           event.preventDefault(); // fallthrough
@@ -119,7 +116,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
           scrollIndex = Math.max(prevState.scrollIndex - 1, 0);
           break;
         case 'p':
-          showPreviews = !showPreviews;
+          setShowPreviews(showPreviews => !showPreviews);
           break;
         case 'v':
           // If trying to open an article before any articles are selected,
@@ -156,8 +153,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
       return {
         ...prevState,
-        showPreviews: showPreviews,
-        smoothScroll: smoothScroll,
         scrollIndex: scrollIndex,
         articleEntries: articleEntries,
         keypressBuffer: keypressBuffer,
@@ -397,21 +392,24 @@ const ArticleList: React.FC<ArticleListProps> = ({
       return <></>;
     }
 
-    if (state.showPreviews) {
+    if (showPreviews) {
       generateImagePreview(articleView).then();
     }
+
+    const preview = showPreviews ?
+      state.articleImagePreviews.get(articleView.id) : undefined;
 
     return <ArticleListEntry
       key={articleView.id}
       articleView={articleView}
       favicon={faviconMap.get(articleView.feedId)}
-      preview={state.articleImagePreviews.get(articleView.id)}
+      preview={preview}
       selected={index === state.scrollIndex}
     />;
   }, [
     state.articleEntries,
     state.scrollIndex, state.articleImagePreviews,
-    state.showPreviews, generateImagePreview, faviconMap
+    showPreviews, generateImagePreview, faviconMap
   ]);
 
   const handleMounted = useCallback((list: ReactList) => {
@@ -427,7 +425,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
       // The scrolling container is not trivial to figure out, but `react-list`
       // has already done the work to figure it out, so use it directly.
-      if (state.smoothScroll) {
+      if (smoothScroll) {
         animateScroll.scrollTo(scrollPos, {
           // @ts-ignore
           container: listRef.current.scrollParent,
@@ -443,7 +441,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
         });
       }
     }
-  }, [state.scrollIndex, state.smoothScroll, listRef]);
+  }, [state.scrollIndex, smoothScroll, listRef]);
 
   if (state.articleEntries.length === 0) {
     return (
