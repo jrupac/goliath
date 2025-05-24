@@ -42,7 +42,6 @@ export interface ArticleListProps {
 
 interface ArticleListState {
   articleEntries: ArticleView[];
-  articleImagePreviews: LRUCache<ArticleId, ArticleImagePreview>;
   scrollIndex: number;
   keypressBuffer: Array<string>;
 }
@@ -59,15 +58,26 @@ const ArticleList: React.FC<ArticleListProps> = ({
   const inflightPreview = useRef<Set<ArticleId>>(new Set<ArticleId>());
   const [state, setState] = useState<ArticleListState>({
     articleEntries: articleEntriesCls,
-    articleImagePreviews: new LRUCache<ArticleId, ArticleImagePreview>({
-      max: 100
-    }),
     scrollIndex: 0,
     keypressBuffer: new Array(keyBufLength),
   });
   const [showPreviews, setShowPreviews] = useState<boolean>(false);
   const [smoothScroll, setSmoothScroll] = useState<boolean>(true);
 
+  const [articleImagePreviews, setArticleImagePreviews] = useState<
+    LRUCache<ArticleId, ArticleImagePreview>>(
+    new LRUCache<ArticleId, ArticleImagePreview>({max: 100}));
+  const handleAddImagePreview = useCallback((k: ArticleId, v: ArticleImagePreview) => {
+    setArticleImagePreviews((prevCache) => {
+      const newCache = new LRUCache<ArticleId, ArticleImagePreview>(
+        {max: prevCache.max});
+      for (const [ok, ov] of prevCache.entries()) {
+        newCache.set(ok, ov);
+      }
+      newCache.set(k, v);
+      return newCache;
+    });
+  }, []);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     // Ignore keypress events when some modifiers are also enabled to avoid
@@ -165,7 +175,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
   const generateImagePreview = useCallback(async (article: ArticleView) => {
     // Already generated preview for this article, so nothing to do.
-    if (state.articleImagePreviews.has(article.id)) {
+    if (articleImagePreviews.has(article.id)) {
       return;
     }
 
@@ -262,18 +272,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
       }
     }
 
-    setState((prevState) => {
-      const imagePreviews = prevState.articleImagePreviews;
-      imagePreviews.set(article.id, imgPreview);
-      inflightPreview.current.delete(article.id)
+    handleAddImagePreview(article.id, imgPreview);
 
-      return {
-        ...prevState,
-        articleImagePreviews: imagePreviews
-      };
-    });
-
-  }, [state.articleImagePreviews, inflightPreview]);
+  }, [articleImagePreviews, inflightPreview]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -397,7 +398,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     }
 
     const preview = showPreviews ?
-      state.articleImagePreviews.get(articleView.id) : undefined;
+      articleImagePreviews.get(articleView.id) : undefined;
 
     return <ArticleListEntry
       key={articleView.id}
@@ -408,7 +409,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     />;
   }, [
     state.articleEntries,
-    state.scrollIndex, state.articleImagePreviews,
+    state.scrollIndex, articleImagePreviews,
     showPreviews, generateImagePreview, faviconMap
   ]);
 
