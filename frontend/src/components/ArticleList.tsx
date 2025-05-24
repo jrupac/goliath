@@ -186,6 +186,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       .parseFromString(article.html, "text/html").images;
 
     if (images === undefined) {
+      inflightPreview.current.delete(article.id); // Ensure inflight is cleared
       return;
     }
 
@@ -198,10 +199,12 @@ const ArticleList: React.FC<ArticleListProps> = ({
         img.decode().then(() => {
           if (img.height >= minPixelSize && img.width >= minPixelSize) {
             resolve([img.height, img.width, img.src]);
+          } else {
+            reject();
           }
-          reject();
         }).catch(() => {
           /* Ignore errors */
+          reject();
         });
       }));
     }
@@ -237,6 +240,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       }))
       .catch(() => {
         /* Ignore errors */
+        return null;
       });
 
     let imgPreview: ArticleImagePreview;
@@ -283,6 +287,66 @@ const ArticleList: React.FC<ArticleListProps> = ({
     };
   }, [handleKeyDown]);
 
+  const mergeArticleLists = useCallback(
+    (scrollIndex: number, oldList: ArticleView[], newList: ArticleView[]): [number, ArticleView[]] => {
+      const anchorArticleId: ArticleId = oldList[scrollIndex]?.id;
+      const propArticles: ArticleView[] = newList;
+
+      const propArticleIds = new Set(
+        propArticles.map((a: ArticleView): ArticleId => a.id));
+      // Keep articles that are marked read and don't appear in the new list
+      const locallyReadToKeep: ArticleView[] = oldList.filter(
+        (localArticle: ArticleView): boolean => localArticle.isRead &&
+          !propArticleIds.has(localArticle.id)
+      );
+
+      const mergedArticles: ArticleView[] = [];
+      let propPtr: number = 0;
+      let localReadPtr: number = 0;
+
+      while (propPtr < propArticles.length &&
+      localReadPtr < locallyReadToKeep.length) {
+        // Compare by creationTime (higher is newer, so comes first in descending sort)
+        if (propArticles[propPtr].creationTime >=
+          locallyReadToKeep[localReadPtr].creationTime) {
+          mergedArticles.push(propArticles[propPtr++]);
+        } else {
+          mergedArticles.push(locallyReadToKeep[localReadPtr++]);
+        }
+      }
+      // Append any remaining articles from either list. Only one of these lists
+      // will be non-empty, so don't need to merge further.
+      while (propPtr < propArticles.length) {
+        mergedArticles.push(propArticles[propPtr++]);
+      }
+      while (localReadPtr < locallyReadToKeep.length) {
+        mergedArticles.push(locallyReadToKeep[localReadPtr++]);
+      }
+
+      let newScrollIndex: number = 0;
+
+      if (mergedArticles.length > 0) {
+        if (anchorArticleId) {
+          const newIndexOfAnchor: number = mergedArticles.findIndex(
+            (a: ArticleView): boolean => a.id === anchorArticleId);
+          if (newIndexOfAnchor !== -1) {
+            newScrollIndex = newIndexOfAnchor;
+          } else {
+            // Anchor article is no longer in the merged list (e.g., it was
+            // unread and removed by the parent). Just try to stay near the old
+            // numerical position, clamped to new list bounds.
+            newScrollIndex = Math.min(scrollIndex, mergedArticles.length - 1);
+          }
+        } else {
+          // No previous anchor. Scroll to the top of the new list.
+          newScrollIndex = 0;
+        }
+      }
+
+      return [newScrollIndex, mergedArticles];
+    }, []);
+
+
   const prevSelectionKey = useRef<SelectionKey>(selectionKey);
   const prevArticleEntriesCls = useRef<ArticleView[]>(articleEntriesCls);
 
@@ -309,20 +373,13 @@ const ArticleList: React.FC<ArticleListProps> = ({
       // the same. Use that list but also merge in recently read articles to
       // preserve scrollback history until the selection key changes.
       setState((prevState) => {
-        const prevArticles: ArticleView[] = prevState.articleEntries;
-        let newArticles: ArticleView[] = [...articleEntriesCls];
-        const newPropArticlesMap = new Map(
-          articleEntriesCls.map(a => [a.id, a]));
-
-        for (const prevArticle of prevArticles) {
-          if (prevArticle.isRead && !newPropArticlesMap.has(prevArticle.id)) {
-            // Re-add articles recently marked read
-            newArticles.push(prevArticle);
-          }
+        const [newScrollIndex, newArticles] = mergeArticleLists(
+          prevState.scrollIndex, prevState.articleEntries, articleEntriesCls);
+        return {
+          ...prevState,
+          scrollIndex: newScrollIndex,
+          articleEntries: newArticles
         }
-
-        newArticles.sort((a, b) => b.creationTime - a.creationTime);
-        return {...prevState, articleEntries: newArticles};
       });
     }
 
@@ -333,6 +390,13 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
   const renderArticleListEntry = useCallback((index: number): ReactElement => {
     const articleView: ArticleView = state.articleEntries[index];
+
+    // Defensive check, though ReactList should only call with valid indices
+    if (!articleView) {
+      // This should ideally not happen if the length is managed correctly
+      return <></>;
+    }
+
     if (state.showPreviews) {
       generateImagePreview(articleView).then();
     }
@@ -347,7 +411,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   }, [
     state.articleEntries,
     state.scrollIndex, state.articleImagePreviews,
-    state.showPreviews, generateImagePreview,
+    state.showPreviews, generateImagePreview, faviconMap
   ]);
 
   const handleMounted = useCallback((list: ReactList) => {
