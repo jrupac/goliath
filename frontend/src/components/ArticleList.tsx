@@ -18,7 +18,6 @@ import ArticleCard from "./ArticleCard";
 import ArticleListEntry from "./ArticleListEntry";
 import LRUCache from "lru-cache";
 import {DoneAllRounded} from "@mui/icons-material";
-import smartcrop from "smartcrop";
 
 import {ArticleId, ArticleView} from "../models/article";
 import ExpandLessTwoToneIcon from "@mui/icons-material/ExpandLessTwoTone";
@@ -26,6 +25,7 @@ import ExpandMoreTwoToneIcon from "@mui/icons-material/ExpandMoreTwoTone";
 import CheckCircleOutlineTwoToneIcon
   from '@mui/icons-material/CheckCircleOutlineTwoTone';
 import {FaviconCls, FeedId} from "../models/feed";
+import {getPreviewImage} from "../utils/helpers";
 
 const goToAllSequence = ['g', 'a'];
 const markAllReadSequence = ['Shift', 'I'];
@@ -54,8 +54,12 @@ const ArticleList: React.FC<ArticleListProps> = ({
   selectAllCallback,
   handleMark,
 }) => {
+
   const listRef = useRef<ReactList | null>(null);
-  const inflightPreview = useRef<Set<ArticleId>>(new Set<ArticleId>());
+  const inflightPreviewRef = useRef<Set<ArticleId>>(new Set<ArticleId>());
+  const selectionKeyRef = useRef<SelectionKey>(selectionKey);
+  const articleEntriesClsRef = useRef<ArticleView[]>(articleEntriesCls);
+
   const [state, setState] = useState<ArticleListState>({
     articleEntries: articleEntriesCls,
     scrollIndex: 0,
@@ -63,21 +67,22 @@ const ArticleList: React.FC<ArticleListProps> = ({
   });
   const [showPreviews, setShowPreviews] = useState<boolean>(false);
   const [smoothScroll, setSmoothScroll] = useState<boolean>(true);
-
   const [articleImagePreviews, setArticleImagePreviews] = useState<
     LRUCache<ArticleId, ArticleImagePreview>>(
     new LRUCache<ArticleId, ArticleImagePreview>({max: 100}));
-  const handleAddImagePreview = useCallback((k: ArticleId, v: ArticleImagePreview) => {
-    setArticleImagePreviews((prevCache) => {
-      const newCache = new LRUCache<ArticleId, ArticleImagePreview>(
-        {max: prevCache.max});
-      for (const [ok, ov] of prevCache.entries()) {
-        newCache.set(ok, ov);
-      }
-      newCache.set(k, v);
-      return newCache;
-    });
-  }, []);
+
+  const handleAddImagePreview = useCallback(
+    (k: ArticleId, v: ArticleImagePreview) => {
+      setArticleImagePreviews((prevCache) => {
+        const newCache = new LRUCache<ArticleId, ArticleImagePreview>(
+          {max: prevCache.max});
+        for (const [ok, ov] of prevCache.entries()) {
+          newCache.set(ok, ov);
+        }
+        newCache.set(k, v);
+        return newCache;
+      });
+    }, []);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     // Ignore keypress events when some modifiers are also enabled to avoid
@@ -173,109 +178,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
     state.articleEntries,
   ]);
 
-  const generateImagePreview = useCallback(async (article: ArticleView) => {
-    // Already generated preview for this article, so nothing to do.
-    if (articleImagePreviews.has(article.id)) {
-      return;
-    }
-
-    // There's already an inflight request for this article, so nothing to do.
-    if (inflightPreview.current.has(article.id)) {
-      return;
-    }
-    inflightPreview.current.add(article.id);
-
-    const minPixelSize = 100, imgFetchLimit = 5;
-    const p: Promise<any>[] = [];
-    const images = new DOMParser()
-      .parseFromString(article.html, "text/html").images;
-
-    if (images === undefined) {
-      inflightPreview.current.delete(article.id); // Ensure inflight is cleared
-      return;
-    }
-
-    let limit = Math.min(imgFetchLimit, images.length)
-    for (let j = 0; j < limit; j++) {
-      const img = new Image();
-      img.src = images[j].src;
-
-      p.push(new Promise((resolve, reject) => {
-        img.decode().then(() => {
-          if (img.height >= minPixelSize && img.width >= minPixelSize) {
-            resolve([img.height, img.width, img.src]);
-          } else {
-            reject();
-          }
-        }).catch(() => {
-          /* Ignore errors */
-          reject();
-        });
-      }));
-    }
-
-    const results = await Promise.allSettled(p);
-    let height = 0, width = 0, src = "";
-
-    results.forEach((result) => {
-      if (result.status === 'fulfilled') {
-        const [imgHeight, imgWidth, imgSrc] = result.value;
-        if (imgHeight > height) {
-          height = imgHeight;
-          width = imgWidth;
-          src = imgSrc;
-        }
-      }
-    })
-
-    // Returned image was invalid, so just mark it complete.
-    if (height <= 0) {
-      inflightPreview.current.delete(article.id);
-      return;
-    }
-
-    const crop = await fetch(src)
-      .then((f) => f.blob())
-      .then(createImageBitmap)
-      .then((i) => smartcrop.crop(i, {
-        minScale: 0.001,
-        height: minPixelSize,
-        width: minPixelSize,
-        ruleOfThirds: false
-      }))
-      .catch(() => {
-        /* Ignore errors */
-        return null;
-      });
-
-    let imgPreview: ArticleImagePreview;
-
-    if (crop) {
-      imgPreview = {
-        src: src,
-        x: crop.topCrop.x,
-        y: crop.topCrop.y,
-        origWidth: width,
-        width: crop.topCrop.width,
-        height: crop.topCrop.height,
-      }
-    } else {
-      // Finding a good crop didn't work, so just show the original image
-      // This will be scaled appropriately when shown.
-      imgPreview = {
-        src: src,
-        x: 0,
-        y: 0,
-        origWidth: width,
-        width: width,
-        height: height,
-      }
-    }
-
-    handleAddImagePreview(article.id, imgPreview);
-
-  }, [articleImagePreviews, inflightPreview]);
-
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => {
@@ -283,8 +185,30 @@ const ArticleList: React.FC<ArticleListProps> = ({
     };
   }, [handleKeyDown]);
 
+  const generateImagePreview = useCallback(async (article: ArticleView) => {
+    // Already generated preview for this article, so nothing to do.
+    if (articleImagePreviews.has(article.id)) {
+      return;
+    }
+
+    // There's already an inflight request for this article, so nothing to do.
+    if (inflightPreviewRef.current.has(article.id)) {
+      return;
+    }
+
+    inflightPreviewRef.current.add(article.id);
+    const imgPreview = await getPreviewImage(article);
+    inflightPreviewRef.current.delete(article.id);
+
+    if (imgPreview) {
+      handleAddImagePreview(article.id, imgPreview);
+    }
+  }, [articleImagePreviews, inflightPreviewRef]);
+
+
   const mergeArticleLists = useCallback(
-    (scrollIndex: number, oldList: ArticleView[], newList: ArticleView[]): [number, ArticleView[]] => {
+    (scrollIndex: number, oldList: ArticleView[], newList: ArticleView[]):
+    [number, ArticleView[]] => {
       const anchorArticleId: ArticleId = oldList[scrollIndex]?.id;
       const propArticles: ArticleView[] = newList;
 
@@ -302,7 +226,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
       while (propPtr < propArticles.length &&
       localReadPtr < locallyReadToKeep.length) {
-        // Compare by creationTime (higher is newer, so comes first in descending sort)
         if (propArticles[propPtr].creationTime >=
           locallyReadToKeep[localReadPtr].creationTime) {
           mergedArticles.push(propArticles[propPtr++]);
@@ -342,12 +265,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
       return [newScrollIndex, mergedArticles];
     }, []);
 
-
-  const prevSelectionKey = useRef<SelectionKey>(selectionKey);
-  const prevArticleEntriesCls = useRef<ArticleView[]>(articleEntriesCls);
-
   useEffect(() => {
-    if (selectionKey !== prevSelectionKey.current) {
+    if (selectionKey !== selectionKeyRef.current) {
       console.log("Selection key changed: " + selectionKey)
 
       // The selection key has changed, so reset everything
@@ -362,7 +281,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
         scrollIndex: 0,
         keypressBuffer: new Array(keyBufLength)
       }));
-    } else if (articleEntriesCls !== prevArticleEntriesCls.current) {
+    } else if (articleEntriesCls !== articleEntriesClsRef.current) {
       console.log("Article entries changed")
 
       // The parent list of articles has changed despite the selection key being
@@ -380,8 +299,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
     }
 
     // Update refs
-    prevSelectionKey.current = selectionKey;
-    prevArticleEntriesCls.current = articleEntriesCls;
+    selectionKeyRef.current = selectionKey;
+    articleEntriesClsRef.current = articleEntriesCls;
   }, [selectionKey, articleEntriesCls]);
 
   const renderArticleListEntry = useCallback((index: number): ReactElement => {
