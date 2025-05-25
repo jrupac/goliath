@@ -18,6 +18,7 @@ export interface ArticleProps {
   title: string;
   favicon: FaviconCls | undefined;
   isSelected: boolean;
+  onMarkArticleRead: () => void;
 }
 
 interface ArticleState {
@@ -142,7 +143,8 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
         </Box>
         <Box className="GoliathHeaderActionButtons">
           <BookmarkTwoToneIcon/>
-          <CheckCircleOutlineTwoToneIcon/>
+          <CheckCircleOutlineTwoToneIcon
+            onClick={() => props.onMarkArticleRead()}/>
         </Box>
       </Box>
       <Box className="GoliathSplitViewArticleContainer">

@@ -428,10 +428,13 @@ const ArticleList: React.FC<ArticleListProps> = ({
         <Grid container wrap="nowrap">
           <Stack className="GoliathArticleListColumn">
             <Box className="GoliathSplitViewArticleListActionBar">
-              <CheckCircleOutlineTwoToneIcon/>
+              <CheckCircleOutlineTwoToneIcon
+                onClick={() => handleMarkAllRead()}/>
               <div className="GoliathActionBarSpacer"></div>
-              <ExpandLessTwoToneIcon/>
-              <ExpandMoreTwoToneIcon/>
+              <ExpandLessTwoToneIcon
+                onClick={() => handleScrollUp()}/>
+              <ExpandMoreTwoToneIcon
+                onClick={() => handleScrollDown()}/>
             </Box>
             <Box className="GoliathSplitViewArticleListBox">
               <ReactList
@@ -451,6 +454,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
               title={articleView.feedTitle}
               favicon={faviconMap.get(articleView.feedId)}
               isSelected={true}
+              onMarkArticleRead={() => handleMarkArticleRead(renderIndex)}
             />
           </Grid>
         </Grid>
