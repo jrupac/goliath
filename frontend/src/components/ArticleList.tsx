@@ -67,8 +67,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   });
   const [showPreviews, setShowPreviews] = useState<boolean>(false);
   const [smoothScroll, setSmoothScroll] = useState<boolean>(true);
-  const [articleImagePreviews, setArticleImagePreviews] = useState<
-    LRUCache<ArticleId, ArticleImagePreview>>(
+  const [articleImagePreviews, setArticleImagePreviews] = useState<LRUCache<ArticleId, ArticleImagePreview>>(
     new LRUCache<ArticleId, ArticleImagePreview>({max: 100}));
 
   const handleAddImagePreview = useCallback(
@@ -84,6 +83,89 @@ const ArticleList: React.FC<ArticleListProps> = ({
       });
     }, []);
 
+  const handleMarkAllRead = useCallback(() => {
+    setState((prevState) => {
+      handleMark(MarkState.Read, selectionKey, selectionType);
+
+      // Immutably mark all articles read
+      const articleEntries = prevState.articleEntries.map(
+        (e: ArticleView): ArticleView => {
+          return {...e, isRead: true}
+        });
+      return {
+        ...prevState,
+        articleEntries: articleEntries,
+      };
+    });
+  }, [handleMark, selectionKey, selectionType])
+
+  const handleMarkArticleRead = useCallback((index: number) => {
+    setState((prevState) => {
+      let articleEntries = prevState.articleEntries;
+
+      if (index >= 0 && index <= prevState.articleEntries.length - 1) {
+        const articleView: ArticleView = prevState.articleEntries[index];
+        if (articleView && !articleView.isRead) {
+          handleMark(
+            MarkState.Read,
+            [articleView.id, articleView.feedId, articleView.folderId],
+            SelectionType.Article);
+
+          // Immutably change the article read status
+          articleEntries = Array.from(prevState.articleEntries);
+          articleEntries[index] = {...articleView, isRead: true}
+        }
+      }
+
+      return {
+        ...prevState,
+        articleEntries: articleEntries,
+      };
+    })
+  }, [handleMark])
+
+  const handleScrollTo = useCallback((index: number) => {
+    setState((prevState) => {
+      const newIndex = Math.max(0, Math.min(
+        index, prevState.articleEntries.length - 1));
+      return {
+        ...prevState,
+        scrollIndex: newIndex,
+      }
+    })
+  }, []);
+
+  const handleScrollUp = useCallback(() => {
+    handleScrollTo(state.scrollIndex - 1);
+  }, [state.scrollIndex]);
+
+  const handleScrollDown = useCallback(() => {
+    // If the previous scroll index pointed at a valid article, mark it read
+    handleMarkArticleRead(state.scrollIndex);
+    handleScrollTo(state.scrollIndex + 1);
+  }, [state.scrollIndex]);
+
+  const handleOpenArticle = useCallback((index: number) => {
+    // If opening an article when no article is selected, default to opening
+    // the first article.
+    index = Math.max(0, index);
+
+    // If the index is beyond the end of the list, do nothing.
+    if (index > state.articleEntries.length - 1) {
+      return;
+    }
+
+    const articleView = state.articleEntries[index]
+    if (articleView && articleView.url) {
+      window.open(articleView.url, '_blank');
+      handleMarkArticleRead(index);
+    }
+
+    // This only has an effect if no article is selected. In which case it's
+    // treated as a scroll to the first article.
+    handleScrollTo(index);
+  }, [state.articleEntries]);
+
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     // Ignore keypress events when some modifiers are also enabled to avoid
     // triggering on (e.g.) browser shortcuts. Shift is the exception here since
@@ -93,89 +175,51 @@ const ArticleList: React.FC<ArticleListProps> = ({
     }
 
     setState((prevState) => {
-      let scrollIndex = prevState.scrollIndex;
-      let articleEntries = Array.from(prevState.articleEntries);
-      const articleView: ArticleView = prevState.articleEntries[scrollIndex];
-      let shouldMarkRead: boolean = false;
-
       // Add new keypress to buffer, dropping the oldest entry.
       let keypressBuffer = [...prevState.keypressBuffer.slice(1), event.key];
 
       // If this sequence is fulfilled, reset the buffer and handle it.
       if (goToAllSequence.every((e, i) => e === keypressBuffer[i])) {
         selectAllCallback();
-        // Reset key buffer
         keypressBuffer = new Array(keyBufLength);
       } else if (markAllReadSequence.every((e, i) => e === keypressBuffer[i])) {
-        handleMark(MarkState.Read, selectionKey, selectionType);
-        articleEntries = articleEntries.map((e: ArticleView): ArticleView => {
-          return {...e, isRead: true}
-        });
-        // Reset key buffer
+        handleMarkAllRead();
         keypressBuffer = new Array(keyBufLength);
-      } else {
-        switch (event.key) {
-        case 'f':
-          setSmoothScroll(smoothScroll => !smoothScroll);
-          break;
-        case 'ArrowDown':
-          event.preventDefault(); // fallthrough
-        case 'j':
-          scrollIndex = Math.min(
-            prevState.scrollIndex + 1, prevState.articleEntries.length - 1);
-          shouldMarkRead = true;
-          break;
-        case 'ArrowUp':
-          event.preventDefault(); // fallthrough
-        case 'k':
-          scrollIndex = Math.max(prevState.scrollIndex - 1, 0);
-          break;
-        case 'p':
-          setShowPreviews(showPreviews => !showPreviews);
-          break;
-        case 'v':
-          // If trying to open an article before any articles are selected,
-          // treat it like a scroll to the first article.
-          if (
-            prevState.scrollIndex === -1 &&
-            prevState.articleEntries.length > 0) {
-            scrollIndex = 0;
-          }
-
-          if (articleView) {
-            window.open(articleView.url, '_blank');
-            shouldMarkRead = true;
-          }
-          break;
-        default:
-          // No known key pressed, just ignore.
-          break;
-        }
-      }
-
-      if (articleView && !articleView.isRead && shouldMarkRead) {
-        handleMark(
-          MarkState.Read,
-          [articleView.id, articleView.feedId, articleView.folderId],
-          SelectionType.Article);
-        // Immutably change the article read status
-        if (
-          prevState.scrollIndex >= 0 &&
-          prevState.scrollIndex < articleEntries.length) {
-          articleEntries[prevState.scrollIndex] = {...articleView, isRead: true}
-        }
       }
 
       return {
         ...prevState,
-        scrollIndex: scrollIndex,
-        articleEntries: articleEntries,
         keypressBuffer: keypressBuffer,
       };
     });
+
+    switch (event.key) {
+    case 'f':
+      setSmoothScroll(smoothScroll => !smoothScroll);
+      break;
+    case 'ArrowDown':
+      event.preventDefault(); // fallthrough
+    case 'j':
+      handleScrollDown();
+      break;
+    case 'ArrowUp':
+      event.preventDefault(); // fallthrough
+    case 'k':
+      handleScrollUp();
+      break;
+    case 'p':
+      setShowPreviews(showPreviews => !showPreviews);
+      break;
+    case 'v':
+      handleOpenArticle(state.scrollIndex)
+      break;
+    default:
+      // No known key pressed, just ignore.
+      break;
+    }
   }, [
-    selectAllCallback, handleMark, selectionKey, selectionType,
-    state.articleEntries,
+    selectAllCallback, handleMarkAllRead, handleScrollDown, handleScrollUp,
+    handleOpenArticle, state.scrollIndex
   ]);
 
   useEffect(() => {
@@ -203,7 +247,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     if (imgPreview) {
       handleAddImagePreview(article.id, imgPreview);
     }
-  }, [articleImagePreviews, inflightPreviewRef]);
+  }, [articleImagePreviews, handleAddImagePreview]);
 
 
   const mergeArticleLists = useCallback(
@@ -301,7 +345,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     // Update refs
     selectionKeyRef.current = selectionKey;
     articleEntriesClsRef.current = articleEntriesCls;
-  }, [selectionKey, articleEntriesCls]);
+  }, [selectionKey, articleEntriesCls, mergeArticleLists]);
 
   const renderArticleListEntry = useCallback((index: number): ReactElement => {
     const articleView: ArticleView = state.articleEntries[index];
@@ -361,7 +405,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
         });
       }
     }
-  }, [state.scrollIndex, smoothScroll, listRef]);
+  }, [state.scrollIndex, smoothScroll]);
 
   if (state.articleEntries.length === 0) {
     return (
