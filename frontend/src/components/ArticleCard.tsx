@@ -1,5 +1,13 @@
 import React, {ReactNode, useEffect, useState} from "react";
-import {Box, Card, CardHeader, Skeleton, Stack, Tooltip} from "@mui/material";
+import {
+  Box,
+  Card,
+  CardHeader,
+  IconButton,
+  Skeleton,
+  Stack,
+  Tooltip
+} from "@mui/material";
 import {
   fetchReadability,
   formatFriendly,
@@ -142,9 +150,25 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
           <p className="GoliathArticleFeedTitle">{feedTitle}</p>
         </Box>
         <Box className="GoliathHeaderActionButtons">
-          <BookmarkTwoToneIcon/>
-          <CheckCircleOutlineTwoToneIcon
-            onClick={() => props.onMarkArticleRead()}/>
+          <Tooltip title="Save article">
+            <IconButton
+              aria-label="save article"
+              className="GoliathButton"
+              size="small"
+            >
+              <BookmarkTwoToneIcon/>
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Mark article read">
+            <IconButton
+              aria-label="mark as read"
+              onClick={() => props.onMarkArticleRead()}
+              className="GoliathButton"
+              size="small"
+            >
+              <CheckCircleOutlineTwoToneIcon/>
+            </IconButton>
+          </Tooltip>
         </Box>
       </Box>
       <Box className="GoliathSplitViewArticleContainer">

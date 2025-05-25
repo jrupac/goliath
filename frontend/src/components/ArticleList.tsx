@@ -13,7 +13,7 @@ import {
   SelectionKey,
   SelectionType
 } from "../utils/types";
-import {Box, Container, Grid, Stack} from "@mui/material";
+import {Box, Container, Grid, IconButton, Stack, Tooltip} from "@mui/material";
 import ArticleCard from "./ArticleCard";
 import ArticleListEntry from "./ArticleListEntry";
 import LRUCache from "lru-cache";
@@ -428,13 +428,37 @@ const ArticleList: React.FC<ArticleListProps> = ({
         <Grid container wrap="nowrap">
           <Stack className="GoliathArticleListColumn">
             <Box className="GoliathSplitViewArticleListActionBar">
-              <CheckCircleOutlineTwoToneIcon
-                onClick={() => handleMarkAllRead()}/>
+              <Tooltip title="Mark all as read">
+                <IconButton
+                  aria-label="mark all as read"
+                  onClick={() => handleMarkAllRead()}
+                  className="GoliathButton"
+                  size="small"
+                >
+                  <CheckCircleOutlineTwoToneIcon/>
+                </IconButton>
+              </Tooltip>
               <div className="GoliathActionBarSpacer"></div>
-              <ExpandLessTwoToneIcon
-                onClick={() => handleScrollUp()}/>
-              <ExpandMoreTwoToneIcon
-                onClick={() => handleScrollDown()}/>
+              <Tooltip title="Scroll up">
+                <IconButton
+                  aria-label="scroll up"
+                  onClick={() => handleScrollUp()}
+                  className="GoliathButton"
+                  size="small"
+                >
+                  <ExpandLessTwoToneIcon/>
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Scroll down">
+                <IconButton
+                  aria-label="scroll down"
+                  onClick={() => handleScrollDown()}
+                  className="GoliathButton"
+                  size="small"
+                >
+                  <ExpandMoreTwoToneIcon/>
+                </IconButton>
+              </Tooltip>
             </Box>
             <Box className="GoliathSplitViewArticleListBox">
               <ReactList
