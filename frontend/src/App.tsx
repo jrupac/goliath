@@ -16,7 +16,14 @@ import {
 
 import './themes/default.css';
 import './themes/dark.css';
-import {Box, CssBaseline, Divider, Drawer, ThemeProvider} from "@mui/material";
+import {
+  Box,
+  CssBaseline,
+  Divider,
+  Drawer,
+  IconButton,
+  ThemeProvider
+} from "@mui/material";
 import {FetchAPI, FetchAPIFactory} from "./api/interface";
 import {GetVersion, VersionData} from "./api/goliath";
 import {Navigate} from "react-router-dom";
@@ -203,9 +210,21 @@ export default class App extends React.Component<AppProps, AppState> {
             className="GoliathDrawer"
           >
             <Box className="GoliathDrawerActionBar">
-              <AccountCircleTwoToneIcon/>
+              <IconButton
+                aria-label="Account"
+                className="GoliathButton"
+                size="small"
+              >
+                <AccountCircleTwoToneIcon/>
+              </IconButton>
               <div className="GoliathActionBarSpacer"></div>
-              <LogoutTwoToneIcon/>
+              <IconButton
+                aria-label="Account"
+                className="GoliathButton"
+                size="small"
+              >
+                <LogoutTwoToneIcon/>
+              </IconButton>
             </Box>
             <Box
               className="GoliathLogo">

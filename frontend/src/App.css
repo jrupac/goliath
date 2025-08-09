@@ -102,10 +102,9 @@
  ******************************************************************************/
 
 .GoliathDrawer {
-  width: 10vw;
-  flex-basis: 300px;
+  width: clamp(250px, 25vw, 350px);
+  flex-shrink: 0;
   font-family: var(--primary-sans-serif-font), sans-serif;
-
 }
 
 .GoliathDrawer .MuiDrawer-paper {
@@ -126,8 +125,15 @@
   align-items: center;
   justify-content: space-between;
   background-color: var(--primary-selected-color);
-  padding: 10px 10px 10px 10px;
+  padding: 10px;
   border-bottom: 1px solid var(--action-bar-border-color);
+  position: relative;
+  z-index: 1;
+}
+
+.GoliathDrawerActionBarScrolled {
+  border-bottom: 1px solid var(--action-bar-border-color);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
 }
 
 .GoliathLogo {
@@ -220,6 +226,8 @@
   text-align: center;
   font-family: var(--primary-sans-serif-font), sans-serif;
   color: var(--primary-font-color);
+  border-top: 1px solid var(--action-bar-border-color);
+  box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.3), 0 -2px 4px -2px rgb(0 0 0 / 0.3);
   background-color: var(--primary-background-color);
   padding-top: 10px;
   font-size: 10px;
@@ -232,6 +240,7 @@
 .GoliathMainContainer {
   flex-grow: 1;
   flex-wrap: nowrap;
+  min-width: 0;
 }
 
 /******************************************************************************
@@ -264,9 +273,8 @@
   align-items: center;
   justify-content: flex-end;
   width: 100%;
-  height: fit-content;
   gap: 10px;
-  padding: 10px 10px 10px 10px;
+  padding: 10px;
   border-bottom: 1px solid var(--action-bar-border-color);
 }
 
@@ -280,6 +288,8 @@
 
 .GoliathSplitViewArticleListContainer.MuiContainer-root {
   padding: 0;
+  display: flex;
+  width: 100%;
 }
 
 .GoliathSplitViewArticleListContainer .MuiGrid-root {
@@ -289,6 +299,7 @@
 .GoliathArticleListColumn {
   height: 100vh;
   width: 30vw;
+  flex-shrink: 0;
 }
 
 .GoliathSplitViewArticleListBox {
@@ -399,7 +410,8 @@
 
 .GoliathSplitViewArticleOuter {
   border-left: 1px solid var(--action-bar-border-color);
-  width: 60vw;
+  flex-grow: 1;
+  min-width: 0;
 }
 
 .GoliathSplitViewArticleContainer {
@@ -445,10 +457,15 @@
   padding: 10px 10px 0 24px;
 }
 
+.GoliathArticleTitle a {
+  overflow-wrap: break-word;
+}
+
 .GoliathSplitViewArticleCardActionBar {
   display: flex;
   justify-content: space-between;
-  padding: 10px 10px 10px 24px;
+  align-items: center;
+  padding: 10px;
   background-color: var(--action-bar-background-color);
   border-bottom: 1px solid var(--action-bar-border-color);
 }

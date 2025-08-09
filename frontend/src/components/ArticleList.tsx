@@ -292,13 +292,13 @@ const ArticleList: React.FC<ArticleListProps> = ({
         if (anchorArticleId) {
           const newIndexOfAnchor: number = mergedArticles.findIndex(
             (a: ArticleView): boolean => a.id === anchorArticleId);
-          if (newIndexOfAnchor !== -1) {
-            newScrollIndex = newIndexOfAnchor;
+          if (newIndexOfAnchor === scrollIndex) {
+            // New anchor is in the same position, so maintain scroll index.
+            // This means that all the new articles (if any) were added below.
+            newScrollIndex = scrollIndex;
           } else {
-            // Anchor article is no longer in the merged list (e.g., it was
-            // unread and removed by the parent). Just try to stay near the old
-            // numerical position, clamped to new list bounds.
-            newScrollIndex = Math.min(scrollIndex, mergedArticles.length - 1);
+            // Anchor article is no longer in the merged list. Scroll to top.
+            newScrollIndex = 0;
           }
         } else {
           // No previous anchor. Scroll to the top of the new list.

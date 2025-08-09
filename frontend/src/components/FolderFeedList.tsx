@@ -1,4 +1,4 @@
-import React, {ReactNode, useEffect, useState} from 'react';
+import React, {ReactNode, useEffect, useRef, useState} from 'react';
 import {KeyAll, KeySaved, SelectionKey, SelectionType} from "../utils/types";
 import {Box} from "@mui/material";
 import InboxTwoToneIcon from '@mui/icons-material/InboxTwoTone';
@@ -26,6 +26,27 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   handleSelect,
 }) => {
   const [keyCache, setKeyCache] = useState<Map<string, [SelectionType, SelectionKey]>>(new Map());
+  const [isScrolled, setIsScrolled] = useState(false);
+  const treeViewRef = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (treeViewRef.current) {
+        setIsScrolled(treeViewRef.current.scrollTop > 0);
+      }
+    };
+
+    const treeViewElement = treeViewRef.current;
+    if (treeViewElement) {
+      treeViewElement.addEventListener('scroll', handleScroll);
+    }
+
+    return () => {
+      if (treeViewElement) {
+        treeViewElement.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, []);
 
   const precomputeIdToSelectionKey = (folderFeedView: Map<FolderView, FeedView[]>): Map<string, [SelectionType, SelectionKey]> => {
     const cache: Map<string, [SelectionType, SelectionKey]> = new Map();
@@ -145,6 +166,8 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     }
   }
 
+  const scrolledClass = isScrolled ? 'GoliathDrawerActionBarScrolled' : '';
+
   return (
     <>
       <Box
@@ -158,7 +181,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
 
       <Box
         onClick={() => handleNodeSelect(null, KeySaved)}
-        className={savedSelectedClass}>
+        className={`${savedSelectedClass} ${scrolledClass}`}>
         <BookmarkTwoToneIcon fontSize="small"/>
         <Box className={savedSelectedClass}>
           {renderSavedItemsTitle()}
@@ -166,6 +189,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
       </Box>
 
       <TreeView
+        ref={treeViewRef}
         className="GoliathFolderFeedList"
         onNodeSelect={handleNodeSelect}
         selected={selectedKeyString}
