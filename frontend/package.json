@@ -46,7 +46,7 @@
     "build": "vite build",
     "serve": "vite preview",
     "test": "vitest run",
-    "lint": "oxlint",
+    "lint": "oxlint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
@@ -63,6 +63,7 @@
     "prettier": "^3.6.2",
     "source-map-explorer": "^2.5.2",
     "vite": "^6.3.4",
+    "vite-plugin-oxlint": "^1.4.0",
     "vite-plugin-pwa": "^0.21.1",
     "vite-tsconfig-paths": "^4.3.2",
     "vitest": "^3.0.8"
