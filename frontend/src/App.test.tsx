@@ -1,7 +1,8 @@
 import React from 'react';
-import {beforeEach, describe, it, vi} from 'vitest';
-import {render} from '@testing-library/react';
+import { beforeEach, describe, it, vi } from 'vitest';
+import { render, screen, act } from '@testing-library/react';
 import App from './App';
+import { ContentTreeCls } from './models/contentTree';
 
 describe('App', () => {
   beforeEach(() => {
@@ -14,16 +15,29 @@ describe('App', () => {
       };
     });
     vi.mock('./api/greader', () => {
-      const GReader = vi.fn();
-      GReader.prototype.VerifyAuth = vi.fn().mockResolvedValue(true);
-      GReader.prototype.InitializeContent = vi.fn().mockResolvedValue({});
+      class MockGReader {
+        VerifyAuth = vi.fn().mockResolvedValue(true);
+        InitializeContent = vi.fn().mockResolvedValue(
+          (() => {
+            const mockContentTree = ContentTreeCls.new();
+            mockContentTree.UnreadCount = vi.fn().mockReturnValue(0);
+            mockContentTree.GetFolderFeedView = vi
+              .fn()
+              .mockReturnValue(new Map());
+            mockContentTree.GetArticleView = vi.fn().mockReturnValue([]);
+            mockContentTree.GetFaviconMap = vi.fn().mockReturnValue(new Map());
+            return mockContentTree;
+          })()
+        );
+      }
       return {
-        default: GReader,
+        default: MockGReader,
       };
     });
   });
 
   it('renders without crashing', async () => {
-    render(<App/>);
+    render(<App />);
+    await screen.findByText('Goliath');
   });
 });
