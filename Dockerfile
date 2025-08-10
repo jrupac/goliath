@@ -42,20 +42,20 @@ RUN go build -v -mod=mod -ldflags  \
 
 # Build frontend
 
-FROM node:lts AS frontend_builder_prod
+FROM oven/bun AS frontend_builder_prod
 
 WORKDIR /
 
 RUN echo "Populating dependencies..."
-COPY frontend/package.json frontend/package-lock.json /
-RUN npm i
+COPY frontend/package.json /
+RUN bun install
 
 RUN echo "Copying sources..."
 COPY frontend/ .
 
 RUN echo "Building Goliath frontend..."
 ENV NODE_ENV production
-RUN npm run build
+RUN bun run build
 
 # Final deployment image
 

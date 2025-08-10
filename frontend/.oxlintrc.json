@@ -11,5 +11,6 @@
     "no-console": "off",
     "no-magic-numbers": "off",
     "react/no-set-state": "off"
-  }
+  },
+  "ignorePatterns": ["build/**", "dev-dist/**", "node_modules/**"]
 }

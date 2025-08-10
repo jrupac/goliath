@@ -20,7 +20,9 @@ export default defineConfig(() => {
         },
       }),
       viteTsconfigPaths(),
-      oxlint(),
+      oxlint({
+        ignore: ["build/**", "dev-dist/**", "node_modules/**"]
+      }),
       VitePWA({
         registerType: 'autoUpdate',
         manifest: false,
