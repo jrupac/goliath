@@ -157,13 +157,13 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
   const handleScrollUp = useCallback(() => {
     handleScrollTo(state.scrollIndex - 1);
-  }, [state.scrollIndex]);
+  }, [handleScrollTo, state.scrollIndex]);
 
   const handleScrollDown = useCallback(() => {
     // If the previous scroll index pointed at a valid article, mark it read
     handleMarkArticleRead(state.scrollIndex);
     handleScrollTo(state.scrollIndex + 1);
-  }, [state.scrollIndex]);
+  }, [handleMarkArticleRead, handleScrollTo, state.scrollIndex]);
 
   const handleOpenArticle = useCallback(
     (index: number) => {
@@ -186,7 +186,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       // treated as a scroll to the first article.
       handleScrollTo(index);
     },
-    [state.articleEntries]
+    [handleMarkArticleRead, handleScrollTo, state.articleEntries]
   );
 
   const handleKeyDown = useCallback(

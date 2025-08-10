@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useState } from 'react';
+import React, { ReactNode, useCallback, useEffect, useState } from 'react';
 import {
   Box,
   Card,
@@ -41,65 +41,68 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
     loading: false,
   });
 
-  const toggleParseContent = () => {
-    // If already showing parsed content, disable showing it.
-    if (state.showParsed) {
-      setState({ ...state, showParsed: false });
-      return;
-    }
+  const toggleParseContent = useCallback(() => {
+    setState((prevState) => {
+      // If already showing parsed content, disable showing it.
+      if (prevState.showParsed) {
+        return { ...prevState, showParsed: false };
+      }
 
-    // If already parsed before, just enabling showing it.
-    if (state.parsed !== null) {
-      setState({ ...state, showParsed: true });
-      return;
-    }
+      // If already parsed before, just enabling showing it.
+      if (prevState.parsed !== null) {
+        return { ...prevState, showParsed: true };
+      }
 
-    // It's okay if this state change doesn't happen fast enough, it'll just get
-    // reset lower down anyway.
-    setState({ ...state, loading: true });
-
-    const url = makeAbsolute('/cache?url=' + encodeURI(props.article.url));
-    fetchReadability(url)
-      .then((content) => {
-        setState({
-          parsed: content,
-          showParsed: true,
-          loading: false,
+      // It's okay if this state change doesn't happen fast enough, it'll just
+      // get reset lower down anyway.
+      const url = makeAbsolute('/cache?url=' + encodeURI(props.article.url));
+      fetchReadability(url)
+        .then((content) => {
+          setState((innerPrevState) => ({
+            ...innerPrevState,
+            parsed: content,
+            showParsed: true,
+            loading: false,
+          }));
+        })
+        .catch((e) => {
+          console.log('Could not parse URL %s: %s', url, e);
+          setState((innerPrevState) => ({
+            ...innerPrevState,
+            showParsed: false,
+            loading: false,
+          }));
         });
-      })
-      .catch((e) => {
-        console.log('Could not parse URL %s: %s', url, e);
-        setState({
-          ...state,
-          showParsed: false,
-          loading: false,
-        });
-      });
-  };
+      return { ...prevState, loading: true };
+    });
+  }, [props.article.url]);
 
-  const handleKeyDown = (event: KeyboardEvent) => {
-    // Ignore all key events unless this is the selected article.
-    if (!props.isSelected) {
-      return;
-    }
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      // Ignore all key events unless this is the selected article.
+      if (!props.isSelected) {
+        return;
+      }
 
-    // Ignore keypress events when some modifiers are also enabled to avoid
-    // triggering on (e.g.) browser shortcuts.
-    if (event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) {
-      return;
-    }
+      // Ignore keypress events when some modifiers are also enabled to avoid
+      // triggering on (e.g.) browser shortcuts.
+      if (event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) {
+        return;
+      }
 
-    if (event.key === 'm') {
-      toggleParseContent();
-    }
-  };
+      if (event.key === 'm') {
+        toggleParseContent();
+      }
+    },
+    [props.isSelected, toggleParseContent]
+  );
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [handleKeyDown]);
 
   const date = new Date(props.article.creationTime * 1000);
   const feedTitle = props.title;

@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, it, vi } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import App from './App';
 import { ContentTreeCls } from './models/contentTree';
 

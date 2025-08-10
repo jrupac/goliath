@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import ArticleList from '../ArticleList';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { ArticleView } from '../../models/article';
