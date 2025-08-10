@@ -1,0 +1,15 @@
+{
+  "plugins": ["react", "typescript"],
+  "rules": {
+    "no-unused-vars": "warn",
+    "default-case": "off",
+    "func-style": "off",
+    "id-length": "off",
+    "max-lines": "off",
+    "no-bitwise": "off",
+    "no-case-declarations": "warn",
+    "no-console": "off",
+    "no-magic-numbers": "off",
+    "react/no-set-state": "off"
+  }
+}
