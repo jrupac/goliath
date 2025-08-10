@@ -1,4 +1,4 @@
-import React, {ReactNode, useEffect, useState} from "react";
+import React, { ReactNode, useEffect, useState } from 'react';
 import {
   Box,
   Card,
@@ -6,20 +6,19 @@ import {
   IconButton,
   Skeleton,
   Stack,
-  Tooltip
-} from "@mui/material";
+  Tooltip,
+} from '@mui/material';
 import {
   fetchReadability,
   formatFriendly,
   formatFull,
   makeAbsolute,
-} from "../utils/helpers";
-import RssFeedOutlinedIcon from "@mui/icons-material/RssFeedOutlined";
+} from '../utils/helpers';
+import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
 import BookmarkTwoToneIcon from '@mui/icons-material/BookmarkTwoTone';
-import {ArticleView} from "../models/article";
-import CheckCircleOutlineTwoToneIcon
-  from "@mui/icons-material/CheckCircleOutlineTwoTone";
-import {FaviconCls} from "../models/feed";
+import { ArticleView } from '../models/article';
+import CheckCircleOutlineTwoToneIcon from '@mui/icons-material/CheckCircleOutlineTwoTone';
+import { FaviconCls } from '../models/feed';
 
 export interface ArticleProps {
   article: ArticleView;
@@ -45,21 +44,21 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
   const toggleParseContent = () => {
     // If already showing parsed content, disable showing it.
     if (state.showParsed) {
-      setState({...state, showParsed: false});
+      setState({ ...state, showParsed: false });
       return;
     }
 
     // If already parsed before, just enabling showing it.
     if (state.parsed !== null) {
-      setState({...state, showParsed: true});
+      setState({ ...state, showParsed: true });
       return;
     }
 
     // It's okay if this state change doesn't happen fast enough, it'll just get
     // reset lower down anyway.
-    setState({...state, loading: true});
+    setState({ ...state, loading: true });
 
-    const url = makeAbsolute("/cache?url=" + encodeURI(props.article.url));
+    const url = makeAbsolute('/cache?url=' + encodeURI(props.article.url));
     fetchReadability(url)
       .then((content) => {
         setState({
@@ -69,7 +68,7 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
         });
       })
       .catch((e) => {
-        console.log("Could not parse URL %s: %s", url, e);
+        console.log('Could not parse URL %s: %s', url, e);
         setState({
           ...state,
           showParsed: false,
@@ -90,33 +89,33 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
       return;
     }
 
-    if (event.key === "m") {
+    if (event.key === 'm') {
       toggleParseContent();
     }
   };
 
   useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
 
   const date = new Date(props.article.creationTime * 1000);
   const feedTitle = props.title;
 
-  let headerClass = "";
+  let headerClass = '';
 
   if (props.article.isRead) {
-    headerClass = "GoliathArticleHeaderRead";
+    headerClass = 'GoliathArticleHeaderRead';
   }
 
   const renderFavicon = (): ReactNode => {
     const favicon: string | undefined = props.favicon?.GetFavicon();
-    if (!favicon || favicon === "") {
-      return <RssFeedOutlinedIcon fontSize="small"/>;
+    if (!favicon || favicon === '') {
+      return <RssFeedOutlinedIcon fontSize="small" />;
     } else {
-      return <img src={`data:${favicon}`} height={16} width={16} alt=""/>;
+      return <img src={`data:${favicon}`} height={16} width={16} alt="" />;
     }
   };
 
@@ -132,13 +131,13 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
     if (state.loading) {
       return (
         <Box>
-          <Skeleton variant="text" animation="wave"/>
-          <Skeleton variant="text" animation="wave"/>
-          <Skeleton variant="text" animation="wave"/>
+          <Skeleton variant="text" animation="wave" />
+          <Skeleton variant="text" animation="wave" />
+          <Skeleton variant="text" animation="wave" />
         </Box>
       );
     } else {
-      return <div dangerouslySetInnerHTML={{__html: getArticleContent()}}/>;
+      return <div dangerouslySetInnerHTML={{ __html: getArticleContent() }} />;
     }
   };
 
@@ -156,7 +155,7 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
               className="GoliathButton"
               size="small"
             >
-              <BookmarkTwoToneIcon/>
+              <BookmarkTwoToneIcon />
             </IconButton>
           </Tooltip>
           <Tooltip title="Mark article read">
@@ -166,7 +165,7 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
               className="GoliathButton"
               size="small"
             >
-              <CheckCircleOutlineTwoToneIcon/>
+              <CheckCircleOutlineTwoToneIcon />
             </IconButton>
           </Tooltip>
         </Box>
@@ -178,7 +177,6 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
             className={`GoliathArticleHeader ${headerClass}`}
             title={
               <div>
-
                 <Box className="GoliathArticleTitle">
                   <a
                     target="_blank"
@@ -209,8 +207,7 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
             }
           />
         </Card>
-        <div
-          className="GoliathSplitViewArticleContent GoliathArticleContentStyling">
+        <div className="GoliathSplitViewArticleContent GoliathArticleContentStyling">
           {renderContent()}
         </div>
       </Box>
