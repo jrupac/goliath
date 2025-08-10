@@ -18,8 +18,10 @@ export default defineConfig(() => {
           plugins: ['@emotion/babel-plugin'],
         },
       }),
-      viteTsconfigPaths(),
-
+      viteTsconfigPaths({
+        // Ignore errors from tsconfig files from dependencies
+        ignoreConfigErrors: true,
+      }),
       VitePWA({
         registerType: 'autoUpdate',
         manifest: false,
