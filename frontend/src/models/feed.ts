@@ -1,6 +1,6 @@
-import {ArticleCls, ArticleId, ArticleView} from "./article";
-import {MarkState} from "../utils/types";
-import {FolderId} from "./folder";
+import { ArticleCls, ArticleId, ArticleView } from './article';
+import { MarkState } from '../utils/types';
+import { FolderId } from './folder';
 //import {Favicon} from "../api/fever";
 
 /** Feed is a content source that contains zero or more articles. */
@@ -14,7 +14,7 @@ export class FaviconCls {
   private readonly data: Favicon;
 
   public constructor(favicon: Favicon | undefined) {
-    this.data = favicon === undefined ? "" : favicon;
+    this.data = favicon === undefined ? '' : favicon;
   }
 
   public GetFavicon(): Favicon {
@@ -42,8 +42,13 @@ export class FeedCls {
   private articles: Map<ArticleId, ArticleCls>;
   private folderId: FolderId;
 
-  constructor(id: FeedId, title: FeedTitle, url: string,
-    site_url: string, last_updated_on_time: number) {
+  constructor(
+    id: FeedId,
+    title: FeedTitle,
+    url: string,
+    site_url: string,
+    last_updated_on_time: number
+  ) {
     this.id = id;
     this.favicon = new FaviconCls(undefined);
     this.title = title;
@@ -91,15 +96,15 @@ export class FeedCls {
   public AddArticle(article: ArticleCls): void {
     this.articles.set(article.Id(), article);
     this.sort();
-    this.unread_count += (article.IsRead() ? 0 : 1);
+    this.unread_count += article.IsRead() ? 0 : 1;
     this.feedView.unread_count = this.unread_count;
   }
 
   public MarkArticle(articleId: ArticleId, markState: MarkState): number {
     const article: ArticleCls = this.getArticleOrThrow(articleId);
-    this.unread_count -= (article.IsRead() ? 0 : 1);
+    this.unread_count -= article.IsRead() ? 0 : 1;
     article.MarkArticle(markState);
-    this.unread_count += (article.IsRead() ? 0 : 1);
+    this.unread_count += article.IsRead() ? 0 : 1;
     this.feedView.unread_count = this.unread_count;
     return this.unread_count;
   }
@@ -109,7 +114,7 @@ export class FeedCls {
 
     this.articles.forEach((a: ArticleCls): void => {
       a.MarkArticle(markState);
-      unread += (a.IsRead() ? 0 : 1);
+      unread += a.IsRead() ? 0 : 1;
     });
 
     this.unread_count = unread;
@@ -117,7 +122,10 @@ export class FeedCls {
     return this.unread_count;
   }
 
-  public GetArticleView(folderId: FolderId, articleId?: ArticleId): ArticleView[] {
+  public GetArticleView(
+    folderId: FolderId,
+    articleId?: ArticleId
+  ): ArticleView[] {
     if (typeof articleId !== 'undefined') {
       const article: ArticleCls = this.getArticleOrThrow(articleId);
       return [article.GetArticleView(this.title, this.id, folderId)];
@@ -148,8 +156,10 @@ export class FeedCls {
   }
 
   private sort(): void {
-    const comparator = (a: [ArticleId, ArticleCls], b: [ArticleId, ArticleCls]) =>
-      ArticleCls.Comparator(a[1], b[1]);
+    const comparator = (
+      a: [ArticleId, ArticleCls],
+      b: [ArticleId, ArticleCls]
+    ) => ArticleCls.Comparator(a[1], b[1]);
     this.articles = new Map([...this.articles.entries()].sort(comparator));
   }
 }

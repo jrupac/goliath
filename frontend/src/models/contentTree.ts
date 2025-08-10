@@ -1,14 +1,14 @@
-import {FolderCls, FolderId, FolderView} from "./folder";
-import {FaviconCls, FeedId, FeedView} from "./feed";
+import { FolderCls, FolderId, FolderView } from './folder';
+import { FaviconCls, FeedId, FeedView } from './feed';
 import {
   ArticleSelection,
   FeedSelection,
   FolderSelection,
   MarkState,
   SelectionKey,
-  SelectionType
-} from "../utils/types";
-import {ArticleCls, ArticleId, ArticleView,} from "./article";
+  SelectionType,
+} from '../utils/types';
+import { ArticleCls, ArticleId, ArticleView } from './article';
 
 /** ContentTreeCls contains a tree of folders, feeds, and articles. */
 export class ContentTreeCls {
@@ -25,7 +25,9 @@ export class ContentTreeCls {
   public AddFolder(folder: FolderCls): void {
     const existing = this.tree.get(folder.Id());
     if (existing !== undefined) {
-      console.log(`WARNING: Replacing folder: ${existing.Title()} in ContentTree.`);
+      console.log(
+        `WARNING: Replacing folder: ${existing.Title()} in ContentTree.`
+      );
       this.unread_count -= existing.UnreadCount();
     }
 
@@ -38,46 +40,50 @@ export class ContentTreeCls {
     return this.unread_count;
   }
 
-  public Mark(markState: MarkState, key: SelectionKey, type: SelectionType): number {
+  public Mark(
+    markState: MarkState,
+    key: SelectionKey,
+    type: SelectionType
+  ): number {
     let articleId: ArticleId, feedId: FeedId, folderId: FolderId;
     let folder: FolderCls;
     let unread: number = 0;
 
     switch (type) {
-    case SelectionType.Article:
-      [articleId, feedId, folderId] = key as ArticleSelection;
-      folder = this.getFolderOrThrow(folderId);
+      case SelectionType.Article:
+        [articleId, feedId, folderId] = key as ArticleSelection;
+        folder = this.getFolderOrThrow(folderId);
 
-      this.unread_count -= folder.UnreadCount();
-      folder.MarkArticle(articleId, feedId, markState);
-      this.unread_count += folder.UnreadCount();
-      break;
-    case SelectionType.Feed:
-      [feedId, folderId] = key as FeedSelection;
-      folder = this.getFolderOrThrow(folderId);
+        this.unread_count -= folder.UnreadCount();
+        folder.MarkArticle(articleId, feedId, markState);
+        this.unread_count += folder.UnreadCount();
+        break;
+      case SelectionType.Feed:
+        [feedId, folderId] = key as FeedSelection;
+        folder = this.getFolderOrThrow(folderId);
 
-      this.unread_count -= folder.UnreadCount();
-      folder.MarkFeed(feedId, markState);
-      this.unread_count += folder.UnreadCount();
-      break;
-    case SelectionType.Folder:
-      folderId = key as FolderSelection;
-      folder = this.getFolderOrThrow(folderId);
+        this.unread_count -= folder.UnreadCount();
+        folder.MarkFeed(feedId, markState);
+        this.unread_count += folder.UnreadCount();
+        break;
+      case SelectionType.Folder:
+        folderId = key as FolderSelection;
+        folder = this.getFolderOrThrow(folderId);
 
-      this.unread_count -= folder.UnreadCount();
-      folder.MarkFolder(markState);
-      this.unread_count += folder.UnreadCount();
-      break;
-    case SelectionType.All:
-      this.tree.forEach((f: FolderCls): void => {
-        unread += f.MarkFolder(markState);
-      });
-      this.unread_count = unread;
-      break;
-    case SelectionType.Saved:
-      // TODO: Support saved articles.
-      console.log("Saving articles not yet supported!")
-      break;
+        this.unread_count -= folder.UnreadCount();
+        folder.MarkFolder(markState);
+        this.unread_count += folder.UnreadCount();
+        break;
+      case SelectionType.All:
+        this.tree.forEach((f: FolderCls): void => {
+          unread += f.MarkFolder(markState);
+        });
+        this.unread_count = unread;
+        break;
+      case SelectionType.Saved:
+        // TODO: Support saved articles.
+        console.log('Saving articles not yet supported!');
+        break;
     }
 
     return this.unread_count;
@@ -88,28 +94,30 @@ export class ContentTreeCls {
     let articleViews: ArticleView[] = [];
 
     switch (type) {
-    case SelectionType.Article:
-      [articleId, feedId, folderId] = key as ArticleSelection;
-      articleViews = this.getFolderOrThrow(folderId).GetArticleView(
-        feedId, articleId);
-      break;
-    case SelectionType.Feed:
-      [feedId, folderId] = key as FeedSelection;
-      articleViews = this.getFolderOrThrow(folderId).GetArticleView(feedId);
-      break;
-    case SelectionType.Folder:
-      folderId = key as FolderSelection;
-      articleViews = this.getFolderOrThrow(folderId).GetArticleView();
-      break;
-    case SelectionType.All:
-      this.tree.forEach((f: FolderCls): void => {
-        articleViews.push(...f.GetArticleView());
-      });
-      break;
-    case SelectionType.Saved:
-      // TODO: Support saved articles.
-      console.log("Showing saved articles not yet supported!")
-      break;
+      case SelectionType.Article:
+        [articleId, feedId, folderId] = key as ArticleSelection;
+        articleViews = this.getFolderOrThrow(folderId).GetArticleView(
+          feedId,
+          articleId
+        );
+        break;
+      case SelectionType.Feed:
+        [feedId, folderId] = key as FeedSelection;
+        articleViews = this.getFolderOrThrow(folderId).GetArticleView(feedId);
+        break;
+      case SelectionType.Folder:
+        folderId = key as FolderSelection;
+        articleViews = this.getFolderOrThrow(folderId).GetArticleView();
+        break;
+      case SelectionType.All:
+        this.tree.forEach((f: FolderCls): void => {
+          articleViews.push(...f.GetArticleView());
+        });
+        break;
+      case SelectionType.Saved:
+        // TODO: Support saved articles.
+        console.log('Showing saved articles not yet supported!');
+        break;
     }
 
     return ArticleCls.SortAndFilterViews(articleViews);
@@ -151,4 +159,3 @@ export class ContentTreeCls {
     return new ContentTreeCls();
   }
 }
-

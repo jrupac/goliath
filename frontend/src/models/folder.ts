@@ -1,6 +1,6 @@
-import {FaviconCls, FeedCls, FeedId, FeedTitle, FeedView} from "./feed";
-import {MarkState} from "../utils/types";
-import {ArticleId, ArticleView} from "./article";
+import { FaviconCls, FeedCls, FeedId, FeedTitle, FeedView } from './feed';
+import { MarkState } from '../utils/types';
+import { ArticleId, ArticleView } from './article';
 
 /** FolderId is the ID of a Folder object. */
 export type FolderId = string;
@@ -27,14 +27,16 @@ export class FolderCls {
     this.folderView = {
       id: this.id,
       title: this.title,
-      unread_count: this.unread_count
-    }
+      unread_count: this.unread_count,
+    };
   }
 
   public AddFeed(feed: FeedCls): void {
     const existing = this.feeds.get(feed.Id());
     if (existing !== undefined) {
-      console.log(`WARNING: Replacing feed: ${existing.Title()} in folder: ${this.title}`);
+      console.log(
+        `WARNING: Replacing feed: ${existing.Title()} in folder: ${this.title}`
+      );
       this.unread_count -= feed.UnreadCount();
     }
 
@@ -44,7 +46,11 @@ export class FolderCls {
     this.folderView.unread_count = this.unread_count;
   }
 
-  public MarkArticle(articleId: ArticleId, feedId: FeedId, markState: MarkState): number {
+  public MarkArticle(
+    articleId: ArticleId,
+    feedId: FeedId,
+    markState: MarkState
+  ): number {
     const feed = this.getFeedOrThrow(feedId);
 
     this.unread_count -= feed.UnreadCount();
