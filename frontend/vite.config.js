@@ -1,7 +1,6 @@
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
-import oxlint from 'vite-plugin-oxlint';
 import {VitePWA} from 'vite-plugin-pwa'
 import viteTsconfigPaths from 'vite-tsconfig-paths';
 import {configDefaults} from 'vitest/config';
@@ -20,9 +19,7 @@ export default defineConfig(() => {
         },
       }),
       viteTsconfigPaths(),
-      oxlint({
-        ignore: ["build/**", "dev-dist/**", "node_modules/**"]
-      }),
+
       VitePWA({
         registerType: 'autoUpdate',
         manifest: false,
