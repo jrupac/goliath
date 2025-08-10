@@ -1,6 +1,6 @@
-import {MarkState} from "../utils/types";
-import {FeedId, FeedTitle} from "./feed";
-import {FolderId} from "./folder";
+import { MarkState } from '../utils/types';
+import { FeedId, FeedTitle } from './feed';
+import { FolderId } from './folder';
 
 /** ArticleId is the ID associated with an Article object. */
 export type ArticleId = string;
@@ -21,16 +21,16 @@ export type ArticleView = Readonly<{
   creationTime: number;
   isRead: boolean;
   isSaved: boolean;
-}>
+}>;
 
 export enum ReadStatus {
   Read = 0,
-  Unread = 1
+  Unread = 1,
 }
 
 export enum SavedStatus {
   Saved = 0,
-  Unsaved = 1
+  Unsaved = 1,
 }
 
 export class ArticleCls {
@@ -44,9 +44,15 @@ export class ArticleCls {
   private readStatus: ReadStatus;
 
   constructor(
-    id: ArticleId, title: string, author: string, html: string,
-    url: string, savedStatus: SavedStatus, creationTime: number,
-    readStatus: ReadStatus) {
+    id: ArticleId,
+    title: string,
+    author: string,
+    html: string,
+    url: string,
+    savedStatus: SavedStatus,
+    creationTime: number,
+    readStatus: ReadStatus
+  ) {
     this.id = id;
     this.title = title;
     this.author = author;
@@ -64,7 +70,10 @@ export class ArticleCls {
   }
 
   public GetArticleView(
-    feedTitle: FeedTitle, feedId: FeedId, folderId: FolderId): ArticleView {
+    feedTitle: FeedTitle,
+    feedId: FeedId,
+    folderId: FolderId
+  ): ArticleView {
     return {
       folderId: folderId,
       feedId: feedId,
@@ -74,8 +83,8 @@ export class ArticleCls {
       author: this.author,
       html: this.html,
       url: this.url,
-      isRead: (this.readStatus === ReadStatus.Read),
-      isSaved: (this.savedStatus === SavedStatus.Saved),
+      isRead: this.readStatus === ReadStatus.Read,
+      isSaved: this.savedStatus === SavedStatus.Saved,
       creationTime: this.creationTime,
     };
   }
@@ -98,10 +107,13 @@ export class ArticleCls {
   }
 
   public static SortAndFilterViews(articleViews: ArticleView[]): ArticleView[] {
-    return articleViews.filter(ArticleCls.FilterUnread).sort(ArticleCls.ArticleViewComparator);
+    return articleViews
+      .filter(ArticleCls.FilterUnread)
+      .sort(ArticleCls.ArticleViewComparator);
   }
 
   private static FilterUnread = (a: ArticleView) => !a.isRead;
-  private static ArticleViewComparator = (a: ArticleView, b: ArticleView) => b.creationTime -
-    a.creationTime;
+
+  public static ArticleViewComparator = (a: ArticleView, b: ArticleView) =>
+    b.creationTime - a.creationTime;
 }
