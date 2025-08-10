@@ -47,8 +47,8 @@ FROM oven/bun AS frontend_builder_prod
 WORKDIR /
 
 RUN echo "Populating dependencies..."
-COPY frontend/package.json /
-RUN bun install
+COPY frontend/package.json frontend/bun.lock /
+RUN bun install --frozen-lockfile
 
 RUN echo "Copying sources..."
 COPY frontend/ .
