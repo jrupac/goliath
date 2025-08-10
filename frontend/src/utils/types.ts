@@ -1,16 +1,16 @@
 /** Global types for Goliath RSS */
 
-import {ArticleId} from "../models/article";
-import {FolderId} from "../models/folder";
-import {FeedId} from "../models/feed";
-import {Theme} from "@mui/material";
+import { ArticleId } from '../models/article';
+import { FolderId } from '../models/folder';
+import { FeedId } from '../models/feed';
+import { Theme } from '@mui/material';
 
 /** Well-known paths for the frontend. */
 export enum GoliathPath {
   /** Default URI path for the frontend. */
-  Default = "/",
+  Default = '/',
   /** URI path for the login page on the frontend. */
-  Login = "/login",
+  Login = '/login',
 }
 
 /** Theme is a list of possible theme values for the application. */
@@ -20,9 +20,9 @@ export enum GoliathTheme {
 }
 
 export type ThemeInfo = {
-  themeClasses: string,
-  theme: Theme
-}
+  themeClasses: string;
+  theme: Theme;
+};
 
 /** Status describes which items have been fetched so far via the Fever API. */
 export enum Status {
@@ -50,13 +50,13 @@ export type FeedSelection = [FeedId, FolderId];
 export type FolderSelection = FolderId;
 
 export type AllSelection = string;
-export const KeyAll: AllSelection = "ALL";
+export const KeyAll: AllSelection = 'ALL';
 
 export type SavedSelection = string;
-export const KeySaved: SavedSelection = "SAVED";
+export const KeySaved: SavedSelection = 'SAVED';
 
 export type SelectionKey =
-  ArticleSelection
+  | ArticleSelection
   | FeedSelection
   | FolderSelection
   | AllSelection
@@ -64,7 +64,7 @@ export type SelectionKey =
 
 /** MarkState describes the desired state of a mark operation. */
 export enum MarkState {
-  Read = 0
+  Read = 0,
 }
 
 /** ArticleImagePreview holds cropping information for image previews. */
@@ -75,4 +75,4 @@ export type ArticleImagePreview = {
   origWidth: number;
   width: number;
   height: number;
-}
+};

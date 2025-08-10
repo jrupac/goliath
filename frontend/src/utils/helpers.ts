@@ -1,17 +1,16 @@
-import moment from "moment";
-import {Decimal} from "decimal.js-light";
-import {Readability} from "@mozilla/readability";
-import * as LosslessJSON from "lossless-json";
+import moment from 'moment';
+import { Decimal } from 'decimal.js-light';
+import { Readability } from '@mozilla/readability';
+import * as LosslessJSON from 'lossless-json';
 
-import {ArticleId, ArticleView} from "../models/article";
-import {ArticleImagePreview, GoliathTheme, ThemeInfo} from "./types";
-import {createTheme, darkScrollbar, PaletteMode, Theme} from "@mui/material";
-import smartcrop from "smartcrop";
+import { ArticleId, ArticleView } from '../models/article';
+import { ArticleImagePreview, GoliathTheme, ThemeInfo } from './types';
+import { createTheme, darkScrollbar, PaletteMode, Theme } from '@mui/material';
+import smartcrop from 'smartcrop';
 
 export function extractText(html: string): string | null {
-  return new DOMParser()
-    .parseFromString(html, "text/html")
-    .documentElement.textContent;
+  return new DOMParser().parseFromString(html, 'text/html').documentElement
+    .textContent;
 }
 
 export function makeAbsolute(url: string): string {
@@ -31,11 +30,14 @@ export function formatFriendly(date: Date) {
   if (then.isBetween(before, now)) {
     return then.fromNow();
   } else {
-    return then.format("ddd, MMM D, h:mm A");
+    return then.format('ddd, MMM D, h:mm A');
   }
 }
 
-export function maxDecimal(a: Decimal | ArticleId, b: Decimal | ArticleId): Decimal {
+export function maxDecimal(
+  a: Decimal | ArticleId,
+  b: Decimal | ArticleId
+): Decimal {
   a = new Decimal(a.toString());
   b = new Decimal(b.toString());
   return a.greaterThan(b) ? a : b;
@@ -46,17 +48,17 @@ export function fetchReadability(url: string): Promise<string> {
     fetch(url)
       .then((response) => response.text())
       .then((result) => {
-        const doc = new DOMParser().parseFromString(result, "text/html");
+        const doc = new DOMParser().parseFromString(result, 'text/html');
         const parsed = new Readability(doc).parse();
 
         if (!parsed || !parsed.content) {
-          reject(new Error("Could not parse document"));
+          reject(new Error('Could not parse document'));
         } else {
           resolve(parsed.content);
         }
       })
       .catch(reject);
-  })
+  });
 }
 
 export function parseJson(text: string): any {
@@ -71,7 +73,7 @@ export function parseJson(text: string): any {
 }
 
 export function cookieExists(name: string): boolean {
-  const cookies: string[] = document.cookie.split(";");
+  const cookies: string[] = document.cookie.split(';');
   return cookies.some((cookie: string) => cookie.trim().startsWith(`${name}=`));
 }
 
@@ -98,10 +100,12 @@ export function populateThemeInfo(themeSetting: GoliathTheme): ThemeInfo {
       },
     },
   });
-  return {themeClasses, theme};
+  return { themeClasses, theme };
 }
 
-export async function getPreviewImage(article: ArticleView): Promise<ArticleImagePreview | undefined> {
+export async function getPreviewImage(
+  article: ArticleView
+): Promise<ArticleImagePreview | undefined> {
   const minPixelSize = 100;
   const imgFetchLimit = 5;
 
@@ -115,9 +119,11 @@ export async function getPreviewImage(article: ArticleView): Promise<ArticleImag
   let imageElements: HTMLCollectionOf<HTMLImageElement>;
   try {
     imageElements = new DOMParser().parseFromString(
-      article.html, "text/html").images;
+      article.html,
+      'text/html'
+    ).images;
   } catch (e) {
-    console.error("Error parsing article HTML for preview:", e);
+    console.error('Error parsing article HTML for preview:', e);
     return;
   }
 
@@ -131,34 +137,38 @@ export async function getPreviewImage(article: ArticleView): Promise<ArticleImag
   for (let i = 0; i < limit; i++) {
     const imgSrc = imageElements[i].src;
 
-    if (!imgSrc ||
-      (!imgSrc.startsWith('http') && !imgSrc.startsWith('data:'))) {
+    if (
+      !imgSrc ||
+      (!imgSrc.startsWith('http') && !imgSrc.startsWith('data:'))
+    ) {
       continue;
     }
 
     imageProcessingPromises.push(
       fetch(imgSrc)
-        .then(response => {
+        .then((response) => {
           if (!response.ok) {
-            throw new Error(`Failed to fetch ${imgSrc}: ${response.statusText}`);
+            throw new Error(
+              `Failed to fetch ${imgSrc}: ${response.statusText}`
+            );
           }
           return response.blob();
         })
         .then(createImageBitmap)
-        .then(bitmap => {
+        .then((bitmap) => {
           if (bitmap.width >= minPixelSize && bitmap.height >= minPixelSize) {
             return {
               src: imgSrc,
               bitmap,
               origWidth: bitmap.width,
-              origHeight: bitmap.height
+              origHeight: bitmap.height,
             };
           } else {
             bitmap.close();
             return null;
           }
         })
-        .catch(_ => {
+        .catch((_) => {
           return null;
         })
     );
@@ -167,7 +177,7 @@ export async function getPreviewImage(article: ArticleView): Promise<ArticleImag
   const settledResults = await Promise.allSettled(imageProcessingPromises);
   let imageCandidate: ProcessedImageCandidate | null = null;
 
-  settledResults.forEach(result => {
+  settledResults.forEach((result) => {
     if (result.status === 'fulfilled' && result.value) {
       const currentImage = result.value;
       if (currentImage) {
@@ -199,10 +209,9 @@ export async function getPreviewImage(article: ArticleView): Promise<ArticleImag
       minScale: 0.001, // Allow very small scales if necessary
       height: minPixelSize,
       width: minPixelSize,
-      ruleOfThirds: false
+      ruleOfThirds: false,
     });
-  }
-  finally {
+  } finally {
     preview.bitmap.close();
   }
 
