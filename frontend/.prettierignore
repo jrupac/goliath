@@ -1,0 +1,14 @@
+# Dependencies
+/node_modules
+
+# Build output
+/build
+/dist
+/dev-dist
+/out
+
+# Vite
+/.vite/
+
+# Caches
+.eslintcache
