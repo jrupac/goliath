@@ -44,6 +44,7 @@ export interface AppState {
   theme: GoliathTheme;
   themeInfo: ThemeInfo;
   loginVerified: boolean;
+  hideEmpty: boolean;
 }
 
 export default class App extends React.Component<AppProps, AppState> {
@@ -61,6 +62,7 @@ export default class App extends React.Component<AppProps, AppState> {
       theme: GoliathTheme.Dark,
       themeInfo: populateThemeInfo(GoliathTheme.Dark),
       loginVerified: false,
+      hideEmpty: false,
     };
     this.fetchApi = FetchAPIFactory.Create();
   }
@@ -175,6 +177,14 @@ export default class App extends React.Component<AppProps, AppState> {
           };
         });
         break;
+      case 'u':
+        this.setState((prevState: AppState): AppState => {
+          return {
+            ...prevState,
+            hideEmpty: !prevState.hideEmpty,
+          };
+        });
+        break;
     }
   };
 
@@ -239,6 +249,7 @@ export default class App extends React.Component<AppProps, AppState> {
               selectedKey={selectionKey}
               selectionType={selectionType}
               handleSelect={this.handleSelect}
+              hideEmpty={this.state.hideEmpty}
             />
             <Divider variant="middle" />
             <Box className="GoliathFooter">

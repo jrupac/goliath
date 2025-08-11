@@ -1,5 +1,12 @@
 import React, { ReactNode, useEffect, useRef, useState } from 'react';
-import { KeyAll, KeySaved, SelectionKey, SelectionType } from '../utils/types';
+import {
+  FeedSelection,
+  FolderSelection,
+  KeyAll,
+  KeySaved,
+  SelectionKey,
+  SelectionType,
+} from '../utils/types';
 import { Box } from '@mui/material';
 import InboxTwoToneIcon from '@mui/icons-material/InboxTwoTone';
 import { TreeView } from '@mui/x-tree-view/TreeView';
@@ -16,6 +23,7 @@ export interface FolderFeedListProps {
   selectedKey: SelectionKey;
   selectionType: SelectionType;
   handleSelect: (type: SelectionType, key: SelectionKey) => void;
+  hideEmpty?: boolean;
 }
 
 const FolderFeedList: React.FC<FolderFeedListProps> = ({
@@ -24,6 +32,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   selectedKey,
   selectionType,
   handleSelect,
+  hideEmpty = false,
 }) => {
   const [keyCache, setKeyCache] = useState<
     Map<string, [SelectionType, SelectionKey]>
@@ -67,6 +76,30 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     });
 
     return cache;
+  };
+
+  const shouldRenderItem = (item: FolderView | FeedView): boolean => {
+    if (!hideEmpty || item.unread_count > 0) {
+      return true;
+    }
+
+    let folderId, feedId;
+
+    switch (selectionType) {
+      case SelectionType.Folder:
+        folderId = selectedKey as FolderSelection;
+        return (item as FolderView).id === folderId;
+      case SelectionType.Feed:
+        [feedId, folderId] = selectedKey as FeedSelection;
+        return (
+          (item as FeedView).id === feedId ||
+          (item as FolderView).id === folderId
+        );
+      default:
+        // This item is not selected, so don't render it regardless of what the
+        // selectedKey actually is.
+        return false;
+    }
   };
 
   useEffect(() => {
@@ -117,6 +150,10 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   };
 
   const renderFeed = (feedView: FeedView): ReactNode => {
+    if (!shouldRenderItem(feedView)) {
+      return null;
+    }
+
     let img: ReactNode;
     if (feedView.favicon === null) {
       img = <RssFeedOutlinedIcon fontSize="small" />;
@@ -213,16 +250,24 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         expanded={Array.from(folderFeedView.keys(), (k: FolderView) => k.id)}
         defaultCollapseIcon={<FolderOpenTwoToneIcon />}
       >
-        {Array.from(folderFeedView, ([k, v]) => (
-          <TreeItem
-            key={k.id}
-            nodeId={k.id}
-            label={renderFolder(k)}
-            className="GoliathFolderRow"
-          >
-            {v.map(renderFeed)}
-          </TreeItem>
-        ))}
+        {Array.from(folderFeedView, ([k, v]) => {
+          const feedsToRender = v.map(renderFeed).filter(Boolean);
+          if (!shouldRenderItem(k)) {
+            // If we're not rendering the folder, don't render any of the
+            // feeds inside of it either.
+            return null;
+          }
+          return (
+            <TreeItem
+              key={k.id}
+              nodeId={k.id}
+              label={renderFolder(k)}
+              className="GoliathFolderRow"
+            >
+              {feedsToRender}
+            </TreeItem>
+          );
+        })}
       </TreeView>
     </>
   );
