@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import ArticleList from '../ArticleList';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { ArticleView } from '../../models/article';
+import { expectClass, expectTextInElement } from './helpers';
 import { MarkState, SelectionKey, SelectionType } from '../../utils/types';
 import { FeedId, FaviconCls } from '../../models/feed';
 
@@ -40,28 +41,6 @@ describe('ArticleList', () => {
   // Mock functions
   const mockSelectAllCallback = vi.fn();
   const mockHandleMark = vi.fn();
-
-  // Helper functions for common assertions
-  const expectTextInElement = (
-    element: HTMLElement,
-    text: string
-  ): HTMLElement => {
-    return within(element).getByText(text);
-  };
-
-  const expectClass = (
-    element: HTMLElement,
-    closestSelector: string,
-    className: string,
-    hasClass: boolean = true
-  ) => {
-    const targetElement = element.closest(closestSelector);
-    if (hasClass) {
-      expect(targetElement).toHaveClass(className);
-    } else {
-      expect(targetElement).not.toHaveClass(className);
-    }
-  };
 
   let originalOffsetHeight: PropertyDescriptor | undefined;
   let originalOffsetWidth: PropertyDescriptor | undefined;
