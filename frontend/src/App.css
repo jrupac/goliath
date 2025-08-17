@@ -265,7 +265,7 @@
   border-top: 1px solid var(--primary-darker-2-color);
   box-shadow: 0 -4px 6px -1px var(--goliath-box-shadow-color), 0 -2px 4px -2px var(--goliath-box-shadow-color);
   background-color: var(--primary-background-color);
-  padding: 10px;
+  padding: 5px;
   font-size: 10px;
 }
 

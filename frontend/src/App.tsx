@@ -19,7 +19,6 @@ import './themes/dark.css';
 import {
   Box,
   CssBaseline,
-  Divider,
   Drawer,
   IconButton,
   ThemeProvider,
@@ -260,14 +259,9 @@ export default class App extends React.Component<AppProps, AppState> {
               handleSelect={this.handleSelect}
               hideEmpty={this.state.hideEmpty}
               toggleHideEmpty={() => this.handleToggleHideEmpty()}
+              buildTimestamp={this.state.buildTimestamp}
+              buildHash={this.state.buildHash}
             />
-            <Box className="GoliathFooter">
-              Goliath RSS
-              <br />
-              Built at: {this.state.buildTimestamp}
-              <br />
-              {this.state.buildHash}
-            </Box>
           </Drawer>
           <Box component="main" className="GoliathMainContainer">
             <Box>

@@ -26,6 +26,8 @@ export interface FolderFeedListProps {
   handleSelect: (type: SelectionType, key: SelectionKey) => void;
   hideEmpty?: boolean;
   toggleHideEmpty?: () => void;
+  buildTimestamp: string;
+  buildHash: string;
 }
 
 const FolderFeedList: React.FC<FolderFeedListProps> = ({
@@ -36,6 +38,8 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   handleSelect,
   hideEmpty = false,
   toggleHideEmpty,
+  buildTimestamp,
+  buildHash,
 }) => {
   const [keyCache, setKeyCache] = useState<
     Map<string, [SelectionType, SelectionKey]>
@@ -295,6 +299,13 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
           );
         })}
       </TreeView>
+      <Box className="GoliathFooter">
+        Goliath RSS
+        <br />
+        Built at: {buildTimestamp}
+        <br />
+        {buildHash}
+      </Box>
     </>
   );
 };
