@@ -62,7 +62,7 @@ export default class App extends React.Component<AppProps, AppState> {
       theme: GoliathTheme.Dark,
       themeInfo: populateThemeInfo(GoliathTheme.Dark),
       loginVerified: false,
-      hideEmpty: false,
+      hideEmpty: true,
     };
     this.fetchApi = FetchAPIFactory.Create();
   }
