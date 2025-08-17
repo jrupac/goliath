@@ -177,10 +177,15 @@
   color: var(--primary-font-darker-1-color);
 }
 
-.GoliathFolderFeedEmptySwitch .MuiFormControlLabel-label {
+.GoliathFolderFeedEmptySwitchText .MuiFormControlLabel-label {
   font-variant: small-caps;
   font-size: smaller;
   color: var(--primary-font-darker-1-color);
+}
+
+.GoliathFolderFeedEmptySwitch.MuiSwitch-root .MuiSwitch-switchBase + .MuiSwitch-track,
+.GoliathFolderFeedEmptySwitch.MuiSwitch-root .MuiSwitch-switchBase .MuiSwitch-thumb {
+  background-color: var(--primary-lighter-3-color);
 }
 
 .GoliathFolderFeedList {

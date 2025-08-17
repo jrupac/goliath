@@ -249,11 +249,12 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         <p className="GoliathFolderFeedTitle">feeds</p>
         <FormGroup>
           <FormControlLabel
-            className="GoliathFolderFeedEmptySwitch"
+            className="GoliathFolderFeedEmptySwitchText"
             control={
               <Switch
                 checked={hideEmpty}
                 onChange={toggleHideEmpty}
+                className="GoliathFolderFeedEmptySwitch"
                 size="small"
               />
             }
