@@ -2,14 +2,6 @@
  * Common components
  ******************************************************************************/
 
-.GoliathDivider.MuiDivider-root {
-  /*opacity: 10%;*/
-  /*border-width: 1px;*/
-  border-color: var(--goliath-divider-color);
-  color: var(--goliath-divider-color);
-  border-width: thin;
-}
-
 .GoliathActionBarSpacer {
   margin-left: auto;
 }
@@ -82,14 +74,14 @@
 .GoliathLoginFormButton.MuiButton-root {
   margin-top: 8px;
   width: 100%;
-  background-color: var(--goliath-login-page-logo-background-color);
+  background-color: var(--primary-background-color);
   color: var(--primary-logo-font-color);
   font-family: var(--primary-sans-serif-font), sans-serif;
 }
 
 .GoliathLoginFormButton.MuiButton-root:hover {
   width: 100%;
-  background-color: var(--goliath-login-form-button-hover-background-color);
+  background-color: var(--primary-hover-color);
   color: var(--primary-logo-font-color);
 }
 
@@ -133,7 +125,6 @@
 }
 
 .GoliathDrawerActionBarScrolled {
-  border-bottom: 1px solid var(--action-bar-border-color);
   box-shadow: 0 4px 6px -1px var(--goliath-box-shadow-color), 0 2px 4px -2px var(--goliath-box-shadow-color);
 }
 
@@ -151,7 +142,7 @@
 .GoliathStreamSelectorSelected.MuiBox-root {
   display: flex;
   align-items: center;
-  padding-left: 8px;
+  padding-left: 12px;
   line-height: 46px;
   background-color: var(--primary-background-color);
   padding-right: 15px;
@@ -171,6 +162,27 @@
  * Sidebar Folder Feed List
  ******************************************************************************/
 
+.GoliathFolderFeedHeader {
+  padding-left: 4px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  height: 1.5em;
+  border-bottom: 1px solid transparent;
+}
+
+.GoliathFolderFeedTitle {
+  font-variant: small-caps;
+  color: var(--primary-font-darker-1-color);
+}
+
+.GoliathFolderFeedEmptySwitch .MuiFormControlLabel-label {
+  font-variant: small-caps;
+  font-size: smaller;
+  color: var(--primary-font-darker-1-color);
+}
+
 .GoliathFolderFeedList {
   overflow-y: auto;
   scrollbar-width: thin;
@@ -182,6 +194,10 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+.GoliathFolderRow .MuiTreeItem-content {
+  padding-left: 12px;
 }
 
 .GoliathFolderRow .MuiCollapse-root {
@@ -304,6 +320,7 @@
   height: 100vh;
   width: 30vw;
   flex-shrink: 0;
+  background-color: var(--article-list-background-color);
 }
 
 .GoliathSplitViewArticleListBox {
@@ -321,6 +338,7 @@
 .GoliathArticleFeedTitle {
   padding-left: 5px;
   font-family: var(--primary-sans-serif-font), sans-serif;
+  color: var(--primary-font-color);
   margin: 0;
 }
 
@@ -330,6 +348,7 @@
   border-bottom: 1px solid var(--action-bar-border-color);
   /* Explicitly set this to avoid non-composited animations when scrolling */
   box-shadow: none;
+  background-color: var(--article-list-background-color);
 }
 
 .GoliathArticleListRead.MuiPaper-root {
@@ -420,6 +439,8 @@
 
 .GoliathSplitViewArticleContainer {
   overflow-y: auto;
+  background: var(--article-background-color);
+  color: var(--article-font-color);
 }
 
 .GoliathSplitViewArticleContainer .MuiCard-root {
@@ -463,6 +484,7 @@
 
 .GoliathArticleTitle a {
   overflow-wrap: break-word;
+  color: var(--article-font-color);
 }
 
 .GoliathSplitViewArticleCardActionBar {

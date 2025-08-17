@@ -1,45 +1,58 @@
 .default-theme {
+  /* Theme background colors */
   --primary-sans-serif-font: sans-serif;
   --primary-serif-font: 'Vollkorn';
   --primary-logo-font: 'Pacifico';
 
+    /* Theme background colors */
   --primary-background-color: #2c4650;
-  --primary-selected-color: #263a42;
+  --primary-selected-color: color-mix(in srgb, var(--primary-background-color) 70%, #000);
+  --primary-hover-color: color-mix(in srgb, var(--primary-background-color) 70%, #fff);
 
-  --primary-logo-font-color: #e6f2f7;
+  --primary-darker-1-color: color-mix(in srgb, var(--primary-background-color) 50%, #000);
+  --primary-darker-2-color: color-mix(in srgb, var(--primary-background-color) 30%, #000);
+  --primary-darker-3-color: color-mix(in srgb, var(--primary-background-color) 10%, #000);
 
-  --action-bar-background-color: white;
-  --action-bar-border-color: #555;
+  --primary-lighter-1-color: color-mix(in srgb, var(--primary-background-color) 99%, #fff);
+  --primary-lighter-2-color: color-mix(in srgb, var(--primary-background-color) 50%, #fff);
+  --primary-lighter-3-color: color-mix(in srgb, var(--primary-background-color) 25%, #fff);
+  --primary-lighter-4-color: color-mix(in srgb, var(--primary-background-color) 5%, #fff);
 
+  /* Theme font colors */
   --primary-font-color: #e6f2f7;
+  --primary-warning-color: #f04134;
 
-  --sider-border-color: #aaa;
+  --primary-logo-font-color: var(--primary-font-color);
 
-  --article-list-background-color: #f6f6f6;
+  --primary-font-darker-1-color: color-mix(in srgb, var(--primary-font-color) 70%, #000);
+  --primary-font-darker-2-color: color-mix(in srgb, var(--primary-font-color) 50%, #000);
 
-  --article-list-empty-primary-font-color: #ababab;
-  --article-list-empty-text-font-color: #888;
+  --primary-font-lighter-1-color: color-mix(in srgb, var(--primary-font-color) 70%, #fff);
 
-  --card-normal-border-color: white;
-  --card-selected-background-color: #e9e9e9;
-  --card-selected-border-color: white;
-  --card-shadow-color: #d9d9d9;
+ /* Component colors */
+  --action-bar-background-color: var(--primary-darker-2-color);
+  --action-bar-border-color: var(--primary-lighter-2-color);
 
-  --card-header-actions-background-color: #d9d9d9bd;
-  --card-header-background-color: #ecececbd;
-  --card-header-selected-background-color: #ececec;
+  --article-list-background-color: var(--primary-lighter-3-color);
 
-  --article-header-unread-font-color: #222;
-  --article-header-read-font-color: #aaa;
+  --article-list-empty-primary-font-color: var(--primary-lighter-2-color);
+  --article-list-empty-text-font-color: var(--primary-lighter-2-color);
 
-  --article-feed-title-font-color: black;
+  --card-normal-border-color: var(--primary-lighter-1-color);
+  --card-selected-background-color: var(--primary-lighter-2-color);
 
-  --article-background-color: white;
-  --article-date-color: #888;
-  --article-font-color: black;
+  --card-header-actions-background-color: var(--primary-darker-2-color);
+  --card-header-background-color: color-mix(in srgb, var(--primary-lighter-2-color) 25%, transparent);
 
-  --goliath-divider-color: rgba(10, 10, 10, 0.25);
-  --goliath-login-form-button-hover-background-color: #537e8f;
-  --goliath-login-failed-message-color: #f04134;
-  --goliath-box-shadow-color: rgb(0 0 0 / 0.3);
+  --article-header-unread-font-color: var(--primary-font-lighter-1-color);
+  --article-header-read-font-color: var(--primary-font-darker-2-color);
+
+  --article-feed-title-font-color: var(--primary-font-darker-3-color);
+
+  --article-background-color: var(--primary-lighter-4-color);
+  --article-date-color: var(--primary-font-darker-2-color);
+  --article-font-color: var(--primary-font-darker-3-color);
+
+  --goliath-login-failed-message-color: var(--primary-warning-color);
+  --goliath-box-shadow-color: color-mix(in srgb, var(--primary-darker-3-color) 30%, transparent);
 }
