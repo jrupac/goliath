@@ -6,6 +6,8 @@
   --primary-background-color: #243941;
   --primary-selected-color: #1b292f;
 
+  --primary-logo-font-color: #e6f2f7;
+
   --action-bar-background-color: #121212;
   --action-bar-border-color: #555;
 
@@ -35,4 +37,9 @@
   --article-background-color: #121212;
   --article-date-color: #888;
   --article-font-color: white;
+
+  --goliath-divider-color: rgba(10, 10, 10, 0.25);
+  --goliath-login-form-button-hover-background-color: #537e8f;
+  --goliath-login-failed-message-color: #f04134;
+  --goliath-box-shadow-color: rgb(0 0 0 / 0.3);
 }

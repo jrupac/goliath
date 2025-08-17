@@ -5,8 +5,8 @@
 .GoliathDivider.MuiDivider-root {
   /*opacity: 10%;*/
   /*border-width: 1px;*/
-  border-color: rgba(10, 10, 10, 0.25);
-  color: rgba(10, 10, 10, 0.25);
+  border-color: var(--goliath-divider-color);
+  color: var(--goliath-divider-color);
   border-width: thin;
 }
 
@@ -52,11 +52,11 @@
 }
 
 .GoliathLoginPageLogo {
-  background-color: #243941;
+  background-color: var(--primary-background-color);
   justify-content: flex-end;
   padding-right: 20px;
   font-family: var(--primary-logo-font), cursive;
-  color: #e6f2f7;
+  color: var(--goliath-login-page-logo-color);
   font-size: 48px;
   width: 40%;
 }
@@ -82,18 +82,19 @@
 .GoliathLoginFormButton.MuiButton-root {
   margin-top: 8px;
   width: 100%;
-  background-color: #243941;
-  color: #e6f2f7;
+  background-color: var(--goliath-login-page-logo-background-color);
+  color: var(--primary-logo-font-color);
+  font-family: var(--primary-sans-serif-font), sans-serif;
 }
 
 .GoliathLoginFormButton.MuiButton-root:hover {
   width: 100%;
-  background-color: #537e8f;
-  color: #e6f2f7;
+  background-color: var(--goliath-login-form-button-hover-background-color);
+  color: var(--primary-logo-font-color);
 }
 
 .GoliathLoginFailedMessage {
-  color: #f04134;
+  color: var(--goliath-login-failed-message-color);
   padding-bottom: 5px;
 }
 
@@ -133,7 +134,7 @@
 
 .GoliathDrawerActionBarScrolled {
   border-bottom: 1px solid var(--action-bar-border-color);
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  box-shadow: 0 4px 6px -1px var(--goliath-box-shadow-color), 0 2px 4px -2px var(--goliath-box-shadow-color);
 }
 
 .GoliathLogo {
@@ -230,7 +231,7 @@
   font-family: var(--primary-sans-serif-font), sans-serif;
   color: var(--primary-font-color);
   border-top: 1px solid var(--action-bar-border-color);
-  box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.3), 0 -2px 4px -2px rgb(0 0 0 / 0.3);
+  box-shadow: 0 -4px 6px -1px var(--goliath-box-shadow-color), 0 -2px 4px -2px var(--goliath-box-shadow-color);
   background-color: var(--primary-background-color);
   padding-top: 10px;
   font-size: 10px;
