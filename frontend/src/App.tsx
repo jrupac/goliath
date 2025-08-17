@@ -149,6 +149,15 @@ export default class App extends React.Component<AppProps, AppState> {
     });
   };
 
+  handleToggleHideEmpty = () => {
+    this.setState((prevState: AppState): AppState => {
+      return {
+        ...prevState,
+        hideEmpty: !prevState.hideEmpty,
+      };
+    });
+  };
+
   handleSelect = (type: SelectionType, key: SelectionKey) => {
     this.setState({
       selectionKey: key,
@@ -250,6 +259,7 @@ export default class App extends React.Component<AppProps, AppState> {
               selectionType={selectionType}
               handleSelect={this.handleSelect}
               hideEmpty={this.state.hideEmpty}
+              toggleHideEmpty={() => this.handleToggleHideEmpty()}
             />
             <Divider variant="middle" />
             <Box className="GoliathFooter">

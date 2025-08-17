@@ -7,7 +7,8 @@ import {
   SelectionKey,
   SelectionType,
 } from '../utils/types';
-import { Box } from '@mui/material';
+import { Box, FormGroup, Switch } from '@mui/material';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import InboxTwoToneIcon from '@mui/icons-material/InboxTwoTone';
 import { TreeView } from '@mui/x-tree-view/TreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
@@ -24,6 +25,7 @@ export interface FolderFeedListProps {
   selectionType: SelectionType;
   handleSelect: (type: SelectionType, key: SelectionKey) => void;
   hideEmpty?: boolean;
+  toggleHideEmpty?: () => void;
 }
 
 const FolderFeedList: React.FC<FolderFeedListProps> = ({
@@ -33,6 +35,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   selectionType,
   handleSelect,
   hideEmpty = false,
+  toggleHideEmpty,
 }) => {
   const [keyCache, setKeyCache] = useState<
     Map<string, [SelectionType, SelectionKey]>
@@ -236,10 +239,27 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
 
       <Box
         onClick={() => handleNodeSelect(null, KeySaved)}
-        className={`${savedSelectedClass} ${scrolledClass}`}
+        className={`${savedSelectedClass}`}
       >
         <BookmarkTwoToneIcon fontSize="small" />
         <Box className={savedSelectedClass}>{renderSavedItemsTitle()}</Box>
+      </Box>
+
+      <Box className={`${scrolledClass} GoliathFolderFeedHeader `}>
+        <p className="GoliathFolderFeedTitle">feeds</p>
+        <FormGroup>
+          <FormControlLabel
+            className="GoliathFolderFeedEmptySwitch"
+            control={
+              <Switch
+                checked={hideEmpty}
+                onChange={toggleHideEmpty}
+                size="small"
+              />
+            }
+            label="hide unread"
+          ></FormControlLabel>
+        </FormGroup>
       </Box>
 
       <TreeView
