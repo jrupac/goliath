@@ -261,7 +261,6 @@ export default class App extends React.Component<AppProps, AppState> {
               hideEmpty={this.state.hideEmpty}
               toggleHideEmpty={() => this.handleToggleHideEmpty()}
             />
-            <Divider variant="middle" />
             <Box className="GoliathFooter">
               Goliath RSS
               <br />

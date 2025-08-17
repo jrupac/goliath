@@ -229,6 +229,10 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
 
   return (
     <>
+      <Box className="GoliathFolderFeedHeader">
+        <p className="GoliathFolderFeedTitle">streams</p>
+      </Box>
+
       <Box
         onClick={() => handleNodeSelect(null, KeyAll)}
         className={allSelectedClass}
@@ -258,7 +262,8 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
                 size="small"
               />
             }
-            label="hide unread"
+            label="hide empty"
+            labelPlacement="start"
           ></FormControlLabel>
         </FormGroup>
       </Box>

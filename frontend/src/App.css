@@ -117,16 +117,13 @@
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  background-color: var(--primary-selected-color);
+  background-color: var(--primary-darker-2-color);
   padding: 10px;
   border-bottom: 1px solid var(--action-bar-border-color);
   position: relative;
   z-index: 1;
 }
 
-.GoliathDrawerActionBarScrolled {
-  box-shadow: 0 4px 6px -1px var(--goliath-box-shadow-color), 0 2px 4px -2px var(--goliath-box-shadow-color);
-}
 
 .GoliathLogo {
   text-align: center;
@@ -135,7 +132,6 @@
   background-color: var(--primary-background-color);
   font-size: 48px;
   padding-top: 24px;
-  padding-bottom: 20px;
 }
 
 .GoliathStreamSelector.MuiBox-root,
@@ -168,13 +164,23 @@
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  height: 1.5em;
+  height: 2em;
   border-bottom: 1px solid transparent;
+  box-sizing: border-box;
+}
+
+.GoliathFolderFeedHeader.GoliathDrawerActionBarScrolled {
+  border-bottom: 1px solid var(--primary-darker-2-color);
+  box-shadow: 0 4px 6px -1px var(--goliath-box-shadow-color), 0 2px 4px -2px var(--goliath-box-shadow-color);
 }
 
 .GoliathFolderFeedTitle {
   font-variant: small-caps;
   color: var(--primary-font-darker-1-color);
+}
+
+.GoliathFolderFeedEmptySwitchText.MuiFormControlLabel-root {
+  margin-right: 4px;
 }
 
 .GoliathFolderFeedEmptySwitchText .MuiFormControlLabel-label {
@@ -185,7 +191,7 @@
 
 .GoliathFolderFeedEmptySwitch.MuiSwitch-root .MuiSwitch-switchBase + .MuiSwitch-track,
 .GoliathFolderFeedEmptySwitch.MuiSwitch-root .MuiSwitch-switchBase .MuiSwitch-thumb {
-  background-color: var(--primary-lighter-3-color);
+  background-color: var(--primary-lighter-4-color);
 }
 
 .GoliathFolderFeedList {
@@ -195,18 +201,23 @@
 
 .GoliathFolderFeedList.MuiTreeView-root {
   line-height: 14px;
-  padding: 10px 0 10px 0;
+  padding-bottom: 10px;
   display: flex;
   flex-direction: column;
   height: 100%;
 }
 
-.GoliathFolderRow .MuiTreeItem-content {
-  padding-left: 12px;
+.GoliathFolderFeedList .MuiTreeItem-content:hover {
+  background-color: var(--primary-darker-1-color);
 }
 
-.GoliathFolderRow .MuiCollapse-root {
-  margin-left: 24px;
+.GoliathFolderFeedList .MuiTreeItem-content.Mui-selected,
+.GoliathFolderFeedList .MuiTreeItem-content.Mui-selected.Mui-focused {
+  background-color: var(--primary-darker-2-color);
+}
+
+.GoliathFolderRow .MuiTreeItem-content {
+  padding-left: 12px;
 }
 
 .GoliathFolderTitle {
@@ -251,10 +262,10 @@
   text-align: center;
   font-family: var(--primary-sans-serif-font), sans-serif;
   color: var(--primary-font-color);
-  border-top: 1px solid var(--action-bar-border-color);
+  border-top: 1px solid var(--primary-darker-2-color);
   box-shadow: 0 -4px 6px -1px var(--goliath-box-shadow-color), 0 -2px 4px -2px var(--goliath-box-shadow-color);
   background-color: var(--primary-background-color);
-  padding-top: 10px;
+  padding: 10px;
   font-size: 10px;
 }
 
