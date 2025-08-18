@@ -48,6 +48,8 @@ export interface ArticleListProps {
     entity: SelectionKey,
     type: SelectionType
   ) => void;
+  buildTimestamp: string;
+  buildHash: string;
 }
 
 interface ArticleListState {
@@ -63,6 +65,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
   selectionType,
   selectAllCallback,
   handleMark,
+  buildTimestamp,
+  buildHash,
 }) => {
   const listRef = useRef<ReactList | null>(null);
   const inflightPreviewRef = useRef<Set<ArticleId>>(new Set<ArticleId>());
@@ -463,6 +467,13 @@ const ArticleList: React.FC<ArticleListProps> = ({
       <Container fixed className="GoliathArticleListContainer">
         <Box className="GoliathArticleListEmpty">
           <DoneAllRounded className="GoliathArticleListEmptyIcon" />
+          <Box className="GoliathFooter">
+            Goliath RSS
+            <br />
+            Built at: {buildTimestamp}
+            <br />
+            {buildHash}
+          </Box>
         </Box>
       </Container>
     );

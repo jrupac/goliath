@@ -259,8 +259,6 @@ export default class App extends React.Component<AppProps, AppState> {
               handleSelect={this.handleSelect}
               hideEmpty={this.state.hideEmpty}
               toggleHideEmpty={() => this.handleToggleHideEmpty()}
-              buildTimestamp={this.state.buildTimestamp}
-              buildHash={this.state.buildHash}
             />
           </Drawer>
           <Box component="main" className="GoliathMainContainer">
@@ -277,6 +275,8 @@ export default class App extends React.Component<AppProps, AppState> {
                 selectAllCallback={() =>
                   this.handleSelect(SelectionType.All, KeyAll)
                 }
+                buildTimestamp={this.state.buildTimestamp}
+                buildHash={this.state.buildHash}
               />
             </Box>
           </Box>

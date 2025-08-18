@@ -255,21 +255,6 @@
 }
 
 /******************************************************************************
- * Sidebar Footer
- ******************************************************************************/
-
-.GoliathFooter {
-  text-align: center;
-  font-family: var(--primary-sans-serif-font), sans-serif;
-  color: var(--primary-font-color);
-  border-top: 1px solid var(--primary-darker-2-color);
-  box-shadow: 0 -4px 6px -1px var(--goliath-box-shadow-color), 0 -2px 4px -2px var(--goliath-box-shadow-color);
-  background-color: var(--primary-background-color);
-  padding: 5px;
-  font-size: 10px;
-}
-
-/******************************************************************************
  * Main Container
  ******************************************************************************/
 
@@ -292,12 +277,22 @@
   color: var(--article-list-empty-primary-font-color);
   font-size: 24px;
   height: 100vh;
-  justify-content: center;
+  justify-content: space-between;
 }
 
 .GoliathArticleListEmptyIcon.MuiSvgIcon-root {
-  font-size: 120px;
   width: 100%;
+  height: 10vh;
+  margin-top: 40vh;
+}
+
+.GoliathFooter {
+  text-align: center;
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  color: var(--article-font-color);
+  background-color: var(--article-list-empty-background-color);
+  padding: 20px;
+  font-size: 10px;
 }
 
 /** Combined article list */
@@ -433,6 +428,7 @@
   text-overflow: "ellipsis";
   display: -webkit-box;
   -webkit-line-clamp: 4;
+  line-clamp: 4;
   -webkit-box-orient: vertical;
 }
 
@@ -442,9 +438,6 @@
 
 .GoliathArticleCardColumn {
   height: 100vh;
-}
-
-.GoliathArticleOuter {
 }
 
 .GoliathSplitViewArticleOuter {

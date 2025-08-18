@@ -99,6 +99,8 @@ describe('ArticleList', () => {
       selectionType: SelectionType.Folder,
       selectAllCallback: mockSelectAllCallback,
       handleMark: mockHandleMark,
+      buildTimestamp: '',
+      buildHash: '',
     };
     const { container } = render(<ArticleList {...props} />);
 
@@ -116,6 +118,8 @@ describe('ArticleList', () => {
       selectionType: SelectionType.Folder,
       selectAllCallback: mockSelectAllCallback,
       handleMark: mockHandleMark,
+      buildTimestamp: '',
+      buildHash: '',
     };
 
     const { container } = render(<ArticleList {...props} />);
@@ -164,6 +168,8 @@ describe('ArticleList', () => {
       selectionType: SelectionType.Folder,
       selectAllCallback: mockSelectAllCallback,
       handleMark: mockHandleMark,
+      buildTimestamp: '',
+      buildHash: '',
     };
 
     const { container } = render(<ArticleList {...props} />);
@@ -332,6 +338,8 @@ describe('ArticleList', () => {
       selectionType: SelectionType.Folder,
       selectAllCallback: mockSelectAllCallback,
       handleMark: mockHandleMark,
+      buildTimestamp: '',
+      buildHash: '',
     };
 
     const { container, rerender } = render(<ArticleList {...props} />);
@@ -413,6 +421,8 @@ describe('ArticleList', () => {
       selectionType: SelectionType.Folder,
       selectAllCallback: mockSelectAllCallback,
       handleMark: mockHandleMark,
+      buildTimestamp: '',
+      buildHash: '',
     };
 
     const { container, rerender } = render(<ArticleList {...props} />);
@@ -515,6 +525,8 @@ describe('ArticleList', () => {
       selectionType: SelectionType.Folder,
       selectAllCallback: mockSelectAllCallback,
       handleMark: mockHandleMark,
+      buildTimestamp: '',
+      buildHash: '',
     };
 
     const { container, rerender } = render(<ArticleList {...props} />);
