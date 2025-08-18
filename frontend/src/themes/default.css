@@ -6,12 +6,15 @@
 
     /* Theme background colors */
   --primary-background-color: #2c4650;
+  --primary-img-background-color: white;
+
   --primary-selected-color: color-mix(in srgb, var(--primary-background-color) 70%, #000);
   --primary-hover-color: color-mix(in srgb, var(--primary-background-color) 70%, #fff);
 
   --primary-darker-1-color: color-mix(in srgb, var(--primary-background-color) 50%, #000);
   --primary-darker-2-color: color-mix(in srgb, var(--primary-background-color) 30%, #000);
   --primary-darker-3-color: color-mix(in srgb, var(--primary-background-color) 10%, #000);
+  --primary-darker-4-color: color-mix(in srgb, var(--primary-background-color) 5%, #000);
 
   --primary-lighter-1-color: color-mix(in srgb, var(--primary-background-color) 99%, #fff);
   --primary-lighter-2-color: color-mix(in srgb, var(--primary-background-color) 50%, #fff);
@@ -21,6 +24,7 @@
   /* Theme font colors */
   --primary-font-color: #e6f2f7;
   --primary-warning-color: #f04134;
+  --primary-font-code-color: #f38a6a;
 
   --primary-logo-font-color: var(--primary-font-color);
 
@@ -55,4 +59,11 @@
 
   --goliath-login-failed-message-color: var(--primary-warning-color);
   --goliath-box-shadow-color: color-mix(in srgb, var(--primary-darker-3-color) 30%, transparent);
+
+  --pre-background-color: var(--primary-darker-2-color);
+  --pre-box-shadow: color-mix(in srgb, var(--primary-darker-3-color) 25%, transparent);
+
+  --code-background-color: var(--primary-darker-2-color);
+
+  --img-border-color: var(--primary-lighter-4-color);
 }
