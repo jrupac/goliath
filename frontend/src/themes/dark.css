@@ -5,7 +5,7 @@
   --primary-logo-font: 'Pacifico';
 
   /* Theme background colors */
-  --primary-background-color: #243941;
+  --primary-background-color: #2b303b;
   --primary-img-background-color: white;
 
   --primary-selected-color: color-mix(in srgb, var(--primary-background-color) 70%, #000);
@@ -23,7 +23,7 @@
   --primary-lighter-4-color: color-mix(in srgb, var(--primary-background-color) 5%, #fff);
 
   /* Theme font colors */
-  --primary-font-color: #e6f2f7;
+  --primary-font-color: #f7ece6;
   --primary-warning-color: #f04134;
   --primary-font-code-color: #f38a6a;
 

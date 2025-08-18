@@ -207,7 +207,8 @@
   height: 100%;
 }
 
-.GoliathFolderFeedList .MuiTreeItem-content:hover {
+.GoliathFolderFeedList .MuiTreeItem-content:hover,
+.GoliathFolderFeedList .MuiTreeItem-content.Mui-selected:hover {
   background-color: var(--primary-darker-1-color);
 }
 
