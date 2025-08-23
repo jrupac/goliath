@@ -72,6 +72,11 @@
     "not ie <= 11",
     "not op_mini all"
   ],
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "vitest run"
+    ]
+  },
   "type": "module",
   "overrides": {
     "@types/react": "^18.0.0"
