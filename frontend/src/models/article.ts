@@ -5,6 +5,19 @@ import { FolderId } from './folder';
 /** ArticleId is the ID associated with an Article object. */
 export type ArticleId = string;
 
+// TODO: Consider making ArticleId an interface with a comparison method on it.
+export namespace ArticleId {
+  export const compare = (a: ArticleId, b: ArticleId) => {
+    if (a < b) {
+      return -1;
+    }
+    if (a > b) {
+      return 1;
+    }
+    return 0;
+  };
+}
+
 /** ArticleView holds metadata associated with a displayed Article. */
 export type ArticleView = Readonly<{
   // Folder metadata
@@ -103,7 +116,10 @@ export class ArticleCls {
 
   public static Comparator(a: ArticleCls, b: ArticleCls): number {
     // Sort by article creation time in descending order
-    return b.creationTime - a.creationTime;
+    if (b.creationTime !== a.creationTime) {
+      return b.creationTime - a.creationTime;
+    }
+    return ArticleId.compare(a.id, b.id);
   }
 
   public static SortAndFilterViews(articleViews: ArticleView[]): ArticleView[] {
@@ -114,6 +130,10 @@ export class ArticleCls {
 
   private static FilterUnread = (a: ArticleView) => !a.isRead;
 
-  public static ArticleViewComparator = (a: ArticleView, b: ArticleView) =>
-    b.creationTime - a.creationTime;
+  public static ArticleViewComparator = (a: ArticleView, b: ArticleView) => {
+    if (b.creationTime !== a.creationTime) {
+      return b.creationTime - a.creationTime;
+    }
+    return ArticleId.compare(a.id, b.id);
+  };
 }
