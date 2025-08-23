@@ -50,6 +50,7 @@ export interface ArticleListProps {
   ) => void;
   buildTimestamp: string;
   buildHash: string;
+  threshold?: number;
 }
 
 interface ArticleListState {
@@ -67,6 +68,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   handleMark,
   buildTimestamp,
   buildHash,
+  threshold = 500,
 }) => {
   const listRef = useRef<ReactList | null>(null);
   const inflightPreviewRef = useRef<Set<ArticleId>>(new Set<ArticleId>());
@@ -527,7 +529,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
                 ref={handleMounted}
                 itemRenderer={renderArticleListEntry}
                 length={articles.length}
-                threshold={500}
+                threshold={threshold}
                 useStaticSize={true}
                 type="uniform"
               />

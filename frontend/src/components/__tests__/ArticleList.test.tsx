@@ -1,6 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import ArticleList from '../ArticleList';
+import ArticleList, { ArticleListProps } from '../ArticleList';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { ArticleView } from '../../models/article';
 import { expectClass, expectTextInElement } from './helpers';
@@ -42,6 +42,37 @@ describe('ArticleList', () => {
   const mockSelectAllCallback = vi.fn();
   const mockHandleMark = vi.fn();
 
+  const getMockProps = (
+    props?: Partial<ArticleListProps>
+  ): ArticleListProps => ({
+    articleEntriesCls: mockArticles,
+    faviconMap: new Map<FeedId, FaviconCls>(),
+    selectionKey: '1' as SelectionKey,
+    selectionType: SelectionType.Folder,
+    selectAllCallback: mockSelectAllCallback,
+    handleMark: mockHandleMark,
+    buildTimestamp: '',
+    buildHash: '',
+    ...props,
+  });
+
+  const expectArticleSelected = (
+    container: HTMLElement,
+    title: string,
+    selected: boolean
+  ) => {
+    const articleListBox = container.querySelector(
+      '.GoliathSplitViewArticleListBox'
+    ) as HTMLElement;
+    const articleEntry = expectTextInElement(articleListBox, title);
+    expectClass(
+      articleEntry,
+      '.GoliathArticleListBase',
+      'GoliathArticleListSelected',
+      selected
+    );
+  };
+
   let originalOffsetHeight: PropertyDescriptor | undefined;
   let originalOffsetWidth: PropertyDescriptor | undefined;
 
@@ -60,7 +91,7 @@ describe('ArticleList', () => {
 
     Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
       configurable: true,
-      value: 1000, // A large enough height to render all articles
+      value: 182, // Set equal to the height of each entry
     });
     Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
       configurable: true,
@@ -92,17 +123,7 @@ describe('ArticleList', () => {
 
   it('renders', () => {
     // Minimal rendering test
-    const props = {
-      articleEntriesCls: mockArticles,
-      faviconMap: new Map<FeedId, FaviconCls>(),
-      selectionKey: '1' as SelectionKey,
-      selectionType: SelectionType.Folder,
-      selectAllCallback: mockSelectAllCallback,
-      handleMark: mockHandleMark,
-      buildTimestamp: '',
-      buildHash: '',
-    };
-    const { container } = render(<ArticleList {...props} />);
+    const { container } = render(<ArticleList {...getMockProps()} />);
 
     // Basic assertion to check if it renders without crashing
     expect(container).toBeDefined();
@@ -111,29 +132,10 @@ describe('ArticleList', () => {
   });
 
   it('marks article as read and selects next on scroll down', () => {
-    const props = {
-      articleEntriesCls: mockArticles,
-      faviconMap: new Map<FeedId, FaviconCls>(),
-      selectionKey: '1' as SelectionKey,
-      selectionType: SelectionType.Folder,
-      selectAllCallback: mockSelectAllCallback,
-      handleMark: mockHandleMark,
-      buildTimestamp: '',
-      buildHash: '',
-    };
-
-    const { container } = render(<ArticleList {...props} />);
+    const { container } = render(<ArticleList {...getMockProps()} />);
 
     // Before scroll, Article 1 is selected
-    const articleListBox = container.querySelector(
-      '.GoliathSplitViewArticleListBox'
-    ) as HTMLElement;
-    const article1Entry = expectTextInElement(articleListBox, 'Test Article 1');
-    expectClass(
-      article1Entry,
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
+    expectArticleSelected(container, 'Test Article 1', true);
 
     // Simulate scroll down
     fireEvent.keyDown(window, { key: 'j' });
@@ -146,37 +148,12 @@ describe('ArticleList', () => {
     );
 
     // After scroll, Article 2 should be selected
-    const article2Entry = expectTextInElement(articleListBox, 'Test Article 2');
-    expectClass(
-      article1Entry,
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected',
-      false
-    );
-    expectClass(
-      article2Entry,
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
+    expectArticleSelected(container, 'Test Article 1', false);
+    expectArticleSelected(container, 'Test Article 2', true);
   });
 
   it('selects previous article on scroll up', () => {
-    const props = {
-      articleEntriesCls: mockArticles,
-      faviconMap: new Map<FeedId, FaviconCls>(),
-      selectionKey: '1' as SelectionKey,
-      selectionType: SelectionType.Folder,
-      selectAllCallback: mockSelectAllCallback,
-      handleMark: mockHandleMark,
-      buildTimestamp: '',
-      buildHash: '',
-    };
-
-    const { container } = render(<ArticleList {...props} />);
-
-    const articleListBox = container.querySelector(
-      '.GoliathSplitViewArticleListBox'
-    ) as HTMLElement;
+    const { container } = render(<ArticleList {...getMockProps()} />);
 
     // Get button references
     const scrollDownButton = screen.getByLabelText('scroll down');
@@ -186,25 +163,8 @@ describe('ArticleList', () => {
     fireEvent.keyDown(window, { key: 'j' });
 
     // Verify Article 2 is selected
-    const article1EntryAfterScrollDown = expectTextInElement(
-      articleListBox,
-      'Test Article 1'
-    );
-    const article2EntryAfterScrollDown = expectTextInElement(
-      articleListBox,
-      'Test Article 2'
-    );
-    expectClass(
-      article1EntryAfterScrollDown,
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected',
-      false
-    );
-    expectClass(
-      article2EntryAfterScrollDown,
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
+    expectArticleSelected(container, 'Test Article 1', false);
+    expectArticleSelected(container, 'Test Article 2', true);
 
     // Simulate scroll up (keyboard)
     fireEvent.keyDown(window, { key: 'k' });
@@ -215,59 +175,25 @@ describe('ArticleList', () => {
     expect(mockHandleMark).toHaveBeenCalledTimes(1);
 
     // After scroll up, Article 1 should be selected again
-    const article1EntryAfterScrollUp = expectTextInElement(
-      articleListBox,
-      'Test Article 1'
-    );
-    const article2EntryAfterScrollUp = expectTextInElement(
-      articleListBox,
-      'Test Article 2'
-    );
-    expectClass(
-      article1EntryAfterScrollUp,
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
-    expectClass(
-      article2EntryAfterScrollUp,
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected',
-      false
-    );
+    expectArticleSelected(container, 'Test Article 1', true);
+    expectArticleSelected(container, 'Test Article 2', false);
 
     // Simulate scroll down (button click)
     fireEvent.click(scrollDownButton);
 
     // Verify Article 2 is selected again
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 1'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected',
-      false
-    );
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 2'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
-    // handleMark should NOT be called again for the first article as it's already read
+    expectArticleSelected(container, 'Test Article 1', false);
+    expectArticleSelected(container, 'Test Article 2', true);
+    // handleMark should NOT be called again for the first article as it's
+    // already read
     expect(mockHandleMark).toHaveBeenCalledTimes(1);
 
     // Simulate scroll up (button click)
     fireEvent.click(scrollUpButton);
 
     // Verify Article 1 is selected again
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 1'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 2'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected',
-      false
-    );
+    expectArticleSelected(container, 'Test Article 1', true);
+    expectArticleSelected(container, 'Test Article 2', false);
     // handleMark should still be 1, as scrolling up doesn't mark unread
     expect(mockHandleMark).toHaveBeenCalledTimes(1);
   });
@@ -331,44 +257,21 @@ describe('ArticleList', () => {
       },
     ];
 
-    const props = {
-      articleEntriesCls: initialArticles,
-      faviconMap: new Map<FeedId, FaviconCls>(),
-      selectionKey: '1' as SelectionKey,
-      selectionType: SelectionType.Folder,
-      selectAllCallback: mockSelectAllCallback,
-      handleMark: mockHandleMark,
-      buildTimestamp: '',
-      buildHash: '',
-    };
-
-    const { container, rerender } = render(<ArticleList {...props} />);
+    const { container, rerender } = render(
+      <ArticleList {...getMockProps({ articleEntriesCls: initialArticles })} />
+    );
 
     // Initial render, Article 1 should be selected (latest creationTime)
-    const articleListBox = container.querySelector(
-      '.GoliathSplitViewArticleListBox'
-    ) as HTMLElement;
-    const initialArticle1 = expectTextInElement(
-      articleListBox,
-      'Initial Article 1'
-    );
-    expectClass(
-      initialArticle1,
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
+    expectArticleSelected(container, 'Initial Article 1', true);
 
     // Rerender with new articles
-    rerender(<ArticleList {...props} articleEntriesCls={newArticles} />);
+    rerender(
+      <ArticleList {...getMockProps({ articleEntriesCls: newArticles })} />
+    );
 
     // After rerender, the new article (Article 3) should be at the top and
     // selected
-    const newArticle3 = expectTextInElement(articleListBox, 'New Article 3');
-    expectClass(
-      newArticle3,
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
+    expectArticleSelected(container, 'New Article 3', true);
   });
 
   it('maintains scroll position when props changes non-meaningfully', () => {
@@ -414,45 +317,19 @@ describe('ArticleList', () => {
       },
     ];
 
-    const props = {
-      articleEntriesCls: initialArticles,
-      faviconMap: new Map<FeedId, FaviconCls>(),
-      selectionKey: '1' as SelectionKey,
-      selectionType: SelectionType.Folder,
-      selectAllCallback: mockSelectAllCallback,
-      handleMark: mockHandleMark,
-      buildTimestamp: '',
-      buildHash: '',
-    };
-
-    const { container, rerender } = render(<ArticleList {...props} />);
-
-    const articleListBox = container.querySelector(
-      '.GoliathSplitViewArticleListBox'
-    ) as HTMLElement;
+    const { container, rerender } = render(
+      <ArticleList {...getMockProps({ articleEntriesCls: initialArticles })} />
+    );
 
     // Initially, Article 1 is selected
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 1'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
+    expectArticleSelected(container, 'Test Article 1', true);
 
     // Scroll down to select Article 2
     fireEvent.keyDown(window, { key: 'j' });
 
     // Verify Article 2 is selected
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 1'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected',
-      false
-    );
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 2'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
+    expectArticleSelected(container, 'Test Article 1', false);
+    expectArticleSelected(container, 'Test Article 2', true);
 
     // Simulate an update where Article 1 becomes read and is no longer part of
     // the props.
@@ -461,22 +338,18 @@ describe('ArticleList', () => {
       initialArticles[2],
     ];
 
-    rerender(<ArticleList {...props} articleEntriesCls={updatedArticles} />);
+    rerender(
+      <ArticleList {...getMockProps({ articleEntriesCls: updatedArticles })} />
+    );
 
     // Assert that Article 2 is still selected (no jump to top)
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 1'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected',
-      false
-    );
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 2'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
+    expectArticleSelected(container, 'Test Article 1', false);
+    expectArticleSelected(container, 'Test Article 2', true);
 
     // Assert no duplicate articles
+    const articleListBox = container.querySelector(
+      '.GoliathSplitViewArticleListBox'
+    ) as HTMLElement;
     expect(within(articleListBox).getAllByText('Test Article 1')).toHaveLength(
       1
     );
@@ -518,18 +391,9 @@ describe('ArticleList', () => {
       },
     ];
 
-    const props = {
-      articleEntriesCls: initialArticles,
-      faviconMap: new Map<FeedId, FaviconCls>(),
-      selectionKey: '1' as SelectionKey,
-      selectionType: SelectionType.Folder,
-      selectAllCallback: mockSelectAllCallback,
-      handleMark: mockHandleMark,
-      buildTimestamp: '',
-      buildHash: '',
-    };
-
-    const { container, rerender } = render(<ArticleList {...props} />);
+    const { container, rerender } = render(
+      <ArticleList {...getMockProps({ articleEntriesCls: initialArticles })} />
+    );
 
     const articleListBox = container.querySelector(
       '.GoliathSplitViewArticleListBox'
@@ -539,17 +403,8 @@ describe('ArticleList', () => {
     fireEvent.keyDown(window, { key: 'j' });
 
     // Verify Article 2 is selected
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 1'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected',
-      false
-    );
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 2'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
+    expectArticleSelected(container, 'Test Article 1', false);
+    expectArticleSelected(container, 'Test Article 2', true);
 
     // Simulate adding a new article at the beginning
     const newArticle: ArticleView = {
@@ -567,27 +422,15 @@ describe('ArticleList', () => {
     };
     const updatedArticles: ArticleView[] = [newArticle, ...initialArticles];
 
-    rerender(<ArticleList {...props} articleEntriesCls={updatedArticles} />);
+    rerender(
+      <ArticleList {...getMockProps({ articleEntriesCls: updatedArticles })} />
+    );
 
     // Assert that the new article (Article 0) is selected (implying that the
     // scroll position went to the top)
-    expectClass(
-      expectTextInElement(articleListBox, 'New Test Article 0'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected'
-    );
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 1'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected',
-      false
-    );
-    expectClass(
-      expectTextInElement(articleListBox, 'Test Article 2'),
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected',
-      false
-    );
+    expectArticleSelected(container, 'New Test Article 0', true);
+    expectArticleSelected(container, 'Test Article 1', false);
+    expectArticleSelected(container, 'Test Article 2', false);
 
     // Assert no duplicate articles
     expect(
@@ -599,5 +442,63 @@ describe('ArticleList', () => {
     expect(within(articleListBox).getAllByText('Test Article 2')).toHaveLength(
       1
     );
+  });
+
+  it('maintains scroll position with stable sort', () => {
+    // Create 20 articles where groups of 10 have same creation time
+    const numArticles = 20;
+    const articles: ArticleView[] = Array.from(
+      { length: numArticles },
+      (_, i) => ({
+        folderId: '1',
+        feedId: '1',
+        feedTitle: 'Test Feed 1',
+        id: `${i}`,
+        title: `Test Article ${i}`,
+        author: '',
+        html: `<p>Test content ${i}</p>`,
+        url: `https://example.com/${i}`,
+        creationTime: 1678972810 - Math.floor(i / 10),
+        isRead: false,
+        isSaved: false,
+      })
+    );
+
+    // Set threshold very high to force rendering all articles.
+    const { container } = render(
+      <ArticleList
+        {...getMockProps({ articleEntriesCls: articles, threshold: 100000 })}
+      />
+    );
+
+    // Scroll down and verify selection
+    for (let i = 0; i < numArticles - 1; i++) {
+      expectArticleSelected(container, `Test Article ${i}`, true);
+      fireEvent.keyDown(window, { key: 'j' });
+      expectArticleSelected(container, `Test Article ${i}`, false);
+      expectArticleSelected(container, `Test Article ${i + 1}`, true);
+    }
+
+    // Scroll back up and verify selection
+    for (let i = numArticles - 1; i > 0; i--) {
+      expectArticleSelected(container, `Test Article ${i}`, true);
+      fireEvent.keyDown(window, { key: 'k' });
+      expectArticleSelected(container, `Test Article ${i}`, false);
+      expectArticleSelected(container, `Test Article ${i - 1}`, true);
+    }
+
+    // Verify the order of articles in the list
+    const articleListBox = container.querySelector(
+      '.GoliathSplitViewArticleListBox'
+    ) as HTMLElement;
+    const articleElements = Array.from(
+      articleListBox.querySelectorAll(
+        '.GoliathArticleListBase .GoliathArticleListTitleType'
+      )
+    ).map((el) => el.textContent);
+
+    const expectedOrder = articles.map((a) => a.title);
+
+    expect(articleElements).toEqual(expectedOrder);
   });
 });
