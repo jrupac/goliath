@@ -44,7 +44,6 @@
     "start": "bun /node_modules/rolldown-vite/bin/vite.js --host",
     "build": "bun /node_modules/rolldown-vite/bin/vite.js build",
     "test": "vitest run",
-    "test:ci": "vitest run --environment=bun",
     "lint": "oxlint .",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
@@ -75,7 +74,7 @@
   ],
   "lint-staged": {
     "*.{ts,tsx}": [
-      "vitest run"
+      "bun run test"
     ]
   },
   "type": "module",

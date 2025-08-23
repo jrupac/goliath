@@ -317,10 +317,16 @@ const ArticleList: React.FC<ArticleListProps> = ({
         oldIdSet.add(article.id);
       }
 
-      // It's only considered a change when there's a new element that was not
-      // part of our previous set. Removal of previously read items does not
-      // constitute a meaningful change in props.
-      const changed = newIdSet.difference(oldIdSet).size > 0;
+      // Check if there's a new element that was not part of our previous set.
+      // Removal of previously read items does not constitute a meaningful
+      // change in props.
+      let changed = false;
+      for (const id of newIdSet) {
+        if (!oldIdSet.has(id)) {
+          changed = true;
+          break;
+        }
+      }
 
       const mergedArticles = Array.from(finalArticlesMap.values()).sort(
         ArticleCls.ArticleViewComparator

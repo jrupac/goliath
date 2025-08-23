@@ -43,5 +43,5 @@ jobs:
         run: go test ./backend/...
 
       - name: Run frontend tests
-        run: bun run test:ci
+        run: bun run test
         working-directory: frontend
