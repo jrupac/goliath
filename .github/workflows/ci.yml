@@ -17,11 +17,8 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-          cache: 'bun'
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
