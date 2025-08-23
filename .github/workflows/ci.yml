@@ -34,8 +34,6 @@ jobs:
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: "latest"
 
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
@@ -45,5 +43,5 @@ jobs:
         run: go test ./backend/...
 
       - name: Run frontend tests
-        run: bun run test
+        run: bun run test:ci
         working-directory: frontend
