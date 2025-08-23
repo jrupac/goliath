@@ -28,7 +28,7 @@ jobs:
       - name: Compile protobufs
         run: |
           export PATH="$PATH:$(go env GOPATH)/bin"
-          protoc --proto_path=. --go_out=backend/admin/ --go-grpc_out=backend/admin/ \
+          protoc --proto_path=. --go_out=. --go-grpc_out=. \
             --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative \
             backend/admin/admin.proto
 
