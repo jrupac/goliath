@@ -26,7 +26,7 @@ import ArticleListEntry from './ArticleListEntry';
 import LRUCache from 'lru-cache';
 import { DoneAllRounded } from '@mui/icons-material';
 
-import { ArticleCls, ArticleId, ArticleView } from '../models/article';
+import { ArticleId, ArticleView } from '../models/article';
 import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
 import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
 import CheckCircleOutlineTwoToneIcon from '@mui/icons-material/CheckCircleOutlineTwoTone';
@@ -54,7 +54,6 @@ export interface ArticleListProps {
 }
 
 interface ArticleListState {
-  articleEntries: ArticleView[];
   scrollIndex: number;
   keypressBuffer: Array<string>;
 }
@@ -73,10 +72,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
   const listRef = useRef<ReactList | null>(null);
   const inflightPreviewRef = useRef<Set<ArticleId>>(new Set<ArticleId>());
   const selectionKeyRef = useRef<SelectionKey>(selectionKey);
-  const articleEntriesClsRef = useRef<ArticleView[]>(articleEntriesCls);
 
   const [state, setState] = useState<ArticleListState>({
-    articleEntries: articleEntriesCls,
     scrollIndex: 0,
     keypressBuffer: new Array(keyBufLength),
   });
@@ -103,63 +100,46 @@ const ArticleList: React.FC<ArticleListProps> = ({
   );
 
   const handleMarkAllRead = useCallback(() => {
-    setState((prevState) => {
-      handleMark(MarkState.Read, selectionKey, selectionType);
-
-      // Immutably mark all articles read
-      const articleEntries = prevState.articleEntries.map(
-        (e: ArticleView): ArticleView => {
-          return { ...e, isRead: true };
-        }
-      );
-      return {
-        ...prevState,
-        articleEntries: articleEntries,
-      };
-    });
+    handleMark(MarkState.Read, selectionKey, selectionType);
   }, [handleMark, selectionKey, selectionType]);
 
   const handleMarkArticleRead = useCallback(
     (index: number) => {
-      setState((prevState) => {
-        let articleEntries = prevState.articleEntries;
-
-        if (index >= 0 && index <= prevState.articleEntries.length - 1) {
-          const articleView: ArticleView = prevState.articleEntries[index];
-          if (articleView && !articleView.isRead) {
-            handleMark(
-              MarkState.Read,
-              [articleView.id, articleView.feedId, articleView.folderId],
-              SelectionType.Article
-            );
-
-            // Immutably change the article read status
-            articleEntries = Array.from(prevState.articleEntries);
-            articleEntries[index] = { ...articleView, isRead: true };
-          }
+      if (index >= 0 && index <= articleEntriesCls.length - 1) {
+        const articleView: ArticleView = articleEntriesCls[index];
+        if (articleView && !articleView.isRead) {
+          handleMark(
+            MarkState.Read,
+            [articleView.id, articleView.feedId, articleView.folderId],
+            SelectionType.Article
+          );
         }
+      }
+    },
+    [articleEntriesCls, handleMark]
+  );
 
+  const handleScrollTo = useCallback(
+    (index: number) => {
+      const newIndex = Math.max(
+        0,
+        Math.min(index, articleEntriesCls.length - 1)
+      );
+
+      // If the index is unchanged, do nothing.
+      if (newIndex === state.scrollIndex) {
+        return;
+      }
+
+      setState((prevState) => {
         return {
           ...prevState,
-          articleEntries: articleEntries,
+          scrollIndex: newIndex,
         };
       });
     },
-    [handleMark]
+    [articleEntriesCls.length, state.scrollIndex]
   );
-
-  const handleScrollTo = useCallback((index: number) => {
-    setState((prevState) => {
-      const newIndex = Math.max(
-        0,
-        Math.min(index, prevState.articleEntries.length - 1)
-      );
-      return {
-        ...prevState,
-        scrollIndex: newIndex,
-      };
-    });
-  }, []);
 
   const handleScrollUp = useCallback(() => {
     handleScrollTo(state.scrollIndex - 1);
@@ -178,11 +158,11 @@ const ArticleList: React.FC<ArticleListProps> = ({
       index = Math.max(0, index);
 
       // If the index is beyond the end of the list, do nothing.
-      if (index > state.articleEntries.length - 1) {
+      if (index > articleEntriesCls.length - 1) {
         return;
       }
 
-      const articleView = state.articleEntries[index];
+      const articleView = articleEntriesCls[index];
       if (articleView && articleView.url) {
         window.open(articleView.url, '_blank');
         handleMarkArticleRead(index);
@@ -192,7 +172,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       // treated as a scroll to the first article.
       handleScrollTo(index);
     },
-    [handleMarkArticleRead, handleScrollTo, state.articleEntries]
+    [handleMarkArticleRead, handleScrollTo, articleEntriesCls]
   );
 
   const handleKeyDown = useCallback(
@@ -290,120 +270,25 @@ const ArticleList: React.FC<ArticleListProps> = ({
     [articleImagePreviews, handleAddImagePreview]
   );
 
-  const mergeArticleLists = useCallback(
-    (
-      scrollIndex: number,
-      oldList: ArticleView[],
-      newList: ArticleView[]
-    ): [number, ArticleView[]] => {
-      const anchorArticleId: ArticleId = oldList[scrollIndex]?.id;
-      const finalArticlesMap = new Map<ArticleId, ArticleView>();
-      const oldIdSet = new Set<ArticleId>();
-      const newIdSet = new Set<ArticleId>();
-
-      // First add in all the new articles
-      for (const article of newList) {
-        finalArticlesMap.set(article.id, article);
-        newIdSet.add(article.id);
-      }
-
-      // Add in previously read articles from the current (old) list
-      for (const article of oldList) {
-        if (article.isRead) {
-          if (!finalArticlesMap.has(article.id)) {
-            finalArticlesMap.set(article.id, article);
-          }
-        }
-        oldIdSet.add(article.id);
-      }
-
-      // Check if there's a new element that was not part of our previous set.
-      // Removal of previously read items does not constitute a meaningful
-      // change in props.
-      let changed = false;
-      for (const id of newIdSet) {
-        if (!oldIdSet.has(id)) {
-          changed = true;
-          break;
-        }
-      }
-
-      const mergedArticles = Array.from(finalArticlesMap.values()).sort(
-        ArticleCls.ArticleViewComparator
-      );
-
-      let newScrollIndex: number = 0;
-
-      if (mergedArticles.length > 0) {
-        // We might need to re-anchor the currently selected article in case
-        // we didn't meaningful change props but the position changed anyway.
-        if (anchorArticleId && !changed) {
-          const newIndexOfAnchor: number = mergedArticles.findIndex(
-            (a: ArticleView): boolean => a.id === anchorArticleId
-          );
-          if (newIndexOfAnchor !== -1) {
-            // Anchor article is still in the list. Scroll to it.
-            newScrollIndex = newIndexOfAnchor;
-          } else {
-            // Anchor article is no longer in the merged list. Scroll to top.
-            newScrollIndex = 0;
-          }
-        } else {
-          // No previous anchor or list changed. Scroll to the top of the new
-          // list.
-          newScrollIndex = 0;
-        }
-      }
-
-      return [newScrollIndex, mergedArticles];
-    },
-    []
-  );
-
   useEffect(() => {
+    // When the selection key changes, reset the scroll index to the top.
     if (selectionKey !== selectionKeyRef.current) {
       console.log('Selection key changed: ' + selectionKey);
-
-      // The selection key has changed, so reset everything
+      handleScrollTo(0);
       if (listRef.current) {
         listRef.current.scrollTo(0);
         // @ts-ignore
         listRef.current.forceUpdate();
       }
-      setState((prevState) => ({
-        ...prevState,
-        articleEntries: Array.from(articleEntriesCls),
-        scrollIndex: 0,
-        keypressBuffer: new Array(keyBufLength),
-      }));
-    } else if (articleEntriesCls !== articleEntriesClsRef.current) {
-      console.log('Article entries changed');
-
-      // The parent list of articles has changed despite the selection key being
-      // the same. Use that list but also merge in recently read articles to
-      // preserve scrollback history until the selection key changes.
-      setState((prevState) => {
-        const [newScrollIndex, newArticles] = mergeArticleLists(
-          prevState.scrollIndex,
-          prevState.articleEntries,
-          articleEntriesCls
-        );
-        return {
-          ...prevState,
-          scrollIndex: newScrollIndex,
-          articleEntries: newArticles,
-        };
-      });
     }
 
-    // Update refs
+    // Update ref
     selectionKeyRef.current = selectionKey;
-    articleEntriesClsRef.current = articleEntriesCls;
-  }, [selectionKey, articleEntriesCls, mergeArticleLists]);
+  }, [selectionKey, handleScrollTo]);
 
   const renderArticleListEntry = useCallback(
     (index: number): ReactElement => {
-      const articleView: ArticleView = state.articleEntries[index];
+      const articleView: ArticleView = articleEntriesCls[index];
 
       // Defensive check, though ReactList should only call with valid indices
       if (!articleView) {
@@ -430,7 +315,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       );
     },
     [
-      state.articleEntries,
+      articleEntriesCls,
       state.scrollIndex,
       articleImagePreviews,
       showPreviews,
@@ -470,7 +355,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     }
   }, [state.scrollIndex, smoothScroll]);
 
-  if (state.articleEntries.length === 0) {
+  if (articleEntriesCls.length === 0) {
     return (
       <Container fixed className="GoliathArticleListContainer">
         <Box className="GoliathArticleListEmpty">
@@ -486,7 +371,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       </Container>
     );
   } else {
-    const articles = state.articleEntries;
+    const articles = articleEntriesCls;
     const renderIndex = Math.max(0, state.scrollIndex);
     const articleView = articles[renderIndex];
 

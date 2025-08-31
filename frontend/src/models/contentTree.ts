@@ -120,7 +120,7 @@ export class ContentTreeCls {
         break;
     }
 
-    return ArticleCls.SortAndFilterViews(articleViews);
+    return ArticleCls.SortViews(articleViews);
   }
 
   public GetFolderFeedView(): Map<FolderView, FeedView[]> {

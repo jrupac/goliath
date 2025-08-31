@@ -136,15 +136,21 @@ export default class App extends React.Component<AppProps, AppState> {
         throw new Error(`Unexpected enclosing type: ${type}`);
     }
 
-    functor(mark, entity).then((): void => {
-      this.setState((prevState: AppState): AppState => {
-        const contentTreeCls: ContentTreeCls = prevState.contentTreeCls;
-        contentTreeCls.Mark(mark, entity, type);
-        return {
-          ...prevState,
-          contentTreeCls: contentTreeCls,
-        };
-      });
+    // Optimistically update the state immediately.
+    this.setState((prevState: AppState): AppState => {
+      const contentTreeCls: ContentTreeCls = prevState.contentTreeCls;
+      contentTreeCls.Mark(mark, entity, type);
+      return {
+        ...prevState,
+        contentTreeCls: contentTreeCls,
+      };
+    });
+
+    // Perform the API call in the background and log any errors.
+    functor(mark, entity).catch((err: Error) => {
+      console.error(
+        `Failed to persist mark state change to server for key ${entity}: ${err}`
+      );
     });
   };
 

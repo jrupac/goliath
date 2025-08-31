@@ -122,10 +122,8 @@ export class ArticleCls {
     return ArticleId.compare(a.id, b.id);
   }
 
-  public static SortAndFilterViews(articleViews: ArticleView[]): ArticleView[] {
-    return articleViews
-      .filter(ArticleCls.FilterUnread)
-      .sort(ArticleCls.ArticleViewComparator);
+  public static SortViews(articleViews: ArticleView[]): ArticleView[] {
+    return articleViews.sort(ArticleCls.ArticleViewComparator);
   }
 
   private static FilterUnread = (a: ArticleView) => !a.isRead;

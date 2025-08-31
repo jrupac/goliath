@@ -1,11 +1,11 @@
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import ArticleList, { ArticleListProps } from '../ArticleList';
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ArticleView } from '../../models/article';
 import { expectClass, expectTextInElement } from './helpers';
 import { MarkState, SelectionKey, SelectionType } from '../../utils/types';
-import { FeedId, FaviconCls } from '../../models/feed';
+import { FaviconCls, FeedId } from '../../models/feed';
 
 describe('ArticleList', () => {
   // Mock ArticleView data
@@ -153,7 +153,7 @@ describe('ArticleList', () => {
   });
 
   it('selects previous article on scroll up', () => {
-    const { container } = render(<ArticleList {...getMockProps()} />);
+    const { container, rerender } = render(<ArticleList {...getMockProps()} />);
 
     // Get button references
     const scrollDownButton = screen.getByLabelText('scroll down');
@@ -161,6 +161,14 @@ describe('ArticleList', () => {
 
     // First, scroll down to select the second article (keyboard)
     fireEvent.keyDown(window, { key: 'j' });
+
+    // Simulate the parent component updating the props after the article is marked read
+    const updatedArticles = mockArticles.map((a, i) =>
+      i === 0 ? { ...a, isRead: true } : a
+    );
+    rerender(
+      <ArticleList {...getMockProps({ articleEntriesCls: updatedArticles })} />
+    );
 
     // Verify Article 2 is selected
     expectArticleSelected(container, 'Test Article 1', false);
@@ -198,250 +206,28 @@ describe('ArticleList', () => {
     expect(mockHandleMark).toHaveBeenCalledTimes(1);
   });
 
-  it('merges new articles and scrolls to top', () => {
-    const initialArticles: ArticleView[] = [
-      {
-        id: '1',
-        title: 'Initial Article 1',
-        html: '<p>Initial Content 1</p>',
-        creationTime: 1678972810, // March 16, 2023 12:00:10
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed',
-        author: '',
-        url: 'http://example.com/1',
-        isRead: false,
-        isSaved: false,
-      },
-      {
-        id: '2',
-        title: 'Initial Article 2',
-        html: '<p>Initial Content 2</p>',
-        creationTime: 1678972809, // March 16, 2023 12:00:09
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed',
-        author: '',
-        url: 'http://example.com/2',
-        isRead: false,
-        isSaved: false,
-      },
-    ];
-
-    const newArticles: ArticleView[] = [
-      {
-        id: '3',
-        title: 'New Article 3',
-        html: '<p>New Content 3</p>',
-        creationTime: 1678972811, // March 16, 2023 12:00:11
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed',
-        author: '',
-        url: 'http://example.com/3',
-        isRead: false,
-        isSaved: false,
-      },
-      {
-        id: '1',
-        title: 'Initial Article 1',
-        html: '<p>Initial Content 1</p>',
-        creationTime: 1678972810, // March 16, 2023 12:00:10
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed',
-        author: '',
-        url: 'http://example.com/1',
-        isRead: false,
-        isSaved: false,
-      },
-    ];
-
+  it('resets scroll index when selection key changes', () => {
     const { container, rerender } = render(
-      <ArticleList {...getMockProps({ articleEntriesCls: initialArticles })} />
+      <ArticleList {...getMockProps({ selectionKey: 'key1' })} />
     );
 
-    // Initial render, Article 1 should be selected (latest creationTime)
-    expectArticleSelected(container, 'Initial Article 1', true);
-
-    // Rerender with new articles
-    rerender(
-      <ArticleList {...getMockProps({ articleEntriesCls: newArticles })} />
-    );
-
-    // After rerender, the new article (Article 3) should be at the top and
-    // selected
-    expectArticleSelected(container, 'New Article 3', true);
-  });
-
-  it('maintains scroll position when props changes non-meaningfully', () => {
-    const initialArticles: ArticleView[] = [
-      {
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed 1',
-        id: '1',
-        title: 'Test Article 1',
-        author: '',
-        html: '<p>Test content 1</p>',
-        url: 'https://example.com/1',
-        creationTime: 1678972810,
-        isRead: false,
-        isSaved: false,
-      },
-      {
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed 1',
-        id: '2',
-        title: 'Test Article 2',
-        author: '',
-        html: '<p>Test content 2</p>',
-        url: 'https://example.com/2',
-        creationTime: 1678972809,
-        isRead: false,
-        isSaved: false,
-      },
-      {
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed 1',
-        id: '3',
-        title: 'Test Article 3',
-        author: '',
-        html: '<p>Test content 3</p>',
-        url: 'https://example.com/3',
-        creationTime: 1678972808,
-        isRead: false,
-        isSaved: false,
-      },
-    ];
-
-    const { container, rerender } = render(
-      <ArticleList {...getMockProps({ articleEntriesCls: initialArticles })} />
-    );
-
-    // Initially, Article 1 is selected
+    // Before scroll, Article 1 is selected
     expectArticleSelected(container, 'Test Article 1', true);
-
-    // Scroll down to select Article 2
-    fireEvent.keyDown(window, { key: 'j' });
-
-    // Verify Article 2 is selected
-    expectArticleSelected(container, 'Test Article 1', false);
-    expectArticleSelected(container, 'Test Article 2', true);
-
-    // Simulate an update where Article 1 becomes read and is no longer part of
-    // the props.
-    const updatedArticles: ArticleView[] = [
-      initialArticles[1],
-      initialArticles[2],
-    ];
-
-    rerender(
-      <ArticleList {...getMockProps({ articleEntriesCls: updatedArticles })} />
-    );
-
-    // Assert that Article 2 is still selected (no jump to top)
-    expectArticleSelected(container, 'Test Article 1', false);
-    expectArticleSelected(container, 'Test Article 2', true);
-
-    // Assert no duplicate articles
-    const articleListBox = container.querySelector(
-      '.GoliathSplitViewArticleListBox'
-    ) as HTMLElement;
-    expect(within(articleListBox).getAllByText('Test Article 1')).toHaveLength(
-      1
-    );
-    expect(within(articleListBox).getAllByText('Test Article 2')).toHaveLength(
-      1
-    );
-    expect(within(articleListBox).getAllByText('Test Article 3')).toHaveLength(
-      1
-    );
-  });
-
-  it('resets scroll position to top when new articles are added', () => {
-    const initialArticles: ArticleView[] = [
-      {
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed 1',
-        id: '1',
-        title: 'Test Article 1',
-        author: '',
-        html: '<p>Test content 1</p>',
-        url: 'https://example.com/1',
-        creationTime: 1678972810,
-        isRead: false,
-        isSaved: false,
-      },
-      {
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed 1',
-        id: '2',
-        title: 'Test Article 2',
-        author: '',
-        html: '<p>Test content 2</p>',
-        url: 'https://example.com/2',
-        creationTime: 1678972809,
-        isRead: false,
-        isSaved: false,
-      },
-    ];
-
-    const { container, rerender } = render(
-      <ArticleList {...getMockProps({ articleEntriesCls: initialArticles })} />
-    );
-
-    const articleListBox = container.querySelector(
-      '.GoliathSplitViewArticleListBox'
-    ) as HTMLElement;
-
-    // Scroll down to select Article 2
-    fireEvent.keyDown(window, { key: 'j' });
-
-    // Verify Article 2 is selected
-    expectArticleSelected(container, 'Test Article 1', false);
-    expectArticleSelected(container, 'Test Article 2', true);
-
-    // Simulate adding a new article at the beginning
-    const newArticle: ArticleView = {
-      folderId: '1',
-      feedId: '1',
-      feedTitle: 'Test Feed 1',
-      id: '0', // New ID
-      title: 'New Test Article 0',
-      author: '',
-      html: '<p>New content 0</p>',
-      url: 'https://example.com/0',
-      creationTime: 1678972811, // Newer creation time
-      isRead: false,
-      isSaved: false,
-    };
-    const updatedArticles: ArticleView[] = [newArticle, ...initialArticles];
-
-    rerender(
-      <ArticleList {...getMockProps({ articleEntriesCls: updatedArticles })} />
-    );
-
-    // Assert that the new article (Article 0) is selected (implying that the
-    // scroll position went to the top)
-    expectArticleSelected(container, 'New Test Article 0', true);
-    expectArticleSelected(container, 'Test Article 1', false);
     expectArticleSelected(container, 'Test Article 2', false);
 
-    // Assert no duplicate articles
-    expect(
-      within(articleListBox).getAllByText('New Test Article 0')
-    ).toHaveLength(1);
-    expect(within(articleListBox).getAllByText('Test Article 1')).toHaveLength(
-      1
-    );
-    expect(within(articleListBox).getAllByText('Test Article 2')).toHaveLength(
-      1
-    );
+    // Simulate scroll down
+    fireEvent.keyDown(window, { key: 'j' });
+
+    // After scroll, Article 2 should be selected
+    expectArticleSelected(container, 'Test Article 1', false);
+    expectArticleSelected(container, 'Test Article 2', true);
+
+    // Rerender with a new selection key
+    rerender(<ArticleList {...getMockProps({ selectionKey: 'key2' })} />);
+
+    // After rerender with new key, scroll should reset to top (Article 1)
+    expectArticleSelected(container, 'Test Article 1', true);
+    expectArticleSelected(container, 'Test Article 2', false);
   });
 
   it('maintains scroll position with stable sort', () => {
