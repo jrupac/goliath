@@ -124,7 +124,6 @@
   z-index: 1;
 }
 
-
 .GoliathLogo {
   text-align: center;
   font-family: var(--primary-logo-font), cursive;
@@ -171,7 +170,9 @@
 
 .GoliathFolderFeedHeader.GoliathDrawerActionBarScrolled {
   border-bottom: 1px solid var(--primary-darker-2-color);
-  box-shadow: 0 4px 6px -1px var(--goliath-box-shadow-color), 0 2px 4px -2px var(--goliath-box-shadow-color);
+  box-shadow:
+    0 4px 6px -1px var(--goliath-box-shadow-color),
+    0 2px 4px -2px var(--goliath-box-shadow-color);
 }
 
 .GoliathFolderFeedTitle {
@@ -189,8 +190,12 @@
   color: var(--primary-font-darker-1-color);
 }
 
-.GoliathFolderFeedEmptySwitch.MuiSwitch-root .MuiSwitch-switchBase + .MuiSwitch-track,
-.GoliathFolderFeedEmptySwitch.MuiSwitch-root .MuiSwitch-switchBase .MuiSwitch-thumb {
+.GoliathFolderFeedEmptySwitch.MuiSwitch-root
+  .MuiSwitch-switchBase
+  + .MuiSwitch-track,
+.GoliathFolderFeedEmptySwitch.MuiSwitch-root
+  .MuiSwitch-switchBase
+  .MuiSwitch-thumb {
   background-color: var(--primary-lighter-4-color);
 }
 
@@ -426,7 +431,7 @@
   font-size: 16px;
   font-family: var(--primary-serif-font), serif;
   overflow: hidden;
-  text-overflow: "ellipsis";
+  text-overflow: 'ellipsis';
   display: -webkit-box;
   -webkit-line-clamp: 4;
   line-clamp: 4;
@@ -516,7 +521,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 0 24px 10px 24px
+  padding: 0 24px 10px 24px;
 }
 
 .GoliathArticleMeta {
@@ -601,6 +606,27 @@
   color: var(--primary-font-code-color);
   background: var(--code-background-color);
   font-size: smaller;
+}
+
+.GoliathArticleContentStyling table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.GoliathArticleContentStyling table th,
+.GoliathArticleContentStyling table td {
+  padding: 8px;
+}
+
+.GoliathArticleContentStyling table th {
+  background-color: var(--table-header-background-color);
+  border: 1px solid var(--table-header-border-color);
+  color: var(--table-header-font-color);
+}
+
+.GoliathArticleContentStyling table td {
+  background-color: var(--table-row-background-color);
+  border: 1px solid var(--table-border-color);
 }
 
 .GoliathArticleContentStyling img {
