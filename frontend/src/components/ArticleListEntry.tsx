@@ -1,24 +1,24 @@
 import React, { memo, useMemo } from 'react';
-import { ArticleImagePreview } from '../utils/types';
 import { Avatar, Chip, Grid, Paper, Typography } from '@mui/material';
 import { extractText, formatFriendly } from '../utils/helpers';
 import RssFeedIcon from '@mui/icons-material/RssFeed';
 import { ArticleView } from '../models/article';
 import { FaviconCls } from '../models/feed';
+import ImagePreview from './ImagePreview';
 
 export interface ArticleListEntryProps {
   articleView: ArticleView;
   favicon: FaviconCls | undefined;
-  preview: ArticleImagePreview | undefined;
   selected: boolean;
+  showPreviews: boolean;
 }
 
 const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
   function ArticleListEntry({
     articleView,
     favicon,
-    preview,
     selected,
+    showPreviews,
   }: ArticleListEntryProps) {
     const extractedTitle: string = useMemo(() => {
       return extractText(articleView.title) || '';
@@ -55,31 +55,6 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
       }
     };
 
-    const renderImagePreview = () => {
-      const crop = preview;
-
-      if (crop) {
-        const scale = 100 / crop.width;
-        const style = {
-          left: -(crop.x * scale) + 'px',
-          top: -(crop.y * scale) + 'px',
-          width: crop.origWidth * scale,
-        };
-
-        return (
-          <figure className="GoliathArticleListImagePreviewFigure">
-            <img
-              className="GoliathArticleListImagePreview"
-              src={crop.src}
-              style={style}
-            />
-          </figure>
-        );
-      }
-
-      return null;
-    };
-
     let elevation = 3;
     const extraClasses = ['GoliathArticleListBase'];
     if (selected) {
@@ -107,9 +82,11 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
             wrap="nowrap"
             className="GoliathArticleListContent"
           >
-            <Grid item xs="auto">
-              {renderImagePreview()}
-            </Grid>
+            {showPreviews && (
+              <Grid item xs="auto">
+                <ImagePreview article={articleView} />
+              </Grid>
+            )}
             <Grid
               item
               zeroMinWidth

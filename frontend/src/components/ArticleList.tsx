@@ -7,12 +7,7 @@ import React, {
 } from 'react';
 import ReactList from 'react-list';
 import { animateScroll } from 'react-scroll';
-import {
-  ArticleImagePreview,
-  MarkState,
-  SelectionKey,
-  SelectionType,
-} from '../utils/types';
+import { MarkState, SelectionKey, SelectionType } from '../utils/types';
 import {
   Box,
   Container,
@@ -23,15 +18,13 @@ import {
 } from '@mui/material';
 import ArticleCard from './ArticleCard';
 import ArticleListEntry from './ArticleListEntry';
-import LRUCache from 'lru-cache';
 import { DoneAllRounded } from '@mui/icons-material';
 
-import { ArticleId, ArticleView } from '../models/article';
+import { ArticleView } from '../models/article';
 import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
 import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
 import CheckCircleOutlineTwoToneIcon from '@mui/icons-material/CheckCircleOutlineTwoTone';
 import { FaviconCls, FeedId } from '../models/feed';
-import { getPreviewImage } from '../utils/helpers';
 
 const goToAllSequence = ['g', 'a'];
 const markAllReadSequence = ['Shift', 'I'];
@@ -70,34 +63,14 @@ const ArticleList: React.FC<ArticleListProps> = ({
   threshold = 500,
 }) => {
   const listRef = useRef<ReactList | null>(null);
-  const inflightPreviewRef = useRef<Set<ArticleId>>(new Set<ArticleId>());
   const selectionKeyRef = useRef<SelectionKey>(selectionKey);
 
   const [state, setState] = useState<ArticleListState>({
     scrollIndex: 0,
     keypressBuffer: new Array(keyBufLength),
   });
-  const [showPreviews, setShowPreviews] = useState<boolean>(false);
+  const [showPreviews, setShowPreviews] = useState<boolean>(true);
   const [smoothScroll, setSmoothScroll] = useState<boolean>(true);
-  const [articleImagePreviews, setArticleImagePreviews] = useState<
-    LRUCache<ArticleId, ArticleImagePreview>
-  >(new LRUCache<ArticleId, ArticleImagePreview>({ max: 100 }));
-
-  const handleAddImagePreview = useCallback(
-    (k: ArticleId, v: ArticleImagePreview) => {
-      setArticleImagePreviews((prevCache) => {
-        const newCache = new LRUCache<ArticleId, ArticleImagePreview>({
-          max: prevCache.max,
-        });
-        for (const [ok, ov] of prevCache.entries()) {
-          newCache.set(ok, ov);
-        }
-        newCache.set(k, v);
-        return newCache;
-      });
-    },
-    []
-  );
 
   const handleMarkAllRead = useCallback(() => {
     handleMark(MarkState.Read, selectionKey, selectionType);
@@ -247,29 +220,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
     };
   }, [handleKeyDown]);
 
-  const generateImagePreview = useCallback(
-    async (article: ArticleView) => {
-      // Already generated preview for this article, so nothing to do.
-      if (articleImagePreviews.has(article.id)) {
-        return;
-      }
-
-      // There's already an inflight request for this article, so nothing to do.
-      if (inflightPreviewRef.current.has(article.id)) {
-        return;
-      }
-
-      inflightPreviewRef.current.add(article.id);
-      const imgPreview = await getPreviewImage(article);
-      inflightPreviewRef.current.delete(article.id);
-
-      if (imgPreview) {
-        handleAddImagePreview(article.id, imgPreview);
-      }
-    },
-    [articleImagePreviews, handleAddImagePreview]
-  );
-
   useEffect(() => {
     // When the selection key changes, reset the scroll index to the top.
     if (selectionKey !== selectionKeyRef.current) {
@@ -296,32 +246,17 @@ const ArticleList: React.FC<ArticleListProps> = ({
         return <></>;
       }
 
-      if (showPreviews) {
-        generateImagePreview(articleView).then();
-      }
-
-      const preview = showPreviews
-        ? articleImagePreviews.get(articleView.id)
-        : undefined;
-
       return (
         <ArticleListEntry
           key={articleView.id}
           articleView={articleView}
           favicon={faviconMap.get(articleView.feedId)}
-          preview={preview}
           selected={index === state.scrollIndex}
+          showPreviews={showPreviews}
         />
       );
     },
-    [
-      articleEntriesCls,
-      state.scrollIndex,
-      articleImagePreviews,
-      showPreviews,
-      generateImagePreview,
-      faviconMap,
-    ]
+    [articleEntriesCls, state.scrollIndex, showPreviews, faviconMap]
   );
 
   const handleMounted = useCallback((list: ReactList) => {
@@ -355,25 +290,41 @@ const ArticleList: React.FC<ArticleListProps> = ({
     }
   }, [state.scrollIndex, smoothScroll]);
 
-  if (articleEntriesCls.length === 0) {
-    return (
-      <Container fixed className="GoliathArticleListContainer">
-        <Box className="GoliathArticleListEmpty">
-          <DoneAllRounded className="GoliathArticleListEmptyIcon" />
-          <Box className="GoliathFooter">
-            Goliath RSS
-            <br />
-            Built at: {buildTimestamp}
-            <br />
-            {buildHash}
-          </Box>
+  const renderEmpty = () => (
+    <Container fixed className="GoliathArticleListContainer">
+      <Box className="GoliathArticleListEmpty">
+        <DoneAllRounded className="GoliathArticleListEmptyIcon" />
+        <Box className="GoliathFooter">
+          Goliath RSS
+          <br />
+          Built at: {buildTimestamp}
+          <br />
+          {buildHash}
         </Box>
-      </Container>
-    );
+      </Box>
+    </Container>
+  );
+
+  if (articleEntriesCls.length === 0) {
+    return renderEmpty();
   } else {
     const articles = articleEntriesCls;
-    const renderIndex = Math.max(0, state.scrollIndex);
+    let renderIndex = Math.max(0, state.scrollIndex);
+
+    // If the scrollIndex is out of bounds for the new list, clamp it to the
+    // last valid index. This can happen for one render cycle when switching
+    // from a long list to a short one.
+    if (renderIndex >= articles.length) {
+      renderIndex = Math.max(0, articles.length - 1);
+    }
+
     const articleView = articles[renderIndex];
+
+    // As a final guard, if there are no articles for some reason after all
+    // this, render the empty state.
+    if (!articleView) {
+      return renderEmpty();
+    }
 
     return (
       <Container
