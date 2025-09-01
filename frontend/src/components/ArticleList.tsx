@@ -2,6 +2,7 @@ import React, {
   ReactElement,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -20,7 +21,7 @@ import ArticleCard from './ArticleCard';
 import ArticleListEntry from './ArticleListEntry';
 import { DoneAllRounded } from '@mui/icons-material';
 
-import { ArticleView } from '../models/article';
+import { ArticleId, ArticleView } from '../models/article';
 import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
 import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
 import CheckCircleOutlineTwoToneIcon from '@mui/icons-material/CheckCircleOutlineTwoTone';
@@ -46,11 +47,6 @@ export interface ArticleListProps {
   threshold?: number;
 }
 
-interface ArticleListState {
-  scrollIndex: number;
-  keypressBuffer: Array<string>;
-}
-
 const ArticleList: React.FC<ArticleListProps> = ({
   articleEntriesCls,
   faviconMap,
@@ -65,12 +61,26 @@ const ArticleList: React.FC<ArticleListProps> = ({
   const listRef = useRef<ReactList | null>(null);
   const selectionKeyRef = useRef<SelectionKey>(selectionKey);
 
-  const [state, setState] = useState<ArticleListState>({
-    scrollIndex: 0,
-    keypressBuffer: new Array(keyBufLength),
-  });
+  const [selectedArticleId, setSelectedArticleId] = useState<ArticleId | null>(
+    null
+  );
+  const [keypressBuffer, setKeypressBuffer] = useState<string[]>(
+    new Array(keyBufLength)
+  );
   const [showPreviews, setShowPreviews] = useState<boolean>(true);
   const [smoothScroll, setSmoothScroll] = useState<boolean>(true);
+
+  const scrollIndex = useMemo(() => {
+    // If no article is selected, or the list is empty, default to the top.
+    if (!selectedArticleId || articleEntriesCls.length === 0) {
+      return 0;
+    }
+    const index = articleEntriesCls.findIndex(
+      (a) => a.id === selectedArticleId
+    );
+    // If the selected article is not in the new list, default to the top.
+    return index === -1 ? 0 : index;
+  }, [selectedArticleId, articleEntriesCls]);
 
   const handleMarkAllRead = useCallback(() => {
     handleMark(MarkState.Read, selectionKey, selectionType);
@@ -92,37 +102,30 @@ const ArticleList: React.FC<ArticleListProps> = ({
     [articleEntriesCls, handleMark]
   );
 
-  const handleScrollTo = useCallback(
+  const handleSelectByIndex = useCallback(
     (index: number) => {
       const newIndex = Math.max(
         0,
         Math.min(index, articleEntriesCls.length - 1)
       );
 
-      // If the index is unchanged, do nothing.
-      if (newIndex === state.scrollIndex) {
-        return;
+      const newSelectedArticle = articleEntriesCls[newIndex];
+      if (newSelectedArticle) {
+        setSelectedArticleId(newSelectedArticle.id);
       }
-
-      setState((prevState) => {
-        return {
-          ...prevState,
-          scrollIndex: newIndex,
-        };
-      });
     },
-    [articleEntriesCls.length, state.scrollIndex]
+    [articleEntriesCls]
   );
 
   const handleScrollUp = useCallback(() => {
-    handleScrollTo(state.scrollIndex - 1);
-  }, [handleScrollTo, state.scrollIndex]);
+    handleSelectByIndex(scrollIndex - 1);
+  }, [handleSelectByIndex, scrollIndex]);
 
   const handleScrollDown = useCallback(() => {
     // If the previous scroll index pointed at a valid article, mark it read
-    handleMarkArticleRead(state.scrollIndex);
-    handleScrollTo(state.scrollIndex + 1);
-  }, [handleMarkArticleRead, handleScrollTo, state.scrollIndex]);
+    handleMarkArticleRead(scrollIndex);
+    handleSelectByIndex(scrollIndex + 1);
+  }, [handleMarkArticleRead, handleSelectByIndex, scrollIndex]);
 
   const handleOpenArticle = useCallback(
     (index: number) => {
@@ -143,9 +146,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
       // This only has an effect if no article is selected. In which case it's
       // treated as a scroll to the first article.
-      handleScrollTo(index);
+      handleSelectByIndex(index);
     },
-    [handleMarkArticleRead, handleScrollTo, articleEntriesCls]
+    [handleMarkArticleRead, handleSelectByIndex, articleEntriesCls]
   );
 
   const handleKeyDown = useCallback(
@@ -157,25 +160,17 @@ const ArticleList: React.FC<ArticleListProps> = ({
         return;
       }
 
-      setState((prevState) => {
+      setKeypressBuffer((prevBuffer) => {
         // Add new keypress to buffer, dropping the oldest entry.
-        let keypressBuffer = [...prevState.keypressBuffer.slice(1), event.key];
-
-        // If this sequence is fulfilled, reset the buffer and handle it.
-        if (goToAllSequence.every((e, i) => e === keypressBuffer[i])) {
+        const newBuffer = [...prevBuffer.slice(1), event.key];
+        if (goToAllSequence.every((e, i) => e === newBuffer[i])) {
           selectAllCallback();
-          keypressBuffer = new Array(keyBufLength);
-        } else if (
-          markAllReadSequence.every((e, i) => e === keypressBuffer[i])
-        ) {
+          return new Array(keyBufLength);
+        } else if (markAllReadSequence.every((e, i) => e === newBuffer[i])) {
           handleMarkAllRead();
-          keypressBuffer = new Array(keyBufLength);
+          return new Array(keyBufLength);
         }
-
-        return {
-          ...prevState,
-          keypressBuffer: keypressBuffer,
-        };
+        return newBuffer;
       });
 
       switch (event.key) {
@@ -196,7 +191,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
           setShowPreviews((showPreviews) => !showPreviews);
           break;
         case 'v':
-          handleOpenArticle(state.scrollIndex);
+          handleOpenArticle(scrollIndex);
           break;
         default:
           // No known key pressed, just ignore.
@@ -209,7 +204,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       handleScrollDown,
       handleScrollUp,
       handleOpenArticle,
-      state.scrollIndex,
+      scrollIndex,
     ]
   );
 
@@ -221,20 +216,28 @@ const ArticleList: React.FC<ArticleListProps> = ({
   }, [handleKeyDown]);
 
   useEffect(() => {
-    // When the selection key changes, reset the scroll index to the top.
+    // When the selection key changes, find the first unread article and select it.
     if (selectionKey !== selectionKeyRef.current) {
-      console.log('Selection key changed: ' + selectionKey);
-      handleScrollTo(0);
-      if (listRef.current) {
-        listRef.current.scrollTo(0);
-        // @ts-ignore
-        listRef.current.forceUpdate();
+      // TODO: This logic will need to change when we support saved items.
+      // If the stream filer changes, we should always go to the top (index 0).
+      const firstUnreadArticle = articleEntriesCls.find(
+        (article) => !article.isRead
+      );
+
+      if (firstUnreadArticle) {
+        setSelectedArticleId(firstUnreadArticle.id);
+      } else if (articleEntriesCls.length > 0) {
+        // If all are read, default to the top.
+        setSelectedArticleId(articleEntriesCls[0].id);
+      } else {
+        // If the list is empty, select nothing.
+        setSelectedArticleId(null);
       }
     }
 
     // Update ref
     selectionKeyRef.current = selectionKey;
-  }, [selectionKey, handleScrollTo]);
+  }, [selectionKey, articleEntriesCls]);
 
   const renderArticleListEntry = useCallback(
     (index: number): ReactElement => {
@@ -251,12 +254,12 @@ const ArticleList: React.FC<ArticleListProps> = ({
           key={articleView.id}
           articleView={articleView}
           favicon={faviconMap.get(articleView.feedId)}
-          selected={index === state.scrollIndex}
+          selected={index === scrollIndex}
           showPreviews={showPreviews}
         />
       );
     },
-    [articleEntriesCls, state.scrollIndex, showPreviews, faviconMap]
+    [articleEntriesCls, scrollIndex, showPreviews, faviconMap]
   );
 
   const handleMounted = useCallback((list: ReactList) => {
@@ -264,11 +267,11 @@ const ArticleList: React.FC<ArticleListProps> = ({
   }, []);
 
   useEffect(() => {
-    if (listRef.current) {
+    if (listRef.current && articleEntriesCls.length > 0) {
       // Animate scrolling using technique described by react-list author here:
       // https://github.com/coderiety/react-list/issues/79
       // @ts-ignore
-      const scrollPos = listRef.current.getSpaceBefore(state.scrollIndex);
+      const scrollPos = listRef.current.getSpaceBefore(scrollIndex);
 
       // The scrolling container is not trivial to figure out, but `react-list`
       // has already done the work to figure it out, so use it directly.
@@ -288,7 +291,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
         });
       }
     }
-  }, [state.scrollIndex, smoothScroll]);
+  }, [scrollIndex, smoothScroll, articleEntriesCls.length]);
 
   const renderEmpty = () => (
     <Container fixed className="GoliathArticleListContainer">
@@ -309,19 +312,11 @@ const ArticleList: React.FC<ArticleListProps> = ({
     return renderEmpty();
   } else {
     const articles = articleEntriesCls;
-    let renderIndex = Math.max(0, state.scrollIndex);
-
-    // If the scrollIndex is out of bounds for the new list, clamp it to the
-    // last valid index. This can happen for one render cycle when switching
-    // from a long list to a short one.
-    if (renderIndex >= articles.length) {
-      renderIndex = Math.max(0, articles.length - 1);
-    }
-
+    // The scrollIndex is now derived and memoized, but we still need to
+    // guard against it being out of bounds during a brief render cycle.
+    const renderIndex = Math.min(scrollIndex, articles.length - 1);
     const articleView = articles[renderIndex];
 
-    // As a final guard, if there are no articles for some reason after all
-    // this, render the empty state.
     if (!articleView) {
       return renderEmpty();
     }
