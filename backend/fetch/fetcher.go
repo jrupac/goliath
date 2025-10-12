@@ -62,9 +62,10 @@ func Resume() {
 }
 
 type Fetcher struct {
-	d        storage.Database
-	retCache *cache.RetrievalCache
-	finder   IconFinder
+	d         storage.Database
+	retCache  *cache.RetrievalCache
+	finder    IconFinder
+	fetchFunc rss.FetchFunc
 }
 
 func New(d storage.Database, retCache *cache.RetrievalCache) *Fetcher {
@@ -72,9 +73,10 @@ func New(d storage.Database, retCache *cache.RetrievalCache) *Fetcher {
 	b := besticon.New(besticon.WithLogger(besticon.NewDefaultLogger(io.Discard)))
 
 	return &Fetcher{
-		d:        d,
-		retCache: retCache,
-		finder:   b.NewIconFinder(),
+		d:         d,
+		retCache:  retCache,
+		finder:    b.NewIconFinder(),
+		fetchFunc: rss.DefaultFetchFunc,
 	}
 }
 
@@ -174,7 +176,7 @@ func (f Fetcher) fetchUserFeed(ctx context.Context, parent *sync.WaitGroup, user
 	firstFetch := make(chan struct{})
 
 	go func() {
-		fetch, err := rss.Fetch(feed.URL)
+		fetch, err := rss.FetchByFunc(f.fetchFunc, feed.URL)
 		if err != nil {
 			log.Warningf("during first fetch for %s %s: %s", user, feed, err)
 			return
@@ -203,7 +205,7 @@ func (f Fetcher) fetchUserFeed(ctx context.Context, parent *sync.WaitGroup, user
 		case <-tick:
 			log.Infof("Fetching %s %s", user, feed)
 			var refresh time.Time
-			if fetch, err := rss.Fetch(feed.URL); err != nil {
+			if fetch, err := rss.FetchByFunc(f.fetchFunc, feed.URL); err != nil {
 				log.Warningf("while fetching %s %s: %s", user, feed, err)
 				// This URL was previously successfully fetched, so this might be a
 				// transient failure. Retry at a fixed interval.

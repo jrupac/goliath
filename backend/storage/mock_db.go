@@ -18,23 +18,41 @@ type MockDB struct {
 	// Call trackers
 	InsertFaviconForUserCalled      bool
 	UpdateFeedMetadataForUserCalled bool
+	InsertedArticles                []models.Article
+
+	// Sync channels
+	GetAllUsersCalled  chan bool
+	ProcessItemsCalled chan bool
+
+	// Function overrides
+	OnGetArticlesForFeedForUser func(u models.User, feedID int64) ([]models.Article, error)
+	OnGetAllUsers               func() ([]models.User, error)
+	OnGetAllFeedsForUser        func(u models.User) ([]models.Feed, error)
 }
 
-func (m *MockDB) Open(string) error                                      { return nil }
-func (m *MockDB) Close() error                                           { return nil }
-func (m *MockDB) InsertUser(models.User) error                           { return nil }
-func (m *MockDB) GetAllUsers() ([]models.User, error)                    { return nil, nil }
-func (m *MockDB) GetUserByKey(string) (models.User, error)               { return models.User{}, nil }
-func (m *MockDB) GetUserByUsername(string) (models.User, error)          { return models.User{}, nil }
-func (m *MockDB) GetMuteWordsForUser(models.User) ([]string, error)      { return nil, nil }
-func (m *MockDB) UpdateMuteWordsForUser(models.User, []string) error     { return nil }
-func (m *MockDB) DeleteMuteWordsForUser(models.User, []string) error     { return nil }
-func (m *MockDB) GetUnmuteFeedsForUser(models.User) ([]int64, error)     { return nil, nil }
-func (m *MockDB) UpdateUnmuteFeedsForUser(models.User, []int64) error    { return nil }
-func (m *MockDB) DeleteUnmuteFeedsForUser(models.User, []int64) error    { return nil }
-func (m *MockDB) GetAllRetrievalCaches() (map[string]string, error)      { return nil, nil }
-func (m *MockDB) PersistAllRetrievalCaches(map[string][]byte) error      { return nil }
-func (m *MockDB) InsertArticleForUser(models.User, models.Article) error { return nil }
+func (m *MockDB) Open(string) error            { return nil }
+func (m *MockDB) Close() error                 { return nil }
+func (m *MockDB) InsertUser(models.User) error { return nil }
+
+func (m *MockDB) GetAllUsers() ([]models.User, error) {
+	if m.GetAllUsersCalled != nil {
+		m.GetAllUsersCalled <- true
+	}
+	if m.OnGetAllUsers != nil {
+		return m.OnGetAllUsers()
+	}
+	return nil, nil
+}
+func (m *MockDB) GetUserByKey(string) (models.User, error)            { return models.User{}, nil }
+func (m *MockDB) GetUserByUsername(string) (models.User, error)       { return models.User{}, nil }
+func (m *MockDB) GetMuteWordsForUser(models.User) ([]string, error)   { return nil, nil }
+func (m *MockDB) UpdateMuteWordsForUser(models.User, []string) error  { return nil }
+func (m *MockDB) DeleteMuteWordsForUser(models.User, []string) error  { return nil }
+func (m *MockDB) GetUnmuteFeedsForUser(models.User) ([]int64, error)  { return nil, nil }
+func (m *MockDB) UpdateUnmuteFeedsForUser(models.User, []int64) error { return nil }
+func (m *MockDB) DeleteUnmuteFeedsForUser(models.User, []int64) error { return nil }
+func (m *MockDB) GetAllRetrievalCaches() (map[string]string, error)   { return nil, nil }
+func (m *MockDB) PersistAllRetrievalCaches(map[string][]byte) error   { return nil }
 func (m *MockDB) InsertFeedForUser(models.User, models.Feed, int64) (int64, error) {
 	return 0, nil
 }
@@ -57,7 +75,14 @@ func (m *MockDB) GetFolderChildrenForUser(models.User, int64) ([]int64, error) {
 	return nil, nil
 }
 func (m *MockDB) GetAllFoldersForUser(models.User) ([]models.Folder, error) { return nil, nil }
-func (m *MockDB) GetAllFeedsForUser(models.User) ([]models.Feed, error)     { return nil, nil }
+
+func (m *MockDB) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
+	if m.OnGetAllFeedsForUser != nil {
+		return m.OnGetAllFeedsForUser(u)
+	}
+	return nil, nil
+}
+
 func (m *MockDB) GetFeedsInFolderForUser(models.User, int64) ([]models.Feed, error) {
 	return nil, nil
 }
@@ -79,9 +104,6 @@ func (m *MockDB) GetArticlesForUser(models.User, []int64) ([]models.Article, err
 func (m *MockDB) GetArticlesWithFilterForUser(models.User, models.StreamFilter, int, int64) ([]models.Article, error) {
 	return nil, nil
 }
-func (m *MockDB) GetArticlesForFeedForUser(models.User, int64) ([]models.Article, error) {
-	return nil, nil
-}
 func (m *MockDB) ImportOpmlForUser(models.User, *opml.Opml) error { return nil }
 
 // Methods with mock implementations
@@ -94,4 +116,19 @@ func (m *MockDB) UpdateFeedMetadataForUser(u models.User, feed models.Feed) erro
 func (m *MockDB) InsertFaviconForUser(u models.User, folderId, id int64, mime string, favicon []byte) error {
 	m.InsertFaviconForUserCalled = true
 	return m.InsertFaviconForUserErr
+}
+
+func (m *MockDB) InsertArticleForUser(u models.User, a models.Article) error {
+	m.InsertedArticles = append(m.InsertedArticles, a)
+	if m.ProcessItemsCalled != nil {
+		m.ProcessItemsCalled <- true
+	}
+	return nil
+}
+
+func (m *MockDB) GetArticlesForFeedForUser(u models.User, feedID int64) ([]models.Article, error) {
+	if m.OnGetArticlesForFeedForUser != nil {
+		return m.OnGetArticlesForFeedForUser(u, feedID)
+	}
+	return []models.Article{}, nil
 }

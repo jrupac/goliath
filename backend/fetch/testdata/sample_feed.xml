@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+  <title>Test Feed</title>
+  <link>http://example.com/feed</link>
+  <description>A test feed for Goliath.</description>
+  <item>
+    <title>Test Article 1</title>
+    <link>http://example.com/article1</link>
+    <description>This is the first test article.</description>
+    <pubDate>2025-10-12T10:00:00Z</pubDate>
+  </item>
+  <item>
+    <title>Test Article 2</title>
+    <link>http://example.com/article2</link>
+    <description>This is the second test article.</description>
+    <pubDate>2025-10-12T11:00:00Z</pubDate>
+  </item>
+</channel>
+</rss>
