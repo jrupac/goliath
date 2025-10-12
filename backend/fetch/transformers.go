@@ -4,6 +4,13 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"image"
+	"image/png"
+	"net/url"
+	"regexp"
+	"strings"
+	"time"
+
 	"github.com/PuerkitoBio/goquery"
 	"github.com/arbovm/levenshtein"
 	log "github.com/golang/glog"
@@ -14,12 +21,6 @@ import (
 	"golang.org/x/image/draw"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
-	"image"
-	"image/png"
-	"net/url"
-	"regexp"
-	"strings"
-	"time"
 )
 
 const (
@@ -58,8 +59,10 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 
 	if item.Enclosures != nil {
 		for _, enc := range item.Enclosures {
-			contents = prependMediaToHtml(enc.URL, contents)
-			parsed = prependMediaToHtml(enc.URL, parsed)
+			if strings.HasPrefix(enc.Type, "image") {
+				contents = prependMediaToHtml(enc.URL, contents)
+				parsed = prependMediaToHtml(enc.URL, parsed)
+			}
 		}
 	}
 
@@ -220,12 +223,13 @@ func prependMediaToHtml(imgSrc string, s string) string {
 		return s
 	}
 
+	// TODO: Consider prepending other kinds of media too (audio, video).
 	imgNode := &html.Node{
 		Type:     html.ElementNode,
 		Data:     "img",
 		DataAtom: atom.Img,
 		Attr: []html.Attribute{
-			{Key: "src", Val: html.EscapeString(imgSrc)},
+			{Key: "src", Val: imgSrc},
 		},
 	}
 
