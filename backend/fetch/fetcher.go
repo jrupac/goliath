@@ -64,7 +64,7 @@ func Resume() {
 type Fetcher struct {
 	d        storage.Database
 	retCache *cache.RetrievalCache
-	finder   *besticon.IconFinder
+	finder   IconFinder
 }
 
 func New(d storage.Database, retCache *cache.RetrievalCache) *Fetcher {
