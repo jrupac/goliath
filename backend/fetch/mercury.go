@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
-	log "github.com/golang/glog"
 	"html/template"
 
-	"os/exec"
+	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/utils"
 )
 
 const (
@@ -23,6 +23,8 @@ var (
 	parseArticles = flag.Bool("parseArticles", false, "If true, parse article content via Mercury API.")
 )
 
+var cmdRunner utils.CommandRunner = utils.ExecCommandRunner{}
+
 type mercuryResponse struct {
 	Content     string `json:"content"`
 	HtmlContent template.HTML
@@ -34,11 +36,11 @@ func maybeParseArticleContent(link string) (content string) {
 	}
 
 	if *mercuryCli == "" {
-		log.Fatalf("--mercuryCli must be set if --parseArticles is true.")
+		log.Errorf("--mercuryCli must be set if --parseArticles is true.")
 		return
 	}
 
-	output, err := exec.Command(*mercuryCli, link).Output()
+	output, err := cmdRunner.Output(*mercuryCli, link)
 	if err != nil {
 		log.Warningf("Failed to execute mercury CLI: %s", err)
 		return
