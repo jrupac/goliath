@@ -3,23 +3,24 @@ package fetch
 import (
 	"context"
 	"errors"
+	"image"
+	"net/url"
+
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/utils"
 	"github.com/jrupac/rss"
 	"github.com/mat/besticon/v3/besticon"
-	"image"
-	"net/url"
 )
 
 func (f Fetcher) updateFeedMetadataForUser(ctx context.Context, u models.User, mFeed *models.Feed, rFeed *rss.Feed) {
 	if rFeed.Title != "" {
 		t := maybeUnescapeHtml(rFeed.Title)
-		mFeed.Title = extractTextFromHtml(t)
+		mFeed.Title = extractTextFromHtmlUnsafe(t)
 	}
 	if rFeed.Description != "" {
 		d := maybeUnescapeHtml(rFeed.Description)
-		mFeed.Description = extractTextFromHtml(d)
+		mFeed.Description = extractTextFromHtmlUnsafe(d)
 	}
 	if rFeed.Link != "" {
 		mFeed.Link = rFeed.Link

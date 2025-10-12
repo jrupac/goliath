@@ -202,9 +202,11 @@ func maybeRewriteImageSourceUrls(s string) string {
 	return resp
 }
 
-// extractTextFromHtml parses the given string as an HTML document and returns
+// extractTextFromHtmlUnsafe parses the given string as an HTML document and returns
 // the combined text from the doc. On parse error, returns the original string.
-func extractTextFromHtml(s string) string {
+// This function does not perform any sanitization and the output may contain
+// unexpected text from script tags, etc.
+func extractTextFromHtmlUnsafe(s string) string {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
 	if err != nil {
 		log.Warningf("while parsing HTML: %s", err)
@@ -278,9 +280,9 @@ func maybeMuteArticle(a models.Article, muteWords []string, unmuteFeeds []int64)
 		muteWordMap[stemWord(word)] = word
 	}
 
-	textWords := strings.Fields(extractTextFromHtml(a.Title))
-	textWords = append(textWords, strings.Fields(extractTextFromHtml(a.Summary))...)
-	textWords = append(textWords, strings.Fields(extractTextFromHtml(a.Content))...)
+	textWords := strings.Fields(extractTextFromHtmlUnsafe(a.Title))
+	textWords = append(textWords, strings.Fields(extractTextFromHtmlUnsafe(a.Summary))...)
+	textWords = append(textWords, strings.Fields(extractTextFromHtmlUnsafe(a.Content))...)
 
 	for _, textWord := range textWords {
 		if muteWord, ok := muteWordMap[stemWord(textWord)]; ok {
