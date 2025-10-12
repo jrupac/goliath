@@ -1,7 +1,6 @@
 package fetch
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -58,6 +57,7 @@ func TestProcessItem(t *testing.T) {
 		ID:       1,
 		FolderID: 1,
 		Title:    "Test Feed",
+		Link:     "http://example.com/feed",
 	}
 
 	baseItem := func() *rss.Item {
@@ -73,7 +73,7 @@ func TestProcessItem(t *testing.T) {
 
 	t.Run("with image enclosure", func(t *testing.T) {
 		item := baseItem()
-		enclosureURL := "http://example.com/image.jpg"
+		enclosureURL := "/image.jpg"
 		item.Enclosures = []*rss.Enclosure{
 			{
 				URL:  enclosureURL,
@@ -84,8 +84,9 @@ func TestProcessItem(t *testing.T) {
 
 		article := processItem(feed, item)
 
-		if !strings.Contains(article.Content, enclosureURL) {
-			t.Errorf("article content should contain enclosure URL %q, but was %q", enclosureURL, article.Content)
+		expectedUrl := "http://example.com/image.jpg"
+		if !strings.Contains(article.Content, expectedUrl) {
+			t.Errorf("article content should contain absolute enclosure URL %q, but was %q", expectedUrl, article.Content)
 		}
 
 		if article.Content == originalContent {
@@ -93,14 +94,14 @@ func TestProcessItem(t *testing.T) {
 		}
 
 		// Also check Parsed field
-		if !strings.Contains(article.Parsed, enclosureURL) {
-			t.Errorf("article parsed content should contain enclosure URL %q, but was %q", enclosureURL, article.Parsed)
+		if !strings.Contains(article.Parsed, expectedUrl) {
+			t.Errorf("article parsed content should contain absolute enclosure URL %q, but was %q", expectedUrl, article.Parsed)
 		}
 	})
 
 	t.Run("with non-image enclosure", func(t *testing.T) {
 		item := baseItem()
-		enclosureURL := "http://example.com/audio.mp3"
+		enclosureURL := "/audio.mp3"
 		item.Enclosures = []*rss.Enclosure{
 			{
 				URL:  enclosureURL,
@@ -208,58 +209,41 @@ func TestMaybeUnescapeHtml(t *testing.T) {
 	}
 }
 
-func TestMaybeRewriteImageSourceUrls(t *testing.T) {
-	// Save original flag values and restore them after the test.
-	oldProxyInsecure := *proxyInsecureImages
-	oldProxySecure := *proxySecureImages
-	oldProxyUrlBase := *proxyUrlBase
-	defer func() {
-		*proxyInsecureImages = oldProxyInsecure
-		*proxySecureImages = oldProxySecure
-		*proxyUrlBase = oldProxyUrlBase
-	}()
+func TestProcessImageUrl(t *testing.T) {
+	feedLink := "http://example.com/feed"
 
-	*proxyInsecureImages = true
-	*proxySecureImages = false
-	*proxyUrlBase = "https://proxy.example.com"
-
-	t.Run("rewrites insecure http image", func(t *testing.T) {
-		html := `<img src="http://example.com/insecure.jpg">`
-		rewritten := maybeRewriteImageSourceUrls(html)
-		expectedUrl := "https://proxy.example.com/cache?url=http%3A%2F%2Fexample.com%2Finsecure.jpg"
-		expectedHtml := fmt.Sprintf(`<html><head></head><body><img src="%s"/></body></html>`, expectedUrl)
-		if rewritten != expectedHtml {
-			t.Errorf("expected %q, got %q", expectedHtml, rewritten)
+	t.Run("makes relative url absolute", func(t *testing.T) {
+		imageUrl := "/foo.jpg"
+		expected := "http://example.com/foo.jpg"
+		result := processImageUrl(feedLink, imageUrl)
+		if result != expected {
+			t.Errorf("expected %s, got %s", expected, result)
 		}
 	})
 
-	t.Run("does not rewrite secure https image by default", func(t *testing.T) {
-		html := `<html><head></head><body><img src="https://example.com/secure.jpg"/></body></html>`
-		rewritten := maybeRewriteImageSourceUrls(html)
-		if rewritten != html {
-			t.Errorf("expected html to be unchanged, but it was rewritten to %q", rewritten)
+	t.Run("handles absolute url", func(t *testing.T) {
+		imageUrl := "https://othersite.com/foo.jpg"
+		expected := "https://othersite.com/foo.jpg"
+		result := processImageUrl(feedLink, imageUrl)
+		if result != expected {
+			t.Errorf("expected %s, got %s", expected, result)
 		}
 	})
 
-	t.Run("rewrites secure https image when configured", func(t *testing.T) {
-		*proxySecureImages = true
-		defer func() { *proxySecureImages = false }()
-		html := `<img src="https://example.com/secure.jpg">`
-		rewritten := maybeRewriteImageSourceUrls(html)
-		expectedUrl := "https://proxy.example.com/cache?url=https%3A%2F%2Fexample.com%2Fsecure.jpg"
-		expectedHtml := fmt.Sprintf(`<html><head></head><body><img src="%s"/></body></html>`, expectedUrl)
-		if rewritten != expectedHtml {
-			t.Errorf("expected %q, got %q", expectedHtml, rewritten)
-		}
-	})
+	t.Run("proxies insecure image", func(t *testing.T) {
+		oldProxyInsecure := *proxyInsecureImages
+		*proxyInsecureImages = true
+		defer func() { *proxyInsecureImages = oldProxyInsecure }()
 
-	t.Run("does not rewrite if proxying is disabled", func(t *testing.T) {
-		*proxyInsecureImages = false
-		defer func() { *proxyInsecureImages = true }()
-		html := `<html><head></head><body><img src="http://example.com/insecure.jpg"/></body></html>`
-		rewritten := maybeRewriteImageSourceUrls(html)
-		if rewritten != html {
-			t.Errorf("expected html to be unchanged, but it was rewritten to %q", rewritten)
+		oldProxyUrlBase := *proxyUrlBase
+		*proxyUrlBase = "https://proxy.example.com"
+		defer func() { *proxyUrlBase = oldProxyUrlBase }()
+
+		imageUrl := "http://insecure.com/foo.jpg"
+		expected := "https://proxy.example.com/cache?url=http%3A%2F%2Finsecure.com%2Ffoo.jpg"
+		result := processImageUrl(feedLink, imageUrl)
+		if result != expected {
+			t.Errorf("expected %s, got %s", expected, result)
 		}
 	})
 }

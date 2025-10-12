@@ -33,8 +33,6 @@ var (
 	proxyUrlBase        = flag.String("proxyUrlBase", "", "Base URL to reverse image proxy server.")
 )
 
-// processItem creates a models.Article object from an RSS item, applying
-// transformations and sanitizations as needed.
 func processItem(feed *models.Feed, item *rss.Item) models.Article {
 	title := item.Title
 	// An empty title can cause rendering problems and just looks wrong when
@@ -60,8 +58,9 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 	if item.Enclosures != nil {
 		for _, enc := range item.Enclosures {
 			if strings.HasPrefix(enc.Type, "image") {
-				contents = prependMediaToHtml(enc.URL, contents)
-				parsed = prependMediaToHtml(enc.URL, parsed)
+				finalEncUrl := processImageUrl(feed.Link, enc.URL)
+				contents = prependMediaToHtml(finalEncUrl, contents)
+				parsed = prependMediaToHtml(finalEncUrl, parsed)
 			}
 		}
 	}
@@ -72,7 +71,7 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 		parsed = bluemondayBodyPolicy.Sanitize(parsed)
 	}
 
-	contents = maybeRewriteImageSourceUrls(contents)
+	contents = maybeRewriteImageSourceUrls(feed, contents)
 
 	syntheticDate := false
 	retrieved := time.Now()
@@ -144,16 +143,63 @@ func maybeUnescapeHtml(content string) string {
 	return content
 }
 
+// processImageUrl takes a feed link and an image URL, makes the image URL
+// absolute, and then rewrites it to use the image proxy if configured.
+func processImageUrl(feedLink, imageUrl string) string {
+	// 1. Make URL absolute
+	base, err := url.Parse(feedLink)
+	if err != nil {
+		log.Warningf("could not parse feed link %s: %s", feedLink, err)
+	}
+
+	imageRef, err := url.Parse(imageUrl)
+	if err != nil {
+		log.Warningf("could not parse image url %s: %s", imageUrl, err)
+	}
+
+	var absUrlStr string
+	if base != nil && imageRef != nil {
+		absUrlStr = base.ResolveReference(imageRef).String()
+	} else {
+		absUrlStr = imageUrl
+	}
+
+	// 2. Rewrite to proxy
+	if !*proxyInsecureImages {
+		return absUrlStr
+	}
+
+	imgUrl, err := url.Parse(absUrlStr)
+	if err != nil {
+		log.Warningf("while parsing img src %s: %s", absUrlStr, err)
+		return absUrlStr // return absolute url if proxying fails at this stage
+	}
+
+	if imgUrl.Scheme == "https" && !*proxySecureImages {
+		return absUrlStr
+	}
+
+	newUrl, err := url.Parse(fmt.Sprintf("%s/%s", *proxyUrlBase, cacheEndpoint))
+	if err != nil {
+		log.Warningf("invalid proxy base URL %s: %s", *proxyUrlBase, err)
+		return absUrlStr // return absolute url if proxying fails
+	}
+
+	q := newUrl.Query()
+	q.Add("url", absUrlStr)
+	newUrl.RawQuery = q.Encode()
+
+	log.V(2).Infof("Rewritten URL: %s", newUrl.String())
+	return newUrl.String()
+}
+
 // maybeRewriteImageSourceUrls parses the given string as HTML, searches for
-// image source URLs and then rewrites them to point at the reverse image proxy.
-func maybeRewriteImageSourceUrls(s string) string {
+// image source URLs, makes them absolute if they are relative, and then rewrites
+// them to point at the reverse image proxy.
+func maybeRewriteImageSourceUrls(feed *models.Feed, s string) string {
 	// If we get an empty string, don't try to parse it. Doing so and then
 	// re-rendering will produce a non-empty but semantically empty HTML document.
 	if s == "" {
-		return s
-	}
-
-	if !*proxyInsecureImages {
 		return s
 	}
 
@@ -166,29 +212,8 @@ func maybeRewriteImageSourceUrls(s string) string {
 	doc.Find("img").Each(func(i int, s *goquery.Selection) {
 		for _, attr := range s.Nodes[0].Attr {
 			if attr.Key == "src" {
-
-				imgUrl, err := url.Parse(attr.Val)
-				if err != nil {
-					log.Warningf("while parsing img src %s: %s", attr.Val, err)
-				}
-
-				if imgUrl.Scheme == "https" && !*proxySecureImages {
-					continue
-				}
-
-				newUrl, err := url.Parse(fmt.Sprintf("%s/%s", *proxyUrlBase, cacheEndpoint))
-				if err != nil {
-					log.Warningf("invalid proxy base URL %s: %s", *proxyUrlBase, err)
-					break
-				}
-
-				q := newUrl.Query()
-				q.Add("url", attr.Val)
-				newUrl.RawQuery = q.Encode()
-
-				log.V(2).Infof("Rewritten URL: %s", newUrl.String())
-
-				s.SetAttr(attr.Key, newUrl.String())
+				finalUrl := processImageUrl(feed.Link, attr.Val)
+				s.SetAttr(attr.Key, finalUrl)
 			}
 		}
 	})
