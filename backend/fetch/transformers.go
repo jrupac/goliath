@@ -57,7 +57,7 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 
 	if item.Enclosures != nil {
 		for _, enc := range item.Enclosures {
-			if strings.HasPrefix(enc.Type, "image") {
+			if strings.HasPrefix(enc.Type, "image") && enc.URL != "" {
 				finalEncUrl := processImageUrl(feed.Link, enc.URL)
 				contents = prependMediaToHtml(finalEncUrl, contents)
 				parsed = prependMediaToHtml(finalEncUrl, parsed)
