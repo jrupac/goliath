@@ -147,6 +147,7 @@ func maybeUnescapeHtml(content string) string {
 // absolute, and then rewrites it to use the image proxy if configured.
 func processImageUrl(feedLink, imageUrl string) string {
 	// 1. Make URL absolute
+	feedLink = strings.TrimSpace(feedLink)
 	base, err := url.Parse(feedLink)
 	if err != nil {
 		log.Warningf("could not parse feed link %s: %s", feedLink, err)
