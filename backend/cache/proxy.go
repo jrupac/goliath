@@ -1,16 +1,17 @@
 package cache
 
 import (
-	log "github.com/golang/glog"
-	"github.com/jrupac/goliath/utils"
 	"html"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
+
+	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/utils"
 )
 
 type imageProxy struct {
-	client http.Client
+	Client *http.Client
 }
 
 // NewImageProxy returns an HTTP handler that serves as a reverse image
@@ -18,7 +19,7 @@ type imageProxy struct {
 // time the request arrives here.
 func NewImageProxy() http.Handler {
 	return &imageProxy{
-		client: http.Client{
+		Client: &http.Client{
 			Timeout: 5 * time.Second,
 		},
 	}
@@ -51,9 +52,15 @@ func (p *imageProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	log.V(2).Infof("Proxying request to: %s", target)
 
-	resp, err := p.client.Get(target)
+	resp, err := p.Client.Get(target)
 	if err != nil {
 		log.Warningf("Failed to proxy request: %s", err)
+		w.WriteHeader(http.StatusBadGateway)
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		log.Warningf("Proxy target returned non-200 status: %d", resp.StatusCode)
 		w.WriteHeader(http.StatusBadGateway)
 		return
 	}
@@ -64,7 +71,7 @@ func (p *imageProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Fatalf("Response should not be nil when there is not error.")
 	}
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Warningf("Could not read proxied response: %s", err)
 		w.WriteHeader(http.StatusBadGateway)
