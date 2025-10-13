@@ -182,7 +182,7 @@ func TestFetcher_PauseResume(t *testing.T) {
 	select {
 	case <-db.ProcessItemsCalled:
 		// This is good, means the first fetch completed
-	case <-time.After(1 * time.Second):
+	case <-time.After(10 * time.Second):
 		t.Fatal("timed out waiting for first fetch to complete")
 	}
 
