@@ -28,6 +28,7 @@ type MockDB struct {
 	OnGetArticlesForFeedForUser func(u models.User, feedID int64) ([]models.Article, error)
 	OnGetAllUsers               func() ([]models.User, error)
 	OnGetAllFeedsForUser        func(u models.User) ([]models.Feed, error)
+	OnGetAllRetrievalCaches     func() (map[string]string, error)
 }
 
 func (m *MockDB) Open(string) error            { return nil }
@@ -38,11 +39,13 @@ func (m *MockDB) GetAllUsers() ([]models.User, error) {
 	if m.GetAllUsersCalled != nil {
 		m.GetAllUsersCalled <- true
 	}
+
 	if m.OnGetAllUsers != nil {
 		return m.OnGetAllUsers()
 	}
 	return nil, nil
 }
+
 func (m *MockDB) GetUserByKey(string) (models.User, error)            { return models.User{}, nil }
 func (m *MockDB) GetUserByUsername(string) (models.User, error)       { return models.User{}, nil }
 func (m *MockDB) GetMuteWordsForUser(models.User) ([]string, error)   { return nil, nil }
@@ -51,8 +54,14 @@ func (m *MockDB) DeleteMuteWordsForUser(models.User, []string) error  { return n
 func (m *MockDB) GetUnmuteFeedsForUser(models.User) ([]int64, error)  { return nil, nil }
 func (m *MockDB) UpdateUnmuteFeedsForUser(models.User, []int64) error { return nil }
 func (m *MockDB) DeleteUnmuteFeedsForUser(models.User, []int64) error { return nil }
-func (m *MockDB) GetAllRetrievalCaches() (map[string]string, error)   { return nil, nil }
-func (m *MockDB) PersistAllRetrievalCaches(map[string][]byte) error   { return nil }
+
+func (m *MockDB) GetAllRetrievalCaches() (map[string]string, error) {
+	if m.OnGetAllRetrievalCaches != nil {
+		return m.OnGetAllRetrievalCaches()
+	}
+	return nil, nil
+}
+func (m *MockDB) PersistAllRetrievalCaches(map[string][]byte) error { return nil }
 func (m *MockDB) InsertFeedForUser(models.User, models.Feed, int64) (int64, error) {
 	return 0, nil
 }

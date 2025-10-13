@@ -52,7 +52,7 @@ func TestProcessUserFeedItems(t *testing.T) {
 	t.Run("processes new articles", func(t *testing.T) {
 		feed := &models.Feed{ID: 1, Latest: pastTime}
 		db := &storage.MockDB{}
-		fetcher := Fetcher{d: db, retCache: &cache.RetrievalCache{}}
+		fetcher := Fetcher{d: db, retCache: cache.NewMockRetrievalCache()}
 
 		fetcher.processUserFeedItems(context.Background(), user, feed, testFeedData.Items)
 
@@ -67,7 +67,7 @@ func TestProcessUserFeedItems(t *testing.T) {
 
 	t.Run("filters articles that are too old", func(t *testing.T) {
 		db := &storage.MockDB{}
-		fetcher := Fetcher{d: db, retCache: &cache.RetrievalCache{}}
+		fetcher := Fetcher{d: db, retCache: cache.NewMockRetrievalCache()}
 		// Set feed's latest time to be after the articles in the test data
 		futureTime, _ := time.Parse(time.RFC3339, "2026-01-01T00:00:00Z")
 		futureFeed := &models.Feed{ID: 1, Latest: futureTime}
@@ -92,7 +92,7 @@ func TestProcessUserFeedItems(t *testing.T) {
 			}}, nil
 		}
 
-		fetcher := Fetcher{d: db, retCache: &cache.RetrievalCache{}}
+		fetcher := Fetcher{d: db, retCache: cache.NewMockRetrievalCache()}
 
 		fetcher.processUserFeedItems(context.Background(), user, feed, testFeedData.Items)
 
@@ -123,7 +123,7 @@ func TestFetchUserFeed(t *testing.T) {
 
 	fetcher := Fetcher{
 		d:         db,
-		retCache:  &cache.RetrievalCache{},
+		retCache:  cache.NewMockRetrievalCache(),
 		finder:    &mockIconFinder{},
 		fetchFunc: mockFetchFunc,
 	}
@@ -161,7 +161,7 @@ func TestFetcher_PauseResume(t *testing.T) {
 		},
 	}
 
-	retCache, _ := cache.StartRetrievalCache(context.Background(), db)
+	retCache := cache.NewMockRetrievalCache()
 	fetcher := New(db, retCache)
 	fetcher.fetchFunc = mockFetchFunc
 

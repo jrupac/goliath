@@ -5,29 +5,30 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	log "github.com/golang/glog"
-	"github.com/jrupac/goliath/models"
-	"github.com/jrupac/goliath/storage"
-	"github.com/seiflotfy/cuckoofilter"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/models"
+	"github.com/jrupac/goliath/storage"
+	cuckoo "github.com/seiflotfy/cuckoofilter"
 )
 
 var (
 	retrievalCacheWriteInterval = flag.Duration("retrievalCacheWriteInterval", 5*time.Minute, "Period between retrieval cache writes.")
 )
 
-// RetrievalCache is a probabilistic cache storing the hashes of all past retrieved articles.
-type RetrievalCache struct {
+// CuckooFilterRetrievalCache is a probabilistic cache storing the hashes of all past retrieved articles.
+type CuckooFilterRetrievalCache struct {
 	caches map[string]*cuckoo.ScalableCuckooFilter
 	lock   sync.Mutex
 	ready  atomic.Value
 }
 
-// StartRetrievalCache creates a new RetrievalCache and starts background processing.
-func StartRetrievalCache(ctx context.Context, d storage.Database) (*RetrievalCache, error) {
-	r := RetrievalCache{}
+// StartRetrievalCache creates a new CuckooFilterRetrievalCache and starts background processing.
+func StartRetrievalCache(ctx context.Context, d storage.Database) (RetrievalCache, error) {
+	r := CuckooFilterRetrievalCache{}
 	err := r.loadCache(d)
 	if err != nil {
 		return nil, err
@@ -38,7 +39,7 @@ func StartRetrievalCache(ctx context.Context, d storage.Database) (*RetrievalCac
 }
 
 // Add adds a new entry into the retrieval cache for the specified user.
-func (r *RetrievalCache) Add(u models.User, entry string) {
+func (r *CuckooFilterRetrievalCache) Add(u models.User, entry string) {
 	if r.ready.Load() == nil {
 		log.Errorf("retrieval cache not ready: %s", entry)
 		return
@@ -55,7 +56,7 @@ func (r *RetrievalCache) Add(u models.User, entry string) {
 }
 
 // Lookup returns whether the specified entry is present in the retrieval cache for the specified user.
-func (r *RetrievalCache) Lookup(u models.User, entry string) bool {
+func (r *CuckooFilterRetrievalCache) Lookup(u models.User, entry string) bool {
 	if r.ready.Load() == nil {
 		log.Errorf("retrieval cache not ready: %s", entry)
 		return false
@@ -73,7 +74,7 @@ func (r *RetrievalCache) Lookup(u models.User, entry string) bool {
 	}
 }
 
-func (r *RetrievalCache) loadCache(d storage.Database) error {
+func (r *CuckooFilterRetrievalCache) loadCache(d storage.Database) error {
 	r.caches = map[string]*cuckoo.ScalableCuckooFilter{}
 
 	retrievalCaches, err := d.GetAllRetrievalCaches()
@@ -123,7 +124,7 @@ func (r *RetrievalCache) loadCache(d storage.Database) error {
 	return nil
 }
 
-func (r *RetrievalCache) startPeriodicWriter(ctx context.Context, d storage.Database) {
+func (r *CuckooFilterRetrievalCache) startPeriodicWriter(ctx context.Context, d storage.Database) {
 	initial := make(chan struct{})
 	tick := make(<-chan time.Time)
 
@@ -147,7 +148,7 @@ func (r *RetrievalCache) startPeriodicWriter(ctx context.Context, d storage.Data
 	}
 }
 
-func (r *RetrievalCache) persistCache(d storage.Database) {
+func (r *CuckooFilterRetrievalCache) persistCache(d storage.Database) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	log.Infof("Persisting retrieval cache.")

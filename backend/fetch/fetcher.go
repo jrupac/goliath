@@ -63,12 +63,12 @@ func Resume() {
 
 type Fetcher struct {
 	d         storage.Database
-	retCache  *cache.RetrievalCache
+	retCache  cache.RetrievalCache
 	finder    IconFinder
 	fetchFunc rss.FetchFunc
 }
 
-func New(d storage.Database, retCache *cache.RetrievalCache) *Fetcher {
+func New(d storage.Database, retCache cache.RetrievalCache) *Fetcher {
 	// Turn off logging of HTTP icon requests.
 	b := besticon.New(besticon.WithLogger(besticon.NewDefaultLogger(io.Discard)))
 
