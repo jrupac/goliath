@@ -5,6 +5,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
+
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/admin"
 	"github.com/jrupac/goliath/api"
@@ -16,12 +23,6 @@ import (
 	"github.com/jrupac/goliath/utils"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vharitonsky/iniflags"
-	"net/http"
-	"os"
-	"os/signal"
-	"strconv"
-	"syscall"
-	"time"
 )
 
 const version = "0.01"
@@ -158,12 +159,10 @@ func serveMetrics(ctx context.Context) {
 	}
 
 	go func(srv *http.Server) {
-		select {
-		case <-ctx.Done():
-			log.Infof("Shutting down metrics server.")
-			if err := srv.Shutdown(nil); err != nil {
-				log.Infof("Failed to cleanly shutdown metrics server: %s", err)
-			}
+		<-ctx.Done()
+		log.Infof("Shutting down metrics server.")
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Infof("Failed to cleanly shutdown metrics server: %s", err)
 		}
 	}(srv)
 
@@ -186,12 +185,10 @@ func serve(ctx context.Context, d storage.Database) error {
 	}
 
 	go func(srv *http.Server) {
-		select {
-		case <-ctx.Done():
-			log.Infof("Shutting down HTTP server.")
-			if err := srv.Shutdown(nil); err != nil {
-				log.Infof("Failed to cleanly shutdown HTTP server: %s", err)
-			}
+		<-ctx.Done()
+		log.Infof("Shutting down HTTP server.")
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Infof("Failed to cleanly shutdown HTTP server: %s", err)
 		}
 	}(srv)
 

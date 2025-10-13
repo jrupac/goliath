@@ -73,5 +73,5 @@ func validateAuthToken(token []byte, username string, hashPass string) bool {
 	h.Write([]byte(username))
 	h.Write([]byte(hashPass))
 
-	return bytes.Compare(token, h.Sum(nil)) == 0
+	return bytes.Equal(token, h.Sum(nil))
 }
