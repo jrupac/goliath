@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"sync"
 	"time"
 
@@ -47,6 +48,17 @@ func makeBodyPolicy() *bluemonday.Policy {
 	return p
 }
 
+func fetchFuncWithAcceptHeader(url string) (*http.Response, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/rss+xml,application/atom+xml;q=0.9,application/xml;q=0.8,*/*;q=0.7")
+	req.Header.Set("User-Agent", "Goliath/1.0 (+http://github.com/jrupac/goliath)")
+	return client.Do(req)
+}
+
 // Pause stops all continuous feed fetching in a way that is resume-able.
 // This call will block until fetching is fully paused. If fetching has not
 // started yet, this call will block indefinitely.
@@ -76,7 +88,7 @@ func New(d storage.Database, retCache cache.RetrievalCache) *Fetcher {
 		d:         d,
 		retCache:  retCache,
 		finder:    b.NewIconFinder(),
-		fetchFunc: rss.DefaultFetchFunc,
+		fetchFunc: fetchFuncWithAcceptHeader,
 	}
 }
 

@@ -2,8 +2,9 @@ package models
 
 import (
 	"fmt"
-	"golang.org/x/crypto/sha3"
 	"time"
+
+	"golang.org/x/crypto/sha3"
 )
 
 // Feed is a single source of articles.
@@ -30,5 +31,7 @@ func (f Feed) Hash() string {
 }
 
 func (f Feed) String() string {
-	return fmt.Sprintf("Feed{Folder:%d, ID:%d, Title:\"%s\", Link:\"%s\"}", f.FolderID, f.ID, f.Title, f.Link)
+	return fmt.Sprintf(
+		"Feed{Folder:%d, ID:%d, Title:\"%s\", Link:\"%s\", URL:\"%s\"}",
+		f.FolderID, f.ID, f.Title, f.Link, f.URL)
 }
