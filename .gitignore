@@ -1,6 +1,7 @@
 # IDE specific files
 .vscode/
 .idea/
+.zed/
 *.iml
 
 # Build-related output
