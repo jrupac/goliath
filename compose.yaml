@@ -10,7 +10,7 @@ services:
         - BUILD_HASH=${BUILD_HASH}
     container_name: "goliath"
     dns: 8.8.8.8
-    profiles: [ "prod" ]
+    profiles: ["prod"]
     depends_on:
       crdb:
         condition: service_started
@@ -34,7 +34,7 @@ services:
       dockerfile: dev.Dockerfile
     container_name: "frontend_dev"
     stdin_open: true
-    profiles: [ "dev" ]
+    profiles: ["dev"]
     ports:
       - "3000:3000"
     links:
@@ -48,7 +48,7 @@ services:
     build:
       dockerfile: dev.Dockerfile
     container_name: "backend_dev"
-    profiles: [ "dev" ]
+    profiles: ["dev"]
     depends_on:
       crdb-dev:
         condition: service_started
@@ -69,7 +69,7 @@ services:
     command: "start-single-node --insecure --advertise-addr=crdb --log-dir=/tmp"
     hostname: crdb
     dns: 8.8.8.8
-    profiles: [ "dev" ]
+    profiles: ["dev"]
     ports:
       # Also map 26257 to the host in the non-prod
       - "26257:26257"
@@ -88,7 +88,7 @@ services:
   frontend-debug:
     <<: *frontend_template
     container_name: "frontend-debug"
-    profiles: [ "debug" ]
+    profiles: ["debug"]
     links:
       - "backend-debug:goliath-dev"
 
@@ -97,7 +97,7 @@ services:
     build:
       dockerfile: debug.Dockerfile
     container_name: "backend-debug"
-    profiles: [ "debug" ]
+    profiles: ["debug"]
     depends_on:
       crdb-debug:
         condition: service_started
@@ -117,7 +117,7 @@ services:
     command: "start-single-node --insecure --advertise-addr=crdb --log-dir=/tmp"
     container_name: "crdb-debug"
     dns: 8.8.8.8
-    profiles: [ "debug" ]
+    profiles: ["debug"]
     ports:
       # Also map 26257 to the host in the non-prod
       - "26257:26257"
@@ -145,11 +145,11 @@ services:
         max_attempts: 10
         window: 120s
     dns: 8.8.8.8
-    profiles: [ "prod" ]
+    profiles: ["prod"]
     expose:
       - "26257"
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://crdb:8080/health?ready=1" ]
+      test: ["CMD", "curl", "-f", "http://crdb:8080/health?ready=1"]
       interval: 3s
       timeout: 3s
       retries: 5
@@ -164,10 +164,10 @@ services:
       - "/tmp:/tmp"
 
 networks:
-  crdb-network: { }
+  crdb-network: {}
   # Only needed in non-prod environments where the frontend is not bundled
   # into the backend.
-  goliath-network: { }
+  goliath-network: {}
 
 volumes:
   crdb_volume:

@@ -4,9 +4,6 @@
 
 FROM docker.io/golang:1.23 AS backend_builder_prod
 
-ENV CGO_ENABLED 0
-ENV GOOS linux
-
 RUN echo "Installing deps..."
 RUN DEBIAN_FRONTEND=noninteractive \
     apt-get update \
@@ -35,7 +32,7 @@ ARG BUILD_TIMESTAMP
 ARG BUILD_HASH
 
 RUN echo "Building Goliath core..."
-RUN go build -v -mod=mod -ldflags  \
+RUN CGO_ENABLED=0 GOOS=linux go build -v -ldflags  \
     "-X main.buildTimestamp=${BUILD_TIMESTAMP} \
     -X main.buildHash=${BUILD_HASH}" \
     -o goliath

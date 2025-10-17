@@ -2,9 +2,6 @@
 
 FROM golang:1.23 AS backend_builder_debug
 
-ENV CGO_ENABLED 0
-ENV GOOS linux
-
 RUN echo "Installing deps..."
 RUN DEBIAN_FRONTEND=noninteractive \
     apt-get update \
@@ -32,7 +29,7 @@ RUN protoc --proto_path=admin/ --go_out=admin/ --go-grpc_out=admin/ \
     admin.proto
 
 RUN echo "Building Goliath core with debug flags..."
-RUN go build -v -mod=mod -gcflags="all=-N -l" -o goliath
+RUN CGO_ENABLED=0 GOOS=linux go build -v -gcflags="all=-N -l" -o goliath
 
 RUN echo "Installing delve..."
 WORKDIR /go/src/
