@@ -29,11 +29,11 @@ RUN protoc --proto_path=admin/ --go_out=admin/ --go-grpc_out=admin/ \
     admin.proto
 
 RUN echo "Building Goliath core with debug flags..."
-RUN CGO_ENABLED=0 GOOS=linux go build -v -gcflags="all=-N -l" -o goliath
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -v -gcflags="all=-N -l" -o goliath
 
 RUN echo "Installing delve..."
 WORKDIR /go/src/
-RUN go install github.com/go-delve/delve/cmd/dlv@latest
+RUN CGO_ENABLED=0 GOOS=linux go install github.com/go-delve/delve/cmd/dlv@latest
 
 # Final development image
 FROM scratch
