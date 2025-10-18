@@ -35,6 +35,13 @@ var createVolumeCmd = &cobra.Command{
 		volumeExists := strings.TrimSpace(string(existingVolume)) != ""
 
 		if force && volumeExists {
+			fmt.Println("WARNING: This will permanently delete the existing CockroachDB data volume.")
+			confirmation := promptForInput("Type DELETE to confirm:")
+			if confirmation != "DELETE" {
+				fmt.Println("Confirmation failed. Aborting.")
+				return
+			}
+
 			fmt.Println("Destroying existing CockroachDB data volume:", crdbVolumeName)
 			downCmd := exec.Command("docker", "compose", "down", "--volumes")
 			downCmd.Stdout = os.Stdout
