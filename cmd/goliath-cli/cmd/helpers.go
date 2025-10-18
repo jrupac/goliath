@@ -15,7 +15,107 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// ... (existing content) ...
+// --- Checklist input ---
+
+type checklistModel struct {
+	prompt   string
+	choices  []string
+	cursor   int
+	selected map[int]struct{}
+}
+
+func initialChecklistModel(prompt string, choices []string) checklistModel {
+	return checklistModel{
+		prompt:   prompt,
+		choices:  choices,
+		selected: make(map[int]struct{}),
+	}
+}
+
+func (m checklistModel) Init() tea.Cmd {
+	return nil
+}
+
+func (m checklistModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "q", "esc":
+			// Clear selection on quit to indicate cancellation
+			m.selected = make(map[int]struct{})
+			return m, tea.Quit
+
+		case "up", "k":
+			if m.cursor > 0 {
+				m.cursor--
+			}
+
+		case "down", "j":
+			if m.cursor < len(m.choices)-1 {
+				m.cursor++
+			}
+
+		case " ": // Space toggles selection
+			_, ok := m.selected[m.cursor]
+			if ok {
+				delete(m.selected, m.cursor)
+			} else {
+				m.selected[m.cursor] = struct{}{}
+			}
+
+		case "enter": // Enter confirms and quits
+			return m, tea.Quit
+		}
+	}
+
+	return m, nil
+}
+
+func (m checklistModel) View() string {
+	var s strings.Builder
+	s.WriteString(m.prompt + "\n\n")
+
+	for i, choice := range m.choices {
+		cursor := " " // no cursor
+		if m.cursor == i {
+			cursor = ">" // cursor!
+		}
+
+		checked := " " // not selected
+		if _, ok := m.selected[i]; ok {
+			checked = "x" // selected!
+		}
+
+		s.WriteString(fmt.Sprintf("%s [%s] %s\n", cursor, checked, choice))
+	}
+
+	s.WriteString("\nPress Space to toggle, Enter to confirm, q to quit.\n")
+
+	return s.String()
+}
+
+func promptForChecklist(prompt string, choices []string) []string {
+	p := tea.NewProgram(initialChecklistModel(prompt, choices))
+
+	m, err := p.Run()
+	if err != nil {
+		fmt.Printf("Error running prompt: %v\n", err)
+		os.Exit(1)
+	}
+
+	finalModel, ok := m.(checklistModel)
+	if !ok {
+		fmt.Println("Error getting final model from prompt")
+		os.Exit(1)
+	}
+
+	var selectedChoices []string
+	for i := range finalModel.selected {
+		selectedChoices = append(selectedChoices, finalModel.choices[i])
+	}
+
+	return selectedChoices
+}
 
 // --- Multi-line text input ---
 
@@ -180,8 +280,6 @@ func promptForInput(prompt string) string {
 
 	return finalModel.textInput.Value()
 }
-
-// ... (rest of the file is the same)
 
 func executeDockerCompose(args []string) {
 	fmt.Println("Running: docker", args)

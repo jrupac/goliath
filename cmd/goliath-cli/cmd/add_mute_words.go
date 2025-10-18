@@ -9,8 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var addMuteWordCmd = &cobra.Command{
-	Use:     "add-mute-word",
+var addMuteWordsCmd = &cobra.Command{
+	Use:     "add-mute-words",
 	Short:   "Add mute words for a user",
 	GroupID: "admin",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -47,13 +47,13 @@ var addMuteWordCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Println("Successfully added mute words for user:", user)
+		fmt.Printf("Successfully added %d mute words for user: %s\n", len(words), user)
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(addMuteWordCmd)
-	addGrpcAddressFlag(addMuteWordCmd)
-	addUserFlag(addMuteWordCmd)
-	addMuteWordCmd.Flags().String("words", "", "Comma-separated list of words to add")
+	rootCmd.AddCommand(addMuteWordsCmd)
+	addGrpcAddressFlag(addMuteWordsCmd)
+	addUserFlag(addMuteWordsCmd)
+	addMuteWordsCmd.Flags().String("words", "", "Comma-separated list of words to add")
 }
