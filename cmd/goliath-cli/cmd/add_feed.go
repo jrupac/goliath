@@ -11,7 +11,7 @@ import (
 var addFeedCmd = &cobra.Command{
 	Use:     "add-feed",
 	Short:   "Add a new feed",
-	GroupID: "admin",
+	GroupID: "user_feed",
 	Run: func(cmd *cobra.Command, args []string) {
 		client, conn := getAdminClient(cmd)
 		defer conn.Close()

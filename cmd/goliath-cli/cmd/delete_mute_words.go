@@ -11,7 +11,7 @@ import (
 var deleteMuteWordsCmd = &cobra.Command{
 	Use:     "delete-mute-words",
 	Short:   "Delete mute words for a user",
-	GroupID: "admin",
+	GroupID: "user_pref",
 	Run: func(cmd *cobra.Command, args []string) {
 		client, conn := getAdminClient(cmd)
 		defer conn.Close()

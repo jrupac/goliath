@@ -11,7 +11,7 @@ import (
 var deleteFeedsCmd = &cobra.Command{
 	Use:     "delete-feeds",
 	Short:   "Delete feeds for a user",
-	GroupID: "admin",
+	GroupID: "user_feed",
 	Run: func(cmd *cobra.Command, args []string) {
 		client, conn := getAdminClient(cmd)
 		defer conn.Close()

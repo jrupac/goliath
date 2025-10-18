@@ -12,7 +12,7 @@ import (
 var addMuteWordsCmd = &cobra.Command{
 	Use:     "add-mute-words",
 	Short:   "Add mute words for a user",
-	GroupID: "admin",
+	GroupID: "user_pref",
 	Run: func(cmd *cobra.Command, args []string) {
 		client, conn := getAdminClient(cmd)
 		defer conn.Close()

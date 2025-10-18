@@ -11,7 +11,7 @@ import (
 var listFeedsCmd = &cobra.Command{
 	Use:     "list-feeds",
 	Short:   "List all feeds for a user",
-	GroupID: "admin",
+	GroupID: "user_feed",
 	Run: func(cmd *cobra.Command, args []string) {
 		client, conn := getAdminClient(cmd)
 		defer conn.Close()

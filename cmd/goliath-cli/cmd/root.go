@@ -14,11 +14,15 @@ var (
 	}
 	setupGroup = &cobra.Group{
 		ID:    "setup",
-		Title: "Setup & Installation:",
+		Title: "Application Setup:",
 	}
-	adminGroup = &cobra.Group{
-		ID:    "admin",
-		Title: "User Data Management:",
+	userFeedGroup = &cobra.Group{
+		ID:    "user_feed",
+		Title: "User Feed Management:",
+	}
+	userPrefGroup = &cobra.Group{
+		ID:    "user_pref",
+		Title: "User Preference Management:",
 	}
 )
 
@@ -38,5 +42,6 @@ func Execute() {
 func init() {
 	rootCmd.AddGroup(lifecycleGroup)
 	rootCmd.AddGroup(setupGroup)
-	rootCmd.AddGroup(adminGroup)
+	rootCmd.AddGroup(userFeedGroup)
+	rootCmd.AddGroup(userPrefGroup)
 }

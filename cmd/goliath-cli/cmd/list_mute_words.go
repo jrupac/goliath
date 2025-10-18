@@ -11,7 +11,7 @@ import (
 var listMuteWordsCmd = &cobra.Command{
 	Use:     "list-mute-words",
 	Short:   "List all mute words for a user",
-	GroupID: "admin",
+	GroupID: "user_pref",
 	Run: func(cmd *cobra.Command, args []string) {
 		client, conn := getAdminClient(cmd)
 		defer conn.Close()
