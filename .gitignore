@@ -6,6 +6,7 @@
 
 # Build-related output
 out/
+dist/
 goliath
 frontend/build/
 
