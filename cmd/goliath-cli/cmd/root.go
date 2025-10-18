@@ -24,6 +24,10 @@ var (
 		ID:    "user_pref",
 		Title: "User Preference Management:",
 	}
+	debugGroup = &cobra.Group{
+		ID:    "debug",
+		Title: "Application Debugging:",
+	}
 )
 
 var rootCmd = &cobra.Command{
@@ -44,4 +48,5 @@ func init() {
 	rootCmd.AddGroup(setupGroup)
 	rootCmd.AddGroup(userFeedGroup)
 	rootCmd.AddGroup(userPrefGroup)
+	rootCmd.AddGroup(debugGroup)
 }
