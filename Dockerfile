@@ -2,7 +2,7 @@
 
 # Build backend
 
-FROM docker.io/golang:1.23 AS backend_builder_prod
+FROM docker.io/golang:1.24 AS backend_builder_prod
 
 RUN echo "Installing deps..."
 RUN DEBIAN_FRONTEND=noninteractive \

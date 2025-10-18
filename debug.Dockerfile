@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.23 AS backend_builder_debug
+FROM golang:1.24 AS backend_builder_debug
 
 RUN echo "Installing deps..."
 RUN DEBIAN_FRONTEND=noninteractive \
