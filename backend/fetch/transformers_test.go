@@ -164,6 +164,17 @@ func TestProcessItem(t *testing.T) {
 			t.Errorf("article content should still contain safe content, but was %q", article.Content)
 		}
 	})
+
+	t.Run("with relative link", func(t *testing.T) {
+		item := baseItem()
+		item.Link = "/relative/link"
+
+		article := processItem(feed, item)
+
+		if !strings.HasPrefix(article.Link, "http") {
+			t.Errorf("article link should be absolute, but was %q", article.Link)
+		}
+	})
 }
 
 func TestMaybeUnescapeHtml(t *testing.T) {
@@ -242,6 +253,50 @@ func TestProcessImageUrl(t *testing.T) {
 		imageUrl := "http://insecure.com/foo.jpg"
 		expected := "https://proxy.example.com/cache?url=http%3A%2F%2Finsecure.com%2Ffoo.jpg"
 		result := processImageUrl(feedLink, imageUrl)
+		if result != expected {
+			t.Errorf("expected %s, got %s", expected, result)
+		}
+	})
+}
+
+func TestMaybeRewriteUrls(t *testing.T) {
+	feed := &models.Feed{
+		ID:       1,
+		FolderID: 1,
+		Title:    "Test Feed",
+		Link:     "http://example.com/feed",
+	}
+
+	t.Run("rewrite relative url in <a> tag", func(t *testing.T) {
+		content := "<a href='/relative'>Relative Link</a>"
+		expected := "<html><head></head><body><a href=\"http://example.com/relative\">Relative Link</a></body></html>"
+		result := maybeRewriteUrls(feed, content)
+		if result != expected {
+			t.Errorf("expected %s, got %s", expected, result)
+		}
+	})
+
+	t.Run("proxies insecure image", func(t *testing.T) {
+		oldProxyInsecure := *proxyInsecureImages
+		*proxyInsecureImages = true
+		defer func() { *proxyInsecureImages = oldProxyInsecure }()
+
+		content := "Hello world <img src='http://insecure.com/foo.jpg'>"
+		expected := "<html><head></head><body>Hello world <img src=\"/cache?url=http%3A%2F%2Finsecure.com%2Ffoo.jpg\"/></body></html>"
+		result := maybeRewriteUrls(feed, content)
+		if result != expected {
+			t.Errorf("expected %s, got %s", expected, result)
+		}
+	})
+
+	t.Run("rewrites relative URL and proxies insecure image", func(t *testing.T) {
+		oldProxyInsecure := *proxyInsecureImages
+		*proxyInsecureImages = true
+		defer func() { *proxyInsecureImages = oldProxyInsecure }()
+
+		content := "Hello world <img src='/foo.jpg'>"
+		expected := "<html><head></head><body>Hello world <img src=\"/cache?url=http%3A%2F%2Fexample.com%2Ffoo.jpg\"/></body></html>"
+		result := maybeRewriteUrls(feed, content)
 		if result != expected {
 			t.Errorf("expected %s, got %s", expected, result)
 		}

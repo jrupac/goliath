@@ -29,27 +29,54 @@ func TestUpdateFeedMetadataForUser(t *testing.T) {
 	fetcher := Fetcher{d: db}
 
 	user := models.User{UserId: "test-user"}
-	modelFeed := &models.Feed{ID: 1}
-	rssFeed := &rss.Feed{
-		Title:       "Test Title",
-		Description: "Test Description",
-		Link:        "http://example.com",
-	}
 
-	fetcher.updateFeedMetadataForUser(context.Background(), user, modelFeed, rssFeed)
+	t.Run("valid fields", func(t *testing.T) {
+		modelFeed := &models.Feed{ID: 1}
+		rssFeed := &rss.Feed{
+			Title:       "Test Title",
+			Description: "Test Description",
+			Link:        "http://example.com",
+		}
 
-	if modelFeed.Title != "Test Title" {
-		t.Errorf("expected title to be %q, got %q", "Test Title", modelFeed.Title)
-	}
-	if modelFeed.Description != "Test Description" {
-		t.Errorf("expected description to be %q, got %q", "Test Description", modelFeed.Description)
-	}
-	if modelFeed.Link != "http://example.com" {
-		t.Errorf("expected link to be %q, got %q", "http://example.com", modelFeed.Link)
-	}
-	if !db.UpdateFeedMetadataForUserCalled {
-		t.Error("expected UpdateFeedMetadataForUser to be called on the database")
-	}
+		fetcher.updateFeedMetadataForUser(context.Background(), user, modelFeed, rssFeed)
+
+		if modelFeed.Title != "Test Title" {
+			t.Errorf("expected title to be %q, got %q", "Test Title", modelFeed.Title)
+		}
+		if modelFeed.Description != "Test Description" {
+			t.Errorf("expected description to be %q, got %q", "Test Description", modelFeed.Description)
+		}
+		if modelFeed.Link != "http://example.com" {
+			t.Errorf("expected link to be %q, got %q", "http://example.com", modelFeed.Link)
+		}
+		if !db.UpdateFeedMetadataForUserCalled {
+			t.Error("expected UpdateFeedMetadataForUser to be called on the database")
+		}
+	})
+
+	t.Run("non-absolute link", func(t *testing.T) {
+		modelFeed := &models.Feed{ID: 1}
+		rssFeed := &rss.Feed{
+			Title:       "Test Title",
+			Description: "Test Description",
+			Link:        "/",
+		}
+
+		fetcher.updateFeedMetadataForUser(context.Background(), user, modelFeed, rssFeed)
+
+		if modelFeed.Title != "Test Title" {
+			t.Errorf("expected title to be %q, got %q", "Test Title", modelFeed.Title)
+		}
+		if modelFeed.Description != "Test Description" {
+			t.Errorf("expected description to be %q, got %q", "Test Description", modelFeed.Description)
+		}
+		if modelFeed.Link != "" {
+			t.Errorf("expected link to be empty, got %q", modelFeed.Link)
+		}
+		if !db.UpdateFeedMetadataForUserCalled {
+			t.Error("expected UpdateFeedMetadataForUser to be called on the database")
+		}
+	})
 }
 
 func TestTryIconFetch(t *testing.T) {

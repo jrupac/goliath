@@ -71,7 +71,7 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 		parsed = bluemondayBodyPolicy.Sanitize(parsed)
 	}
 
-	contents = maybeRewriteImageSourceUrls(feed, contents)
+	contents = maybeRewriteUrls(feed, contents)
 
 	syntheticDate := false
 	retrieved := time.Now()
@@ -91,7 +91,7 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 		Summary:       contents,
 		Content:       contents,
 		Parsed:        parsed,
-		Link:          item.Link,
+		Link:          getAbsoluteUrl(feed.Link, item.Link),
 		Date:          date,
 		Read:          item.Read,
 		Saved:         false,
@@ -143,27 +143,32 @@ func maybeUnescapeHtml(content string) string {
 	return content
 }
 
-// processImageUrl takes a feed link and an image URL, makes the image URL
-// absolute, and then rewrites it to use the image proxy if configured.
-func processImageUrl(feedLink, imageUrl string) string {
-	// 1. Make URL absolute
+// getAbsoluteUrl takes a feed link and an input URL string, and returns an
+// absolute URL string.
+func getAbsoluteUrl(feedLink, inputUrlStr string) string {
 	feedLink = strings.TrimSpace(feedLink)
 	base, err := url.Parse(feedLink)
 	if err != nil {
 		log.Warningf("could not parse feed link %s: %s", feedLink, err)
 	}
 
-	imageRef, err := url.Parse(imageUrl)
+	inputUrl, err := url.Parse(inputUrlStr)
 	if err != nil {
-		log.Warningf("could not parse image url %s: %s", imageUrl, err)
+		log.Warningf("could not parse url %s: %s", inputUrlStr, err)
+		return inputUrlStr
 	}
 
-	var absUrlStr string
-	if base != nil && imageRef != nil {
-		absUrlStr = base.ResolveReference(imageRef).String()
-	} else {
-		absUrlStr = imageUrl
+	if base != nil && inputUrl != nil {
+		return base.ResolveReference(inputUrl).String()
 	}
+	return inputUrlStr
+}
+
+// processImageUrl takes a feed link and an image URL, makes the image URL
+// absolute, and then rewrites it to use the image proxy if configured.
+func processImageUrl(feedLink, imageUrl string) string {
+	// 1. Make URL absolute
+	absUrlStr := getAbsoluteUrl(feedLink, imageUrl)
 
 	// 2. Rewrite to proxy
 	if !*proxyInsecureImages {
@@ -173,7 +178,7 @@ func processImageUrl(feedLink, imageUrl string) string {
 	imgUrl, err := url.Parse(absUrlStr)
 	if err != nil {
 		log.Warningf("while parsing img src %s: %s", absUrlStr, err)
-		return absUrlStr // return absolute url if proxying fails at this stage
+		return absUrlStr
 	}
 
 	if imgUrl.Scheme == "https" && !*proxySecureImages {
@@ -183,7 +188,7 @@ func processImageUrl(feedLink, imageUrl string) string {
 	newUrl, err := url.Parse(fmt.Sprintf("%s/%s", *proxyUrlBase, cacheEndpoint))
 	if err != nil {
 		log.Warningf("invalid proxy base URL %s: %s", *proxyUrlBase, err)
-		return absUrlStr // return absolute url if proxying fails
+		return absUrlStr
 	}
 
 	q := newUrl.Query()
@@ -194,10 +199,10 @@ func processImageUrl(feedLink, imageUrl string) string {
 	return newUrl.String()
 }
 
-// maybeRewriteImageSourceUrls parses the given string as HTML, searches for
+// maybeRewriteUrls parses the given string as HTML, searches for
 // image source URLs, makes them absolute if they are relative, and then rewrites
-// them to point at the reverse image proxy.
-func maybeRewriteImageSourceUrls(feed *models.Feed, s string) string {
+// them to point at the reverse image proxy. Also replace relative URLs in <a> tags.
+func maybeRewriteUrls(feed *models.Feed, s string) string {
 	// If we get an empty string, don't try to parse it. Doing so and then
 	// re-rendering will produce a non-empty but semantically empty HTML document.
 	if s == "" {
@@ -210,10 +215,21 @@ func maybeRewriteImageSourceUrls(feed *models.Feed, s string) string {
 		return s
 	}
 
+	// Rewrite relative URLs in img.src
 	doc.Find("img").Each(func(i int, s *goquery.Selection) {
 		for _, attr := range s.Nodes[0].Attr {
 			if attr.Key == "src" {
 				finalUrl := processImageUrl(feed.Link, attr.Val)
+				s.SetAttr(attr.Key, finalUrl)
+			}
+		}
+	})
+
+	// Rewrite relative URLs in a.href
+	doc.Find("a").Each(func(i int, s *goquery.Selection) {
+		for _, attr := range s.Nodes[0].Attr {
+			if attr.Key == "href" {
+				finalUrl := getAbsoluteUrl(feed.Link, attr.Val)
 				s.SetAttr(attr.Key, finalUrl)
 			}
 		}

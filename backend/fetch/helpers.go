@@ -13,6 +13,14 @@ import (
 	"github.com/mat/besticon/v3/besticon"
 )
 
+func isValidAbsoluteURL(s string) bool {
+	if s == "" {
+		return false
+	}
+	u, err := url.Parse(s)
+	return err == nil && u.Scheme != "" && u.Host != ""
+}
+
 func (f Fetcher) updateFeedMetadataForUser(ctx context.Context, u models.User, mFeed *models.Feed, rFeed *rss.Feed) {
 	if rFeed.Title != "" {
 		t := maybeUnescapeHtml(rFeed.Title)
@@ -22,7 +30,7 @@ func (f Fetcher) updateFeedMetadataForUser(ctx context.Context, u models.User, m
 		d := maybeUnescapeHtml(rFeed.Description)
 		mFeed.Description = extractTextFromHtmlUnsafe(d)
 	}
-	if rFeed.Link != "" {
+	if rFeed.Link != "" && isValidAbsoluteURL(rFeed.Link) {
 		mFeed.Link = rFeed.Link
 	}
 
