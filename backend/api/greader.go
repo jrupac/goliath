@@ -3,17 +3,18 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httputil"
+	"strconv"
+	"strings"
+	"time"
+
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/crypto/bcrypt"
-	"net/http"
-	"net/http/httputil"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const (
@@ -174,12 +175,18 @@ func (a GReader) handleSubscriptionList(w http.ResponseWriter, _ *http.Request, 
 	subList := greaderSubscriptionList{}
 
 	for _, feed := range feeds {
+		// Return an empty string if the favicon is not found
+		var iconUrl string
+		if favicon, ok := faviconMap[feed.ID]; ok {
+			iconUrl = fmt.Sprintf("data:%s", favicon)
+		}
+
 		subList.Subscriptions = append(subList.Subscriptions, greaderSubscription{
 			Title: feed.Title,
 			// No client seems to use this field, so let it as zero
 			FirstItemMsec: "0",
 			HtmlUrl:       feed.Link,
-			IconUrl:       fmt.Sprintf("data:%s", faviconMap[feed.ID]),
+			IconUrl:       iconUrl,
 			SortId:        feed.Title,
 			Id:            greaderFeedId(feed.ID),
 			Categories: []greaderCategory{{
