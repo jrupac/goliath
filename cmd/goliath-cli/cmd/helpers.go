@@ -9,11 +9,182 @@ import (
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/jrupac/goliath/admin"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+// --- Form input ---
+
+type formField struct {
+	prompt   string
+	input    textinput.Model
+	required bool
+}
+
+type formModel struct {
+	fields     []formField
+	focusIndex int
+	submitted  bool
+	quitting   bool
+}
+
+func (m formModel) Init() tea.Cmd {
+	return textinput.Blink
+}
+
+func (m formModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if msg, ok := msg.(tea.KeyMsg); ok && msg.Type == tea.KeyCtrlC {
+		m.quitting = true
+		return m, tea.Quit
+	}
+
+	// Handle character input and blinking
+	cmd := m.updateInputs(msg)
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyEnter:
+			if m.focusIndex == len(m.fields) {
+				// Submitted
+				m.submitted = true
+				m.quitting = true
+				return m, tea.Quit
+			}
+			// Fallthrough to next input
+			m.nextInput()
+
+		case tea.KeyCtrlC, tea.KeyEsc:
+			m.quitting = true
+			return m, tea.Quit
+
+		case tea.KeyTab, tea.KeyShiftTab, tea.KeyUp, tea.KeyDown:
+			s := msg.String()
+
+			if s == "up" || s == "shift+tab" {
+				m.prevInput()
+			}
+			if s == "down" || s == "tab" {
+				m.nextInput()
+			}
+		}
+	}
+
+	return m, cmd
+}
+
+func (m *formModel) updateInputs(msg tea.Msg) tea.Cmd {
+	var cmds = make([]tea.Cmd, len(m.fields))
+
+	for i := range m.fields {
+		m.fields[i].input, cmds[i] = m.fields[i].input.Update(msg)
+	}
+
+	return tea.Batch(cmds...)
+}
+
+func (m *formModel) nextInput() {
+	m.focusIndex = (m.focusIndex + 1) % (len(m.fields) + 1) // +1 for submit button
+	if m.focusIndex == len(m.fields) {
+		// Focused on submit button
+		for i := range m.fields {
+			m.fields[i].input.Blur()
+		}
+		return
+	}
+	for i := range m.fields {
+		if i == m.focusIndex {
+			m.fields[i].input.Focus()
+		} else {
+			m.fields[i].input.Blur()
+		}
+	}
+}
+
+func (m *formModel) prevInput() {
+	m.focusIndex--
+	if m.focusIndex < 0 {
+		m.focusIndex = len(m.fields)
+	}
+	if m.focusIndex == len(m.fields) {
+		// Focused on submit button
+		for i := range m.fields {
+			m.fields[i].input.Blur()
+		}
+		return
+	}
+	for i := range m.fields {
+		if i == m.focusIndex {
+			m.fields[i].input.Focus()
+		} else {
+			m.fields[i].input.Blur()
+		}
+	}
+}
+
+func (m formModel) View() string {
+	if m.quitting {
+		return ""
+	}
+
+	var b strings.Builder
+
+	for i := range m.fields {
+		b.WriteString(m.fields[i].input.View())
+		if i < len(m.fields)-1 {
+			b.WriteRune('\n')
+		}
+	}
+
+	button := "[ Submit ]"
+	if m.focusIndex == len(m.fields) {
+		button = lipgloss.NewStyle().Foreground(lipgloss.Color("205")).Render("[ Submit ]")
+	}
+
+	fmt.Fprintf(&b, "\n\n%s\n", button)
+
+	return b.String()
+}
+
+func promptForForm(fields []formField) (map[string]string, bool) {
+	var inputs []textinput.Model
+	for i, f := range fields {
+		input := textinput.New()
+		placeholder := f.prompt
+		if !f.required {
+			placeholder += " (optional)"
+		}
+		input.Placeholder = placeholder
+		input.Width = 50
+		if i == 0 {
+			input.Focus()
+		}
+		fields[i].input = input
+		inputs = append(inputs, input)
+	}
+
+	program := tea.NewProgram(formModel{fields: fields})
+	m, err := program.Run()
+	if err != nil {
+		fmt.Printf("Error running form prompt: %v\n", err)
+		os.Exit(1)
+	}
+
+	finalModel, ok := m.(formModel)
+	if !ok || !finalModel.submitted {
+		return nil, false // Canceled
+	}
+
+	results := make(map[string]string)
+	for _, f := range finalModel.fields {
+		results[f.prompt] = f.input.Value()
+	}
+
+	return results, true
+}
 
 // --- Checklist input ---
 

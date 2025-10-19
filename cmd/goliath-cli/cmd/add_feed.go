@@ -23,14 +23,48 @@ var addFeedCmd = &cobra.Command{
 		link, _ := cmd.Flags().GetString("link")
 		folder, _ := cmd.Flags().GetString("folder")
 
+		var formFields []formField
 		if title == "" {
-			title = promptForInput("Enter Title:")
+			formFields = append(formFields, formField{prompt: "Title", required: true})
 		}
 		if url == "" {
-			url = promptForInput("Enter Feed URL:")
+			formFields = append(formFields, formField{prompt: "Feed URL", required: true})
 		}
 		if link == "" {
-			link = promptForInput("Enter Homepage URL:")
+			formFields = append(formFields, formField{prompt: "Homepage URL", required: true})
+		}
+
+		// If a form is needed, also add optional fields if they are empty
+		if len(formFields) > 0 {
+			if description == "" {
+				formFields = append(formFields, formField{prompt: "Description"})
+			}
+			if folder == "" {
+				formFields = append(formFields, formField{prompt: "Folder"})
+			}
+
+			results, ok := promptForForm(formFields)
+			if !ok {
+				fmt.Println("Command aborted.")
+				return
+			}
+
+			// Fill in the blanks from the form results
+			if v, ok := results["Title"]; ok {
+				title = v
+			}
+			if v, ok := results["Feed URL"]; ok {
+				url = v
+			}
+			if v, ok := results["Homepage URL"]; ok {
+				link = v
+			}
+			if v, ok := results["Description"]; ok {
+				description = v
+			}
+			if v, ok := results["Folder"]; ok {
+				folder = v
+			}
 		}
 
 		// After prompting, if they are still empty, it means the user quit the prompt.
