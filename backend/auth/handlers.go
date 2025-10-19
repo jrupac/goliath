@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/storage"
-	"net/http"
 )
 
 type auth struct {
@@ -56,7 +57,6 @@ func HandleLogin(d storage.Database) func(http.ResponseWriter, *http.Request) {
 		}
 		http.SetCookie(w, &c)
 		returnSuccess(w, r)
-		return
 	}
 }
 

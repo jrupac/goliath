@@ -2,10 +2,11 @@ package auth
 
 import (
 	"fmt"
+	"net/http"
+
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
-	"net/http"
 )
 
 const (
@@ -55,7 +56,6 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		returnRedirect(w, r)
 	}
-	return
 }
 
 // VerifyCookie checks a request for an auth cookie and authenticates it against the database.
