@@ -115,10 +115,10 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
 
   const renderFavicon = (): ReactNode => {
     const favicon: string | undefined = props.favicon?.GetFavicon();
-    if (!favicon || favicon === '') {
-      return <RssFeedOutlinedIcon fontSize="small" />;
-    } else {
+    if (favicon) {
       return <img src={`data:${favicon}`} height={16} width={16} alt="" />;
+    } else {
+      return <RssFeedOutlinedIcon fontSize="small" />;
     }
   };
 

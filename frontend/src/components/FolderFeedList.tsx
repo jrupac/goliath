@@ -158,17 +158,17 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     }
 
     let img: ReactNode;
-    if (feedView.favicon === null) {
-      img = <RssFeedOutlinedIcon fontSize="small" />;
-    } else {
+    if (feedView.favicon && feedView.favicon.GetFavicon()) {
       img = (
         <img
           src={`data:${feedView.favicon.GetFavicon()}`}
           height={16}
           width={16}
-          alt=""
+          alt={feedView.title}
         />
       );
+    } else {
+      img = <RssFeedOutlinedIcon fontSize="small" />;
     }
     img = <span className="GoliathFeedIcon">{img}</span>;
 
