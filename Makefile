@@ -1,3 +1,5 @@
+export PATH := /usr/local/go/bin:$(PATH)
+
 .PHONY: build install
 
 build:
