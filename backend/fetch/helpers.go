@@ -75,16 +75,21 @@ func (f Fetcher) tryIconFetch(link string) (besticon.Icon, *image.Image, error) 
 func (f Fetcher) updateFeedFaviconForUser(ctx context.Context, u models.User, feed *models.Feed, fetch *rss.Feed) {
 	var icon besticon.Icon
 	var img *image.Image
-	var feedHost string
+	var fetchHost, feedHost string
 
 	parsedUrl, err := url.Parse(fetch.Link)
+	if err == nil {
+		fetchHost = parsedUrl.Hostname()
+	}
+
+	parsedUrl, err = url.Parse(feed.Link)
 	if err == nil {
 		feedHost = parsedUrl.Hostname()
 	}
 
 	// Look in multiple URLs for a suitable icon
 	found := false
-	for _, path := range []string{fetch.Image.URL, fetch.Link, feedHost} {
+	for _, path := range []string{fetch.Image.URL, fetch.Link, fetchHost, feedHost} {
 		if i, decoded, err := f.tryIconFetch(path); err == nil {
 			found = true
 			icon = i
@@ -93,7 +98,7 @@ func (f Fetcher) updateFeedFaviconForUser(ctx context.Context, u models.User, fe
 	}
 
 	if !found {
-		log.V(2).Infof("Could not find suitable icon for feed: %s", feedHost)
+		log.V(2).Infof("Could not find suitable icon for feed: %s", fetchHost)
 		return
 	}
 
@@ -103,7 +108,7 @@ func (f Fetcher) updateFeedFaviconForUser(ctx context.Context, u models.User, fe
 	// Check if the context is canceled. If not, updated the favicon.
 	if ctx.Err() == nil {
 		if err = f.d.InsertFaviconForUser(u, ip.folderId, ip.id, ip.mime, ip.favicon); err != nil {
-			log.Warningf("while persisting icon for user %s feed '%s': %s", u, feedHost, err)
+			log.Warningf("while persisting icon for user %s feed '%s': %s", u, fetchHost, err)
 		}
 	}
 }
