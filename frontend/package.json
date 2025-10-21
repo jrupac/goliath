@@ -60,7 +60,7 @@
     "prettier": "^3.6.2",
     "rolldown-vite": "7.1.17",
     "source-map-explorer": "^2.5.3",
-    "vite": "7.1.10",
+    "vite": "7.1.11",
     "vite-plugin-pwa": "^1.1.0",
     "vite-tsconfig-paths": "^4.3.2",
     "vitest": "^3.2.4"
