@@ -204,12 +204,26 @@
   scrollbar-width: thin;
 }
 
-.GoliathFolderFeedList.MuiTreeView-root {
+/* Support both v6 (MuiTreeView) and v7 (MuiSimpleTreeView) class names */
+.GoliathFolderFeedList.MuiTreeView-root,
+.GoliathFolderFeedList.MuiSimpleTreeView-root {
   line-height: 14px;
   padding-bottom: 10px;
   display: flex;
   flex-direction: column;
   height: 100%;
+}
+
+/* Reduce default padding in v7 TreeItem */
+.GoliathFolderFeedList .MuiTreeItem-root {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.GoliathFolderFeedList .MuiTreeItem-content {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  min-height: unset;
 }
 
 .GoliathFolderFeedList .MuiTreeItem-content:hover,
@@ -220,6 +234,12 @@
 .GoliathFolderFeedList .MuiTreeItem-content.Mui-selected,
 .GoliathFolderFeedList .MuiTreeItem-content.Mui-selected.Mui-focused {
   background-color: var(--primary-darker-2-color);
+}
+
+/* v7 uses groupTransition instead of group for children container */
+.GoliathFolderFeedList .MuiTreeItem-groupTransition {
+  margin-left: 0;
+  padding-left: 16px;
 }
 
 .GoliathFolderRow .MuiTreeItem-content {
@@ -234,7 +254,7 @@
 
 .GoliathFeedRow .MuiTreeItem-content .MuiTreeItem-iconContainer {
   align-self: flex-start;
-  padding-top: 6px;
+  padding-top: 2px;
 }
 
 .GoliathFeedRow .MuiTreeItem-content .MuiTreeItem-label {

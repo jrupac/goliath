@@ -10,7 +10,7 @@ import {
 import { Box, FormGroup, Switch } from '@mui/material';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import InboxTwoToneIcon from '@mui/icons-material/InboxTwoTone';
-import { TreeView } from '@mui/x-tree-view/TreeView';
+import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
 import FolderOpenTwoToneIcon from '@mui/icons-material/FolderOpenTwoTone';
@@ -109,22 +109,18 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     setKeyCache(precomputeIdToSelectionKey(folderFeedView));
   }, [folderFeedView]);
 
-  const handleNodeSelect = (_: any, key: string[] | string) => {
-    let selectionKey: SelectionKey;
-    let selectionType: SelectionType;
-
-    // Since the tree is not multi-select, we should receive a single string.
-    if (typeof key !== 'string') {
-      throw new Error('Unexpected selection key: ' + key);
+  const handleItemSelect = (_: React.SyntheticEvent, itemId: string | null) => {
+    if (itemId === null) {
+      return;
     }
 
-    let entry = keyCache.get(key);
+    let entry = keyCache.get(itemId);
     if (entry === undefined) {
-      throw new Error('Unknown tree key: ' + key);
+      throw new Error('Unknown tree key: ' + itemId);
     }
-    [selectionType, selectionKey] = entry;
+    const [selType, selKey] = entry;
 
-    handleSelect(selectionType, selectionKey);
+    handleSelect(selType, selKey);
   };
 
   const renderAllItemsTitle = () => {
@@ -188,10 +184,10 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     return (
       <TreeItem
         key={feedView.id}
-        nodeId={feedView.id}
+        itemId={feedView.id}
         label={<span className="GoliathFeedTitle">{title}</span>}
         className="GoliathFeedRow"
-        icon={img}
+        slots={{ icon: () => img }}
       />
     );
   };
@@ -234,7 +230,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
       </Box>
 
       <Box
-        onClick={() => handleNodeSelect(null, KeyAll)}
+        onClick={(e) => handleItemSelect(e, KeyAll)}
         className={allSelectedClass}
       >
         <InboxTwoToneIcon fontSize="small" />
@@ -242,7 +238,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
       </Box>
 
       <Box
-        onClick={() => handleNodeSelect(null, KeySaved)}
+        onClick={(e) => handleItemSelect(e, KeySaved)}
         className={`${savedSelectedClass}`}
       >
         <BookmarkTwoToneIcon fontSize="small" />
@@ -268,13 +264,16 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         </FormGroup>
       </Box>
 
-      <TreeView
+      <SimpleTreeView
         ref={treeViewRef}
         className="GoliathFolderFeedList"
-        onNodeSelect={handleNodeSelect}
-        selected={selectedKeyString}
-        expanded={Array.from(folderFeedView.keys(), (k: FolderView) => k.id)}
-        defaultCollapseIcon={<FolderOpenTwoToneIcon />}
+        onSelectedItemsChange={handleItemSelect}
+        selectedItems={selectedKeyString}
+        expandedItems={Array.from(
+          folderFeedView.keys(),
+          (k: FolderView) => k.id
+        )}
+        slots={{ collapseIcon: FolderOpenTwoToneIcon }}
       >
         {Array.from(folderFeedView, ([k, v]) => {
           const feedsToRender = v.map(renderFeed).filter(Boolean);
@@ -286,7 +285,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
           return (
             <TreeItem
               key={k.id}
-              nodeId={k.id}
+              itemId={k.id}
               label={renderFolder(k)}
               className="GoliathFolderRow"
             >
@@ -294,7 +293,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
             </TreeItem>
           );
         })}
-      </TreeView>
+      </SimpleTreeView>
     </>
   );
 };
