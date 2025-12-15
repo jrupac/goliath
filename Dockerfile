@@ -41,10 +41,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -v -ldflags  \
 
 FROM oven/bun AS frontend_builder_prod
 
-WORKDIR /
+WORKDIR /app
 
 RUN echo "Populating dependencies..."
-COPY frontend/package.json frontend/bun.lock /
+COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
 
 RUN echo "Copying sources..."
@@ -63,6 +63,6 @@ FROM scratch
 COPY --from=backend_builder_prod /goliath /
 COPY --from=backend_builder_prod /etc/ssl/certs /etc/ssl/certs/
 
-COPY --from=frontend_builder_prod /build /public
+COPY --from=frontend_builder_prod /app/build /public
 
 CMD ["/goliath", "--config=/config.ini"]
