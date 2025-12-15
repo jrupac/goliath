@@ -28,8 +28,14 @@ RUN protoc --proto_path=admin/ --go_out=admin/ --go-grpc_out=admin/ \
     --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative \
     admin.proto
 
+ARG BUILD_TIMESTAMP=0
+ARG BUILD_HASH=debug
+
 RUN echo "Building Goliath core with debug flags..."
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -v -gcflags="all=-N -l" -o goliath
+RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -v -gcflags="all=-N -l" -ldflags  \
+    "-X main.buildTimestamp=${BUILD_TIMESTAMP} \
+    -X main.buildHash=${BUILD_HASH}" \
+    -o goliath
 
 RUN echo "Installing delve..."
 WORKDIR /go/src/

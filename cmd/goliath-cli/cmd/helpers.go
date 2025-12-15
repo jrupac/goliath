@@ -467,6 +467,22 @@ func runDockerUp(env string, attached bool, build bool, extraArgs []string) {
 	dockerArgs := []string{"compose", "--profile", env, "up"}
 	if build {
 		dockerArgs = append(dockerArgs, "--build")
+
+		if env == "prod" {
+			buildTimestamp, err := exec.Command("date", "+%s").Output()
+			if err != nil {
+				fmt.Printf("Error getting build timestamp: %v\n", err)
+				os.Exit(1)
+			}
+			dockerArgs = append(dockerArgs, "--build-arg", "BUILD_TIMESTAMP="+strings.TrimSpace(string(buildTimestamp)))
+
+			buildHash, err := exec.Command("git", "rev-parse", "HEAD").Output()
+			if err != nil {
+				fmt.Printf("Error getting build hash: %v\n", err)
+				os.Exit(1)
+			}
+			dockerArgs = append(dockerArgs, "--build-arg", "BUILD_HASH="+strings.TrimSpace(string(buildHash)))
+		}
 	}
 	if !attached {
 		dockerArgs = append(dockerArgs, "-d")
