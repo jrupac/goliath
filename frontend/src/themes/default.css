@@ -1,6 +1,6 @@
 .default-theme {
   /* Theme background colors */
-  --primary-sans-serif-font: sans-serif;
+  --primary-sans-serif-font: 'Google Sans Flex';
   --primary-serif-font: 'Vollkorn';
   --primary-logo-font: 'Pacifico';
 
