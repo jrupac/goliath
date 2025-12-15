@@ -21,14 +21,14 @@ describe('FolderFeedList', () => {
     };
 
     const mockFeed1: FeedView = {
-      id: '1',
+      id: '3',
       title: 'Test Feed 1',
       favicon: null,
       folder_id: '1',
       unread_count: 0,
     };
     const mockFeed2: FeedView = {
-      id: '2',
+      id: '4',
       title: 'Test Feed 2',
       favicon: null,
       folder_id: '2',

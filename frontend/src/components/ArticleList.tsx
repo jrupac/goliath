@@ -326,7 +326,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
         maxWidth={false}
         className="GoliathSplitViewArticleListContainer"
       >
-        <Grid container wrap="nowrap">
+        <Grid container wrap="nowrap" size="grow">
           <Stack className="GoliathArticleListColumn">
             <Box className="GoliathSplitViewArticleListActionBar">
               <Tooltip title="Mark all as read">
@@ -372,7 +372,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
               />
             </Box>
           </Stack>
-          <Grid item xs className="GoliathSplitViewArticleOuter">
+          <Grid className="GoliathSplitViewArticleOuter" size="grow">
             <ArticleCard
               key={articleView.id}
               article={articleView}

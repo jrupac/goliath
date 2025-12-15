@@ -267,24 +267,26 @@ export default class App extends React.Component<AppProps, AppState> {
               toggleHideEmpty={() => this.handleToggleHideEmpty()}
             />
           </Drawer>
-          <Box component="main" className="GoliathMainContainer">
-            <Box>
-              <ArticleList
-                articleEntriesCls={this.state.contentTreeCls.GetArticleView(
-                  selectionKey,
-                  selectionType
-                )}
-                faviconMap={this.state.contentTreeCls.GetFaviconMap()}
-                selectionKey={selectionKey}
-                selectionType={selectionType}
-                handleMark={this.handleMark}
-                selectAllCallback={() =>
-                  this.handleSelect(SelectionType.All, KeyAll)
-                }
-                buildTimestamp={this.state.buildTimestamp}
-                buildHash={this.state.buildHash}
-              />
-            </Box>
+          <Box
+            component="main"
+            className="GoliathMainContainer"
+            sx={{ display: 'flex', flexGrow: 1 }}
+          >
+            <ArticleList
+              articleEntriesCls={this.state.contentTreeCls.GetArticleView(
+                selectionKey,
+                selectionType
+              )}
+              faviconMap={this.state.contentTreeCls.GetFaviconMap()}
+              selectionKey={selectionKey}
+              selectionType={selectionType}
+              handleMark={this.handleMark}
+              selectAllCallback={() =>
+                this.handleSelect(SelectionType.All, KeyAll)
+              }
+              buildTimestamp={this.state.buildTimestamp}
+              buildHash={this.state.buildHash}
+            />
           </Box>
         </Box>
       </ThemeProvider>
