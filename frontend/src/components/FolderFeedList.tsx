@@ -109,7 +109,10 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     setKeyCache(precomputeIdToSelectionKey(folderFeedView));
   }, [folderFeedView]);
 
-  const handleItemSelect = (_: React.SyntheticEvent, itemId: string | null) => {
+  const handleItemSelect = (
+    _: React.SyntheticEvent | null,
+    itemId: string | null
+  ) => {
     if (itemId === null) {
       return;
     }
