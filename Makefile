@@ -1,12 +1,11 @@
-export PATH := /usr/local/go/bin:$(PATH)
-
 .PHONY: build install
 
 build:
-	@echo "Building goliath-cli..."
+	@echo "Building goliath-cli in Docker..."
 	@mkdir -p dist
-	go build -o dist/goliath-cli ./cmd/goliath-cli
+	docker build --target export --output type=local,dest=./dist -f cli.Dockerfile .
 
 install:
-	@echo "Installing goliath-cli..."
-	go install ./cmd/goliath-cli
+	@echo "Installing goliath-cli to /usr/local/bin..."
+	@test -f dist/goliath-cli || (echo "Error: dist/goliath-cli not found. Run 'make build' first." && exit 1)
+	install -m 755 dist/goliath-cli /usr/local/bin/goliath-cli
