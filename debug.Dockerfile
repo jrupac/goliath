@@ -6,6 +6,8 @@ RUN echo "Installing deps..."
 RUN DEBIAN_FRONTEND=noninteractive \
     apt-get update \
     && apt-get install --no-install-recommends --assume-yes \
+    # For downloading pre-built protoc plugins
+    curl \
     # To pull the delve binary \
     git \
     # protoc binary
@@ -13,6 +15,15 @@ RUN DEBIAN_FRONTEND=noninteractive \
     # Needed to validate SSL/TLS certificates
     ca-certificates
 
+# Download pre-built protoc plugins
+ARG PROTOC_GEN_GO_VERSION=1.36.6
+ARG PROTOC_GEN_GO_GRPC_VERSION=1.5.1
+RUN curl -sSL \
+    "https://github.com/protocolbuffers/protobuf-go/releases/download/v${PROTOC_GEN_GO_VERSION}/protoc-gen-go.v${PROTOC_GEN_GO_VERSION}.linux.amd64.tar.gz" \
+        | tar -xz -C /usr/local/bin
+RUN curl -sSL \
+    "https://github.com/grpc/grpc-go/releases/download/cmd/protoc-gen-go-grpc/v${PROTOC_GEN_GO_GRPC_VERSION}/protoc-gen-go-grpc.v${PROTOC_GEN_GO_GRPC_VERSION}.linux.amd64.tar.gz" \
+        | tar -xz -C /usr/local/bin
 WORKDIR /
 
 RUN echo "Copying sources..."
@@ -21,9 +32,6 @@ RUN go mod download
 COPY backend/ /
 
 RUN echo "Building protobufs..."
-RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-RUN export PATH="$PATH:$(go env GOPATH)/bin"
 RUN protoc --proto_path=admin/ --go_out=admin/ --go-grpc_out=admin/ \
     --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative \
     admin.proto
