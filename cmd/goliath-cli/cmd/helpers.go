@@ -536,3 +536,25 @@ func getAdminClient(cmd *cobra.Command) (admin.AdminServiceClient, *grpc.ClientC
 	client := admin.NewAdminServiceClient(conn)
 	return client, conn
 }
+
+func stopService(env, service string) {
+	args := []string{"compose", "--profile", env, "stop", service}
+	cmd := exec.Command("docker", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("Error stopping service %s: %v\n", service, err)
+		os.Exit(1)
+	}
+}
+
+func startService(env, service string) {
+	args := []string{"compose", "--profile", env, "up", "-d", service}
+	cmd := exec.Command("docker", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Printf("Error starting service %s: %v\n", service, err)
+		os.Exit(1)
+	}
+}

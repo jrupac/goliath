@@ -93,18 +93,22 @@ EOF
 
 ## Schema Updates
 
-When running in Dockerized mode, execute the following command against the
-CockroachDB container:
-
-> [!CAUTION]
-> Running schema updates while serving traffic can give unexpected results.
+Use the `migrate-schema` command to safely apply schema migrations. This command
+automatically stops the application service, applies the migration, and restarts
+the service.
 
 ```bash
-$ ./goliath.sh up
+$ goliath-cli migrate-schema --version v19_add_saved_to_article.sql
 
-$ VERSION=<version> # such as "v19_add_saved_to_article.sql"
-$ docker exec -it crdb-service bash -c "./cockroach sql --insecure < scripts/${VERSION}"
+# For non-prod environments:
+$ goliath-cli migrate-schema --env dev --version v19_add_saved_to_article.sql
 ```
+
+The command performs these steps:
+1. Stops the application service (keeping the database running)
+2. Ensures the database is running
+3. Applies the specified migration
+4. Restarts the application service
 
 ## CRDB SQL Shell
 
