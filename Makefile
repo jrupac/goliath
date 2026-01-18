@@ -3,7 +3,7 @@
 build:
 	@echo "Building goliath-cli in Docker..."
 	@mkdir -p dist
-	docker build --target export --output type=local,dest=./dist -f cli.Dockerfile .
+	docker build --target cli --output type=local,dest=./dist .
 
 install:
 	@echo "Installing goliath-cli to /usr/local/bin..."

@@ -5,6 +5,7 @@ services:
 
   goliath:
     build:
+      target: prod
       args:
         - BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
         - BUILD_HASH=${BUILD_HASH}
@@ -30,8 +31,7 @@ services:
 
   frontend-dev: &frontend_template
     build:
-      context: frontend
-      dockerfile: dev.Dockerfile
+      target: frontend-dev
     container_name: "frontend_dev"
     stdin_open: true
     profiles: ["dev"]
@@ -46,7 +46,7 @@ services:
 
   backend-dev: &backend_template
     build:
-      dockerfile: dev.Dockerfile
+      target: dev
     container_name: "backend_dev"
     profiles: ["dev"]
     depends_on:
@@ -95,7 +95,7 @@ services:
   backend-debug:
     <<: *backend_template
     build:
-      dockerfile: debug.Dockerfile
+      target: debug
     container_name: "backend-debug"
     profiles: ["debug"]
     depends_on:
