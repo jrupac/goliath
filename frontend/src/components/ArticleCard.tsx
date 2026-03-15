@@ -3,6 +3,7 @@ import {
   Box,
   Card,
   CardHeader,
+  Chip,
   IconButton,
   Skeleton,
   Stack,
@@ -201,9 +202,11 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
               <Box className="GoliathArticleSubheader">
                 <Box className="GoliathArticleMeta">
                   <Tooltip title={formatFull(date)}>
-                    <Box className="GoliathArticleDate">
-                      {formatFriendly(date)}
-                    </Box>
+                    <Chip
+                      size="small"
+                      className="GoliathArticleDate"
+                      label={formatFriendly(date)}
+                    />
                   </Tooltip>
                 </Box>
               </Box>

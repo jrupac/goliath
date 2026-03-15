@@ -370,6 +370,8 @@
   align-items: center;
   font-size: 16px;
   display: flex;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .GoliathArticleFeedTitle {
@@ -377,6 +379,9 @@
   font-family: var(--primary-sans-serif-font), sans-serif;
   color: var(--primary-font-color);
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .GoliathArticleListBase.MuiPaper-root {
@@ -558,13 +563,9 @@
   font-family: var(--primary-serif-font), serif;
 }
 
-.GoliathArticleDate {
+.GoliathArticleDate.MuiChip-root {
   color: var(--article-date-color);
-  font-family: var(--primary-sans-serif-font), serif;
-  font-size: 16px;
-  text-align: right;
-  display: flex;
-  align-items: baseline;
+  font-family: var(--primary-sans-serif-font), sans-serif;
 }
 
 .GoliathArticleContent {
