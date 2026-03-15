@@ -115,7 +115,7 @@
   --article-feed-title-font-color: var(--primary-font-lighter-1-color);
 
   --article-background-color: var(--primary-darker-3-color);
-  --article-date-color: var(--primary-font-darker-2-color);
+  --article-date-color: var(--primary-font-color);
   --article-font-color: var(--primary-font-lighter-1-color);
 
   --goliath-login-failed-message-color: var(--primary-warning-color);

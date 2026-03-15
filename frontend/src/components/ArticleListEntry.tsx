@@ -71,7 +71,13 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
         <Grid container direction="column" className="GoliathArticleListGrid">
           <Grid sx={{ minWidth: 0 }} className="GoliathArticleListTitleGrid">
             <Typography noWrap className="GoliathArticleListTitleType">
-              {extractedTitle}
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href={articleView.url}
+              >
+                {extractedTitle}
+              </a>
             </Typography>
           </Grid>
           <Grid sx={{ minWidth: 0 }} size="grow">

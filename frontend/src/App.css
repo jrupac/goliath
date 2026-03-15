@@ -404,8 +404,11 @@
   width: 100%;
 }
 
-.GoliathArticleListTitleType.MuiTypography-root {
+.GoliathArticleListTitleType.MuiTypography-root,
+.GoliathArticleListTitleType.MuiTypography-root a {
   width: 100%;
+  color: var(--primary-font-color);
+  text-decoration-line: none;
   font-family: var(--primary-serif-font), serif;
   font-size: 20px;
 }
@@ -499,6 +502,7 @@
   display: flex;
   align-items: stretch;
   justify-content: space-between;
+  border-bottom: 1px solid var(--action-bar-border-color);
 }
 
 .GoliathArticleHeader p,
