@@ -35,12 +35,7 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
           <Chip
             size="small"
             className="GoliathArticleListMetaChip"
-            avatar={
-              <Avatar
-                src={`data:${favicon.GetFavicon()}`}
-                alt={extractedTitle}
-              />
-            }
+            avatar={<Avatar src={favicon.GetFavicon()} alt={extractedTitle} />}
             label={formatFriendly(date)}
           />
         );

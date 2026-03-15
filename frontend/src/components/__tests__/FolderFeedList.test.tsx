@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import FolderFeedList from '../FolderFeedList';
 import { FolderView } from '../../models/folder';
-import { FeedView } from '../../models/feed';
+import { FaviconCls, FeedView } from '../../models/feed';
 import { SelectionType } from '../../utils/types';
 import { expectPartialText } from './helpers';
 
@@ -57,6 +57,34 @@ describe('FolderFeedList', () => {
     expect(container).toBeDefined();
     expect(screen.getByText('Test Folder 1')).toBeInTheDocument();
     expect(screen.getByText('Test Folder 2')).toBeInTheDocument();
+  });
+
+  it('renders favicon image with correct src when favicon is provided', () => {
+    // 1x1 transparent GIF as a full data URL
+    const testFaviconData =
+      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+    const mockFolder: FolderView = { id: '1', title: 'Test Folder', unread_count: 0 };
+    const mockFeed: FeedView = {
+      id: '2',
+      title: 'Test Feed',
+      favicon: new FaviconCls(testFaviconData),
+      folder_id: '1',
+      unread_count: 0,
+    };
+
+    render(
+      <FolderFeedList
+        folderFeedView={new Map([[mockFolder, [mockFeed]]])}
+        unreadCount={0}
+        selectedKey="1"
+        selectionType={SelectionType.Folder}
+        handleSelect={vi.fn()}
+      />
+    );
+
+    const img = screen.getByRole('img', { name: 'Test Feed' });
+    expect(img).toHaveAttribute('src', testFaviconData);
   });
 
   describe('hideEmpty functionality', () => {

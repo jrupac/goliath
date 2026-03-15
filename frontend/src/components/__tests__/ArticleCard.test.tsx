@@ -110,7 +110,7 @@ describe('ArticleCard', () => {
     // Assert favicon image src
     expect(screen.getByRole('img', { name: '' })).toHaveAttribute(
       'src',
-      `data:${testFaviconData}`
+      testFaviconData
     );
   });
 

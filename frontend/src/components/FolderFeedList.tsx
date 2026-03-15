@@ -160,7 +160,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     if (feedView.favicon && feedView.favicon.GetFavicon()) {
       img = (
         <img
-          src={`data:${feedView.favicon.GetFavicon()}`}
+          src={feedView.favicon.GetFavicon()}
           height={16}
           width={16}
           alt={feedView.title}
