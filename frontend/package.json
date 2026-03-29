@@ -55,7 +55,7 @@
     "@types/react-scroll": "^1.8.10",
     "@vitejs/plugin-react": "^5.1.0",
     "@vitest/ui": "^3.2.4",
-    "happy-dom": "20.8.8",
+    "happy-dom": "20.8.9",
     "oxlint": "^1.28.0",
     "prettier": "^3.6.2",
     "source-map-explorer": "^2.5.3",
