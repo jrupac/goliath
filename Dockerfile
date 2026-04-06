@@ -3,7 +3,7 @@
 # =============================================================================
 # Shared base stage: Go + protoc tools
 # =============================================================================
-FROM golang:1.24 AS go_base
+FROM golang:1.25 AS go_base
 
 RUN DEBIAN_FRONTEND=noninteractive \
     apt-get update \
