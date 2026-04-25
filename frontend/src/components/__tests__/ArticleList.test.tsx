@@ -206,6 +206,28 @@ describe('ArticleList', () => {
     expect(mockHandleMark).toHaveBeenCalledTimes(1);
   });
 
+  it('selects article on click without marking as read', () => {
+    const { container } = render(<ArticleList {...getMockProps()} />);
+
+    // Article 1 is selected initially
+    expectArticleSelected(container, 'Test Article 1', true);
+    expectArticleSelected(container, 'Test Article 2', false);
+
+    // Click on Article 2's entry
+    const articleListBox = container.querySelector(
+      '.GoliathSplitViewArticleListBox'
+    ) as HTMLElement;
+    const entries = articleListBox.querySelectorAll('.GoliathArticleListBase');
+    fireEvent.click(entries[1]);
+
+    // Article 2 should now be selected
+    expectArticleSelected(container, 'Test Article 1', false);
+    expectArticleSelected(container, 'Test Article 2', true);
+
+    // No article should have been marked as read
+    expect(mockHandleMark).not.toHaveBeenCalled();
+  });
+
   it('resets scroll index when selection key changes', () => {
     const { container, rerender } = render(
       <ArticleList {...getMockProps({ selectionKey: 'key1' })} />

@@ -12,6 +12,7 @@ export interface ArticleListEntryProps {
   favicon: FaviconCls | undefined;
   selected: boolean;
   showPreviews: boolean;
+  onSelect?: () => void;
 }
 
 const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
@@ -20,6 +21,7 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
     favicon,
     selected,
     showPreviews,
+    onSelect,
   }: ArticleListEntryProps) {
     const extractedTitle: string = useMemo(() => {
       return extractText(articleView.title) || '';
@@ -62,7 +64,13 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
     }
 
     return (
-      <Paper elevation={elevation} square className={extraClasses.join(' ')}>
+      <Paper
+        elevation={elevation}
+        square
+        className={extraClasses.join(' ')}
+        onClick={onSelect}
+        style={onSelect ? { cursor: 'pointer' } : undefined}
+      >
         <Grid container direction="column" className="GoliathArticleListGrid">
           <Grid sx={{ minWidth: 0 }} className="GoliathArticleListTitleGrid">
             <Typography noWrap className="GoliathArticleListTitleType">

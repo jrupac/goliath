@@ -82,6 +82,16 @@ const ArticleList: React.FC<ArticleListProps> = ({
     return index === -1 ? 0 : index;
   }, [selectedArticleId, articleEntriesCls]);
 
+  const handleClickArticle = useCallback(
+    (index: number) => {
+      const articleView = articleEntriesCls[index];
+      if (articleView) {
+        setSelectedArticleId(articleView.id);
+      }
+    },
+    [articleEntriesCls]
+  );
+
   const handleMarkAllRead = useCallback(() => {
     handleMark(MarkState.Read, selectionKey, selectionType);
   }, [handleMark, selectionKey, selectionType]);
@@ -256,10 +266,17 @@ const ArticleList: React.FC<ArticleListProps> = ({
           favicon={faviconMap.get(articleView.feedId)}
           selected={index === scrollIndex}
           showPreviews={showPreviews}
+          onSelect={() => handleClickArticle(index)}
         />
       );
     },
-    [articleEntriesCls, scrollIndex, showPreviews, faviconMap]
+    [
+      articleEntriesCls,
+      scrollIndex,
+      showPreviews,
+      faviconMap,
+      handleClickArticle,
+    ]
   );
 
   const handleMounted = useCallback((list: ReactList) => {

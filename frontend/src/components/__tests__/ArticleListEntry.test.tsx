@@ -1,6 +1,6 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import ArticleListEntry from '../ArticleListEntry';
 import { ArticleView } from '../../models/article';
 import { FaviconCls } from '../../models/feed';
@@ -41,6 +41,35 @@ describe('ArticleListEntry', () => {
       />
     );
     expect(screen.getByTestId('RssFeedIcon')).toBeInTheDocument();
+  });
+
+  it('calls onSelect when clicked', () => {
+    const onSelect = vi.fn();
+    render(
+      <ArticleListEntry
+        articleView={mockArticleView}
+        favicon={undefined}
+        selected={false}
+        showPreviews={false}
+        onSelect={onSelect}
+      />
+    );
+    fireEvent.click(screen.getByText('Test Article'));
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not throw when clicked without onSelect', () => {
+    render(
+      <ArticleListEntry
+        articleView={mockArticleView}
+        favicon={undefined}
+        selected={false}
+        showPreviews={false}
+      />
+    );
+    expect(() =>
+      fireEvent.click(screen.getByText('Test Article'))
+    ).not.toThrow();
   });
 
   it('renders favicon avatar with correct src when favicon is provided', () => {
