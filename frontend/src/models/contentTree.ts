@@ -14,12 +14,27 @@ import { ArticleCls, ArticleId, ArticleView } from './article';
 export class ContentTreeCls {
   private tree: Map<FolderId, FolderCls>;
   private unread_count: number;
-  private folderFeedView: Map<FolderView, FeedView[]>;
+  // Derived view caches — null means dirty (needs recomputation).
+  private cachedFolderFeedView: Map<FolderView, FeedView[]> | null;
+  private cachedFaviconMap: Map<FeedId, FaviconCls> | null;
+  private cachedArticleView: {
+    keyStr: string;
+    type: SelectionType;
+    views: ArticleView[];
+  } | null;
 
   private constructor() {
     this.tree = new Map<FolderId, FolderCls>();
     this.unread_count = 0;
-    this.folderFeedView = new Map<FolderView, FeedView[]>();
+    this.cachedFolderFeedView = null;
+    this.cachedFaviconMap = null;
+    this.cachedArticleView = null;
+  }
+
+  private invalidateCaches(): void {
+    this.cachedFolderFeedView = null;
+    this.cachedFaviconMap = null;
+    this.cachedArticleView = null;
   }
 
   public AddFolder(folder: FolderCls): void {
@@ -34,6 +49,7 @@ export class ContentTreeCls {
     this.tree.set(folder.Id(), folder);
     this.sort();
     this.unread_count += folder.UnreadCount();
+    this.invalidateCaches();
   }
 
   public UnreadCount(): number {
@@ -86,10 +102,20 @@ export class ContentTreeCls {
         break;
     }
 
+    this.invalidateCaches();
     return this.unread_count;
   }
 
   public GetArticleView(key: SelectionKey, type: SelectionType): ArticleView[] {
+    const keyStr = JSON.stringify(key);
+    if (
+      this.cachedArticleView !== null &&
+      this.cachedArticleView.keyStr === keyStr &&
+      this.cachedArticleView.type === type
+    ) {
+      return this.cachedArticleView.views;
+    }
+
     let articleId: ArticleId, feedId: FeedId, folderId: FolderId;
     let articleViews: ArticleView[] = [];
 
@@ -120,18 +146,27 @@ export class ContentTreeCls {
         break;
     }
 
-    return ArticleCls.SortViews(articleViews);
+    const views = ArticleCls.SortViews(articleViews);
+    this.cachedArticleView = { keyStr, type, views };
+    return views;
   }
 
   public GetFolderFeedView(): Map<FolderView, FeedView[]> {
-    this.folderFeedView.clear();
+    if (this.cachedFolderFeedView !== null) {
+      return this.cachedFolderFeedView;
+    }
+    const view = new Map<FolderView, FeedView[]>();
     this.tree.forEach((f: FolderCls): void => {
-      this.folderFeedView.set(...f.GetFolderFeedView());
+      view.set(...f.GetFolderFeedView());
     });
-    return this.folderFeedView;
+    this.cachedFolderFeedView = view;
+    return view;
   }
 
   public GetFaviconMap(): Map<FeedId, FaviconCls> {
+    if (this.cachedFaviconMap !== null) {
+      return this.cachedFaviconMap;
+    }
     const faviconMap: Map<FeedId, FaviconCls> = new Map();
     this.tree.forEach((f: FolderCls): void => {
       const folderFavicons = f.GetFavicons();
@@ -139,6 +174,7 @@ export class ContentTreeCls {
         faviconMap.set(feedId, favicon);
       });
     });
+    this.cachedFaviconMap = faviconMap;
     return faviconMap;
   }
 

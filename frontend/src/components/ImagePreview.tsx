@@ -8,19 +8,29 @@ interface ImagePreviewProps {
   article: ArticleView;
 }
 
-// Module-level cache for image preview promises.
-// This ensures we only fetch the preview for each article once.
+// Module-level LRU cache for image preview promises (capped at 1000 entries).
 // Exported for testing purposes.
 export const previewCache = new Map<
   ArticleId,
   Promise<ArticleImagePreview | undefined>
 >();
 
+const MAX_PREVIEW_CACHE_SIZE = 1000;
+
 function getCachedPreview(
   article: ArticleView
 ): Promise<ArticleImagePreview | undefined> {
   if (previewCache.has(article.id)) {
-    return previewCache.get(article.id)!;
+    // Move to end to maintain LRU order.
+    const existing = previewCache.get(article.id)!;
+    previewCache.delete(article.id);
+    previewCache.set(article.id, existing);
+    return existing;
+  }
+
+  if (previewCache.size >= MAX_PREVIEW_CACHE_SIZE) {
+    const oldestKey = previewCache.keys().next().value as ArticleId;
+    previewCache.delete(oldestKey);
   }
 
   const promise = getPreviewImage(article);

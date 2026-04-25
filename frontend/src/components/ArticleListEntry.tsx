@@ -3,7 +3,7 @@ import { Avatar, Chip, Paper, Typography } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { extractText, formatFriendly } from '../utils/helpers';
 import RssFeedIcon from '@mui/icons-material/RssFeed';
-import { ArticleView } from '../models/article';
+import { ArticleId, ArticleView } from '../models/article';
 import { FaviconCls } from '../models/feed';
 import ImagePreview from './ImagePreview';
 
@@ -12,7 +12,7 @@ export interface ArticleListEntryProps {
   favicon: FaviconCls | undefined;
   selected: boolean;
   showPreviews: boolean;
-  onSelect?: () => void;
+  onSelect?: (id: ArticleId) => void;
 }
 
 const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
@@ -68,7 +68,7 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
         elevation={elevation}
         square
         className={extraClasses.join(' ')}
-        onClick={onSelect}
+        onClick={onSelect ? () => onSelect(articleView.id) : undefined}
         style={onSelect ? { cursor: 'pointer' } : undefined}
       >
         <Grid container direction="column" className="GoliathArticleListGrid">

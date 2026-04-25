@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useRef, useState } from 'react';
+import React, { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { extractText } from '../utils/helpers';
 import {
   FeedSelection,
@@ -106,6 +106,21 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     setKeyCache(precomputeIdToSelectionKey(folderFeedView));
   }, [folderFeedView]);
 
+  const plainTitles = useMemo(() => {
+    const map = new Map<string, string>();
+    folderFeedView.forEach((feeds) => {
+      feeds.forEach((feed) => {
+        map.set(feed.id, extractText(feed.title) || feed.title);
+      });
+    });
+    return map;
+  }, [folderFeedView]);
+
+  const expandedItems = useMemo(
+    () => Array.from(folderFeedView.keys(), (k: FolderView) => k.id),
+    [folderFeedView]
+  );
+
   const handleItemSelect = (
     _: React.SyntheticEvent | null,
     itemId: string | null
@@ -168,7 +183,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     }
     img = <span className="GoliathFeedIcon">{img}</span>;
 
-    const plainTitle = extractText(feedView.title) || feedView.title;
+    const plainTitle = plainTitles.get(feedView.id) || feedView.title;
     let title: ReactNode;
     if (feedView.unread_count === 0) {
       title = <span>{plainTitle}</span>;
@@ -269,10 +284,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         className="GoliathFolderFeedList"
         onSelectedItemsChange={handleItemSelect}
         selectedItems={selectedKeyString}
-        expandedItems={Array.from(
-          folderFeedView.keys(),
-          (k: FolderView) => k.id
-        )}
+        expandedItems={expandedItems}
         slots={{ collapseIcon: FolderOpenTwoToneIcon }}
       >
         {Array.from(folderFeedView, ([k, v]) => {

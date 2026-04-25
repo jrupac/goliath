@@ -188,8 +188,7 @@ export async function getPreviewImage(
       article.html,
       'text/html'
     ).images;
-  } catch (e) {
-    // This should not happen, but just in case.
+  } catch {
     return;
   }
 
@@ -197,37 +196,38 @@ export async function getPreviewImage(
     return;
   }
 
-  // Find the first image that is valid and meets the size requirements.
-  for (let i = 0; i < imageElements.length; i++) {
-    const imgSrc = imageElements[i].src;
+  const candidates = Array.from(imageElements)
+    .filter(
+      (img) =>
+        img.src && (img.src.startsWith('http') || img.src.startsWith('data:'))
+    )
+    .slice(0, 3)
+    .map((img) => img.src);
 
-    // Ensure the URL is absolute.
-    if (imgSrc && (imgSrc.startsWith('http') || imgSrc.startsWith('data:'))) {
-      const isValid = await new Promise<boolean>((resolve) => {
-        const img = new Image();
-        img.onload = () =>
-          resolve(
-            img.naturalWidth >= minPixelSize &&
-              img.naturalHeight >= minPixelSize
-          );
-        img.onerror = () => resolve(false);
-        img.src = imgSrc;
-      });
-
-      if (isValid) {
-        // Return the first valid image found.
-        return {
-          src: imgSrc,
-          x: 0,
-          y: 0,
-          width: 0,
-          height: 0,
-          origWidth: 0,
-        };
-      }
-    }
+  if (candidates.length === 0) {
+    return;
   }
 
-  // No suitable image was found.
-  return undefined;
+  const results = await Promise.all(
+    candidates.map(
+      (src) =>
+        new Promise<{ src: string; valid: boolean }>((resolve) => {
+          const img = new Image();
+          img.onload = () =>
+            resolve({
+              src,
+              valid:
+                img.naturalWidth >= minPixelSize &&
+                img.naturalHeight >= minPixelSize,
+            });
+          img.onerror = () => resolve({ src, valid: false });
+          img.src = src;
+        })
+    )
+  );
+
+  const first = results.find((r) => r.valid);
+  if (!first) return undefined;
+
+  return { src: first.src, x: 0, y: 0, width: 0, height: 0, origWidth: 0 };
 }
