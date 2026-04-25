@@ -4,10 +4,13 @@ import FolderFeedList from './components/FolderFeedList';
 import Loading from './components/Loading';
 import React from 'react';
 import {
+  FeedSelection,
+  FolderSelection,
   GoliathPath,
   GoliathTheme,
   KeyAll,
   MarkState,
+  NavigationDirection,
   SelectionKey,
   SelectionType,
   Status,
@@ -27,7 +30,11 @@ import { FetchAPI, FetchAPIFactory } from './api/interface';
 import { GetVersion, VersionData } from './api/goliath';
 import { Navigate } from 'react-router-dom';
 import { ContentTreeCls } from './models/contentTree';
-import { populateThemeInfo } from './utils/helpers';
+import {
+  getAdjacentFeed,
+  getAdjacentFolder,
+  populateThemeInfo,
+} from './utils/helpers';
 import AccountCircleTwoToneIcon from '@mui/icons-material/AccountCircleTwoTone';
 import LogoutTwoToneIcon from '@mui/icons-material/LogoutTwoTone';
 
@@ -170,6 +177,29 @@ export default class App extends React.Component<AppProps, AppState> {
     });
   };
 
+  handleNavigateToAdjacentEntry = (direction: NavigationDirection) => {
+    const { selectionKey, selectionType } = this.state;
+    const folderFeedView = this.state.contentTreeCls.GetFolderFeedView();
+
+    if (selectionType === SelectionType.Feed) {
+      const [currentFeedId] = selectionKey as FeedSelection;
+      const result = getAdjacentFeed(folderFeedView, currentFeedId, direction);
+      if (result !== null) {
+        this.handleSelect(SelectionType.Feed, result);
+      }
+    } else if (selectionType === SelectionType.Folder) {
+      const currentFolderId = selectionKey as FolderSelection;
+      const result = getAdjacentFolder(
+        folderFeedView,
+        currentFolderId,
+        direction
+      );
+      if (result !== null) {
+        this.handleSelect(SelectionType.Folder, result);
+      }
+    }
+  };
+
   handleKeyDown = (event: KeyboardEvent) => {
     // Ignore keypress events when some modifiers are also enabled to avoid
     // triggering on (e.g.) browser shortcuts. Shift is the exception here since
@@ -286,6 +316,12 @@ export default class App extends React.Component<AppProps, AppState> {
               }
               buildTimestamp={this.state.buildTimestamp}
               buildHash={this.state.buildHash}
+              navigateToAdjacentEntry={
+                selectionType === SelectionType.Feed ||
+                selectionType === SelectionType.Folder
+                  ? this.handleNavigateToAdjacentEntry
+                  : undefined
+              }
             />
           </Box>
         </Box>

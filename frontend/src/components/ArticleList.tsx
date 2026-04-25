@@ -8,7 +8,12 @@ import React, {
 } from 'react';
 import ReactList from 'react-list';
 import { animateScroll } from 'react-scroll';
-import { MarkState, SelectionKey, SelectionType } from '../utils/types';
+import {
+  MarkState,
+  NavigationDirection,
+  SelectionKey,
+  SelectionType,
+} from '../utils/types';
 import {
   Box,
   Container,
@@ -45,6 +50,7 @@ export interface ArticleListProps {
   buildTimestamp: string;
   buildHash: string;
   threshold?: number;
+  navigateToAdjacentEntry?: (direction: NavigationDirection) => void;
 }
 
 const ArticleList: React.FC<ArticleListProps> = ({
@@ -57,6 +63,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   buildTimestamp,
   buildHash,
   threshold = 500,
+  navigateToAdjacentEntry,
 }) => {
   const listRef = useRef<ReactList | null>(null);
   const selectionKeyRef = useRef<SelectionKey>(selectionKey);
@@ -128,14 +135,27 @@ const ArticleList: React.FC<ArticleListProps> = ({
   );
 
   const handleScrollUp = useCallback(() => {
+    if (scrollIndex <= 0) {
+      navigateToAdjacentEntry?.(NavigationDirection.Prev);
+      return;
+    }
     handleSelectByIndex(scrollIndex - 1);
-  }, [handleSelectByIndex, scrollIndex]);
+  }, [handleSelectByIndex, scrollIndex, navigateToAdjacentEntry]);
 
   const handleScrollDown = useCallback(() => {
-    // If the previous scroll index pointed at a valid article, mark it read
     handleMarkArticleRead(scrollIndex);
+    if (scrollIndex >= articleEntriesCls.length - 1) {
+      navigateToAdjacentEntry?.(NavigationDirection.Next);
+      return;
+    }
     handleSelectByIndex(scrollIndex + 1);
-  }, [handleMarkArticleRead, handleSelectByIndex, scrollIndex]);
+  }, [
+    handleMarkArticleRead,
+    handleSelectByIndex,
+    scrollIndex,
+    navigateToAdjacentEntry,
+    articleEntriesCls.length,
+  ]);
 
   const handleOpenArticle = useCallback(
     (index: number) => {

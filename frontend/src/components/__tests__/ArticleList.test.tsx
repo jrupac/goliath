@@ -4,7 +4,12 @@ import ArticleList, { ArticleListProps } from '../ArticleList';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ArticleView } from '../../models/article';
 import { expectClass, expectTextInElement } from './helpers';
-import { MarkState, SelectionKey, SelectionType } from '../../utils/types';
+import {
+  MarkState,
+  NavigationDirection,
+  SelectionKey,
+  SelectionType,
+} from '../../utils/types';
 import { FaviconCls, FeedId } from '../../models/feed';
 
 describe('ArticleList', () => {
@@ -41,6 +46,7 @@ describe('ArticleList', () => {
   // Mock functions
   const mockSelectAllCallback = vi.fn();
   const mockHandleMark = vi.fn();
+  const mockNavigateToAdjacentEntry = vi.fn();
 
   const getMockProps = (
     props?: Partial<ArticleListProps>
@@ -78,6 +84,7 @@ describe('ArticleList', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockNavigateToAdjacentEntry.mockReset();
 
     // Mock offsetHeight and offsetWidth for all HTMLElements
     originalOffsetHeight = Object.getOwnPropertyDescriptor(
@@ -250,6 +257,106 @@ describe('ArticleList', () => {
     // After rerender with new key, scroll should reset to top (Article 1)
     expectArticleSelected(container, 'Test Article 1', true);
     expectArticleSelected(container, 'Test Article 2', false);
+  });
+
+  it('calls navigateToAdjacentEntry("next") when pressing j at the last article', () => {
+    render(
+      <ArticleList
+        {...getMockProps({
+          navigateToAdjacentEntry: mockNavigateToAdjacentEntry,
+        })}
+      />
+    );
+
+    // Scroll to the last article first
+    fireEvent.keyDown(window, { key: 'j' });
+
+    // Now at the last article (index 1); pressing j again should invoke the callback
+    fireEvent.keyDown(window, { key: 'j' });
+
+    expect(mockNavigateToAdjacentEntry).toHaveBeenCalledWith(
+      NavigationDirection.Next
+    );
+    expect(mockNavigateToAdjacentEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call navigateToAdjacentEntry when pressing j before the last article', () => {
+    const manyArticles: ArticleView[] = [
+      ...mockArticles,
+      {
+        folderId: '1',
+        feedId: '1',
+        feedTitle: 'Test Feed 1',
+        id: '3',
+        title: 'Test Article 3',
+        author: '',
+        html: '<p>Test content 3</p>',
+        url: 'https://example.com/3',
+        creationTime: 1678972808,
+        isRead: false,
+        isSaved: false,
+      },
+    ];
+
+    render(
+      <ArticleList
+        {...getMockProps({
+          articleEntriesCls: manyArticles,
+          navigateToAdjacentEntry: mockNavigateToAdjacentEntry,
+        })}
+      />
+    );
+
+    // Press j once — moves from article 0 to 1, not at the end (3 articles)
+    fireEvent.keyDown(window, { key: 'j' });
+
+    expect(mockNavigateToAdjacentEntry).not.toHaveBeenCalled();
+  });
+
+  it('calls navigateToAdjacentEntry("prev") when pressing k at the first article', () => {
+    render(
+      <ArticleList
+        {...getMockProps({
+          navigateToAdjacentEntry: mockNavigateToAdjacentEntry,
+        })}
+      />
+    );
+
+    // Already at the first article (index 0); pressing k should invoke the callback
+    fireEvent.keyDown(window, { key: 'k' });
+
+    expect(mockNavigateToAdjacentEntry).toHaveBeenCalledWith(
+      NavigationDirection.Prev
+    );
+    expect(mockNavigateToAdjacentEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call navigateToAdjacentEntry when pressing k after the first article', () => {
+    render(
+      <ArticleList
+        {...getMockProps({
+          navigateToAdjacentEntry: mockNavigateToAdjacentEntry,
+        })}
+      />
+    );
+
+    // Move to the second article first
+    fireEvent.keyDown(window, { key: 'j' });
+    mockNavigateToAdjacentEntry.mockClear();
+
+    // Press k — should go back to first article, not invoke the callback
+    fireEvent.keyDown(window, { key: 'k' });
+
+    expect(mockNavigateToAdjacentEntry).not.toHaveBeenCalled();
+  });
+
+  it('does not call navigateToAdjacentEntry when prop is not provided', () => {
+    // No navigateToAdjacentEntry prop — pressing j at the last article should not throw
+    render(<ArticleList {...getMockProps()} />);
+
+    fireEvent.keyDown(window, { key: 'j' }); // go to last
+    expect(() => fireEvent.keyDown(window, { key: 'j' })).not.toThrow();
+    expect(() => fireEvent.keyDown(window, { key: 'k' })).not.toThrow();
   });
 
   it('maintains scroll position with stable sort', () => {

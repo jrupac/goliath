@@ -4,7 +4,16 @@ import { Readability } from '@mozilla/readability';
 import * as LosslessJSON from 'lossless-json';
 
 import { ArticleId, ArticleView } from '../models/article';
-import { ArticleImagePreview, GoliathTheme, ThemeInfo } from './types';
+import { FeedId, FeedView } from '../models/feed';
+import { FolderId, FolderView } from '../models/folder';
+import {
+  ArticleImagePreview,
+  FeedSelection,
+  FolderSelection,
+  GoliathTheme,
+  NavigationDirection,
+  ThemeInfo,
+} from './types';
 import { createTheme, darkScrollbar, PaletteMode, Theme } from '@mui/material';
 
 export function extractText(html: string): string | null {
@@ -100,6 +109,72 @@ export function populateThemeInfo(themeSetting: GoliathTheme): ThemeInfo {
     },
   });
   return { themeClasses, theme };
+}
+
+export function getAdjacentFeed(
+  folderFeedView: Map<FolderView, FeedView[]>,
+  currentFeedId: FeedId,
+  direction: NavigationDirection
+): FeedSelection | null {
+  const flatFeeds: Array<{
+    feedId: FeedId;
+    folderId: FolderId;
+    unreadCount: number;
+  }> = [];
+  folderFeedView.forEach((feeds) => {
+    feeds.forEach((feed) => {
+      flatFeeds.push({
+        feedId: feed.id,
+        folderId: feed.folder_id,
+        unreadCount: feed.unread_count,
+      });
+    });
+  });
+
+  const currentIdx = flatFeeds.findIndex((f) => f.feedId === currentFeedId);
+  if (currentIdx === -1) return null;
+
+  if (direction === NavigationDirection.Next) {
+    for (let i = currentIdx + 1; i < flatFeeds.length; i++) {
+      if (flatFeeds[i].unreadCount > 0) {
+        return [flatFeeds[i].feedId, flatFeeds[i].folderId];
+      }
+    }
+  } else {
+    for (let i = currentIdx - 1; i >= 0; i--) {
+      if (flatFeeds[i].unreadCount > 0) {
+        return [flatFeeds[i].feedId, flatFeeds[i].folderId];
+      }
+    }
+  }
+
+  return null;
+}
+
+export function getAdjacentFolder(
+  folderFeedView: Map<FolderView, FeedView[]>,
+  currentFolderId: FolderId,
+  direction: NavigationDirection
+): FolderSelection | null {
+  const flatFolders = Array.from(folderFeedView.keys());
+  const currentIdx = flatFolders.findIndex((f) => f.id === currentFolderId);
+  if (currentIdx === -1) return null;
+
+  if (direction === NavigationDirection.Next) {
+    for (let i = currentIdx + 1; i < flatFolders.length; i++) {
+      if (flatFolders[i].unread_count > 0) {
+        return flatFolders[i].id;
+      }
+    }
+  } else {
+    for (let i = currentIdx - 1; i >= 0; i--) {
+      if (flatFolders[i].unread_count > 0) {
+        return flatFolders[i].id;
+      }
+    }
+  }
+
+  return null;
 }
 
 export async function getPreviewImage(

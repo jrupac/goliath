@@ -67,6 +67,12 @@ export enum MarkState {
   Read = 0,
 }
 
+/** NavigationDirection describes the direction of adjacency navigation. */
+export enum NavigationDirection {
+  Next = 'next',
+  Prev = 'prev',
+}
+
 /** ArticleImagePreview holds cropping information for image previews. */
 export type ArticleImagePreview = {
   src: string;
