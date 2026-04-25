@@ -124,6 +124,7 @@ export class ContentTreeCls {
   }
 
   public GetFolderFeedView(): Map<FolderView, FeedView[]> {
+    this.folderFeedView.clear();
     this.tree.forEach((f: FolderCls): void => {
       this.folderFeedView.set(...f.GetFolderFeedView());
     });

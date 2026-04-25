@@ -37,7 +37,7 @@ export class FolderCls {
       console.log(
         `WARNING: Replacing feed: ${existing.Title()} in folder: ${this.title}`
       );
-      this.unread_count -= feed.UnreadCount();
+      this.unread_count -= existing.UnreadCount();
     }
 
     this.feeds.set(feed.Id(), feed);

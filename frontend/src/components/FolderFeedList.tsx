@@ -1,4 +1,5 @@
 import React, { ReactNode, useEffect, useRef, useState } from 'react';
+import { extractText } from '../utils/helpers';
 import {
   FeedSelection,
   FolderSelection,
@@ -17,6 +18,21 @@ import FolderOpenTwoToneIcon from '@mui/icons-material/FolderOpenTwoTone';
 import { FolderView } from '../models/folder';
 import { FeedView } from '../models/feed';
 import BookmarkTwoToneIcon from '@mui/icons-material/BookmarkTwoTone';
+
+function precomputeIdToSelectionKey(
+  folderFeedView: Map<FolderView, FeedView[]>
+): Map<string, [SelectionType, SelectionKey]> {
+  const cache: Map<string, [SelectionType, SelectionKey]> = new Map();
+  cache.set(KeyAll, [SelectionType.All, KeyAll]);
+  cache.set(KeySaved, [SelectionType.Saved, KeySaved]);
+  folderFeedView.forEach((value: FeedView[], key: FolderView) => {
+    cache.set(key.id, [SelectionType.Folder, key.id]);
+    value.forEach((feedView: FeedView) => {
+      cache.set(feedView.id, [SelectionType.Feed, [feedView.id, key.id]]);
+    });
+  });
+  return cache;
+}
 
 export interface FolderFeedListProps {
   folderFeedView: Map<FolderView, FeedView[]>;
@@ -39,7 +55,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
 }) => {
   const [keyCache, setKeyCache] = useState<
     Map<string, [SelectionType, SelectionKey]>
-  >(new Map());
+  >(() => precomputeIdToSelectionKey(folderFeedView));
   const [isScrolled, setIsScrolled] = useState(false);
   const treeViewRef = useRef<HTMLUListElement>(null);
 
@@ -61,25 +77,6 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
       }
     };
   }, []);
-
-  const precomputeIdToSelectionKey = (
-    folderFeedView: Map<FolderView, FeedView[]>
-  ): Map<string, [SelectionType, SelectionKey]> => {
-    const cache: Map<string, [SelectionType, SelectionKey]> = new Map();
-
-    // Add special entries for "all" and "saved".
-    cache.set(KeyAll, [SelectionType.All, KeyAll]);
-    cache.set(KeySaved, [SelectionType.Saved, KeySaved]);
-
-    folderFeedView.forEach((value: FeedView[], key: FolderView) => {
-      cache.set(key.id, [SelectionType.Folder, key.id]);
-      value.forEach((feedView: FeedView) => {
-        cache.set(feedView.id, [SelectionType.Feed, [feedView.id, key.id]]);
-      });
-    });
-
-    return cache;
-  };
 
   const shouldRenderItem = (item: FolderView | FeedView): boolean => {
     if (!hideEmpty || item.unread_count > 0) {
@@ -171,15 +168,15 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     }
     img = <span className="GoliathFeedIcon">{img}</span>;
 
+    const plainTitle = extractText(feedView.title) || feedView.title;
     let title: ReactNode;
     if (feedView.unread_count === 0) {
-      title = feedView.title;
-      title = <span dangerouslySetInnerHTML={{ __html: feedView.title }} />;
+      title = <span>{plainTitle}</span>;
     } else {
       title = (
         <b>
           {`(${feedView.unread_count}) `}
-          <span dangerouslySetInnerHTML={{ __html: feedView.title }} />
+          <span>{plainTitle}</span>
         </b>
       );
     }
@@ -237,15 +234,15 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         className={allSelectedClass}
       >
         <InboxTwoToneIcon fontSize="small" />
-        <Box className={allSelectedClass}>{renderAllItemsTitle()}</Box>
+        <Box>{renderAllItemsTitle()}</Box>
       </Box>
 
       <Box
         onClick={(e) => handleItemSelect(e, KeySaved)}
-        className={`${savedSelectedClass}`}
+        className={savedSelectedClass}
       >
         <BookmarkTwoToneIcon fontSize="small" />
-        <Box className={savedSelectedClass}>{renderSavedItemsTitle()}</Box>
+        <Box>{renderSavedItemsTitle()}</Box>
       </Box>
 
       <Box className={`${scrolledClass} GoliathFolderFeedHeader `}>

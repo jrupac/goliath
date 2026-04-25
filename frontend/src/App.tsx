@@ -211,13 +211,14 @@ export default class App extends React.Component<AppProps, AppState> {
     switch (event.key) {
       case 't':
         this.setState((prevState: AppState): AppState => {
+          const newTheme =
+            prevState.theme === GoliathTheme.Default
+              ? GoliathTheme.Dark
+              : GoliathTheme.Default;
           return {
             ...prevState,
-            theme:
-              prevState.theme === GoliathTheme.Default
-                ? GoliathTheme.Dark
-                : GoliathTheme.Default,
-            themeInfo: populateThemeInfo(prevState.theme),
+            theme: newTheme,
+            themeInfo: populateThemeInfo(newTheme),
           };
         });
         break;

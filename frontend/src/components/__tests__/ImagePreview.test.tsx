@@ -63,11 +63,13 @@ describe('ImagePreview', () => {
     vi.doUnmock('../../utils/helpers');
   });
 
-  it('should render skeleton initially and not fetch image', () => {
+  it('should render no skeleton initially and not fetch image', () => {
     render(<ImagePreview article={mockArticle} />);
 
-    // Check for the skeleton placeholder
-    expect(screen.getByTestId('image-preview-skeleton')).toBeInTheDocument();
+    // Nothing should render before the element is on-screen
+    expect(
+      screen.queryByTestId('image-preview-skeleton')
+    ).not.toBeInTheDocument();
 
     // Verify getPreviewImage has not been called yet because it's not on screen
     expect(helpers.getPreviewImage).not.toHaveBeenCalled();
@@ -105,22 +107,19 @@ describe('ImagePreview', () => {
 
     const { container } = render(<ImagePreview article={mockArticle} />);
 
-    // Skeleton is there initially
-    expect(screen.getByTestId('image-preview-skeleton')).toBeInTheDocument();
+    // Nothing should render before the element is on-screen
+    expect(
+      screen.queryByTestId('image-preview-skeleton')
+    ).not.toBeInTheDocument();
 
-    // Simulate the component becoming visible
+    // Simulate the component becoming visible — skeleton should appear while loading
     mockIntersectionObserver.mock.results[0].value.trigger([
       { isIntersecting: true },
     ] as IntersectionObserverEntry[]);
 
-    // Wait for the skeleton to disappear
+    // Wait for the component to fully unmount after the load resolves with no image
     await waitFor(() => {
-      expect(
-        screen.queryByTestId('image-preview-skeleton')
-      ).not.toBeInTheDocument();
+      expect(container.firstChild).toBeNull();
     });
-
-    // The component should now render nothing
-    expect(container.firstChild).toBeNull();
   });
 });

@@ -83,8 +83,8 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ article }) => {
       ref={ref}
       style={{ width: '100px', height: '100px', marginRight: '10px' }}
     >
-      {imgSrc === undefined && (
-        // Still loading and not on screen
+      {onScreen && imgSrc === undefined && (
+        // On screen and still loading
         <Skeleton
           data-testid="image-preview-skeleton"
           variant="rectangular"

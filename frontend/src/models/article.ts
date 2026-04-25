@@ -126,8 +126,6 @@ export class ArticleCls {
     return articleViews.sort(ArticleCls.ArticleViewComparator);
   }
 
-  private static FilterUnread = (a: ArticleView) => !a.isRead;
-
   public static ArticleViewComparator = (a: ArticleView, b: ArticleView) => {
     if (b.creationTime !== a.creationTime) {
       return b.creationTime - a.creationTime;
