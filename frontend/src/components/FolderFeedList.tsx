@@ -3,7 +3,8 @@ import { extractText } from '../utils/helpers';
 import {
   FeedSelection,
   FolderSelection,
-  KeyAll,
+  KeyUnread,
+  KeyAllItems,
   KeySaved,
   SelectionKey,
   SelectionType,
@@ -11,6 +12,7 @@ import {
 import { Box, FormGroup, Switch } from '@mui/material';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import InboxTwoToneIcon from '@mui/icons-material/InboxTwoTone';
+import ListTwoToneIcon from '@mui/icons-material/ListTwoTone';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
@@ -23,7 +25,8 @@ function precomputeIdToSelectionKey(
   folderFeedView: Map<FolderView, FeedView[]>
 ): Map<string, [SelectionType, SelectionKey]> {
   const cache: Map<string, [SelectionType, SelectionKey]> = new Map();
-  cache.set(KeyAll, [SelectionType.All, KeyAll]);
+  cache.set(KeyUnread, [SelectionType.Unread, KeyUnread]);
+  cache.set(KeyAllItems, [SelectionType.All, KeyAllItems]);
   cache.set(KeySaved, [SelectionType.Saved, KeySaved]);
   folderFeedView.forEach((value: FeedView[], key: FolderView) => {
     cache.set(key.id, [SelectionType.Folder, key.id]);
@@ -138,13 +141,15 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     handleSelect(selType, selKey);
   };
 
-  const renderAllItemsTitle = () => {
+  const renderUnreadTitle = () => {
     if (unreadCount === 0) {
-      return 'All items';
+      return 'Unread items';
     } else {
-      return <b>{`(${unreadCount})  All items`}</b>;
+      return <b>{`(${unreadCount})  Unread items`}</b>;
     }
   };
+
+  const renderAllTitle = () => 'All items';
 
   const renderSavedItemsTitle = () => {
     // TODO: Support showing number of saved items.
@@ -208,11 +213,20 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   };
 
   let selectedKeyString = '';
+  let unreadSelectedClass = 'GoliathStreamSelector';
   let allSelectedClass = 'GoliathStreamSelector';
   // TODO: Support saved items CSS classes.
   let savedSelectedClass = 'GoliathStreamSelector';
 
-  if (!selectedKey || selectedKey === KeyAll) {
+  if (
+    (selectedKey === KeyUnread && selectionType === SelectionType.Unread) ||
+    !selectedKey
+  ) {
+    unreadSelectedClass = 'GoliathStreamSelectorSelected';
+  } else if (
+    selectedKey === KeyAllItems &&
+    selectionType === SelectionType.All
+  ) {
     allSelectedClass = 'GoliathStreamSelectorSelected';
   } else if (selectedKey === KeySaved) {
     savedSelectedClass = 'GoliathStreamSelectorSelected';
@@ -230,9 +244,8 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         selectedKeyString = feedId as string;
         break;
       }
-      case SelectionType.All: // fallthrough
       default:
-        allSelectedClass = 'GoliathStreamSelectorSelected';
+        unreadSelectedClass = 'GoliathStreamSelectorSelected';
     }
   }
 
@@ -245,11 +258,19 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
       </Box>
 
       <Box
-        onClick={(e) => handleItemSelect(e, KeyAll)}
-        className={allSelectedClass}
+        onClick={(e) => handleItemSelect(e, KeyUnread)}
+        className={unreadSelectedClass}
       >
         <InboxTwoToneIcon fontSize="small" />
-        <Box>{renderAllItemsTitle()}</Box>
+        <Box>{renderUnreadTitle()}</Box>
+      </Box>
+
+      <Box
+        onClick={(e) => handleItemSelect(e, KeyAllItems)}
+        className={allSelectedClass}
+      >
+        <ListTwoToneIcon fontSize="small" />
+        <Box>{renderAllTitle()}</Box>
       </Box>
 
       <Box

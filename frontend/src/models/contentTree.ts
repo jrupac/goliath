@@ -90,6 +90,7 @@ export class ContentTreeCls {
         folder.MarkFolder(markState);
         this.unread_count += folder.UnreadCount();
         break;
+      case SelectionType.Unread:
       case SelectionType.All:
         this.tree.forEach((f: FolderCls): void => {
           unread += f.MarkFolder(markState);
@@ -102,9 +103,14 @@ export class ContentTreeCls {
         break;
     }
 
-    this.invalidateCaches();
     return this.unread_count;
   }
+
+  // Note: Mark() no longer calls invalidateCaches(). This is safe because
+  // FolderView/FeedView objects are mutated in place (their unread_count
+  // fields are updated directly), so the cached Map references remain live.
+  // The article view cache is evicted on selection change (different keyStr/type),
+  // which is when read filtering takes effect.
 
   public GetArticleView(key: SelectionKey, type: SelectionType): ArticleView[] {
     const keyStr = JSON.stringify(key);
@@ -127,13 +133,22 @@ export class ContentTreeCls {
           articleId
         );
         break;
-      case SelectionType.Feed:
-        [feedId, folderId] = key as FeedSelection;
-        articleViews = this.getFolderOrThrow(folderId).GetArticleView(feedId);
+      case SelectionType.Unread:
+        this.tree.forEach((f: FolderCls): void => {
+          articleViews.push(...f.GetArticleView().filter((v) => !v.isRead));
+        });
         break;
       case SelectionType.Folder:
         folderId = key as FolderSelection;
-        articleViews = this.getFolderOrThrow(folderId).GetArticleView();
+        articleViews = this.getFolderOrThrow(folderId)
+          .GetArticleView()
+          .filter((v) => !v.isRead);
+        break;
+      case SelectionType.Feed:
+        [feedId, folderId] = key as FeedSelection;
+        articleViews = this.getFolderOrThrow(folderId)
+          .GetArticleView(feedId)
+          .filter((v) => !v.isRead);
         break;
       case SelectionType.All:
         this.tree.forEach((f: FolderCls): void => {

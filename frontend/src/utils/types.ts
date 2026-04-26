@@ -37,11 +37,12 @@ export enum Status {
 
 /** SelectionType is an indicator for the subset of entries being processed. */
 export enum SelectionType {
-  All = 0,
+  Unread = 0,
   Folder = 1,
   Feed = 2,
   Article = 3,
   Saved = 4,
+  All = 5,
 }
 
 /** SelectionKey is a unique descriptor for a corresponding SelectionType. */
@@ -49,8 +50,11 @@ export type ArticleSelection = [ArticleId, FeedId, FolderId];
 export type FeedSelection = [FeedId, FolderId];
 export type FolderSelection = FolderId;
 
+export type UnreadSelection = string;
+export const KeyUnread: UnreadSelection = 'UNREAD';
+
 export type AllSelection = string;
-export const KeyAll: AllSelection = 'ALL';
+export const KeyAllItems: AllSelection = 'ALL';
 
 export type SavedSelection = string;
 export const KeySaved: SavedSelection = 'SAVED';
@@ -59,6 +63,7 @@ export type SelectionKey =
   | ArticleSelection
   | FeedSelection
   | FolderSelection
+  | UnreadSelection
   | AllSelection
   | SavedSelection;
 

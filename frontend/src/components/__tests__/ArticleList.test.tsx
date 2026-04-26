@@ -45,6 +45,7 @@ describe('ArticleList', () => {
 
   // Mock functions
   const mockSelectAllCallback = vi.fn();
+  const mockSelectUnreadCallback = vi.fn();
   const mockHandleMark = vi.fn();
   const mockNavigateToAdjacentEntry = vi.fn();
 
@@ -56,6 +57,7 @@ describe('ArticleList', () => {
     selectionKey: '1' as SelectionKey,
     selectionType: SelectionType.Folder,
     selectAllCallback: mockSelectAllCallback,
+    selectUnreadCallback: mockSelectUnreadCallback,
     handleMark: mockHandleMark,
     buildTimestamp: '',
     buildHash: '',
@@ -278,6 +280,117 @@ describe('ArticleList', () => {
       NavigationDirection.Next
     );
     expect(mockNavigateToAdjacentEntry).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call navigateToAdjacentEntry when pressing j at the end of the All stream', () => {
+    render(
+      <ArticleList
+        {...getMockProps({
+          selectionType: SelectionType.All,
+          navigateToAdjacentEntry: mockNavigateToAdjacentEntry,
+        })}
+      />
+    );
+
+    // Scroll to the last article first
+    fireEvent.keyDown(window, { key: 'j' });
+
+    // Now at the last article (index 1); pressing j should NOT invoke navigation
+    fireEvent.keyDown(window, { key: 'j' });
+
+    expect(mockNavigateToAdjacentEntry).not.toHaveBeenCalled();
+  });
+
+  it('does not call navigateToAdjacentEntry when pressing k at the start of the All stream', () => {
+    render(
+      <ArticleList
+        {...getMockProps({
+          selectionType: SelectionType.All,
+          navigateToAdjacentEntry: mockNavigateToAdjacentEntry,
+        })}
+      />
+    );
+
+    // Already at the first article (index 0); pressing k should NOT invoke navigation
+    fireEvent.keyDown(window, { key: 'k' });
+
+    expect(mockNavigateToAdjacentEntry).not.toHaveBeenCalled();
+  });
+
+  it('selects first article (not first unread) when switching to All stream', () => {
+    // Unread stream articles (only unread shown)
+    const unreadArticles: ArticleView[] = [
+      {
+        folderId: '1',
+        feedId: '1',
+        feedTitle: 'Test Feed',
+        id: '2',
+        title: 'Unread Article',
+        author: '',
+        html: '<p>Unread</p>',
+        url: 'https://example.com/2',
+        creationTime: 1678972809,
+        isRead: false,
+        isSaved: false,
+      },
+    ];
+
+    // All stream articles (both read and unread)
+    const allArticles: ArticleView[] = [
+      {
+        folderId: '1',
+        feedId: '1',
+        feedTitle: 'Test Feed',
+        id: '1',
+        title: 'Read Article',
+        author: '',
+        html: '<p>Read</p>',
+        url: 'https://example.com/1',
+        creationTime: 1678972810,
+        isRead: true,
+        isSaved: false,
+      },
+      {
+        folderId: '1',
+        feedId: '1',
+        feedTitle: 'Test Feed',
+        id: '2',
+        title: 'Unread Article',
+        author: '',
+        html: '<p>Unread</p>',
+        url: 'https://example.com/2',
+        creationTime: 1678972809,
+        isRead: false,
+        isSaved: false,
+      },
+    ];
+
+    const { container, rerender } = render(
+      <ArticleList
+        {...getMockProps({
+          articleEntriesCls: unreadArticles,
+          selectionKey: 'old-key' as SelectionKey,
+          selectionType: SelectionType.Unread,
+        })}
+      />
+    );
+
+    // Unread stream: first unread article is selected
+    expectArticleSelected(container, 'Unread Article', true);
+
+    // Switch to All stream — articleEntriesCls changes, triggering selection reset
+    rerender(
+      <ArticleList
+        {...getMockProps({
+          articleEntriesCls: allArticles,
+          selectionKey: 'new-key' as SelectionKey,
+          selectionType: SelectionType.All,
+        })}
+      />
+    );
+
+    // All stream: first article is selected regardless of read status
+    expectArticleSelected(container, 'Read Article', true);
   });
 
   it('does not call navigateToAdjacentEntry when pressing j before the last article', () => {

@@ -55,6 +55,9 @@ describe('FolderFeedList', () => {
 
     // Basic assertion to check if it renders without crashing
     expect(container).toBeDefined();
+    expect(screen.getByText('All items')).toBeInTheDocument();
+    expect(screen.getByText('Unread items')).toBeInTheDocument();
+    expect(screen.getByText('Saved items')).toBeInTheDocument();
     expect(screen.getByText('Test Folder 1')).toBeInTheDocument();
     expect(screen.getByText('Test Folder 2')).toBeInTheDocument();
   });
@@ -64,7 +67,11 @@ describe('FolderFeedList', () => {
     const testFaviconData =
       'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
-    const mockFolder: FolderView = { id: '1', title: 'Test Folder', unread_count: 0 };
+    const mockFolder: FolderView = {
+      id: '1',
+      title: 'Test Folder',
+      unread_count: 0,
+    };
     const mockFeed: FeedView = {
       id: '2',
       title: 'Test Feed',
@@ -130,7 +137,7 @@ describe('FolderFeedList', () => {
           {...baseProps}
           hideEmpty={true}
           selectedKey="some-other-key"
-          selectionType={SelectionType.All}
+          selectionType={SelectionType.Unread}
         />
       );
 

@@ -137,8 +137,9 @@
 .GoliathStreamSelectorSelected.MuiBox-root {
   display: flex;
   align-items: center;
-  padding-left: 12px;
-  line-height: 46px;
+  gap: 8px;
+  padding-left: 10px;
+  line-height: 35px;
   background-color: var(--primary-background-color);
   padding-right: 15px;
   transition: all 0.1s ease;
@@ -185,8 +186,9 @@
 }
 
 .GoliathFolderFeedEmptySwitchText .MuiFormControlLabel-label {
+  font-family: var(--primary-sans-serif-font), sans-serif;
   font-variant: small-caps;
-  font-size: smaller;
+  /*font-size: smaller;*/
   color: var(--primary-font-darker-1-color);
 }
 

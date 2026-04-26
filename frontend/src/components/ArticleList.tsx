@@ -33,6 +33,7 @@ import CheckCircleOutlineTwoToneIcon from '@mui/icons-material/CheckCircleOutlin
 import { FaviconCls, FeedId } from '../models/feed';
 
 const goToAllSequence = ['g', 'a'];
+const goToUnreadSequence = ['g', 'u'];
 const markAllReadSequence = ['Shift', 'I'];
 const keyBufLength = 2;
 
@@ -42,6 +43,7 @@ export interface ArticleListProps {
   selectionKey: SelectionKey;
   selectionType: SelectionType;
   selectAllCallback: () => void;
+  selectUnreadCallback: () => void;
   handleMark: (
     mark: MarkState,
     entity: SelectionKey,
@@ -59,6 +61,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   selectionKey,
   selectionType,
   selectAllCallback,
+  selectUnreadCallback,
   handleMark,
   buildTimestamp,
   buildHash,
@@ -130,16 +133,25 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
   const handleScrollUp = useCallback(() => {
     if (scrollIndex <= 0) {
-      navigateToAdjacentEntry?.(NavigationDirection.Prev);
+      if (selectionType !== SelectionType.All) {
+        navigateToAdjacentEntry?.(NavigationDirection.Prev);
+      }
       return;
     }
     handleSelectByIndex(scrollIndex - 1);
-  }, [handleSelectByIndex, scrollIndex, navigateToAdjacentEntry]);
+  }, [
+    handleSelectByIndex,
+    scrollIndex,
+    navigateToAdjacentEntry,
+    selectionType,
+  ]);
 
   const handleScrollDown = useCallback(() => {
     handleMarkArticleRead(scrollIndex);
     if (scrollIndex >= articleEntriesCls.length - 1) {
-      navigateToAdjacentEntry?.(NavigationDirection.Next);
+      if (selectionType !== SelectionType.All) {
+        navigateToAdjacentEntry?.(NavigationDirection.Next);
+      }
       return;
     }
     handleSelectByIndex(scrollIndex + 1);
@@ -149,6 +161,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     scrollIndex,
     navigateToAdjacentEntry,
     articleEntriesCls.length,
+    selectionType,
   ]);
 
   const handleOpenArticle = useCallback(
@@ -190,6 +203,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
         if (goToAllSequence.every((e, i) => e === newBuffer[i])) {
           selectAllCallback();
           return new Array(keyBufLength);
+        } else if (goToUnreadSequence.every((e, i) => e === newBuffer[i])) {
+          selectUnreadCallback();
+          return new Array(keyBufLength);
         } else if (markAllReadSequence.every((e, i) => e === newBuffer[i])) {
           handleMarkAllRead();
           return new Array(keyBufLength);
@@ -224,6 +240,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     },
     [
       selectAllCallback,
+      selectUnreadCallback,
       handleMarkAllRead,
       handleScrollDown,
       handleScrollUp,
@@ -240,28 +257,35 @@ const ArticleList: React.FC<ArticleListProps> = ({
   }, [handleKeyDown]);
 
   useEffect(() => {
-    // When the selection key changes, find the first unread article and select it.
+    // When the selection key changes, find the first article and select it.
     if (selectionKey !== selectionKeyRef.current) {
-      // TODO: This logic will need to change when we support saved items.
-      // If the stream filer changes, we should always go to the top (index 0).
-      const firstUnreadArticle = articleEntriesCls.find(
-        (article) => !article.isRead
-      );
-
-      if (firstUnreadArticle) {
-        setSelectedArticleId(firstUnreadArticle.id);
-      } else if (articleEntriesCls.length > 0) {
-        // If all are read, default to the top.
-        setSelectedArticleId(articleEntriesCls[0].id);
+      if (selectionType === SelectionType.All) {
+        // "All" stream: select first article in list
+        if (articleEntriesCls.length > 0) {
+          setSelectedArticleId(articleEntriesCls[0].id);
+        } else {
+          setSelectedArticleId(null);
+        }
       } else {
-        // If the list is empty, select nothing.
-        setSelectedArticleId(null);
+        const firstUnreadArticle = articleEntriesCls.find(
+          (article) => !article.isRead
+        );
+
+        if (firstUnreadArticle) {
+          setSelectedArticleId(firstUnreadArticle.id);
+        } else if (articleEntriesCls.length > 0) {
+          // If all are read, default to the top.
+          setSelectedArticleId(articleEntriesCls[0].id);
+        } else {
+          // If the list is empty, select nothing.
+          setSelectedArticleId(null);
+        }
       }
     }
 
     // Update ref
     selectionKeyRef.current = selectionKey;
-  }, [selectionKey, articleEntriesCls]);
+  }, [selectionKey, selectionType, articleEntriesCls]); // selectionType needed for All-stream vs Unread-stream logic
 
   const renderArticleListEntry = useCallback(
     (index: number): ReactElement => {
@@ -306,23 +330,36 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
       // The scrolling container is not trivial to figure out, but `react-list`
       // has already done the work to figure it out, so use it directly.
-      if (smoothScroll) {
-        animateScroll.scrollTo(scrollPos, {
-          // @ts-ignore
-          container: listRef.current.scrollParent,
-          isDynamic: false,
-          smooth: 'linear',
-          duration: 100,
-        });
-      } else {
+      const doScroll = () => {
         // @ts-ignore
-        listRef.current.scrollParent.scrollTo({
-          top: scrollPos,
-          behavior: 'instant',
-        });
+        if (!listRef.current?.scrollParent) return;
+        if (smoothScroll) {
+          animateScroll.scrollTo(scrollPos, {
+            // @ts-ignore
+            container: listRef.current.scrollParent,
+            isDynamic: false,
+            smooth: 'linear',
+            duration: 100,
+          });
+        } else {
+          // @ts-ignore
+          listRef.current.scrollParent.scrollTo({
+            top: scrollPos,
+            behavior: 'instant',
+          });
+        }
+      };
+
+      // When switching to "All" stream, scrollIndex is always 0.
+      // Defer the scroll to the next animation frame so react-list
+      // recalculates positions after the articles array changes.
+      if (scrollIndex === 0 && selectionType === SelectionType.All) {
+        requestAnimationFrame(doScroll);
+      } else {
+        doScroll();
       }
     }
-  }, [scrollIndex, smoothScroll, articleEntriesCls.length]);
+  }, [scrollIndex, smoothScroll, articleEntriesCls.length, selectionType]);
 
   const renderEmpty = () => (
     <Container fixed className="GoliathArticleListContainer">

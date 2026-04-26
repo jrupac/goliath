@@ -8,7 +8,8 @@ import {
   FolderSelection,
   GoliathPath,
   GoliathTheme,
-  KeyAll,
+  KeyUnread,
+  KeyAllItems,
   MarkState,
   NavigationDirection,
   SelectionKey,
@@ -61,8 +62,8 @@ export default class App extends React.Component<AppProps, AppState> {
     this.state = {
       buildTimestamp: '',
       buildHash: '',
-      selectionKey: KeyAll,
-      selectionType: SelectionType.All,
+      selectionKey: KeyUnread,
+      selectionType: SelectionType.Unread,
       status: Status.Start,
       contentTreeCls: ContentTreeCls.new(),
       theme: GoliathTheme.Dark,
@@ -134,6 +135,10 @@ export default class App extends React.Component<AppProps, AppState> {
       case SelectionType.Folder:
         functor = (m: MarkState, e: SelectionKey) =>
           this.fetchApi.MarkFolder(m, e);
+        break;
+      case SelectionType.Unread:
+        functor = (m: MarkState, e: SelectionKey) =>
+          this.fetchApi.MarkAll(m, e);
         break;
       case SelectionType.All:
         functor = (m: MarkState, e: SelectionKey) =>
@@ -313,7 +318,10 @@ export default class App extends React.Component<AppProps, AppState> {
               selectionType={selectionType}
               handleMark={this.handleMark}
               selectAllCallback={() =>
-                this.handleSelect(SelectionType.All, KeyAll)
+                this.handleSelect(SelectionType.All, KeyAllItems)
+              }
+              selectUnreadCallback={() =>
+                this.handleSelect(SelectionType.Unread, KeyUnread)
               }
               buildTimestamp={this.state.buildTimestamp}
               buildHash={this.state.buildHash}

@@ -1,19 +1,19 @@
-import {FetchAPI, LoginInfo} from "./interface";
+import { FetchAPI, LoginInfo } from './interface';
 import {
   ArticleSelection,
   FeedSelection,
   FolderSelection,
-  KeyAll,
+  KeyUnread,
   KeySaved,
   MarkState,
   SelectionKey,
-  Status
-} from "../utils/types";
-import {parseJson} from "../utils/helpers";
-import {ContentTreeCls} from "../models/contentTree";
-import {FolderCls, FolderId} from "../models/folder";
-import {FaviconCls, FeedCls, FeedId} from "../models/feed";
-import {ArticleCls, ReadStatus, SavedStatus} from "../models/article";
+  Status,
+} from '../utils/types';
+import { parseJson } from '../utils/helpers';
+import { ContentTreeCls } from '../models/contentTree';
+import { FolderCls, FolderId } from '../models/folder';
+import { FaviconCls, FeedCls, FeedId } from '../models/feed';
+import { ArticleCls, ReadStatus, SavedStatus } from '../models/article';
 import {
   GReaderHandleLogin,
   GReaderItemContent,
@@ -24,19 +24,19 @@ import {
   GReaderSubscription,
   GReaderSubscriptionList,
   GReaderTag,
-  GReaderURI
-} from "./greaderTypes";
+  GReaderURI,
+} from './greaderTypes';
 
 interface GReaderFetch {
-  uri: string,
-  init?: RequestInit,
-  formData?: FormData,
-  omitSessionToken?: boolean,
-  omitPostToken?: boolean
+  uri: string;
+  init?: RequestInit;
+  formData?: FormData;
+  omitSessionToken?: boolean;
+  omitPostToken?: boolean;
 }
 
 export default class GReader implements FetchAPI {
-  private static golaithSessionCookie: string = "goliath_token";
+  private static golaithSessionCookie: string = 'goliath_token';
 
   private folderFeeds: Map<FolderId, FeedCls[]>;
   private folderMap: Map<FolderId, FolderCls>;
@@ -48,24 +48,24 @@ export default class GReader implements FetchAPI {
     this.folderFeeds = new Map<FolderId, FeedCls[]>();
     this.folderMap = new Map<FolderId, FolderCls>();
     this.feedToArticles = new Map<FeedId, ArticleCls[]>();
-    this.sessionToken = "";
-    this.postToken = "";
+    this.sessionToken = '';
+    this.postToken = '';
   }
 
   public async HandleAuth(loginInfo: LoginInfo): Promise<boolean> {
     const formData = new FormData();
-    formData.append("Email", loginInfo.username);
-    formData.append("Passwd", loginInfo.password);
+    formData.append('Email', loginInfo.username);
+    formData.append('Passwd', loginInfo.password);
 
     const res: Response = await this.doFetch({
       uri: GReaderURI.Login,
       formData: formData,
       omitSessionToken: true,
-      omitPostToken: true
+      omitPostToken: true,
     });
 
     if (!res.ok) {
-      console.log("Login failed: " + res);
+      console.log('Login failed: ' + res);
       return false;
     }
 
@@ -75,7 +75,7 @@ export default class GReader implements FetchAPI {
     try {
       loginResult = parseJson(result);
     } catch (e) {
-      console.log("Failed to parse login result:" + e)
+      console.log('Failed to parse login result:' + e);
       return false;
     }
 
@@ -83,7 +83,7 @@ export default class GReader implements FetchAPI {
 
     // Set the session ID as a cookie to support session persistence. The
     // session token also needs to be parsed out and set as a header on calls.
-    document.cookie = GReader.golaithSessionCookie + "=" + this.sessionToken;
+    document.cookie = GReader.golaithSessionCookie + '=' + this.sessionToken;
 
     return true;
   }
@@ -96,13 +96,14 @@ export default class GReader implements FetchAPI {
       const cookie = cookies[i].trim();
       if (cookie.startsWith(GReader.golaithSessionCookie + '=')) {
         this.sessionToken = cookie.substring(
-          GReader.golaithSessionCookie.length + 1);
+          GReader.golaithSessionCookie.length + 1
+        );
         break;
       }
     }
 
-    if (this.sessionToken === "") {
-      console.log("Could not find session token in cookies.");
+    if (this.sessionToken === '') {
+      console.log('Could not find session token in cookies.');
       return false;
     }
 
@@ -111,11 +112,11 @@ export default class GReader implements FetchAPI {
     // token.
     const res: Response = await this.doFetch({
       uri: GReaderURI.Token,
-      omitPostToken: true
+      omitPostToken: true,
     });
 
     if (!res.ok) {
-      console.log("Could not create post token: " + res.statusText);
+      console.log('Could not create post token: ' + res.statusText);
       return false;
     } else {
       this.postToken = await res.text();
@@ -123,28 +124,30 @@ export default class GReader implements FetchAPI {
     }
   }
 
-  public async InitializeContent(cb: (s: Status) => void): Promise<ContentTreeCls> {
-    await Promise.all([
-      this.fetchSubscriptions(cb),
-      this.fetchArticles(cb)
-    ]);
+  public async InitializeContent(
+    cb: (s: Status) => void
+  ): Promise<ContentTreeCls> {
+    await Promise.all([this.fetchSubscriptions(cb), this.fetchArticles(cb)]);
 
     return this.buildTree();
   }
 
-  public async MarkArticle(mark: MarkState, entity: SelectionKey): Promise<Response> {
+  public async MarkArticle(
+    mark: MarkState,
+    entity: SelectionKey
+  ): Promise<Response> {
     const greaderId: string = (entity as ArticleSelection)[0] as string;
     const formData = new FormData();
 
-    let tag: string = "";
+    let tag: string = '';
     if (mark === MarkState.Read) {
       tag = GReaderTag.Read;
     } else {
-      console.log("Unexpected mark state: " + mark);
+      console.log('Unexpected mark state: ' + mark);
     }
 
-    formData.set("a", tag);
-    formData.set("i", greaderId);
+    formData.set('a', tag);
+    formData.set('i', greaderId);
 
     return this.doFetch({
       uri: GReaderURI.EditTag,
@@ -155,7 +158,7 @@ export default class GReader implements FetchAPI {
   public async MarkFeed(_: MarkState, entity: SelectionKey): Promise<Response> {
     const greaderId: string = (entity as FeedSelection)[0];
     const formData = new FormData();
-    formData.set("s", greaderId);
+    formData.set('s', greaderId);
 
     return this.doFetch({
       uri: GReaderURI.MarkAllAsRead,
@@ -163,10 +166,13 @@ export default class GReader implements FetchAPI {
     });
   }
 
-  public async MarkFolder(_: MarkState, entity: SelectionKey): Promise<Response> {
-    const greaderId: string = (entity as FolderSelection);
+  public async MarkFolder(
+    _: MarkState,
+    entity: SelectionKey
+  ): Promise<Response> {
+    const greaderId: string = entity as FolderSelection;
     const formData = new FormData();
-    formData.set("t", greaderId);
+    formData.set('t', greaderId);
 
     return this.doFetch({
       uri: GReaderURI.MarkAllAsRead,
@@ -178,12 +184,12 @@ export default class GReader implements FetchAPI {
     const formData = new FormData();
     if (entity === KeySaved) {
       // TODO: Support saved articles.
-      return Promise.reject("Marking saved articles not yet supported!");
-    } else if (entity === KeyAll) {
+      return Promise.reject('Marking saved articles not yet supported!');
+    } else if (entity === KeyUnread) {
       // Value 0 means "all folders" when marking.
-      formData.set("t", "0" as string);
+      formData.set('t', '0' as string);
     } else {
-      formData.set("t", entity as FolderSelection);
+      formData.set('t', entity as FolderSelection);
     }
 
     return this.doFetch({
@@ -192,13 +198,15 @@ export default class GReader implements FetchAPI {
     });
   }
 
-  private async fetchSubscriptions(cb: (status: Status) => void): Promise<void> {
+  private async fetchSubscriptions(
+    cb: (status: Status) => void
+  ): Promise<void> {
     const res: Response = await this.doFetch({
       uri: GReaderURI.SubscriptionList,
     });
 
     if (!res.ok) {
-      console.log("Fetching subscription list failed: %s" + res.statusText);
+      console.log('Fetching subscription list failed: %s' + res.statusText);
       return Promise.reject(res.statusText);
     }
 
@@ -220,24 +228,27 @@ export default class GReader implements FetchAPI {
     const articleContentLimit = 100;
 
     const formData = new FormData();
-    formData.set("s", GReaderStream.ReadingList);
-    formData.set("xt", GReaderTag.Read)
-    formData.set("n", articleRefLimit.toString());
+    formData.set('s', GReaderStream.ReadingList);
+    formData.set('xt', GReaderTag.Read);
+    formData.set('n', articleRefLimit.toString());
 
     const articleIdStrs = await this.fetchStreamIds(formData, articleRefLimit);
 
     for (let i = 0; i < articleIdStrs.length; i += articleContentLimit) {
       const articleContentsForm = new FormData();
-      articleIdStrs.slice(i, i + articleContentLimit).forEach(
-        ([id, _feedId, _folderId]) => articleContentsForm.append("i", id));
+      articleIdStrs
+        .slice(i, i + articleContentLimit)
+        .forEach(([id, _feedId, _folderId]) =>
+          articleContentsForm.append('i', id)
+        );
 
       const res: Response = await this.doFetch({
         uri: GReaderURI.StreamItemContents,
-        formData: articleContentsForm
+        formData: articleContentsForm,
       });
 
       if (!res.ok) {
-        console.log("Fetching item contents failed: %s" + res.statusText);
+        console.log('Fetching item contents failed: %s' + res.statusText);
         return Promise.reject(res.statusText);
       }
 
@@ -248,36 +259,45 @@ export default class GReader implements FetchAPI {
         return;
       }
 
-      streamItemContents.items.forEach(
-        (item: GReaderItemContent) => {
-          const article = new ArticleCls(
-            this.parseArticleID(item.id), item.title, "", item.summary.content,
-            item.canonical[0].href, SavedStatus.Unsaved, item.published, ReadStatus.Unread);
+      streamItemContents.items.forEach((item: GReaderItemContent) => {
+        const article = new ArticleCls(
+          this.parseArticleID(item.id),
+          item.title,
+          '',
+          item.summary.content,
+          item.canonical[0].href,
+          SavedStatus.Unsaved,
+          item.published,
+          ReadStatus.Unread
+        );
 
-          const feedId = this.parseFeedID(item.categories[1]);
-          const articles = this.feedToArticles.get(feedId);
-          if (!articles) {
-            this.feedToArticles.set(feedId, [article]);
-          } else {
-            articles.push(article);
-          }
-        });
+        const feedId = this.parseFeedID(item.categories[1]);
+        const articles = this.feedToArticles.get(feedId);
+        if (!articles) {
+          this.feedToArticles.set(feedId, [article]);
+        } else {
+          articles.push(article);
+        }
+      });
     }
 
     cb(Status.Article);
   }
 
-  private async fetchStreamIds(formData: FormData, limit: number): Promise<string[][]> {
+  private async fetchStreamIds(
+    formData: FormData,
+    limit: number
+  ): Promise<string[][]> {
     const articleIdStrs: string[][] = [];
 
-    for (; ;) {
+    for (;;) {
       const res: Response = await this.doFetch({
         uri: GReaderURI.StreamItemIds,
-        formData: formData
+        formData: formData,
       });
 
       if (!res.ok) {
-        console.log("Fetching item ids failed: %s" + res.statusText);
+        console.log('Fetching item ids failed: %s' + res.statusText);
         return Promise.reject(res.statusText);
       }
 
@@ -289,30 +309,30 @@ export default class GReader implements FetchAPI {
         break;
       }
 
-      stream.itemRefs.forEach(
-        (greaderStreamRef: GReaderItemRef) => {
-          // The ID is a 64-bit base-10 number as a string, so parse as BigInt.
-          const id: bigint = BigInt(greaderStreamRef.id);
-          const feedId: bigint = BigInt(
-            this.parseFeedID(greaderStreamRef.directStreamIds[0]));
-          const folderId: bigint = BigInt(
-            this.parseFolderID(greaderStreamRef.directStreamIds[1]));
+      stream.itemRefs.forEach((greaderStreamRef: GReaderItemRef) => {
+        // The ID is a 64-bit base-10 number as a string, so parse as BigInt.
+        const id: bigint = BigInt(greaderStreamRef.id);
+        const feedId: bigint = BigInt(
+          this.parseFeedID(greaderStreamRef.directStreamIds[0])
+        );
+        const folderId: bigint = BigInt(
+          this.parseFolderID(greaderStreamRef.directStreamIds[1])
+        );
 
-          // When requesting article IDs, pass a hex string. This seems to match
-          // other real-world client behavior.
-          articleIdStrs.push([
-            id.toString(16),
-            feedId.toString(16),
-            folderId.toString(16)
-          ]);
-        }
-      )
+        // When requesting article IDs, pass a hex string. This seems to match
+        // other real-world client behavior.
+        articleIdStrs.push([
+          id.toString(16),
+          feedId.toString(16),
+          folderId.toString(16),
+        ]);
+      });
 
       // Keep fetching until we see less than the max items returned. This can
       // also be determined by the existence of the continuation token, but
       // this is a safer approach.
       if (stream.itemRefs.length === limit) {
-        formData.set("c", stream.continuation);
+        formData.set('c', stream.continuation);
       } else {
         break;
       }
@@ -322,58 +342,57 @@ export default class GReader implements FetchAPI {
   }
 
   private populateFolderFeeds(subscriptions: GReaderSubscription[]) {
-    subscriptions.forEach(
-      (sub: GReaderSubscription) => {
-        const feed = new FeedCls(
-          this.parseFeedID(sub.id), sub.title, sub.htmlUrl, sub.htmlUrl, 0);
-        feed.SetFavicon(new FaviconCls(sub.iconUrl));
+    subscriptions.forEach((sub: GReaderSubscription) => {
+      const feed = new FeedCls(
+        this.parseFeedID(sub.id),
+        sub.title,
+        sub.htmlUrl,
+        sub.htmlUrl,
+        0
+      );
+      feed.SetFavicon(new FaviconCls(sub.iconUrl));
 
-        const folderId = this.parseFolderID(sub.categories[0].id);
-        const folderTitle = sub.categories[0].label;
+      const folderId = this.parseFolderID(sub.categories[0].id);
+      const folderTitle = sub.categories[0].label;
 
-        let folder = this.folderMap.get(folderId);
-        if (!folder) {
-          folder = new FolderCls(folderId, folderTitle);
-          this.folderMap.set(folderId, folder);
-        }
+      let folder = this.folderMap.get(folderId);
+      if (!folder) {
+        folder = new FolderCls(folderId, folderTitle);
+        this.folderMap.set(folderId, folder);
+      }
 
-        let feeds = this.folderFeeds.get(folderId);
-        if (!feeds) {
-          feeds = [];
-        }
-        feeds.push(feed);
-        this.folderFeeds.set(folderId, feeds);
-      });
+      let feeds = this.folderFeeds.get(folderId);
+      if (!feeds) {
+        feeds = [];
+      }
+      feeds.push(feed);
+      this.folderFeeds.set(folderId, feeds);
+    });
   }
 
   private buildTree(): ContentTreeCls {
     let treeCls: ContentTreeCls = ContentTreeCls.new();
 
-    this.folderMap.forEach(
-      (folder: FolderCls, folderId: FolderId) => {
-        const feeds = this.folderFeeds.get(folderId);
-        // Not all folders have feeds, so nothing more to be done here.
-        if (!feeds) {
-          return;
-        }
-
-        feeds.forEach(
-          (feed: FeedCls) => {
-            const articles = this.feedToArticles.get(feed.Id());
-            // If this is undefined, it just means that there are no *unread*
-            // articles for this feed, which is fine. Just add the empty folder
-            // to the feed.
-            if (articles !== undefined) {
-              articles.forEach(
-                (article: ArticleCls) => feed.AddArticle(article));
-            }
-            folder.AddFeed(feed);
-            feed.SetFolderId(folderId);
-          }
-        );
-        treeCls.AddFolder(folder);
+    this.folderMap.forEach((folder: FolderCls, folderId: FolderId) => {
+      const feeds = this.folderFeeds.get(folderId);
+      // Not all folders have feeds, so nothing more to be done here.
+      if (!feeds) {
+        return;
       }
-    );
+
+      feeds.forEach((feed: FeedCls) => {
+        const articles = this.feedToArticles.get(feed.Id());
+        // If this is undefined, it just means that there are no *unread*
+        // articles for this feed, which is fine. Just add the empty folder
+        // to the feed.
+        if (articles !== undefined) {
+          articles.forEach((article: ArticleCls) => feed.AddArticle(article));
+        }
+        folder.AddFeed(feed);
+        feed.SetFolderId(folderId);
+      });
+      treeCls.AddFolder(folder);
+    });
     return treeCls;
   }
 
@@ -385,7 +404,7 @@ export default class GReader implements FetchAPI {
     // Unless explicitly specified otherwise, add the authorization header
     if (!fetchParams.omitSessionToken) {
       const headers = new Headers(fetchParams.init.headers);
-      headers.append("Authorization", "GoogleLogin auth=" + this.sessionToken);
+      headers.append('Authorization', 'GoogleLogin auth=' + this.sessionToken);
       fetchParams.init.headers = headers;
 
       // Send credentials whenever we have a session token defined
@@ -398,7 +417,7 @@ export default class GReader implements FetchAPI {
       if (!fetchParams.formData) {
         fetchParams.formData = new FormData();
       }
-      fetchParams.formData.set("T", this.postToken);
+      fetchParams.formData.set('T', this.postToken);
     }
 
     // If the request has form data, override the method to 'POST' since it
@@ -418,7 +437,7 @@ export default class GReader implements FetchAPI {
     if (match && match[1]) {
       return match[1];
     } else {
-      throw new Error("Invalid article ID: " + uri);
+      throw new Error('Invalid article ID: ' + uri);
     }
   }
 
@@ -428,7 +447,7 @@ export default class GReader implements FetchAPI {
     if (match && match[1]) {
       return match[1];
     } else {
-      throw new Error("Invalid feed ID: " + uri);
+      throw new Error('Invalid feed ID: ' + uri);
     }
   }
 
@@ -438,7 +457,7 @@ export default class GReader implements FetchAPI {
     if (match && match[1]) {
       return match[1];
     } else {
-      throw new Error("Invalid folder ID: " + uri);
+      throw new Error('Invalid folder ID: ' + uri);
     }
   }
 }
