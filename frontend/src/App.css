@@ -400,6 +400,10 @@
   color: var(--article-header-read-font-color);
 }
 
+.GoliathArticleListSelected.GoliathArticleListRead.MuiPaper-root {
+  color: var(--article-header-read-font-color-selected);
+}
+
 .GoliathArticleListSelected.MuiPaper-root {
   background-color: var(--card-selected-background-color);
 }

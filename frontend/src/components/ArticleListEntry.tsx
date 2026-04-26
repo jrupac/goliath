@@ -59,12 +59,12 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
 
     let elevation = 3;
     const extraClasses = ['GoliathArticleListBase'];
-    if (selected) {
-      elevation = 10;
-      extraClasses.push('GoliathArticleListSelected');
-    } else if (articleView.isRead) {
-      elevation = 0;
+    if (articleView.isRead) {
       extraClasses.push('GoliathArticleListRead');
+      elevation = selected ? 10 : 0;
+    }
+    if (selected) {
+      extraClasses.push('GoliathArticleListSelected');
     }
 
     return (

@@ -106,6 +106,7 @@
 
   --article-header-unread-font-color: var(--primary-font-lighter-1-color);
   --article-header-read-font-color: var(--primary-font-darker-2-color);
+  --article-header-read-font-color-selected: var(--primary-font-darker-1-color);
 
   --article-feed-title-font-color: var(--primary-font-darker-3-color);
 
