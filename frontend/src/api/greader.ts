@@ -139,14 +139,16 @@ export default class GReader implements FetchAPI {
     const greaderId: string = (entity as ArticleSelection)[0] as string;
     const formData = new FormData();
 
-    let tag: string = '';
     if (mark === MarkState.Read) {
-      tag = GReaderTag.Read;
+      // Add the "read" tag to mark as read.
+      formData.set('a', GReaderTag.Read);
+    } else if (mark === MarkState.Unread) {
+      // Remove the "read" tag to mark as unread.
+      formData.set('r', GReaderTag.Read);
     } else {
       console.log('Unexpected mark state: ' + mark);
+      return Promise.reject(new Error('Unexpected mark state: ' + mark));
     }
-
-    formData.set('a', tag);
     formData.set('i', greaderId);
 
     return this.doFetch({

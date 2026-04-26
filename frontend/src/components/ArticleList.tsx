@@ -116,6 +116,22 @@ const ArticleList: React.FC<ArticleListProps> = ({
     [articleEntriesCls, handleMark]
   );
 
+  const handleToggleArticleRead = useCallback(
+    (id: ArticleId) => {
+      const articleView = articleEntriesCls.find((a) => a.id === id);
+      if (!articleView) return;
+      const newState = articleView.isRead
+        ? MarkState.Unread
+        : MarkState.Read;
+      handleMark(
+        newState,
+        [articleView.id, articleView.feedId, articleView.folderId],
+        SelectionType.Article
+      );
+    },
+    [articleEntriesCls, handleMark]
+  );
+
   const handleSelectByIndex = useCallback(
     (index: number) => {
       const newIndex = Math.max(
@@ -295,6 +311,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
           selected={index === scrollIndex}
           showPreviews={showPreviews}
           onSelect={handleClickArticle}
+          onToggleRead={handleToggleArticleRead}
         />
       );
     },
@@ -304,6 +321,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       showPreviews,
       faviconMap,
       handleClickArticle,
+      handleToggleArticleRead,
     ]
   );
 
@@ -437,7 +455,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
               title={articleView.feedTitle}
               favicon={faviconMap.get(articleView.feedId)}
               isSelected={true}
-              onMarkArticleRead={() => handleMarkArticleRead(renderIndex)}
+              onMarkArticleRead={() => handleToggleArticleRead(articleView.id)}
             />
           </Grid>
         </Grid>

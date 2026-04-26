@@ -10,6 +10,7 @@ export const enum GReaderURI {
 
 export const enum GReaderTag {
   Read = 'user/-/state/com.google/read',
+  Unread = 'user/-/state/com.google/kept-unread',
 }
 
 export const enum GReaderStream {

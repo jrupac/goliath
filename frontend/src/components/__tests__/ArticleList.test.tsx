@@ -526,4 +526,84 @@ describe('ArticleList', () => {
 
     expect(articleElements).toEqual(expectedOrder);
   });
+
+  it('toggles article read status via toggle icon click', async () => {
+    const { container } = render(<ArticleList {...getMockProps()} />);
+
+    // Find the first article entry and hover to reveal the toggle icon
+    const articleListBox = container.querySelector(
+      '.GoliathSplitViewArticleListBox'
+    ) as HTMLElement;
+    const firstEntry = articleListBox.querySelector(
+      '.GoliathArticleListBase'
+    ) as HTMLElement;
+
+    // Hover over the entry to reveal the toggle icon
+    fireEvent.mouseEnter(firstEntry);
+
+    // Small delay to let state update
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Click the toggle icon within the article list box only
+    const toggleIcon = articleListBox.querySelector(
+      '[data-testid="CheckCircleTwoToneIcon"]'
+    ) as HTMLElement;
+    fireEvent.click(toggleIcon);
+
+    // Should call handleMark with MarkState.Read to mark it as read
+    expect(mockHandleMark).toHaveBeenCalledWith(
+      MarkState.Read,
+      [mockArticles[0].id, mockArticles[0].feedId, mockArticles[0].folderId],
+      SelectionType.Article
+    );
+  });
+
+  it('toggles article from read to unread via toggle icon click', async () => {
+    const readArticle: ArticleView = {
+      folderId: '1',
+      feedId: '1',
+      feedTitle: 'Test Feed 1',
+      id: '99',
+      title: 'Read Article',
+      author: '',
+      html: '<p>Already read</p>',
+      url: 'https://example.com/99',
+      creationTime: 1678972810,
+      isRead: true,
+      isSaved: false,
+    };
+
+    const { container } = render(
+      <ArticleList
+        {...getMockProps({
+          articleEntriesCls: [readArticle, ...mockArticles],
+        })}
+      />
+    );
+
+    const articleListBox = container.querySelector(
+      '.GoliathSplitViewArticleListBox'
+    ) as HTMLElement;
+    const firstEntry = articleListBox.querySelector(
+      '.GoliathArticleListBase'
+    ) as HTMLElement;
+
+    fireEvent.mouseEnter(firstEntry);
+
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Read article should show CheckTwoToneIcon within the list box
+    const toggleIcon = articleListBox.querySelector(
+      '[data-testid="CheckTwoToneIcon"]'
+    ) as HTMLElement;
+    expect(toggleIcon).toBeInTheDocument();
+    fireEvent.click(toggleIcon);
+
+    // Should call handleMark with MarkState.Unread to mark it as unread
+    expect(mockHandleMark).toHaveBeenCalledWith(
+      MarkState.Unread,
+      [readArticle.id, readArticle.feedId, readArticle.folderId],
+      SelectionType.Article
+    );
+  });
 });

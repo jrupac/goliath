@@ -393,6 +393,7 @@
   /* Explicitly set this to avoid non-composited animations when scrolling */
   box-shadow: none;
   background-color: var(--article-list-background-color);
+  cursor: pointer;
 }
 
 .GoliathArticleListRead.MuiPaper-root {
@@ -691,4 +692,30 @@
 .GoliathArticleContentStyling.MuiCard .share_submission,
 .GoliathArticleContentStyling.MuiCardContent-root .feedflare {
   display: none;
+}
+
+/******************************************************************************
+ * Article list entry — favicon/toggle icon row
+ ******************************************************************************/
+
+.GoliathArticleListTitleRow.MuiGrid-root {
+  margin-bottom: 4px;
+  align-items: center;
+}
+
+.GoliathArticleListFaviconContainer.MuiGrid-root {
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.GoliathArticleListFaviconImg {
+  display: block;
+}
+
+.GoliathArticleListToggleIcon {
+  cursor: pointer;
+  color: var(--primary-font-color);
 }

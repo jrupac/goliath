@@ -86,7 +86,75 @@ describe('ArticleListEntry', () => {
       />
     );
 
-    const img = screen.getByRole('img', { name: 'Test Article' });
+    const img = screen.getByRole('img', { name: '' });
     expect(img).toHaveAttribute('src', testFaviconData);
+  });
+
+  it('shows CheckCircle icon on hover for unread article', () => {
+    render(
+      <ArticleListEntry
+        articleView={mockArticleView}
+        favicon={new FaviconCls('')}
+        selected={false}
+        showPreviews={false}
+      />
+    );
+    const entry = document.querySelector('.GoliathArticleListBase') as HTMLElement;
+    fireEvent.mouseEnter(entry);
+    expect(screen.getByTestId('CheckCircleTwoToneIcon')).toBeInTheDocument();
+  });
+
+  it('shows Check icon on hover for read article', () => {
+    const readArticle = { ...mockArticleView, isRead: true };
+    render(
+      <ArticleListEntry
+        articleView={readArticle}
+        favicon={new FaviconCls('')}
+        selected={false}
+        showPreviews={false}
+      />
+    );
+    const entry = document.querySelector('.GoliathArticleListBase') as HTMLElement;
+    fireEvent.mouseEnter(entry);
+    expect(screen.getByTestId('CheckTwoToneIcon')).toBeInTheDocument();
+  });
+
+  it('calls onToggleRead when toggle icon is clicked', () => {
+    const onToggleRead = vi.fn();
+    render(
+      <ArticleListEntry
+        articleView={mockArticleView}
+        favicon={new FaviconCls('')}
+        selected={false}
+        showPreviews={false}
+        onToggleRead={onToggleRead}
+      />
+    );
+    const entry = document.querySelector('.GoliathArticleListBase') as HTMLElement;
+    fireEvent.mouseEnter(entry);
+    const toggleIcon = screen.getByTestId('CheckCircleTwoToneIcon');
+    fireEvent.click(toggleIcon);
+    expect(onToggleRead).toHaveBeenCalledWith('1');
+  });
+
+  it('does not trigger onSelect when toggle icon is clicked', () => {
+    const onSelect = vi.fn();
+    const onToggleRead = vi.fn();
+    render(
+      <ArticleListEntry
+        articleView={mockArticleView}
+        favicon={new FaviconCls('')}
+        selected={false}
+        showPreviews={false}
+        onSelect={onSelect}
+        onToggleRead={onToggleRead}
+      />
+    );
+    const entry = document.querySelector('.GoliathArticleListBase') as HTMLElement;
+    fireEvent.mouseEnter(entry);
+    const toggleIcon = screen.getByTestId('CheckCircleTwoToneIcon');
+    fireEvent.click(toggleIcon);
+    expect(onToggleRead).toHaveBeenCalledTimes(1);
+    expect(onSelect).not.toHaveBeenCalled();
   });
 });

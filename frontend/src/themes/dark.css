@@ -34,11 +34,6 @@
     var(--primary-background-color) 10%,
     #000
   );
-  --primary-darker-3-color: color-mix(
-    in srgb,
-    var(--primary-background-color) 10%,
-    #000
-  );
   --primary-darker-4-color: color-mix(
     in srgb,
     var(--primary-background-color) 5%,

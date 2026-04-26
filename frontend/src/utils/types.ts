@@ -70,6 +70,7 @@ export type SelectionKey =
 /** MarkState describes the desired state of a mark operation. */
 export enum MarkState {
   Read = 0,
+  Unread = 1,
 }
 
 /** NavigationDirection describes the direction of adjacency navigation. */

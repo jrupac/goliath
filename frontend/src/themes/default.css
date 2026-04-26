@@ -129,5 +129,11 @@
 
   --code-background-color: var(--primary-darker-2-color);
 
+  --table-row-background-color: var(--primary-darker-2-color);
+  --table-border-color: var(--primary-lighter-2-color);
+  --table-header-background-color: var(--primary-darker-1-color);
+  --table-header-border-color: var(--primary-lighter-2-color);
+  --table-header-font-color: var(--primary-font-lighter-1-color);
+
   --img-border-color: var(--primary-lighter-4-color);
 }

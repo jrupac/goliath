@@ -79,6 +79,8 @@ export class ArticleCls {
   public MarkArticle(markState: MarkState): void {
     if (markState === MarkState.Read) {
       this.readStatus = ReadStatus.Read;
+    } else if (markState === MarkState.Unread) {
+      this.readStatus = ReadStatus.Unread;
     }
   }
 

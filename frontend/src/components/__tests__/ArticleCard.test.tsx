@@ -146,4 +146,52 @@ describe('ArticleCard', () => {
     // Assert that the onMarkArticleRead callback was called
     expect(mockOnMarkArticleRead).toHaveBeenCalledTimes(1);
   });
+
+  it('shows CheckCircle icon for unread article', () => {
+    const props = {
+      article: {
+        folderId: '1',
+        feedId: '1',
+        feedTitle: 'Test Feed',
+        id: '1',
+        title: 'Test Article',
+        author: '',
+        html: '<p>Test content</p>',
+        url: 'https://example.com',
+        creationTime: 1678886400,
+        isRead: false,
+        isSaved: false,
+      } as ArticleView,
+      title: 'Test Feed',
+      favicon: new FaviconCls(''),
+      isSelected: true,
+      onMarkArticleRead: () => {},
+    };
+    render(<ArticleCard {...props} />);
+    expect(screen.getByTestId('CheckCircleTwoToneIcon')).toBeInTheDocument();
+  });
+
+  it('shows Check icon for read article', () => {
+    const props = {
+      article: {
+        folderId: '1',
+        feedId: '1',
+        feedTitle: 'Test Feed',
+        id: '1',
+        title: 'Test Article',
+        author: '',
+        html: '<p>Test content</p>',
+        url: 'https://example.com',
+        creationTime: 1678886400,
+        isRead: true,
+        isSaved: false,
+      } as ArticleView,
+      title: 'Test Feed',
+      favicon: new FaviconCls(''),
+      isSelected: true,
+      onMarkArticleRead: () => {},
+    };
+    render(<ArticleCard {...props} />);
+    expect(screen.getByTestId('CheckTwoToneIcon')).toBeInTheDocument();
+  });
 });

@@ -22,6 +22,11 @@ export class ContentTreeCls {
     type: SelectionType;
     views: ArticleView[];
   } | null;
+  // Articles pinned to remain visible in filtered streams after a
+  // single-article mark. Cleared when the selection changes.
+  private pinnedArticleIds: Set<string>;
+  private lastComputedKeyStr: string | null;
+  private lastComputedType: SelectionType | null;
 
   private constructor() {
     this.tree = new Map<FolderId, FolderCls>();
@@ -29,6 +34,9 @@ export class ContentTreeCls {
     this.cachedFolderFeedView = null;
     this.cachedFaviconMap = null;
     this.cachedArticleView = null;
+    this.pinnedArticleIds = new Set();
+    this.lastComputedKeyStr = null;
+    this.lastComputedType = null;
   }
 
   private invalidateCaches(): void {
@@ -73,6 +81,11 @@ export class ContentTreeCls {
         this.unread_count -= folder.UnreadCount();
         folder.MarkArticle(articleId, feedId, markState);
         this.unread_count += folder.UnreadCount();
+
+        // Pin article so it stays visible in filtered streams after
+        // cache invalidation. Pins are cleared on next selection change.
+        this.pinnedArticleIds.add(JSON.stringify(articleId));
+        this.invalidateCaches();
         break;
       case SelectionType.Feed:
         [feedId, folderId] = key as FeedSelection;
@@ -81,6 +94,9 @@ export class ContentTreeCls {
         this.unread_count -= folder.UnreadCount();
         folder.MarkFeed(feedId, markState);
         this.unread_count += folder.UnreadCount();
+
+        this.pinnedArticleIds.clear();
+        this.invalidateCaches();
         break;
       case SelectionType.Folder:
         folderId = key as FolderSelection;
@@ -89,6 +105,9 @@ export class ContentTreeCls {
         this.unread_count -= folder.UnreadCount();
         folder.MarkFolder(markState);
         this.unread_count += folder.UnreadCount();
+
+        this.pinnedArticleIds.clear();
+        this.invalidateCaches();
         break;
       case SelectionType.Unread:
       case SelectionType.All:
@@ -96,6 +115,9 @@ export class ContentTreeCls {
           unread += f.MarkFolder(markState);
         });
         this.unread_count = unread;
+
+        this.pinnedArticleIds.clear();
+        this.invalidateCaches();
         break;
       case SelectionType.Saved:
         // TODO: Support saved articles.
@@ -106,14 +128,17 @@ export class ContentTreeCls {
     return this.unread_count;
   }
 
-  // Note: Mark() no longer calls invalidateCaches(). This is safe because
-  // FolderView/FeedView objects are mutated in place (their unread_count
-  // fields are updated directly), so the cached Map references remain live.
-  // The article view cache is evicted on selection change (different keyStr/type),
-  // which is when read filtering takes effect.
-
   public GetArticleView(key: SelectionKey, type: SelectionType): ArticleView[] {
     const keyStr = JSON.stringify(key);
+
+    // Selection changed — pins are stale, clear them before recomputing.
+    if (
+      this.lastComputedKeyStr !== null &&
+      (keyStr !== this.lastComputedKeyStr || type !== this.lastComputedType)
+    ) {
+      this.pinnedArticleIds.clear();
+    }
+
     if (
       this.cachedArticleView !== null &&
       this.cachedArticleView.keyStr === keyStr &&
@@ -124,6 +149,7 @@ export class ContentTreeCls {
 
     let articleId: ArticleId, feedId: FeedId, folderId: FolderId;
     let articleViews: ArticleView[] = [];
+    const pinned = this.pinnedArticleIds;
 
     switch (type) {
       case SelectionType.Article:
@@ -135,20 +161,24 @@ export class ContentTreeCls {
         break;
       case SelectionType.Unread:
         this.tree.forEach((f: FolderCls): void => {
-          articleViews.push(...f.GetArticleView().filter((v) => !v.isRead));
+          articleViews.push(
+            ...f
+              .GetArticleView()
+              .filter((v) => !v.isRead || pinned.has(JSON.stringify(v.id)))
+          );
         });
         break;
       case SelectionType.Folder:
         folderId = key as FolderSelection;
         articleViews = this.getFolderOrThrow(folderId)
           .GetArticleView()
-          .filter((v) => !v.isRead);
+          .filter((v) => !v.isRead || pinned.has(JSON.stringify(v.id)));
         break;
       case SelectionType.Feed:
         [feedId, folderId] = key as FeedSelection;
         articleViews = this.getFolderOrThrow(folderId)
           .GetArticleView(feedId)
-          .filter((v) => !v.isRead);
+          .filter((v) => !v.isRead || pinned.has(JSON.stringify(v.id)));
         break;
       case SelectionType.All:
         this.tree.forEach((f: FolderCls): void => {
@@ -163,6 +193,8 @@ export class ContentTreeCls {
 
     const views = ArticleCls.SortViews(articleViews);
     this.cachedArticleView = { keyStr, type, views };
+    this.lastComputedKeyStr = keyStr;
+    this.lastComputedType = type;
     return views;
   }
 

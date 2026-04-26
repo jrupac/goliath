@@ -18,7 +18,8 @@ import {
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
 import BookmarkTwoToneIcon from '@mui/icons-material/BookmarkTwoTone';
 import { ArticleView } from '../models/article';
-import CheckCircleOutlineTwoToneIcon from '@mui/icons-material/CheckCircleOutlineTwoTone';
+import CheckCircleTwoToneIcon from '@mui/icons-material/CheckCircleTwoTone';
+import CheckTwoToneIcon from '@mui/icons-material/CheckTwoTone';
 import { FaviconCls } from '../models/feed';
 
 export interface ArticleProps {
@@ -162,14 +163,18 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
               <BookmarkTwoToneIcon />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Mark article read">
+          <Tooltip title={props.article.isRead ? 'Mark as unread' : 'Mark as read'}>
             <IconButton
               aria-label="mark as read"
               onClick={() => props.onMarkArticleRead()}
               className="GoliathButton"
               size="small"
             >
-              <CheckCircleOutlineTwoToneIcon />
+              {props.article.isRead ? (
+                <CheckTwoToneIcon />
+              ) : (
+                <CheckCircleTwoToneIcon />
+              )}
             </IconButton>
           </Tooltip>
         </Box>
