@@ -133,25 +133,16 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
   const handleScrollUp = useCallback(() => {
     if (scrollIndex <= 0) {
-      if (selectionType !== SelectionType.All) {
-        navigateToAdjacentEntry?.(NavigationDirection.Prev);
-      }
+      navigateToAdjacentEntry?.(NavigationDirection.Prev);
       return;
     }
     handleSelectByIndex(scrollIndex - 1);
-  }, [
-    handleSelectByIndex,
-    scrollIndex,
-    navigateToAdjacentEntry,
-    selectionType,
-  ]);
+  }, [handleSelectByIndex, scrollIndex, navigateToAdjacentEntry]);
 
   const handleScrollDown = useCallback(() => {
     handleMarkArticleRead(scrollIndex);
     if (scrollIndex >= articleEntriesCls.length - 1) {
-      if (selectionType !== SelectionType.All) {
-        navigateToAdjacentEntry?.(NavigationDirection.Next);
-      }
+      navigateToAdjacentEntry?.(NavigationDirection.Next);
       return;
     }
     handleSelectByIndex(scrollIndex + 1);
@@ -161,7 +152,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
     scrollIndex,
     navigateToAdjacentEntry,
     articleEntriesCls.length,
-    selectionType,
   ]);
 
   const handleOpenArticle = useCallback(
