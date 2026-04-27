@@ -424,6 +424,10 @@
   text-decoration-line: none;
   font-family: var(--primary-serif-font), serif;
   font-size: 20px;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+  overflow: visible;
+  line-height: 1.2;
 }
 
 .GoliathArticleListMeta {
@@ -714,6 +718,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  height: 1lh;
 }
 
 .GoliathArticleListFaviconImg {
