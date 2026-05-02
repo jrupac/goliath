@@ -87,7 +87,7 @@
 
   /* Component colors */
   --action-bar-background-color: var(--primary-darker-2-color);
-  --action-bar-border-color: var(--primary-lighter-2-color);
+  --action-bar-border-color: var(--border-color);
 
   --article-list-background-color: var(--primary-lighter-3-color);
 
