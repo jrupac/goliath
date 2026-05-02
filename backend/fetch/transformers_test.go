@@ -40,6 +40,18 @@ func TestPrependMediaToHtml(t *testing.T) {
 			htmlContent: "<p>Hello</p>",
 			expected:    `<html><head></head><body><img src="http://example.com/image.png?a=1&amp;b=2&#34;"/><p>Hello</p></body></html>`,
 		},
+		{
+			name:        "does not prepend duplicate image already in content",
+			imgSrc:      "http://example.com/image.png",
+			htmlContent: `<p>Text</p><img src="http://example.com/image.png"/>`,
+			expected:    `<p>Text</p><img src="http://example.com/image.png"/>`,
+		},
+		{
+			name:        "prepends when a different image is already in content",
+			imgSrc:      "http://example.com/image.png",
+			htmlContent: `<p>Text</p><img src="http://example.com/other.png"/>`,
+			expected:    `<html><head></head><body><img src="http://example.com/image.png"/><p>Text</p><img src="http://example.com/other.png"/></body></html>`,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -96,6 +108,25 @@ func TestProcessItem(t *testing.T) {
 		// Also check Parsed field
 		if !strings.Contains(article.Parsed, expectedUrl) {
 			t.Errorf("article parsed content should contain absolute enclosure URL %q, but was %q", expectedUrl, article.Parsed)
+		}
+	})
+
+	t.Run("with image enclosure already present in content", func(t *testing.T) {
+		item := baseItem()
+		enclosureURL := "http://example.com/image.jpg"
+		item.Enclosures = []*rss.Enclosure{
+			{
+				URL:  enclosureURL,
+				Type: "image/jpeg",
+			},
+		}
+		item.Content = `<img src="http://example.com/image.jpg"/><p>Some content.</p>`
+
+		article := processItem(feed, item)
+
+		count := strings.Count(article.Content, enclosureURL)
+		if count != 1 {
+			t.Errorf("expected enclosure URL to appear exactly once, but appeared %d times in %q", count, article.Content)
 		}
 	})
 
