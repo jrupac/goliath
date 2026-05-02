@@ -168,11 +168,21 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     );
   };
 
-  const renderAllTitle = () => 'All items';
+  const renderAllTitle = () => {
+    return (
+      <Box className="GoliathStreamContent">
+        <span>All items</span>
+      </Box>
+    );
+  };
 
   const renderSavedItemsTitle = () => {
     // TODO: Support showing number of saved items.
-    return 'Saved items';
+    return (
+      <Box className="GoliathStreamContent">
+        <span>Saved items</span>
+      </Box>
+    );
   };
 
   const renderFolder = (folderView: FolderView) => {
@@ -308,7 +318,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         className={allSelectedClass}
       >
         <ListTwoToneIcon fontSize="small" />
-        <Box>{renderAllTitle()}</Box>
+        {renderAllTitle()}
       </Box>
 
       <Box
@@ -316,7 +326,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         className={savedSelectedClass}
       >
         <BookmarkTwoToneIcon fontSize="small" />
-        <Box>{renderSavedItemsTitle()}</Box>
+        {renderSavedItemsTitle()}
       </Box>
 
       <Box className={`${scrolledClass} GoliathFolderFeedHeader `}>

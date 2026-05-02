@@ -139,7 +139,7 @@
   align-items: center;
   gap: 8px;
   padding-left: 10px;
-  line-height: 35px;
+  min-height: 35px;
   background-color: var(--primary-background-color);
   padding-right: 15px;
   transition: all 0.1s ease;
@@ -187,9 +187,12 @@
   align-items: center;
   flex: 1;
   min-width: 0;
+  overflow-y: visible;
+}
+
+.GoliathStreamContent > span {
   text-box-trim: trim-both;
   text-box-edge: cap alphabetic;
-  overflow-y: visible;
 }
 
 /* Unread count pill — accent-colored badge */
@@ -352,6 +355,18 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+  color: white;
+}
+
+.GoliathFeedIcon span {
+  line-height: 1;
+  display: block;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
 }
 
 .GoliathFeedIconImg {
