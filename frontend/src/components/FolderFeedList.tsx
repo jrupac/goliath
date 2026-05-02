@@ -9,14 +9,15 @@ import {
   SelectionKey,
   SelectionType,
 } from '../utils/types';
-import { Box, FormGroup, Switch } from '@mui/material';
-import FormControlLabel from '@mui/material/FormControlLabel';
+import { Box, IconButton, Tooltip } from '@mui/material';
 import InboxTwoToneIcon from '@mui/icons-material/InboxTwoTone';
 import ListTwoToneIcon from '@mui/icons-material/ListTwoTone';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
 import FolderOpenTwoToneIcon from '@mui/icons-material/FolderOpenTwoTone';
+import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import { FolderView } from '../models/folder';
 import { FeedView } from '../models/feed';
 import BookmarkTwoToneIcon from '@mui/icons-material/BookmarkTwoTone';
@@ -124,6 +125,21 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     [folderFeedView]
   );
 
+  const selectedKeyString = useMemo(() => {
+    let key = '';
+    switch (selectionType) {
+      case SelectionType.Folder:
+        key = selectedKey as string;
+        break;
+      case SelectionType.Feed: {
+        const feedId = (selectedKey as string[])[0];
+        key = feedId;
+        break;
+      }
+    }
+    return key;
+  }, [selectedKey, selectionType]);
+
   const handleItemSelect = (
     _: React.SyntheticEvent | null,
     itemId: string | null
@@ -142,11 +158,16 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   };
 
   const renderUnreadTitle = () => {
-    if (unreadCount === 0) {
-      return 'Unread items';
-    } else {
-      return <b>{`(${unreadCount})  Unread items`}</b>;
-    }
+    return (
+      <Box className="GoliathStreamContent">
+        <span>Unread items</span>
+        {unreadCount > 0 && (
+          <Box className="GoliathSidebarPill">
+            {unreadCount}
+          </Box>
+        )}
+      </Box>
+    );
   };
 
   const renderAllTitle = () => 'All items';
@@ -157,15 +178,45 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   };
 
   const renderFolder = (folderView: FolderView) => {
-    if (folderView.unread_count === 0) {
-      return <span className="GoliathFolderTitle">{folderView.title}</span>;
-    } else {
-      return (
-        <span className="GoliathFolderTitle">
-          <b>{`(${folderView.unread_count})  ${folderView.title}`}</b>
+    const isSelected = selectedKeyString === folderView.id;
+    const hasUnread = folderView.unread_count > 0;
+
+    return (
+      <Box className="GoliathFolderRowContent">
+        <span
+          className={
+            hasUnread
+              ? 'GoliathFolderTitleHasUnread GoliathFolderTitle'
+              : 'GoliathFolderTitle'
+          }
+        >
+          <Tooltip title={folderView.title}>
+            <Box
+              component="span"
+              sx={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {folderView.title}
+            </Box>
+          </Tooltip>
+          {hasUnread && (
+            <Box
+              className={
+                isSelected
+                  ? 'GoliathSidebarPill'
+                  : 'GoliathSidebarPillPlain'
+              }
+            >
+              {folderView.unread_count}
+            </Box>
+          )}
         </span>
-      );
-    }
+        {!hasUnread && <Box className="GoliathSidebarPillPlaceholder" />}
+      </Box>
+    );
   };
 
   const renderFeed = (feedView: FeedView): ReactNode => {
@@ -189,65 +240,57 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     img = <span className="GoliathFeedIcon">{img}</span>;
 
     const plainTitle = plainTitles.get(feedView.id) || feedView.title;
-    let title: ReactNode;
-    if (feedView.unread_count === 0) {
-      title = <span>{plainTitle}</span>;
-    } else {
-      title = (
-        <b>
-          {`(${feedView.unread_count}) `}
-          <span>{plainTitle}</span>
-        </b>
-      );
-    }
+    const isSelected = selectedKeyString === feedView.id;
+    const hasUnread = feedView.unread_count > 0;
+
+    const pillClass = hasUnread
+      ? isSelected
+        ? 'GoliathSidebarPill'
+        : 'GoliathSidebarPillPlain'
+      : 'GoliathSidebarPillPlaceholder';
 
     return (
       <TreeItem
         key={feedView.id}
         itemId={feedView.id}
-        label={<span className="GoliathFeedTitle">{title}</span>}
+        label={
+          <span
+            className={
+              hasUnread
+                ? 'GoliathFeedRowHasUnread GoliathFeedTitle'
+                : 'GoliathFeedTitle'
+            }
+          >
+            <Box className="GoliathFeedTitleRow">
+              <Tooltip title={plainTitle}>
+                <Box className="GoliathFeedTitleText">{plainTitle}</Box>
+              </Tooltip>
+              <Box className={pillClass}>
+                {hasUnread && feedView.unread_count}
+              </Box>
+            </Box>
+          </span>
+        }
         className="GoliathFeedRow"
         slots={{ icon: () => img }}
       />
     );
   };
 
-  let selectedKeyString = '';
-  let unreadSelectedClass = 'GoliathStreamSelector';
-  let allSelectedClass = 'GoliathStreamSelector';
-  // TODO: Support saved items CSS classes.
-  let savedSelectedClass = 'GoliathStreamSelector';
+  const unreadSelectedClass =
+    !selectedKey ||
+    (selectedKey === KeyUnread && selectionType === SelectionType.Unread)
+      ? 'GoliathStreamSelectorSelected'
+      : 'GoliathStreamSelector';
 
-  if (
-    (selectedKey === KeyUnread && selectionType === SelectionType.Unread) ||
-    !selectedKey
-  ) {
-    unreadSelectedClass = 'GoliathStreamSelectorSelected';
-  } else if (
-    selectedKey === KeyAllItems &&
-    selectionType === SelectionType.All
-  ) {
-    allSelectedClass = 'GoliathStreamSelectorSelected';
-  } else if (selectedKey === KeySaved) {
-    savedSelectedClass = 'GoliathStreamSelectorSelected';
-  } else {
-    switch (selectionType) {
-      case SelectionType.Article:
-        throw new Error(
-          'Cannot render folder feed list with article selection'
-        );
-      case SelectionType.Folder:
-        selectedKeyString = selectedKey as string;
-        break;
-      case SelectionType.Feed: {
-        const feedId = selectedKey[0];
-        selectedKeyString = feedId as string;
-        break;
-      }
-      default:
-        unreadSelectedClass = 'GoliathStreamSelectorSelected';
-    }
-  }
+  const allSelectedClass =
+    selectedKey === KeyAllItems && selectionType === SelectionType.All
+      ? 'GoliathStreamSelectorSelected'
+      : 'GoliathStreamSelector';
+
+  // TODO: Support saved items CSS classes.
+  const savedSelectedClass =
+    selectedKey === KeySaved ? 'GoliathStreamSelectorSelected' : 'GoliathStreamSelector';
 
   const scrolledClass = isScrolled ? 'GoliathDrawerActionBarScrolled' : '';
 
@@ -262,7 +305,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         className={unreadSelectedClass}
       >
         <InboxTwoToneIcon fontSize="small" />
-        <Box>{renderUnreadTitle()}</Box>
+        {renderUnreadTitle()}
       </Box>
 
       <Box
@@ -283,21 +326,15 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
 
       <Box className={`${scrolledClass} GoliathFolderFeedHeader `}>
         <p className="GoliathFolderFeedTitle">feeds</p>
-        <FormGroup>
-          <FormControlLabel
-            className="GoliathFolderFeedEmptySwitchText"
-            control={
-              <Switch
-                checked={hideEmpty}
-                onChange={toggleHideEmpty}
-                className="GoliathFolderFeedEmptySwitch"
-                size="small"
-              />
-            }
-            label="hide empty"
-            labelPlacement="start"
-          ></FormControlLabel>
-        </FormGroup>
+        <Tooltip title="Hide feeds with no unread items">
+          <IconButton
+            className={hideEmpty ? 'GoliathHideEmptyButton' : ''}
+            onClick={toggleHideEmpty}
+            size="small"
+          >
+            {hideEmpty ? <FilterAltIcon /> : <FilterAltOutlinedIcon />}
+          </IconButton>
+        </Tooltip>
       </Box>
 
       <SimpleTreeView

@@ -141,7 +141,7 @@
   /* --- Modernization variables (Phase 1) --- */
 
   /* Accent — unread dots, badge fills, selected tints */
-  --accent-color: #e07a5f;
+  --accent-color: #d4634a;
   --accent-color-subtle: color-mix(in srgb, var(--accent-color) 15%, transparent);
 
   /* Borders — panel edges, card separators */
@@ -152,7 +152,7 @@
   --card-read-text-opacity: 0.6;
 
   /* Initials swatch palette (8 entries, hand-chosen) */
-  --swatch-0: #e07a5f;
+  --swatch-0: #d4634a;
   --swatch-1: #4a9ab5;
   --swatch-2: #7c6c8a;
   --swatch-3: #5aab5a;

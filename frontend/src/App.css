@@ -181,24 +181,77 @@
   color: var(--primary-font-darker-1-color);
 }
 
-.GoliathFolderFeedEmptySwitchText.MuiFormControlLabel-root {
-  margin-right: 4px;
+/* Stream row content — flex row inside nav items */
+.GoliathStreamContent {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
 }
 
-.GoliathFolderFeedEmptySwitchText .MuiFormControlLabel-label {
-  font-family: var(--primary-sans-serif-font), sans-serif;
-  font-variant: small-caps;
-  /*font-size: smaller;*/
-  color: var(--primary-font-darker-1-color);
+/* Unread count pill — accent-colored badge */
+.GoliathSidebarPill {
+  margin-left: auto;
+  background-color: var(--accent-color);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 4px;
+  border-radius: 99px;
+  white-space: nowrap;
+  line-height: 1;
 }
 
-.GoliathFolderFeedEmptySwitch.MuiSwitch-root
-  .MuiSwitch-switchBase
-  + .MuiSwitch-track,
-.GoliathFolderFeedEmptySwitch.MuiSwitch-root
-  .MuiSwitch-switchBase
-  .MuiSwitch-thumb {
-  background-color: var(--primary-lighter-4-color);
+/* Plain unread count — muted text for unselected items */
+.GoliathSidebarPillPlain {
+  margin-left: auto;
+  padding: 2px 4px;
+  color: var(--primary-font-darker-2-color);
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 18px;
+  text-align: center;
+  border-radius: 99px;
+}
+
+/* Invisible placeholder — reserves space matching pill dimensions */
+.GoliathSidebarPillPlaceholder {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 0 4px;
+  visibility: hidden;
+}
+
+/* Folder title when it has unread items */
+.GoliathFolderTitleHasUnread {
+  font-weight: 600;
+}
+
+/* Feed row with unread items */
+.GoliathFeedRowHasUnread.GoliathFeedTitle {
+  font-weight: 600;
+}
+
+/* Row content wrapper — flex row stretching full width */
+.GoliathFolderRowContent,
+.GoliathFeedTitleRow {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+/* Feed title text — truncates with ellipsis */
+.GoliathFeedTitleText {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Hide-empty button — accent color when active */
+.GoliathHideEmptyButton {
+  color: var(--accent-color);
 }
 
 .GoliathFolderFeedList {
@@ -223,9 +276,10 @@
 }
 
 .GoliathFolderFeedList .MuiTreeItem-content {
-  padding-top: 2px;
-  padding-bottom: 2px;
+  padding-top: 1px;
+  padding-bottom: 1px;
   min-height: unset;
+  align-items: center;
 }
 
 .GoliathFolderFeedList .MuiTreeItem-content:hover,
@@ -246,21 +300,24 @@
 
 .GoliathFolderRow .MuiTreeItem-content {
   padding-left: 12px;
+  padding-right: 4px;
 }
 
 .GoliathFolderTitle {
   font-family: var(--primary-sans-serif-font), sans-serif;
   color: var(--primary-font-color);
   font-size: 14px;
+  display: contents;
 }
 
 .GoliathFeedRow .MuiTreeItem-content .MuiTreeItem-iconContainer {
-  align-self: flex-start;
-  padding-top: 2px;
+  align-self: center;
 }
 
 .GoliathFeedRow .MuiTreeItem-content .MuiTreeItem-label {
-  line-height: 1.4;
+  line-height: 1.2;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .GoliathFeedIcon {
@@ -280,6 +337,8 @@
   color: var(--primary-font-color);
   font-family: var(--primary-sans-serif-font), sans-serif;
   margin: 0;
+  display: block;
+  padding: 5px 0;
 }
 
 /******************************************************************************
