@@ -73,12 +73,12 @@ describe('ArticleList', () => {
       '.GoliathSplitViewArticleListBox'
     ) as HTMLElement;
     const articleEntry = expectTextInElement(articleListBox, title);
-    expectClass(
-      articleEntry,
-      '.GoliathArticleListBase',
-      'GoliathArticleListSelected',
-      selected
-    );
+    const card = articleEntry.closest('.GoliathArticleCard');
+    expect(card).not.toBeNull();
+    if (selected) {
+      const hasSelectedClass = card.classList.contains('GoliathArticleCardUnreadSelected') || card.classList.contains('GoliathArticleCardReadSelected');
+      expect(hasSelectedClass).toBe(true);
+    }
   };
 
   let originalOffsetHeight: PropertyDescriptor | undefined;
@@ -226,7 +226,7 @@ describe('ArticleList', () => {
     const articleListBox = container.querySelector(
       '.GoliathSplitViewArticleListBox'
     ) as HTMLElement;
-    const entries = articleListBox.querySelectorAll('.GoliathArticleListBase');
+    const entries = articleListBox.querySelectorAll('.GoliathArticleCard');
     fireEvent.click(entries[1]);
 
     // Article 2 should now be selected
@@ -518,7 +518,7 @@ describe('ArticleList', () => {
     ) as HTMLElement;
     const articleElements = Array.from(
       articleListBox.querySelectorAll(
-        '.GoliathArticleListBase .GoliathArticleListTitleType'
+        '.GoliathArticleCard .GoliathArticleCardTitle'
       )
     ).map((el) => el.textContent);
 
@@ -530,23 +530,17 @@ describe('ArticleList', () => {
   it('toggles article read status via toggle icon click', async () => {
     const { container } = render(<ArticleList {...getMockProps()} />);
 
-    // Find the first article entry and hover to reveal the toggle icon
+    // The dot is always visible — find it directly in the first card
     const articleListBox = container.querySelector(
       '.GoliathSplitViewArticleListBox'
     ) as HTMLElement;
-    const firstEntry = articleListBox.querySelector(
-      '.GoliathArticleListBase'
+    const firstCard = articleListBox.querySelector(
+      '.GoliathArticleCard'
     ) as HTMLElement;
 
-    // Hover over the entry to reveal the toggle icon
-    fireEvent.mouseEnter(firstEntry);
-
-    // Small delay to let state update
-    await new Promise((r) => setTimeout(r, 0));
-
-    // Click the toggle icon within the article list box only
-    const toggleIcon = articleListBox.querySelector(
-      '[data-testid="CheckCircleTwoToneIcon"]'
+    // Click the dot icon within the first card
+    const toggleIcon = firstCard.querySelector(
+      '[data-testid="FiberManualRecordIcon"]'
     ) as HTMLElement;
     fireEvent.click(toggleIcon);
 
@@ -584,17 +578,14 @@ describe('ArticleList', () => {
     const articleListBox = container.querySelector(
       '.GoliathSplitViewArticleListBox'
     ) as HTMLElement;
-    const firstEntry = articleListBox.querySelector(
-      '.GoliathArticleListBase'
+    // First card is the read article
+    const firstCard = articleListBox.querySelector(
+      '.GoliathArticleCard'
     ) as HTMLElement;
 
-    fireEvent.mouseEnter(firstEntry);
-
-    await new Promise((r) => setTimeout(r, 0));
-
-    // Read article should show CheckTwoToneIcon within the list box
-    const toggleIcon = articleListBox.querySelector(
-      '[data-testid="CheckTwoToneIcon"]'
+    // Read article should show RadioButtonUncheckedIcon
+    const toggleIcon = firstCard.querySelector(
+      '[data-testid="RadioButtonUncheckedIcon"]'
     ) as HTMLElement;
     expect(toggleIcon).toBeInTheDocument();
     fireEvent.click(toggleIcon);

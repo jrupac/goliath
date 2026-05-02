@@ -1,10 +1,8 @@
 import React, { memo, useCallback, useMemo, useState } from 'react';
-import { Chip, Paper, Typography } from '@mui/material';
-import Grid from '@mui/material/Grid';
+import { Typography } from '@mui/material';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
 import { extractText, formatFriendly } from '../utils/helpers';
-import RssFeedIcon from '@mui/icons-material/RssFeed';
-import CheckCircleTwoToneIcon from '@mui/icons-material/CheckCircleTwoTone';
-import CheckTwoToneIcon from '@mui/icons-material/CheckTwoTone';
 import { ArticleId, ArticleView } from '../models/article';
 import { FaviconCls } from '../models/feed';
 import ImagePreview from './ImagePreview';
@@ -12,6 +10,8 @@ import ImagePreview from './ImagePreview';
 export interface ArticleListEntryProps {
   articleView: ArticleView;
   favicon: FaviconCls | undefined;
+  feedTitle: string;
+  feedId: string;
   selected: boolean;
   showPreviews: boolean;
   onSelect?: (id: ArticleId) => void;
@@ -22,32 +22,29 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
   function ArticleListEntry({
     articleView,
     favicon,
+    feedTitle,
     selected,
     showPreviews,
     onSelect,
     onToggleRead,
   }: ArticleListEntryProps) {
-    const [isHovered, setIsHovered] = useState(false);
+    const [cardHovered, setCardHovered] = useState(false);
+    const [dotHovered, setDotHovered] = useState(false);
 
-    const extractedTitle: string = useMemo(() => {
-      return extractText(articleView.title) || '';
-    }, [articleView.title]);
-    const extractedContent: string = useMemo(() => {
-      return extractText(articleView.html) || '';
-    }, [articleView.html]);
+    const extractedTitle = useMemo(
+      () => extractText(articleView.title) || '',
+      [articleView.title]
+    );
 
-    const renderMeta = () => {
-      const date = new Date(articleView.creationTime * 1000);
-      return (
-        <Chip
-          size="small"
-          className="GoliathArticleListMetaChip"
-          label={formatFriendly(date)}
-        />
-      );
-    };
+    const extractedContent = useMemo(
+      () => extractText(articleView.html) || '',
+      [articleView.html]
+    );
 
-    const faviconSrc = favicon?.GetFavicon();
+    const date = useMemo(
+      () => new Date(articleView.creationTime * 1000),
+      [articleView.creationTime]
+    );
 
     const handleToggleRead = useCallback(
       (e: React.MouseEvent) => {
@@ -57,98 +54,84 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
       [onToggleRead, articleView.id]
     );
 
-    let elevation = 3;
-    const extraClasses = ['GoliathArticleListBase'];
+    const handleSelect = useCallback(
+      () => onSelect?.(articleView.id),
+      [onSelect, articleView.id]
+    );
+
+    // Swap dot style on hover as click affordance: unread shows filled, read shows hollow.
+    // On hover, invert: read shows filled (affordance to mark unread), unread shows hollow.
+    const showFilledDot = articleView.isRead ? dotHovered : !dotHovered;
+
+    // Show favicon by default; swap to dot on card hover.
+    const faviconSrc = favicon?.GetFavicon();
+
+    const extraClasses: string[] = ['GoliathArticleCard'];
     if (articleView.isRead) {
-      extraClasses.push('GoliathArticleListRead');
-      elevation = selected ? 10 : 0;
+      extraClasses.push('GoliathArticleCardRead');
+    } else {
+      extraClasses.push('GoliathArticleCardUnread');
     }
     if (selected) {
-      extraClasses.push('GoliathArticleListSelected');
+      extraClasses.push(
+        articleView.isRead
+          ? 'GoliathArticleCardReadSelected'
+          : 'GoliathArticleCardUnreadSelected'
+      );
     }
 
     return (
-      <Paper
-        elevation={elevation}
-        square
+      <div
         className={extraClasses.join(' ')}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        onClick={onSelect ? () => onSelect(articleView.id) : undefined}
+        onClick={handleSelect}
+        onMouseEnter={() => setCardHovered(true)}
+        onMouseLeave={() => setCardHovered(false)}
       >
-        <Grid container direction="column" className="GoliathArticleListGrid">
-          <Grid sx={{ minWidth: 0 }} className="GoliathArticleListTitleGrid">
-            <Grid
-              container
-              wrap="nowrap"
-              alignItems="center"
-              spacing={1}
-              className="GoliathArticleListTitleRow"
-            >
-              <Grid className="GoliathArticleListFaviconContainer">
-                {isHovered ? (
-                  articleView.isRead ? (
-                    <CheckTwoToneIcon
-                      fontSize="small"
-                      className="GoliathArticleListToggleIcon"
-                      onClick={handleToggleRead}
-                    />
-                  ) : (
-                    <CheckCircleTwoToneIcon
-                      fontSize="small"
-                      className="GoliathArticleListToggleIcon"
-                      onClick={handleToggleRead}
-                    />
-                  )
-                ) : faviconSrc ? (
-                  <img
-                    src={faviconSrc}
-                    height={16}
-                    width={16}
-                    alt=""
-                    className="GoliathArticleListFaviconImg"
+        {/* Row 1 — source */}
+        <div className="GoliathArticleCardSource">
+          <span className="GoliathArticleCardIconSlot">
+            {cardHovered || !faviconSrc ? (
+              <span
+                className="GoliathArticleCardDot"
+                onClick={handleToggleRead}
+                onMouseEnter={() => setDotHovered(true)}
+                onMouseLeave={() => setDotHovered(false)}
+              >
+                {showFilledDot ? (
+                  <FiberManualRecordIcon
+                    fontSize="small"
+                    data-testid="FiberManualRecordIcon"
                   />
                 ) : (
-                  <RssFeedIcon fontSize="small" />
+                  <RadioButtonUncheckedIcon
+                    fontSize="small"
+                    data-testid="RadioButtonUncheckedIcon"
+                  />
                 )}
-              </Grid>
-              <Grid item xs>
-                <Typography
-                  noWrap
-                  className="GoliathArticleListTitleType"
-                >
-                  <a
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    href={articleView.url}
-                  >
-                    {extractedTitle}
-                  </a>
-                </Typography>
-              </Grid>
-            </Grid>
-          </Grid>
-          <Grid sx={{ minWidth: 0 }} size="grow">
-            <div className="GoliathArticleListMeta">{renderMeta()}</div>
-          </Grid>
-          <Grid container wrap="nowrap" className="GoliathArticleListContent">
-            {showPreviews && (
-              <Grid size="auto">
-                <ImagePreview article={articleView} />
-              </Grid>
+              </span>
+            ) : (
+              <img src={faviconSrc} alt="" />
             )}
-            <Grid
-              sx={{ minWidth: 0 }}
-              size="grow"
-              className="GoliathArticleContentPreviewGrid"
-            >
-              <Typography className="GoliathArticleContentPreview">
-                {extractedContent}
-              </Typography>
-            </Grid>
-          </Grid>
-        </Grid>
-      </Paper>
+          </span>
+          <span className="GoliathArticleCardFeedName">{feedTitle}</span>
+          <span className="GoliathArticleCardTime">{formatFriendly(date)}</span>
+        </div>
+
+        {/* Row 2 — title */}
+        <div className="GoliathArticleCardTitle">
+          <a target="_blank" rel="noopener noreferrer" href={articleView.url}>
+            {extractedTitle}
+          </a>
+        </div>
+
+        {/* Row 3 — content */}
+        <div className="GoliathArticleCardContent">
+          <Typography className="GoliathArticleCardSnippet">
+            {extractedContent}
+          </Typography>
+          {showPreviews && <ImagePreview article={articleView} />}
+        </div>
+      </div>
     );
   }
 );

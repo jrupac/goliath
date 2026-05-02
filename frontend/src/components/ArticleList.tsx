@@ -308,6 +308,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
           key={articleView.id}
           articleView={articleView}
           favicon={faviconMap.get(articleView.feedId)}
+          feedTitle={articleView.feedTitle}
+          feedId={articleView.feedId}
           selected={index === scrollIndex}
           showPreviews={showPreviews}
           onSelect={handleClickArticle}

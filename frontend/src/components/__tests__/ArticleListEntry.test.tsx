@@ -14,33 +14,82 @@ const mockArticleView: ArticleView = {
   author: '',
   html: '<p>Test content</p>',
   url: 'https://example.com',
-  creationTime: 1678886400, // March 15, 2023
+  creationTime: 1678886400,
   isRead: false,
   isSaved: false,
 };
 
 describe('ArticleListEntry', () => {
-  it('renders', () => {
+  it('renders with correct structure', () => {
     render(
       <ArticleListEntry
         articleView={mockArticleView}
         favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
         selected={false}
         showPreviews={false}
       />
     );
+    expect(document.querySelector('.GoliathArticleCard')).toBeInTheDocument();
   });
 
-  it('renders RssFeedIcon when favicon is absent', () => {
+  it('renders unread dot for unread article', () => {
     render(
       <ArticleListEntry
         articleView={mockArticleView}
-        favicon={new FaviconCls(undefined)}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
         selected={false}
         showPreviews={false}
       />
     );
-    expect(screen.getByTestId('RssFeedIcon')).toBeInTheDocument();
+    expect(screen.getByTestId('FiberManualRecordIcon')).toBeInTheDocument();
+  });
+
+  it('renders read dot for read article', () => {
+    render(
+      <ArticleListEntry
+        articleView={{ ...mockArticleView, isRead: true }}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={false}
+        showPreviews={false}
+      />
+    );
+    expect(screen.getByTestId('RadioButtonUncheckedIcon')).toBeInTheDocument();
+  });
+
+  it('renders feed name in source row', () => {
+    render(
+      <ArticleListEntry
+        articleView={mockArticleView}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={false}
+        showPreviews={false}
+      />
+    );
+    expect(screen.getByText('Test Feed')).toBeInTheDocument();
+  });
+
+  it('renders article title as link', () => {
+    render(
+      <ArticleListEntry
+        articleView={mockArticleView}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={false}
+        showPreviews={false}
+      />
+    );
+    const link = screen.getByRole('link', { name: 'Test Article' });
+    expect(link).toHaveAttribute('href', 'https://example.com');
+    expect(link).toHaveAttribute('target', '_blank');
   });
 
   it('calls onSelect when clicked', () => {
@@ -49,13 +98,15 @@ describe('ArticleListEntry', () => {
       <ArticleListEntry
         articleView={mockArticleView}
         favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
         selected={false}
         showPreviews={false}
         onSelect={onSelect}
       />
     );
-    fireEvent.click(screen.getByText('Test Article'));
-    expect(onSelect).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('link', { name: 'Test Article' }));
+    expect(onSelect).toHaveBeenCalledWith('1');
   });
 
   it('does not throw when clicked without onSelect', () => {
@@ -63,98 +114,93 @@ describe('ArticleListEntry', () => {
       <ArticleListEntry
         articleView={mockArticleView}
         favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
         selected={false}
         showPreviews={false}
       />
     );
     expect(() =>
-      fireEvent.click(screen.getByText('Test Article'))
+      fireEvent.click(screen.getByRole('link', { name: 'Test Article' }))
     ).not.toThrow();
   });
 
-  it('renders favicon avatar with correct src when favicon is provided', () => {
-    // 1x1 transparent GIF as a full data URL
-    const testFaviconData =
-      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-
-    render(
-      <ArticleListEntry
-        articleView={mockArticleView}
-        favicon={new FaviconCls(testFaviconData)}
-        selected={false}
-        showPreviews={false}
-      />
-    );
-
-    const img = screen.getByRole('img', { name: '' });
-    expect(img).toHaveAttribute('src', testFaviconData);
-  });
-
-  it('shows CheckCircle icon on hover for unread article', () => {
-    render(
-      <ArticleListEntry
-        articleView={mockArticleView}
-        favicon={new FaviconCls('')}
-        selected={false}
-        showPreviews={false}
-      />
-    );
-    const entry = document.querySelector('.GoliathArticleListBase') as HTMLElement;
-    fireEvent.mouseEnter(entry);
-    expect(screen.getByTestId('CheckCircleTwoToneIcon')).toBeInTheDocument();
-  });
-
-  it('shows Check icon on hover for read article', () => {
-    const readArticle = { ...mockArticleView, isRead: true };
-    render(
-      <ArticleListEntry
-        articleView={readArticle}
-        favicon={new FaviconCls('')}
-        selected={false}
-        showPreviews={false}
-      />
-    );
-    const entry = document.querySelector('.GoliathArticleListBase') as HTMLElement;
-    fireEvent.mouseEnter(entry);
-    expect(screen.getByTestId('CheckTwoToneIcon')).toBeInTheDocument();
-  });
-
-  it('calls onToggleRead when toggle icon is clicked', () => {
+  it('calls onToggleRead when dot is clicked', () => {
     const onToggleRead = vi.fn();
     render(
       <ArticleListEntry
         articleView={mockArticleView}
         favicon={new FaviconCls('')}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
         selected={false}
         showPreviews={false}
         onToggleRead={onToggleRead}
       />
     );
-    const entry = document.querySelector('.GoliathArticleListBase') as HTMLElement;
-    fireEvent.mouseEnter(entry);
-    const toggleIcon = screen.getByTestId('CheckCircleTwoToneIcon');
-    fireEvent.click(toggleIcon);
+    const dot = screen.getByTestId('FiberManualRecordIcon');
+    fireEvent.click(dot);
     expect(onToggleRead).toHaveBeenCalledWith('1');
   });
 
-  it('does not trigger onSelect when toggle icon is clicked', () => {
+  it('does not trigger onSelect when dot is clicked', () => {
     const onSelect = vi.fn();
     const onToggleRead = vi.fn();
     render(
       <ArticleListEntry
         articleView={mockArticleView}
         favicon={new FaviconCls('')}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
         selected={false}
         showPreviews={false}
         onSelect={onSelect}
         onToggleRead={onToggleRead}
       />
     );
-    const entry = document.querySelector('.GoliathArticleListBase') as HTMLElement;
-    fireEvent.mouseEnter(entry);
-    const toggleIcon = screen.getByTestId('CheckCircleTwoToneIcon');
-    fireEvent.click(toggleIcon);
+    const dot = screen.getByTestId('FiberManualRecordIcon');
+    fireEvent.click(dot);
     expect(onToggleRead).toHaveBeenCalledTimes(1);
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it('applies selected class when selected', () => {
+    const { rerender } = render(
+      <ArticleListEntry
+        articleView={mockArticleView}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={true}
+        showPreviews={false}
+      />
+    );
+    expect(document.querySelector('.GoliathArticleCardUnreadSelected')).toBeInTheDocument();
+
+    rerender(
+      <ArticleListEntry
+        articleView={mockArticleView}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={false}
+        showPreviews={false}
+      />
+    );
+    expect(document.querySelector('.GoliathArticleCardUnreadSelected')).not.toBeInTheDocument();
+  });
+
+  it('applies read + selected class when read and selected', () => {
+    render(
+      <ArticleListEntry
+        articleView={{ ...mockArticleView, isRead: true }}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={true}
+        showPreviews={false}
+      />
+    );
+    expect(document.querySelector('.GoliathArticleCardReadSelected')).toBeInTheDocument();
   });
 });
