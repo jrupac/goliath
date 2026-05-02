@@ -137,4 +137,27 @@
   --table-header-font-color: var(--primary-font-lighter-1-color);
 
   --img-border-color: var(--primary-lighter-1-color);
+
+  /* --- Modernization variables (Phase 1) --- */
+
+  /* Accent — unread dots, badge fills, selected tints */
+  --accent-color: #e07a5f;
+  --accent-color-subtle: color-mix(in srgb, var(--accent-color) 15%, transparent);
+
+  /* Borders — panel edges, card separators */
+  --border-color: #3d4450;
+  --border-color-subtle: #4a5060;
+
+  /* Card state opacities */
+  --card-read-text-opacity: 0.6;
+
+  /* Initials swatch palette (8 entries, hand-chosen) */
+  --swatch-0: #e07a5f;
+  --swatch-1: #4a9ab5;
+  --swatch-2: #8a6c8a;
+  --swatch-3: #5aab5a;
+  --swatch-4: #d94a68;
+  --swatch-5: #b07a10;
+  --swatch-6: #4a8a8a;
+  --swatch-7: #9a7c5a;
 }
