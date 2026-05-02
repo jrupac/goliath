@@ -74,7 +74,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   const [selectedArticleId, setSelectedArticleId] = useState<ArticleId | null>(
     null
   );
-  const [keypressBuffer, setKeypressBuffer] = useState<string[]>(
+  const [_keypressBuffer, setKeypressBuffer] = useState<string[]>(
     new Array(keyBufLength)
   );
   const [showPreviews, setShowPreviews] = useState<boolean>(true);

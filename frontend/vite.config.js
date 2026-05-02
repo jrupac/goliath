@@ -1,13 +1,13 @@
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig} from 'vite';
-import {VitePWA} from 'vite-plugin-pwa'
+import { defineConfig } from 'vite';
+import { VitePWA } from 'vite-plugin-pwa';
 import viteTsconfigPaths from 'vite-tsconfig-paths';
-import {configDefaults} from 'vitest/config';
+import { configDefaults } from 'vitest/config';
 
 export default defineConfig(() => {
   return {
-    base: "/",
+    base: '/',
     build: {
       outDir: 'build',
     },
@@ -26,29 +26,30 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         manifest: false,
         devOptions: {
-          enabled: true
-        }
-      })],
+          enabled: true,
+        },
+      }),
+    ],
     server: {
       port: 3000,
       proxy: {
-        "^(/auth|/fever|/greader|/version)": {
-          target: "http://goliath-dev:9999",
+        '^(/auth|/fever|/greader|/version)': {
+          target: 'http://goliath-dev:9999',
           changeOrigin: true,
           secure: false,
-        }
-      }
+        },
+      },
     },
     resolve: {
       alias: {
-        "@": path.resolve(__dirname, "./src"),
-      }
+        '@': path.resolve(__dirname, './src'),
+      },
     },
     test: {
       environment: 'happy-dom',
       globals: true,
       exclude: [...configDefaults.exclude, '**/e2e/**'],
-      setupFiles: ['./setupTests.ts']
-    }
+      setupFiles: ['./setupTests.ts'],
+    },
   };
 });

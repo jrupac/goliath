@@ -1,11 +1,11 @@
-import {MarkState, SelectionKey, Status} from "../utils/types";
-import {ContentTreeCls} from "../models/contentTree";
-import GReader from "./greader";
+import { MarkState, SelectionKey, Status } from '../utils/types';
+import { ContentTreeCls } from '../models/contentTree';
+import GReader from './greader';
 
 export type LoginInfo = {
-  username: string,
-  password: string
-}
+  username: string;
+  password: string;
+};
 
 export interface FetchAPI {
   // HandleLogin will attempt to authenticate the user.

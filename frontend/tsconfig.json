@@ -1,12 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2021",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "webworker",
-      "esnext",
-    ],
+    "lib": ["dom", "dom.iterable", "webworker", "esnext"],
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "downlevelIteration": true,
@@ -23,9 +18,7 @@
     "strict": true,
     "useDefineForClassFields": true
   },
-  "include": [
-    "./"
-  ],
+  "include": ["./"],
   "references": [
     {
       "path": "./tsconfig.node.json"

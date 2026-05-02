@@ -1,21 +1,21 @@
 {
-    "name": "Goliath RSS",
-    "short_name": "Goliath RSS",
-    "start_url": ".",
-    "id": ".",
-    "icons": [
-        {
-            "src": "/android-chrome-192x192.png",
-            "sizes": "192x192",
-            "type": "image/png"
-        },
-        {
-            "src": "/android-chrome-512x512.png",
-            "sizes": "512x512",
-            "type": "image/png"
-        }
-    ],
-    "theme_color": "#2b303b",
-    "background_color": "#2b303b",
-    "display": "standalone"
+  "name": "Goliath RSS",
+  "short_name": "Goliath RSS",
+  "start_url": ".",
+  "id": ".",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#2b303b",
+  "background_color": "#2b303b",
+  "display": "standalone"
 }

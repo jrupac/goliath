@@ -43,23 +43,23 @@ const useOnScreen = (ref: React.RefObject<HTMLElement>) => {
   const [isIntersecting, setIntersecting] = useState(false);
 
   useEffect(() => {
+    const element = ref.current;
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
         setIntersecting(true);
-        if (ref.current) {
-          observer.unobserve(ref.current);
+        if (element) {
+          observer.unobserve(element);
         }
       }
     });
 
-    if (ref.current) {
-      observer.observe(ref.current);
+    if (element) {
+      observer.observe(element);
     }
 
     return () => {
-      if (ref.current) {
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        observer.unobserve(ref.current);
+      if (element) {
+        observer.unobserve(element);
       }
     };
   }, [ref]);

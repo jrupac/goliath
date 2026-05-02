@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import ArticleList, { ArticleListProps } from '../ArticleList';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ArticleView } from '../../models/article';
-import { expectClass, expectTextInElement } from './helpers';
+import { expectTextInElement } from './helpers';
 import {
   MarkState,
   NavigationDirection,
@@ -75,8 +75,10 @@ describe('ArticleList', () => {
     const articleEntry = expectTextInElement(articleListBox, title);
     const card = articleEntry.closest('.GoliathArticleCard');
     expect(card).not.toBeNull();
-    if (selected) {
-      const hasSelectedClass = card.classList.contains('GoliathArticleCardUnreadSelected') || card.classList.contains('GoliathArticleCardReadSelected');
+    if (selected && card) {
+      const hasSelectedClass =
+        card.classList.contains('GoliathArticleCardUnreadSelected') ||
+        card.classList.contains('GoliathArticleCardReadSelected');
       expect(hasSelectedClass).toBe(true);
     }
   };
@@ -137,7 +139,7 @@ describe('ArticleList', () => {
     // Basic assertion to check if it renders without crashing
     expect(container).toBeDefined();
     const articleTitleElement = screen.getAllByText('Test Article 1');
-    expect(articleTitleElement).is.not.empty;
+    expect(articleTitleElement.length).toBeGreaterThan(0);
   });
 
   it('marks article as read and selects next on scroll down', () => {

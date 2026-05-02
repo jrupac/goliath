@@ -1,6 +1,6 @@
-import type {Mock} from 'vitest';
-import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {GetVersion, VersionData} from '../goliath';
+import type { Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { GetVersion, VersionData } from '../goliath';
 
 describe('GetVersion', () => {
   let mockFetch: Mock;
@@ -48,7 +48,7 @@ describe('GetVersion', () => {
   it('should return default version data when parsing fails', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      text: vi.fn().mockResolvedValue("{") // invalid returned value
+      text: vi.fn().mockResolvedValue('{'), // invalid returned value
     });
 
     const versionData = await GetVersion();

@@ -1,13 +1,13 @@
 import Greader from '../greader';
-import {LoginInfo} from '../interface';
-import type {Mock, MockInstance} from 'vitest';
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import { LoginInfo } from '../interface';
+import type { Mock, MockInstance } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('Greader', () => {
   let greader: Greader;
   let mockFetch: Mock;
   let mockSetCookie: MockInstance;
-  const loginInfo: LoginInfo = {username: 'test_user', password: 'password'};
+  const loginInfo: LoginInfo = { username: 'test_user', password: 'password' };
 
   beforeEach(() => {
     greader = new Greader();
@@ -42,7 +42,7 @@ describe('Greader', () => {
       expect.objectContaining({
         method: 'POST',
         body: expect.any(FormData),
-      }),
+      })
     );
 
     const formData = mockFetch.mock.calls[0][1].body as FormData;
@@ -68,7 +68,7 @@ describe('Greader', () => {
       expect.objectContaining({
         method: 'POST',
         body: expect.any(FormData),
-      }),
+      })
     );
 
     const formData = mockFetch.mock.calls[0][1].body as FormData;
@@ -94,7 +94,7 @@ describe('Greader', () => {
       expect.objectContaining({
         method: 'POST',
         body: expect.any(FormData),
-      }),
+      })
     );
 
     const formData = mockFetch.mock.calls[0][1].body as FormData;

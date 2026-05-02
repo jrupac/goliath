@@ -1,5 +1,5 @@
-import {describe, expect, it} from 'vitest';
-import {FetchAPIFactory} from '../interface';
+import { describe, expect, it } from 'vitest';
+import { FetchAPIFactory } from '../interface';
 import GReader from '../greader';
 
 describe('FetchAPIFactory', () => {

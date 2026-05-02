@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { act } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import {
   afterAll,
@@ -88,9 +88,11 @@ describe('ImagePreview', () => {
     render(<ImagePreview article={mockArticle} />);
 
     // Simulate the component becoming visible
-    mockIntersectionObserver.mock.results[0].value.trigger([
-      { isIntersecting: true },
-    ] as IntersectionObserverEntry[]);
+    await act(async () => {
+      mockIntersectionObserver.mock.results[0].value.trigger([
+        { isIntersecting: true },
+      ] as IntersectionObserverEntry[]);
+    });
 
     // Wait for the image to appear and verify the src
     const img = await screen.findByRole('img');
@@ -113,9 +115,11 @@ describe('ImagePreview', () => {
     ).not.toBeInTheDocument();
 
     // Simulate the component becoming visible — skeleton should appear while loading
-    mockIntersectionObserver.mock.results[0].value.trigger([
-      { isIntersecting: true },
-    ] as IntersectionObserverEntry[]);
+    await act(async () => {
+      mockIntersectionObserver.mock.results[0].value.trigger([
+        { isIntersecting: true },
+      ] as IntersectionObserverEntry[]);
+    });
 
     // Wait for the component to fully unmount after the load resolves with no image
     await waitFor(() => {

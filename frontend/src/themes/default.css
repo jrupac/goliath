@@ -142,7 +142,11 @@
 
   /* Accent — unread dots, badge fills, selected tints */
   --accent-color: #d4634a;
-  --accent-color-subtle: color-mix(in srgb, var(--accent-color) 15%, transparent);
+  --accent-color-subtle: color-mix(
+    in srgb,
+    var(--accent-color) 15%,
+    transparent
+  );
 
   /* Borders — panel edges, card separators */
   --border-color: #3d5a66;

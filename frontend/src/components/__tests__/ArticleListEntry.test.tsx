@@ -46,7 +46,9 @@ describe('ArticleListEntry', () => {
       />
     );
     expect(document.querySelector('.GoliathFeedIcon')).toBeInTheDocument();
-    expect(screen.queryByTestId('FiberManualRecordIcon')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('FiberManualRecordIcon')
+    ).not.toBeInTheDocument();
   });
 
   it('renders unread dot on hover for unread article', () => {
@@ -194,7 +196,9 @@ describe('ArticleListEntry', () => {
         showPreviews={false}
       />
     );
-    expect(document.querySelector('.GoliathArticleCardUnreadSelected')).toBeInTheDocument();
+    expect(
+      document.querySelector('.GoliathArticleCardUnreadSelected')
+    ).toBeInTheDocument();
 
     rerender(
       <ArticleListEntry
@@ -206,7 +210,9 @@ describe('ArticleListEntry', () => {
         showPreviews={false}
       />
     );
-    expect(document.querySelector('.GoliathArticleCardUnreadSelected')).not.toBeInTheDocument();
+    expect(
+      document.querySelector('.GoliathArticleCardUnreadSelected')
+    ).not.toBeInTheDocument();
   });
 
   it('applies read + selected class when read and selected', () => {
@@ -220,6 +226,8 @@ describe('ArticleListEntry', () => {
         showPreviews={false}
       />
     );
-    expect(document.querySelector('.GoliathArticleCardReadSelected')).toBeInTheDocument();
+    expect(
+      document.querySelector('.GoliathArticleCardReadSelected')
+    ).toBeInTheDocument();
   });
 });
