@@ -120,9 +120,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     (id: ArticleId) => {
       const articleView = articleEntriesCls.find((a) => a.id === id);
       if (!articleView) return;
-      const newState = articleView.isRead
-        ? MarkState.Unread
-        : MarkState.Read;
+      const newState = articleView.isRead ? MarkState.Unread : MarkState.Read;
       handleMark(
         newState,
         [articleView.id, articleView.feedId, articleView.folderId],
@@ -456,6 +454,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
               article={articleView}
               title={articleView.feedTitle}
               favicon={faviconMap.get(articleView.feedId)}
+              feedId={articleView.feedId}
               isSelected={true}
               onMarkArticleRead={() => handleToggleArticleRead(articleView.id)}
             />

@@ -177,6 +177,70 @@ export function getAdjacentFolder(
   return null;
 }
 
+const STOP_WORDS = new Set(['the', 'a', 'an', 'of', 'for']);
+
+export function getFeedInitials(title: string): string {
+  let s = title;
+  const firstColon = s.indexOf(':');
+  const firstDash = s.indexOf('-');
+  const splitIdx = Math.min(
+    firstColon >= 0 ? firstColon : s.length,
+    firstDash >= 0 ? firstDash : s.length
+  );
+  s = s.slice(0, splitIdx).trim();
+
+  const words = s.split(/\s+/).filter(Boolean);
+  const candidates = words.filter((w) => !STOP_WORDS.has(w.toLowerCase()));
+
+  function isCapitalized(w: string): boolean {
+    return (
+      w.length > 0 && w[0] === w[0].toUpperCase() && w[0] >= 'A' && w[0] <= 'Z'
+    );
+  }
+
+  function hasMultipleCaps(w: string): boolean {
+    let count = 0;
+    for (const ch of w) {
+      if (ch >= 'A' && ch <= 'Z' && count++ >= 1) return true;
+    }
+    return false;
+  }
+
+  const filtered = candidates.filter((w) => isCapitalized(w));
+  const pool = filtered.length > 0 ? filtered : candidates;
+
+  // CamelCase rule
+  for (const w of pool) {
+    if (hasMultipleCaps(w)) {
+      const caps = w.match(/[A-Z]/g);
+      return caps ? caps.slice(0, 2).join('') : '';
+    }
+  }
+
+  // Multi-word rule
+  if (pool.length >= 2) {
+    return (pool[0][0] + pool[1][0]).toUpperCase();
+  }
+
+  // Single-word rule
+  if (pool.length === 1) {
+    const w = pool[0];
+    return (w[0] + (w.length > 1 ? w[1] : w[0])).toUpperCase();
+  }
+
+  // Fallback
+  if (!title) return '';
+  return (title[0] + (title.length > 1 ? title[1] : title[0])).toUpperCase();
+}
+
+export function hashToSwatchIndex(id: string): number {
+  let h = 5381;
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 33) ^ id.charCodeAt(i);
+  }
+  return Math.abs(h) % 8;
+}
+
 export async function getPreviewImage(
   article: ArticleView
 ): Promise<ArticleImagePreview | undefined> {

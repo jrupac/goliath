@@ -14,13 +14,13 @@ import InboxTwoToneIcon from '@mui/icons-material/InboxTwoTone';
 import ListTwoToneIcon from '@mui/icons-material/ListTwoTone';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
-import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
 import FolderOpenTwoToneIcon from '@mui/icons-material/FolderOpenTwoTone';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import { FolderView } from '../models/folder';
 import { FeedView } from '../models/feed';
 import BookmarkTwoToneIcon from '@mui/icons-material/BookmarkTwoTone';
+import FeedIcon from './FeedIcon';
 
 function precomputeIdToSelectionKey(
   folderFeedView: Map<FolderView, FeedView[]>
@@ -162,9 +162,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
       <Box className="GoliathStreamContent">
         <span>Unread items</span>
         {unreadCount > 0 && (
-          <Box className="GoliathSidebarPill">
-            {unreadCount}
-          </Box>
+          <Box className="GoliathSidebarPill">{unreadCount}</Box>
         )}
       </Box>
     );
@@ -206,9 +204,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
           {hasUnread && (
             <Box
               className={
-                isSelected
-                  ? 'GoliathSidebarPill'
-                  : 'GoliathSidebarPillPlain'
+                isSelected ? 'GoliathSidebarPill' : 'GoliathSidebarPillPlain'
               }
             >
               {folderView.unread_count}
@@ -225,20 +221,16 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
       return null;
     }
 
-    let img: ReactNode;
-    if (feedView.favicon && feedView.favicon.GetFavicon()) {
-      img = (
-        <img
-          src={feedView.favicon.GetFavicon()}
-          height={16}
-          width={16}
-          alt={feedView.title}
-        />
-      );
-    } else {
-      img = <RssFeedOutlinedIcon fontSize="small" />;
-    }
-    img = <span className="GoliathFeedIcon">{img}</span>;
+    const faviconSrc = feedView.favicon?.GetFavicon();
+    const img = (
+      <FeedIcon
+        favicon={faviconSrc || ''}
+        feedTitle={feedView.title}
+        feedId={feedView.id}
+        size={16}
+        alt={feedView.title}
+      />
+    );
 
     const plainTitle = plainTitles.get(feedView.id) || feedView.title;
     const isSelected = selectedKeyString === feedView.id;
@@ -291,7 +283,9 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
 
   // TODO: Support saved items CSS classes.
   const savedSelectedClass =
-    selectedKey === KeySaved ? 'GoliathStreamSelectorSelected' : 'GoliathStreamSelector';
+    selectedKey === KeySaved
+      ? 'GoliathStreamSelectorSelected'
+      : 'GoliathStreamSelector';
 
   const scrolledClass = isScrolled ? 'GoliathDrawerActionBarScrolled' : '';
 

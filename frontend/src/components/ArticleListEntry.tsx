@@ -6,6 +6,7 @@ import { extractText, formatFriendly } from '../utils/helpers';
 import { ArticleId, ArticleView } from '../models/article';
 import { FaviconCls } from '../models/feed';
 import ImagePreview from './ImagePreview';
+import FeedIcon from './FeedIcon';
 
 export interface ArticleListEntryProps {
   articleView: ArticleView;
@@ -23,6 +24,7 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
     articleView,
     favicon,
     feedTitle,
+    feedId,
     selected,
     showPreviews,
     onSelect,
@@ -63,9 +65,6 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
     // On hover, invert: read shows filled (affordance to mark unread), unread shows hollow.
     const showFilledDot = articleView.isRead ? dotHovered : !dotHovered;
 
-    // Show favicon by default; swap to dot on card hover.
-    const faviconSrc = favicon?.GetFavicon();
-
     const extraClasses: string[] = ['GoliathArticleCard'];
     if (articleView.isRead) {
       extraClasses.push('GoliathArticleCardRead');
@@ -90,7 +89,7 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
         {/* Row 1 — source */}
         <div className="GoliathArticleCardSource">
           <span className="GoliathArticleCardIconSlot">
-            {cardHovered || !faviconSrc ? (
+            {cardHovered ? (
               <span
                 className="GoliathArticleCardDot"
                 onClick={handleToggleRead}
@@ -110,7 +109,12 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
                 )}
               </span>
             ) : (
-              <img src={faviconSrc} alt="" />
+              <FeedIcon
+                favicon={favicon?.GetFavicon() || ''}
+                feedTitle={feedTitle}
+                feedId={feedId}
+                size={16}
+              />
             )}
           </span>
           <span className="GoliathArticleCardFeedName">{feedTitle}</span>

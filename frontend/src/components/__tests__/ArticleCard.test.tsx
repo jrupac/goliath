@@ -25,6 +25,7 @@ describe('ArticleCard', () => {
       } as ArticleView,
       title: 'Test Feed',
       favicon: new FaviconCls(''),
+      feedId: '1',
       isSelected: false,
       onMarkArticleRead: () => {},
     };
@@ -54,6 +55,7 @@ describe('ArticleCard', () => {
       } as ArticleView,
       title: 'Test Feed Title',
       favicon: new FaviconCls(undefined),
+      feedId: '1',
       isSelected: false,
       onMarkArticleRead: () => {},
     };
@@ -73,9 +75,6 @@ describe('ArticleCard', () => {
       'href',
       articleUrl
     );
-
-    // Assert that the RssFeedOutlinedIcon is rendered when favicon is undefined
-    expect(screen.getByTestId('RssFeedOutlinedIcon')).toBeInTheDocument();
 
     // Assert friendly formatted date
     expect(screen.getByText(friendlyFormattedDate)).toBeInTheDocument();
@@ -102,6 +101,7 @@ describe('ArticleCard', () => {
       } as ArticleView,
       title: 'Test Feed',
       favicon: new FaviconCls(testFaviconData),
+      feedId: '1',
       isSelected: false,
       onMarkArticleRead: () => {},
     };
@@ -132,6 +132,7 @@ describe('ArticleCard', () => {
       } as ArticleView,
       title: 'Test Feed',
       favicon: new FaviconCls(''),
+      feedId: '1',
       isSelected: true, // Ensure it's selected so keydown handler is active if needed
       onMarkArticleRead: mockOnMarkArticleRead,
     };
@@ -164,6 +165,7 @@ describe('ArticleCard', () => {
       } as ArticleView,
       title: 'Test Feed',
       favicon: new FaviconCls(''),
+      feedId: '1',
       isSelected: true,
       onMarkArticleRead: () => {},
     };
@@ -188,6 +190,7 @@ describe('ArticleCard', () => {
       } as ArticleView,
       title: 'Test Feed',
       favicon: new FaviconCls(''),
+      feedId: '1',
       isSelected: true,
       onMarkArticleRead: () => {},
     };

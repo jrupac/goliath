@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getAdjacentFeed, getAdjacentFolder } from '../helpers';
+import {
+  getAdjacentFeed,
+  getAdjacentFolder,
+  getFeedInitials,
+  hashToSwatchIndex,
+} from '../helpers';
 import { NavigationDirection } from '../types';
 import { FeedView } from '../../models/feed';
 import { FolderView } from '../../models/folder';
@@ -235,5 +240,95 @@ describe('getAdjacentFolder', () => {
     const map = new Map<FolderView, FeedView[]>();
     const result = getAdjacentFolder(map, 'f1', NavigationDirection.Next);
     expect(result).toBeNull();
+  });
+});
+
+describe('getFeedInitials', () => {
+  it('strips text after colon', () => {
+    expect(getFeedInitials('MacRumors: Mac News and Rumors')).toBe('MR');
+  });
+
+  it('strips text after dash', () => {
+    expect(getFeedInitials('Ars Technica - News and Info')).toBe('AT');
+  });
+
+  it('splits on whichever separator comes first (colon or dash)', () => {
+    // Dash comes first at index 11, colon at 34 → split at dash
+    expect(getFeedInitials('The Verge - Tech Coverage: Reviews')).toBe('VE');
+    // Colon comes first at index 9, dash at 21 → split at colon
+    expect(getFeedInitials('Verge News: The Blog - Reviews')).toBe('VN');
+  });
+
+  it('filters stop words: the, a, an, of, for', () => {
+    expect(getFeedInitials('The GitHub Blog')).toBe('GH');
+    expect(getFeedInitials('A Swift Journey')).toBe('SJ');
+    expect(getFeedInitials('News of the Week')).toBe('NW');
+  });
+
+  it('applies CamelCase rule: extracts first two uppercase letters', () => {
+    expect(getFeedInitials('MacRumors')).toBe('MR');
+    expect(getFeedInitials('GitHub')).toBe('GH');
+    expect(getFeedInitials('iTunes')).toBe('IT');
+    expect(getFeedInitials('PDFMonkey')).toBe('PD');
+  });
+
+  it('applies multi-word rule when no CamelCase words exist', () => {
+    expect(getFeedInitials('Ars Technica')).toBe('AT');
+    expect(getFeedInitials('Daily Cartoon')).toBe('DC');
+    expect(getFeedInitials('Android Police')).toBe('AP');
+  });
+
+  it('applies single-word rule when exactly one candidate word remains', () => {
+    expect(getFeedInitials('Engadget')).toBe('EN');
+    expect(getFeedInitials('xkcd')).toBe('XK');
+    expect(getFeedInitials('Reddit')).toBe('RE');
+  });
+
+  it('handles a single-character word', () => {
+    expect(getFeedInitials('A')).toBe('AA');
+  });
+
+  it('falls back to first two characters for edge cases', () => {
+    expect(getFeedInitials('1')).toBe('11');
+  });
+
+  it('returns empty string for empty input', () => {
+    expect(getFeedInitials('')).toBe('');
+  });
+
+  it('handles stop-word-only input', () => {
+    expect(getFeedInitials('the a an of for')).toBe('TH');
+  });
+
+  it('handles all stop words plus one word', () => {
+    expect(getFeedInitials('the a an of for Wirecutter')).toBe('WI');
+  });
+});
+
+describe('hashToSwatchIndex', () => {
+  it('returns a value between 0 and 7 inclusive', () => {
+    for (let i = 0; i < 1000; i++) {
+      const idx = hashToSwatchIndex(`feed-${i}`);
+      expect(idx).toBeGreaterThanOrEqual(0);
+      expect(idx).toBeLessThan(8);
+    }
+  });
+
+  it('returns deterministic results for the same input', () => {
+    const id = 'feed-12345';
+    expect(hashToSwatchIndex(id)).toBe(hashToSwatchIndex(id));
+  });
+
+  it('returns different indices for different inputs', () => {
+    const indices = new Set<number>();
+    for (let i = 0; i < 100; i++) {
+      indices.add(hashToSwatchIndex(`feed-${i}`));
+    }
+    // With 8 buckets and 100 inputs, expect at least a few distinct values
+    expect(indices.size).toBeGreaterThan(1);
+  });
+
+  it('returns 5 for empty string (djb2 base hash)', () => {
+    expect(hashToSwatchIndex('')).toBe(5);
   });
 });

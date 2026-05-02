@@ -15,7 +15,7 @@ import {
   formatFull,
   makeAbsolute,
 } from '../utils/helpers';
-import RssFeedOutlinedIcon from '@mui/icons-material/RssFeedOutlined';
+import FeedIcon from './FeedIcon';
 import BookmarkTwoToneIcon from '@mui/icons-material/BookmarkTwoTone';
 import { ArticleView } from '../models/article';
 import CheckCircleTwoToneIcon from '@mui/icons-material/CheckCircleTwoTone';
@@ -26,6 +26,7 @@ export interface ArticleProps {
   article: ArticleView;
   title: string;
   favicon: FaviconCls | undefined;
+  feedId: string;
   isSelected: boolean;
   onMarkArticleRead: () => void;
 }
@@ -115,15 +116,6 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
     headerClass = 'GoliathArticleHeaderRead';
   }
 
-  const renderFavicon = (): ReactNode => {
-    const favicon: string | undefined = props.favicon?.GetFavicon();
-    if (favicon) {
-      return <img src={favicon} height={16} width={16} alt="" />;
-    } else {
-      return <RssFeedOutlinedIcon fontSize="small" />;
-    }
-  };
-
   const getArticleContent = (): string => {
     if (state.showParsed) {
       // This field is checked for non-nullity before being set.
@@ -150,7 +142,12 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
     <Stack className="GoliathArticleCardColumn">
       <Box className="GoliathSplitViewArticleCardActionBar">
         <Box className="GoliathArticleFeed">
-          {renderFavicon()}
+          <FeedIcon
+            favicon={props.favicon?.GetFavicon() || ''}
+            feedTitle={feedTitle}
+            feedId={props.feedId}
+            size={16}
+          />
           <p className="GoliathArticleFeedTitle">{feedTitle}</p>
         </Box>
         <Box className="GoliathHeaderActionButtons">
@@ -163,7 +160,9 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
               <BookmarkTwoToneIcon />
             </IconButton>
           </Tooltip>
-          <Tooltip title={props.article.isRead ? 'Mark as unread' : 'Mark as read'}>
+          <Tooltip
+            title={props.article.isRead ? 'Mark as unread' : 'Mark as read'}
+          >
             <IconButton
               aria-label="mark as read"
               onClick={() => props.onMarkArticleRead()}

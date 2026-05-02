@@ -34,7 +34,7 @@ describe('ArticleListEntry', () => {
     expect(document.querySelector('.GoliathArticleCard')).toBeInTheDocument();
   });
 
-  it('renders unread dot for unread article', () => {
+  it('shows FeedIcon (initials) when not hovered and no favicon', () => {
     render(
       <ArticleListEntry
         articleView={mockArticleView}
@@ -45,10 +45,26 @@ describe('ArticleListEntry', () => {
         showPreviews={false}
       />
     );
+    expect(document.querySelector('.GoliathFeedIcon')).toBeInTheDocument();
+    expect(screen.queryByTestId('FiberManualRecordIcon')).not.toBeInTheDocument();
+  });
+
+  it('renders unread dot on hover for unread article', () => {
+    render(
+      <ArticleListEntry
+        articleView={mockArticleView}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={false}
+        showPreviews={false}
+      />
+    );
+    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
     expect(screen.getByTestId('FiberManualRecordIcon')).toBeInTheDocument();
   });
 
-  it('renders read dot for read article', () => {
+  it('renders read dot on hover for read article', () => {
     render(
       <ArticleListEntry
         articleView={{ ...mockArticleView, isRead: true }}
@@ -59,6 +75,7 @@ describe('ArticleListEntry', () => {
         showPreviews={false}
       />
     );
+    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
     expect(screen.getByTestId('RadioButtonUncheckedIcon')).toBeInTheDocument();
   });
 
@@ -138,6 +155,7 @@ describe('ArticleListEntry', () => {
         onToggleRead={onToggleRead}
       />
     );
+    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
     const dot = screen.getByTestId('FiberManualRecordIcon');
     fireEvent.click(dot);
     expect(onToggleRead).toHaveBeenCalledWith('1');
@@ -158,6 +176,7 @@ describe('ArticleListEntry', () => {
         onToggleRead={onToggleRead}
       />
     );
+    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
     const dot = screen.getByTestId('FiberManualRecordIcon');
     fireEvent.click(dot);
     expect(onToggleRead).toHaveBeenCalledTimes(1);

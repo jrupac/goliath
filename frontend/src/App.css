@@ -427,8 +427,8 @@
   justify-content: center;
 }
 
-/* Fixed-size icon slot — same size as dot, clips favicon to matching circle
-   so swapping between favicon and dot produces no layout shift on hover. */
+/* Fixed-size icon slot — clips dot icons to matching circle so swapping between
+   favicon and dot produces no layout shift on hover. Favicons are circular via FeedIcon. */
 .GoliathArticleCardIconSlot {
   width: 16px;
   height: 16px;
@@ -438,13 +438,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.GoliathArticleCardIconSlot img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
 }
 
 .GoliathArticleCardFeedName {

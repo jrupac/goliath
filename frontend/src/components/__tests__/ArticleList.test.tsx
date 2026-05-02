@@ -530,7 +530,6 @@ describe('ArticleList', () => {
   it('toggles article read status via toggle icon click', async () => {
     const { container } = render(<ArticleList {...getMockProps()} />);
 
-    // The dot is always visible — find it directly in the first card
     const articleListBox = container.querySelector(
       '.GoliathSplitViewArticleListBox'
     ) as HTMLElement;
@@ -538,7 +537,7 @@ describe('ArticleList', () => {
       '.GoliathArticleCard'
     ) as HTMLElement;
 
-    // Click the dot icon within the first card
+    fireEvent.mouseEnter(firstCard);
     const toggleIcon = firstCard.querySelector(
       '[data-testid="FiberManualRecordIcon"]'
     ) as HTMLElement;
@@ -583,7 +582,7 @@ describe('ArticleList', () => {
       '.GoliathArticleCard'
     ) as HTMLElement;
 
-    // Read article should show RadioButtonUncheckedIcon
+    fireEvent.mouseEnter(firstCard);
     const toggleIcon = firstCard.querySelector(
       '[data-testid="RadioButtonUncheckedIcon"]'
     ) as HTMLElement;
