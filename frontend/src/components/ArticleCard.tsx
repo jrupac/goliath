@@ -1,14 +1,5 @@
 import React, { ReactNode, useCallback, useEffect, useState } from 'react';
-import {
-  Box,
-  Card,
-  CardHeader,
-  Chip,
-  IconButton,
-  Skeleton,
-  Stack,
-  Tooltip,
-} from '@mui/material';
+import { Box, IconButton, Skeleton, Stack, Tooltip } from '@mui/material';
 import {
   fetchReadability,
   formatFriendly,
@@ -16,10 +7,13 @@ import {
   makeAbsolute,
 } from '../utils/helpers';
 import FeedIcon from './FeedIcon';
-import BookmarkTwoToneIcon from '@mui/icons-material/BookmarkTwoTone';
-import { ArticleView } from '../models/article';
+import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import BookmarkIcon from '@mui/icons-material/Bookmark';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CheckCircleTwoToneIcon from '@mui/icons-material/CheckCircleTwoTone';
-import CheckTwoToneIcon from '@mui/icons-material/CheckTwoTone';
+import ChromeReaderModeOutlinedIcon from '@mui/icons-material/ChromeReaderModeOutlined';
+import ChromeReaderModeIcon from '@mui/icons-material/ChromeReaderMode';
+import { ArticleView } from '../models/article';
 import { FaviconCls } from '../models/feed';
 
 export interface ArticleProps {
@@ -109,12 +103,7 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
 
   const date = new Date(props.article.creationTime * 1000);
   const feedTitle = props.title;
-
-  let headerClass = '';
-
-  if (props.article.isRead) {
-    headerClass = 'GoliathArticleHeaderRead';
-  }
+  const faviconSrc = props.favicon?.GetFavicon() || '';
 
   const getArticleContent = (): string => {
     if (state.showParsed) {
@@ -140,83 +129,84 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
 
   return (
     <Stack className="GoliathArticleCardColumn">
-      <Box className="GoliathSplitViewArticleCardActionBar">
-        <Box className="GoliathArticleFeed">
-          <FeedIcon
-            favicon={props.favicon?.GetFavicon() || ''}
-            feedTitle={feedTitle}
-            feedId={props.feedId}
-            size={16}
-          />
-          <p className="GoliathArticleFeedTitle">{feedTitle}</p>
-        </Box>
-        <Box className="GoliathHeaderActionButtons">
-          <Tooltip title="Save article">
-            <IconButton
-              aria-label="save article"
-              className="GoliathButton"
-              size="small"
-            >
-              <BookmarkTwoToneIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip
-            title={props.article.isRead ? 'Mark as unread' : 'Mark as read'}
+      {/* Toolbar — fixed, no feed identity */}
+      <Box className="GoliathArticleToolbar">
+        <Tooltip title="Save article">
+          <IconButton
+            aria-label="save article"
+            className="GoliathButton"
+            size="small"
+            onClick={() => {}}
           >
-            <IconButton
-              aria-label="mark as read"
-              onClick={() => props.onMarkArticleRead()}
-              className="GoliathButton"
-              size="small"
-            >
-              {props.article.isRead ? (
-                <CheckTwoToneIcon />
-              ) : (
-                <CheckCircleTwoToneIcon />
-              )}
-            </IconButton>
-          </Tooltip>
-        </Box>
+            {props.article.isSaved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+          </IconButton>
+        </Tooltip>
+        <Tooltip
+          title={props.article.isRead ? 'Mark as unread' : 'Mark as read'}
+        >
+          <IconButton
+            aria-label="mark as read"
+            onClick={() => props.onMarkArticleRead()}
+            className="GoliathButton"
+            size="small"
+          >
+            {props.article.isRead ? (
+              <CheckCircleOutlineIcon />
+            ) : (
+              <CheckCircleTwoToneIcon />
+            )}
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Reader mode (m)">
+          <IconButton
+            aria-label="reader mode"
+            className={`GoliathButton${state.showParsed ? ' GoliathReaderModeActive' : ''}`}
+            size="small"
+            onClick={toggleParseContent}
+          >
+            {state.showParsed ? (
+              <ChromeReaderModeIcon />
+            ) : (
+              <ChromeReaderModeOutlinedIcon />
+            )}
+          </IconButton>
+        </Tooltip>
       </Box>
+
+      {/* Article scroll area */}
       <Box className="GoliathSplitViewArticleContainer">
-        <Card elevation={0} className="GoliathHeaderContainer">
-          <CardHeader
-            disableTypography={true}
-            className={`GoliathArticleHeader ${headerClass}`}
-            title={
-              <div>
-                <Box className="GoliathArticleTitle">
-                  <a
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    href={props.article.url}
-                  >
-                    <div>
-                      <div
-                        dangerouslySetInnerHTML={{
-                          __html: props.article.title,
-                        }}
-                      />
-                    </div>
-                  </a>
-                </Box>
-              </div>
-            }
-            subheader={
-              <Box className="GoliathArticleSubheader">
-                <Box className="GoliathArticleMeta">
-                  <Tooltip title={formatFull(date)}>
-                    <Chip
-                      size="small"
-                      className="GoliathArticleDate"
-                      label={formatFriendly(date)}
-                    />
-                  </Tooltip>
-                </Box>
-              </Box>
-            }
-          />
-        </Card>
+        {/* Sticky header: byline + title with blur backdrop */}
+        <Box className="GoliathArticleHeaderSticky">
+          {/* Byline row */}
+          <Box className="GoliathArticleByline">
+            <FeedIcon
+              favicon={faviconSrc}
+              feedTitle={feedTitle}
+              feedId={props.feedId}
+              size={16}
+            />
+            <span className="GoliathArticleBylineText">{feedTitle}</span>
+            <span className="GoliathArticleBylineSep">·</span>
+            <Tooltip title={formatFull(date)}>
+              <span className="GoliathArticleBylineDate">
+                {formatFriendly(date)}
+              </span>
+            </Tooltip>
+          </Box>
+
+          {/* Article title */}
+          <h1 className="GoliathArticleTitle">
+            <a
+              target="_blank"
+              rel="noopener noreferrer"
+              href={props.article.url}
+            >
+              <span dangerouslySetInnerHTML={{ __html: props.article.title }} />
+            </a>
+          </h1>
+        </Box>
+
+        {/* Article content */}
         <div className="GoliathSplitViewArticleContent GoliathArticleContentStyling">
           {renderContent()}
         </div>

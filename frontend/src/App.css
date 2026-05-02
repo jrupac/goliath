@@ -187,6 +187,9 @@
   align-items: center;
   flex: 1;
   min-width: 0;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+  overflow-y: visible;
 }
 
 /* Unread count pill — accent-colored badge */
@@ -253,8 +256,8 @@
 }
 
 /* Feed/folder title text — truncates with ellipsis */
-.GoliathFeedTitleText,
-.GoliathFolderTitleText {
+.GoliathFeedTitleText.MuiBox-root,
+.GoliathFolderTitleText.MuiBox-root {
   min-width: 0;
   flex: 1;
   overflow-x: clip;
@@ -262,6 +265,7 @@
   white-space: nowrap;
   text-box-trim: trim-both;
   text-box-edge: cap alphabetic;
+  overflow-y: visible;
 }
 
 /* Hide-empty button — accent color when active */
@@ -583,24 +587,6 @@
   flex-grow: 1;
 }
 
-.GoliathArticleFeed {
-  align-items: center;
-  font-size: 16px;
-  display: flex;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.GoliathArticleFeedTitle {
-  padding-left: 5px;
-  font-family: var(--primary-sans-serif-font), sans-serif;
-  color: var(--primary-font-color);
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .GoliathArticleListImagePreviewFigure {
   width: 100px;
   height: 100px;
@@ -623,6 +609,93 @@
 
 .GoliathArticleCardColumn {
   height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Toolbar — fixed top bar with action icons */
+.GoliathArticleToolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px;
+  background-color: var(--action-bar-background-color);
+  border-bottom: 1px solid var(--action-bar-border-color);
+  flex-shrink: 0;
+}
+
+/* Scroll container — fills remaining viewport height after toolbar */
+.GoliathSplitViewArticleContainer {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--article-background-color);
+  color: var(--article-font-color);
+}
+
+/* Reader mode button — accent color when active */
+.GoliathReaderModeActive {
+  color: var(--accent-color) !important;
+}
+
+/* Sticky header wrapper — byline + title with blur backdrop */
+.GoliathArticleHeaderSticky {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--card-header-background-color);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  /*border-bottom: 1px solid var(--action-bar-border-color);*/
+}
+
+/* Byline row — inline: [icon] feed title · date */
+.GoliathArticleByline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px 0px 16px;
+  font-size: 13px;
+  color: var(--primary-font-darker-1-color);
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  white-space: nowrap;
+}
+
+.GoliathArticleBylineText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.GoliathArticleBylineSep {
+  margin: 0 2px;
+  color: var(--primary-font-darker-2-color);
+  flex-shrink: 0;
+}
+
+.GoliathArticleBylineDate {
+  white-space: nowrap;
+  color: var(--primary-font-darker-2-color);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* Article title — plain styled element replacing CardHeader */
+.GoliathArticleTitle {
+  width: 100%;
+  font-family: var(--primary-sans-serif-font), serif;
+  font-size: 32px;
+  font-weight: normal;
+  padding: 0 16px 10px 16px;
+  margin: 0;
+}
+
+.GoliathArticleTitle a {
+  color: var(--article-font-color);
+  text-decoration: none;
+  overflow-wrap: break-word;
 }
 
 .GoliathSplitViewArticleOuter {
@@ -631,104 +704,11 @@
   min-width: 0;
 }
 
-.GoliathSplitViewArticleContainer {
-  overflow-y: auto;
-  background: var(--article-background-color);
-  color: var(--article-font-color);
-}
-
-.GoliathSplitViewArticleContainer .MuiCard-root {
-  background-color: var(--card-header-background-color);
-  backdrop-filter: blur(10px);
-}
-
-.GoliathHeaderContainer .MuiCardHeader-root {
-  padding: 0;
-}
-
-.GoliathHeaderContainer {
-  position: sticky;
-  top: 0;
-}
-
-.GoliathArticleHeader {
-  display: flex;
-  align-items: stretch;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--action-bar-border-color);
-}
-
-.GoliathArticleHeader p,
-.GoliathArticleHeader a {
-  color: var(--article-header-unread-font-color);
-  text-decoration: none;
-}
-
-.GoliathArticleHeaderRead p,
-.GoliathArticleHeaderRead a {
-  color: var(--article-header-read-font-color);
-  text-decoration: none;
-}
-
-.GoliathArticleTitle {
-  width: 100%;
-  font-family: var(--primary-serif-font), serif;
-  font-size: 24px;
-  padding: 10px 10px 0 24px;
-}
-
-.GoliathArticleTitle a {
-  overflow-wrap: break-word;
-  color: var(--article-font-color);
-}
-
-.GoliathSplitViewArticleCardActionBar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px;
-  background-color: var(--action-bar-background-color);
-  border-bottom: 1px solid var(--action-bar-border-color);
-}
-
-.GoliathHeaderActionButtons {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.GoliathArticleSubheader {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 0 24px 10px 24px;
-}
-
-.GoliathArticleMeta {
-  display: flex;
-  padding-top: 5px;
-  line-height: 16px;
-  font-family: var(--primary-serif-font), serif;
-}
-
-.GoliathArticleDate.MuiChip-root {
-  color: var(--article-date-color);
-  font-family: var(--primary-sans-serif-font), sans-serif;
-}
-
-.GoliathArticleContent {
-  font-size: 16px;
-  font-family: var(--primary-serif-font), serif;
-  color: var(--article-font-color);
-  padding: 0 0 0 30px;
-}
-
 .GoliathSplitViewArticleContent {
   font-size: 18px;
-  font-family: var(--primary-serif-font), serif;
+  font-family: var(--primary-sans-serif-font), serif;
   color: var(--article-font-color);
   padding: 24px;
-  height: 100vh;
   max-width: 100%;
 }
 
@@ -744,7 +724,7 @@
 
 .GoliathArticleContent {
   font-size: 18px;
-  font-family: var(--primary-serif-font), serif;
+  font-family: var(--primary-sans-serif-font), serif;
   color: var(--article-font-color);
   padding: 24px;
 }
@@ -817,24 +797,8 @@
   margin: 0 auto;
 }
 
-.GoliathArticleContentStyling.MuiCardContent-root figure {
-  display: flex;
-  margin: 0 auto;
-  max-width: 75%;
-  flex-direction: column;
-  padding-bottom: 10px;
-}
-
-.GoliathArticleContentStyling.MuiCardContent-root figure p,
-.GoliathArticleContentStyling.MuiCardContent-root figcaption {
-  text-align: center;
-  padding-top: 10px;
-  font-size: smaller;
-  font-weight: bold;
-}
-
 /* Hide some elements that clutter article display. */
-.GoliathArticleContentStyling.MuiCard .share_submission,
-.GoliathArticleContentStyling.MuiCardContent-root .feedflare {
+.GoliathArticleContentStyling .share_submission,
+.GoliathArticleContentStyling .feedflare {
   display: none;
 }

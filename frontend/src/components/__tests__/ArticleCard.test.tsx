@@ -195,6 +195,6 @@ describe('ArticleCard', () => {
       onMarkArticleRead: () => {},
     };
     render(<ArticleCard {...props} />);
-    expect(screen.getByTestId('CheckTwoToneIcon')).toBeInTheDocument();
+    expect(screen.getByTestId('CheckCircleOutlineIcon')).toBeInTheDocument();
   });
 });
