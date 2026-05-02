@@ -152,6 +152,9 @@
   --border-color: #3d5a66;
   --border-color-subtle: #4a6a78;
 
+  /* Favicon background — light neutral so transparent favicons stay legible */
+  --favicon-background-color: #e8eef0;
+
   /* Card state opacities */
   --card-read-text-opacity: 0.6;
 

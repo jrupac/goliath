@@ -23,42 +23,20 @@ const FeedIcon: React.FC<FeedIconProps> = ({
         width={size}
         height={size}
         alt={alt}
-        style={{
-          borderRadius: '50%',
-          objectFit: 'cover',
-          display: 'block',
-        }}
+        className="GoliathFeedIconImg"
       />
     );
   }
 
   const initials = getFeedInitials(feedTitle);
   const swatchIndex = hashToSwatchIndex(feedId);
-  const fontSize = Math.round(size * 0.45);
 
   return (
     <div
       className="GoliathFeedIcon"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: `var(--swatch-${swatchIndex})`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-      }}
+      style={{ background: `var(--swatch-${swatchIndex})` }}
     >
-      <span
-        style={{
-          color: 'white',
-          fontWeight: 600,
-          fontSize,
-        }}
-      >
-        {initials}
-      </span>
+      <span>{initials}</span>
     </div>
   );
 };

@@ -346,6 +346,20 @@
 .GoliathFeedIcon {
   height: 16px;
   width: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.GoliathFeedIconImg {
+  border-radius: 50%;
+  object-fit: cover;
+  background-color: var(--favicon-background-color);
+  box-shadow: 0 0 0 1px var(--border-color-subtle);
+  display: block;
 }
 
 .GoliathFeedRow .MuiTreeItem-label {
@@ -422,8 +436,10 @@
 }
 
 .GoliathArticleCardDot {
-  font-size: 16px;
-  line-height: 1;
+  width: 16px;
+  height: 16px;
+  overflow: hidden;
+  border-radius: 50%;
   cursor: pointer;
   flex-shrink: 0;
   display: flex;
@@ -431,14 +447,13 @@
   justify-content: center;
 }
 
-/* Fixed-size icon slot — clips dot icons to matching circle so swapping between
-   favicon and dot produces no layout shift on hover. Favicons are circular via FeedIcon. */
+/* Fixed-size icon slot — circular mask so swapping between
+   favicon and dot produces no layout shift on hover. */
 .GoliathArticleCardIconSlot {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
   border-radius: 50%;
-  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
