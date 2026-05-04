@@ -80,6 +80,12 @@ const ArticleList: React.FC<ArticleListProps> = ({
   const [showPreviews, setShowPreviews] = useState<boolean>(true);
   const [smoothScroll, setSmoothScroll] = useState<boolean>(true);
 
+  // Unique key for ReactList so it remounts on selection change,
+  // resetting its internal scroll position.
+  const reactListKey = `${selectionType}-${Array.isArray(selectionKey)
+    ? selectionKey.join('-')
+    : selectionKey}`;
+
   const scrollIndex = useMemo(() => {
     // If no article is selected, or the list is empty, default to the top.
     if (!selectedArticleId || articleEntriesCls.length === 0) {
@@ -434,6 +440,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
             </Box>
             <Box className="GoliathSplitViewArticleListBox">
               <ReactList
+                key={reactListKey}
                 ref={handleMounted}
                 itemRenderer={renderArticleListEntry}
                 length={articles.length}
