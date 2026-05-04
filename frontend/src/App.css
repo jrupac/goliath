@@ -285,6 +285,7 @@
 .GoliathFolderFeedList {
   overflow-y: auto;
   scrollbar-width: thin;
+  scrollbar-gutter: stable;
 }
 
 /* Support both v6 (MuiTreeView) and v7 (MuiSimpleTreeView) class names */
