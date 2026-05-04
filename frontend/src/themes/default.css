@@ -149,7 +149,7 @@
   );
 
   /* Borders — panel edges, card separators */
-  --border-color: #3d5a66;
+  --border-color: var(--primary-darker-4-color);
   --border-color-subtle: #4a6a78;
 
   /* Favicon background — light neutral so transparent favicons stay legible */

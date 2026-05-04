@@ -252,6 +252,7 @@
   display: flex;
   align-items: center;
   width: 100%;
+  gap: 4px;
 }
 
 .GoliathFolderRowContent {
@@ -665,8 +666,39 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   background: var(--article-background-color);
   color: var(--article-font-color);
+  /* Reserve scrollbar gutter so layout doesn't shift when content overflows */
+  scrollbar-gutter: stable;
+  /* Thin scrollbar for Firefox */
+  scrollbar-width: thin;
+}
+
+/* Thin scrollbar for Chromium browsers */
+.GoliathSplitViewArticleContainer::-webkit-scrollbar {
+  width: 6px;
+}
+
+.GoliathSplitViewArticleContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.GoliathSplitViewArticleContainer::-webkit-scrollbar-thumb {
+  background-color: color-mix(
+    in srgb,
+    var(--primary-font-color) 30%,
+    transparent
+  );
+  border-radius: 3px;
+}
+
+.GoliathSplitViewArticleContainer::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--primary-font-color) 50%,
+    transparent
+  );
 }
 
 /* Reader mode button — accent color when active */
