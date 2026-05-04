@@ -29,7 +29,7 @@ import { DoneAllRounded } from '@mui/icons-material';
 import { ArticleId, ArticleView } from '../models/article';
 import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
 import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
-import CheckCircleOutlineTwoToneIcon from '@mui/icons-material/CheckCircleOutlineTwoTone';
+import DoneAllTwoTone from '@mui/icons-material/DoneAllTwoTone';
 import { FaviconCls, FeedId } from '../models/feed';
 
 const goToAllSequence = ['g', 'a'];
@@ -358,14 +358,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
         }
       };
 
-      // When switching to "All" stream, scrollIndex is always 0.
       // Defer the scroll to the next animation frame so react-list
       // recalculates positions after the articles array changes.
-      if (scrollIndex === 0 && selectionType === SelectionType.All) {
-        requestAnimationFrame(doScroll);
-      } else {
-        doScroll();
-      }
+      requestAnimationFrame(doScroll);
     }
   }, [scrollIndex, smoothScroll, articleEntriesCls.length, selectionType]);
 
@@ -412,7 +407,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
                   className="GoliathButton"
                   size="small"
                 >
-                  <CheckCircleOutlineTwoToneIcon />
+                  <DoneAllTwoTone />
                 </IconButton>
               </Tooltip>
               <div className="GoliathActionBarSpacer"></div>

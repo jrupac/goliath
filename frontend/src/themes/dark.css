@@ -100,7 +100,7 @@
   --card-header-actions-background-color: var(--primary-darker-2-color);
   --card-header-background-color: color-mix(
     in srgb,
-    var(--primary-lighter-2-color) 25%,
+    var(--primary-background-color) 60%,
     transparent
   );
 

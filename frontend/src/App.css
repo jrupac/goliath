@@ -272,8 +272,13 @@
 }
 
 /* Hide-empty button — accent color when active */
-.GoliathHideEmptyButton {
+.GoliathHideEmptyButton.MuiIconButton-root {
   color: var(--accent-color);
+  margin-right: 10px;
+}
+
+.GoliathHideEmptyButtonUnselected.MuiIconButton-root {
+  margin-right: 10px;
 }
 
 .GoliathFolderFeedList {
@@ -670,14 +675,24 @@
 }
 
 /* Sticky header wrapper — byline + title with blur backdrop */
+/* Floating sticky header — card-style, not touching the action bar */
 .GoliathArticleHeaderSticky {
+  /* Set position at the top and give 24px margin all around. */
   position: sticky;
-  top: 0;
+  top: 24px;
+  width: min(80ch, calc(100% - (2 * 24px)));
   z-index: 1;
+  /* Set font info for consistent ch calculation with the body content */
+  font-size: 18px;
+  font-family: var(--primary-sans-serif-font), serif;
+  margin: 0 auto;
+  margin-top: 12px;
+  padding: 4px 24px 6px 24px;
   background: var(--card-header-background-color);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  /*border-bottom: 1px solid var(--action-bar-border-color);*/
+  border-radius: 8px;
+  box-shadow: 0 2px 8px var(--goliath-box-shadow-color);
 }
 
 /* Byline row — inline: [icon] feed title · date */
@@ -685,7 +700,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 16px 0px 16px;
+  padding: 10px 0 2px;
   font-size: 13px;
   color: var(--primary-font-darker-1-color);
   font-family: var(--primary-sans-serif-font), sans-serif;
@@ -697,6 +712,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+  color: var(--primary-font-color);
 }
 
 .GoliathArticleBylineSep {
@@ -707,18 +723,16 @@
 
 .GoliathArticleBylineDate {
   white-space: nowrap;
-  color: var(--primary-font-darker-2-color);
-  font-size: 12px;
+  color: var(--primary-font-color);
   flex-shrink: 0;
 }
 
 /* Article title — plain styled element replacing CardHeader */
 .GoliathArticleTitle {
-  width: 100%;
   font-family: var(--primary-sans-serif-font), serif;
   font-size: 32px;
   font-weight: normal;
-  padding: 0 16px 10px 16px;
+  padding: 0;
   margin: 0;
 }
 
@@ -739,7 +753,8 @@
   font-family: var(--primary-sans-serif-font), serif;
   color: var(--article-font-color);
   padding: 24px;
-  max-width: 100%;
+  max-width: 75ch;
+  margin: 0 auto;
 }
 
 .GoliathSplitViewArticleContent * {
@@ -757,6 +772,8 @@
   font-family: var(--primary-sans-serif-font), serif;
   color: var(--article-font-color);
   padding: 24px;
+  max-width: 75ch;
+  margin: 0 auto;
 }
 
 /******************************************************************************

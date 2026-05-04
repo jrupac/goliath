@@ -333,7 +333,11 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         <p className="GoliathFolderFeedTitle">feeds</p>
         <Tooltip title="Hide feeds with no unread items">
           <IconButton
-            className={hideEmpty ? 'GoliathHideEmptyButton' : ''}
+            className={
+              hideEmpty
+                ? 'GoliathHideEmptyButton'
+                : 'GoliathHideEmptyButtonUnselected'
+            }
             onClick={toggleHideEmpty}
             size="small"
           >
