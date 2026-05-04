@@ -2,6 +2,7 @@
 .vscode/
 .idea/
 .zed/
+.claude/
 *.iml
 
 # Build-related output
