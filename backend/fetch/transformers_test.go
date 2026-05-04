@@ -41,16 +41,22 @@ func TestPrependMediaToHtml(t *testing.T) {
 			expected:    `<html><head></head><body><img src="http://example.com/image.png?a=1&amp;b=2&#34;"/><p>Hello</p></body></html>`,
 		},
 		{
-			name:        "does not prepend duplicate image already in content",
+			name:        "does not prepend when content already has images",
 			imgSrc:      "http://example.com/image.png",
 			htmlContent: `<p>Text</p><img src="http://example.com/image.png"/>`,
 			expected:    `<p>Text</p><img src="http://example.com/image.png"/>`,
 		},
 		{
-			name:        "prepends when a different image is already in content",
+			name:        "does not prepend when content has a different image",
 			imgSrc:      "http://example.com/image.png",
 			htmlContent: `<p>Text</p><img src="http://example.com/other.png"/>`,
-			expected:    `<html><head></head><body><img src="http://example.com/image.png"/><p>Text</p><img src="http://example.com/other.png"/></body></html>`,
+			expected:    `<p>Text</p><img src="http://example.com/other.png"/>`,
+		},
+		{
+			name:        "does not prepend for size-variant duplicates",
+			imgSrc:      "http://example.com/l-intro-123.jpg",
+			htmlContent: `<p>Text</p><img src="http://example.com/intro-123.jpg"/>`,
+			expected:    `<p>Text</p><img src="http://example.com/intro-123.jpg"/>`,
 		},
 	}
 
@@ -127,6 +133,33 @@ func TestProcessItem(t *testing.T) {
 		count := strings.Count(article.Content, enclosureURL)
 		if count != 1 {
 			t.Errorf("expected enclosure URL to appear exactly once, but appeared %d times in %q", count, article.Content)
+		}
+	})
+
+	t.Run("with image enclosure and different-size image in content (Engadget)", func(t *testing.T) {
+		item := baseItem()
+		// Enclosure has the "l-" (large) size variant
+		enclosureURL := "http://example.com/l-intro-123.jpg"
+		item.Enclosures = []*rss.Enclosure{
+			{
+				URL:  enclosureURL,
+				Type: "image/jpeg",
+			},
+		}
+		// Content has the normal size variant — same image, different size
+		item.Content = `<p>Some content.</p><img src="http://example.com/intro-123.jpg"/>`
+
+		article := processItem(feed, item)
+
+		// The enclosure should NOT be prepended since content already has an image
+		enclosureCount := strings.Count(article.Content, enclosureURL)
+		if enclosureCount != 0 {
+			t.Errorf("expected enclosure URL to NOT appear (content already has image), but appeared %d times in %q", enclosureCount, article.Content)
+		}
+		// The content image should still be present
+		contentImg := "http://example.com/intro-123.jpg"
+		if !strings.Contains(article.Content, contentImg) {
+			t.Errorf("expected content image URL to be present, but was not in %q", article.Content)
 		}
 	})
 

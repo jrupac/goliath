@@ -259,8 +259,9 @@ func extractTextFromHtmlUnsafe(s string) string {
 }
 
 // prependMediaToHtml prepends the image included in the RSS enclosure to the
-// HTML content specified. If the image URL is already present in the document,
-// it is not prepended again.
+// HTML content specified. It only prepends if there are no images already in
+// the content, avoiding duplicates when feeds include the same image in both
+// <enclosure> and <content:encoded>.
 func prependMediaToHtml(imgSrc string, s string) string {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(s))
 	if err != nil {
@@ -268,13 +269,17 @@ func prependMediaToHtml(imgSrc string, s string) string {
 		return s
 	}
 
-	alreadyPresent := false
+	// Only prepend if there are no images already in the content.
+	// This avoids duplicates when the content already has the image (e.g.,
+	// Engadget has the same image in <enclosure> and in <content:encoded>
+	// but at different sizes — we trust the content's version).
+	hasImages := false
 	doc.Find("img").Each(func(_ int, sel *goquery.Selection) {
-		if src, exists := sel.Attr("src"); exists && src == imgSrc {
-			alreadyPresent = true
+		if src, exists := sel.Attr("src"); exists && src != "" {
+			hasImages = true
 		}
 	})
-	if alreadyPresent {
+	if hasImages {
 		return s
 	}
 
