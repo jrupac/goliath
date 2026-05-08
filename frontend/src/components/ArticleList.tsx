@@ -6,7 +6,11 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import ReactList from 'react-list';
+// Import CJS package with a fallback for Vite 8's stricter CJS interop.
+// When the `legacy.inconsistentCjsInterop` flag is eventually removed,
+// this pattern continues to work without changes.
+import * as ReactListModule from 'react-list';
+const ReactList = ReactListModule.default || ReactListModule;
 import { animateScroll } from 'react-scroll';
 import {
   MarkState,

@@ -1,4 +1,8 @@
-import moment from 'moment';
+// Import CJS package with a fallback for Vite 8's stricter CJS interop.
+// When the `legacy.inconsistentCjsInterop` flag is eventually removed,
+// this pattern continues to work without changes.
+import * as momentModule from 'moment';
+const moment = momentModule.default || momentModule;
 import { Decimal } from 'decimal.js-light';
 import { Readability } from '@mozilla/readability';
 import * as LosslessJSON from 'lossless-json';
