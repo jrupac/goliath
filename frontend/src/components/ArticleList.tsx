@@ -11,6 +11,7 @@ import React, {
 // this pattern continues to work without changes.
 import * as ReactListModule from 'react-list';
 const ReactList = ReactListModule.default || ReactListModule;
+import type ReactListType from 'react-list';
 import { animateScroll } from 'react-scroll';
 import {
   MarkState,
@@ -72,7 +73,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   threshold = 500,
   navigateToAdjacentEntry,
 }) => {
-  const listRef = useRef<ReactList | null>(null);
+  const listRef = useRef<ReactListType | null>(null);
   const selectionKeyRef = useRef<SelectionKey>(selectionKey);
 
   const [selectedArticleId, setSelectedArticleId] = useState<ArticleId | null>(
@@ -86,9 +87,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
   // Unique key for ReactList so it remounts on selection change,
   // resetting its internal scroll position.
-  const reactListKey = `${selectionType}-${Array.isArray(selectionKey)
-    ? selectionKey.join('-')
-    : selectionKey}`;
+  const reactListKey = `${selectionType}-${
+    Array.isArray(selectionKey) ? selectionKey.join('-') : selectionKey
+  }`;
 
   const scrollIndex = useMemo(() => {
     // If no article is selected, or the list is empty, default to the top.
@@ -335,7 +336,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     ]
   );
 
-  const handleMounted = useCallback((list: ReactList) => {
+  const handleMounted = useCallback((list: ReactListType | null) => {
     listRef.current = list;
   }, []);
 
