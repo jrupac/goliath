@@ -538,6 +538,7 @@
 
 .GoliathArticleCardSnippet.MuiTypography-root {
   font-family: var(--primary-sans-serif-font), sans-serif;
+  font-size: 16px;
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
