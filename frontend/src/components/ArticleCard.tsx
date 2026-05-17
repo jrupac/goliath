@@ -1,4 +1,10 @@
-import React, { ReactNode, useCallback, useEffect, useState } from 'react';
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Box, IconButton, Skeleton, Stack, Tooltip } from '@mui/material';
 import {
   fetchReadability,
@@ -7,6 +13,7 @@ import {
   makeAbsolute,
 } from '../utils/helpers';
 import FeedIcon from './FeedIcon';
+import { Keybindings } from '../utils/keybindings';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
@@ -23,6 +30,7 @@ export interface ArticleProps {
   feedId: string;
   isSelected: boolean;
   onMarkArticleRead: () => void;
+  showKeybindingsModal?: boolean;
 }
 
 interface ArticleState {
@@ -31,7 +39,10 @@ interface ArticleState {
   loading: boolean;
 }
 
-const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
+const ArticleCard: React.FC<ArticleProps> = ({
+  showKeybindingsModal = false,
+  ...props
+}: ArticleProps) => {
   const [state, setState] = useState<ArticleState>({
     parsed: null,
     showParsed: false,
@@ -74,8 +85,21 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
     });
   }, [props.article.url]);
 
+  // Handler map for article view keybindings — held in a ref so its
+  // identity stays stable across renders.
+  const articleViewHandlersRef = useRef<Record<string, () => void>>({
+    toggleReaderMode: toggleParseContent,
+  });
+  // Keep the ref up to date when toggleParseContent changes.
+  articleViewHandlersRef.current.toggleReaderMode = toggleParseContent;
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      // When the keybindings modal is open, swallow all key events.
+      if (showKeybindingsModal) {
+        return;
+      }
+
       // Ignore all key events unless this is the selected article.
       if (!props.isSelected) {
         return;
@@ -87,11 +111,16 @@ const ArticleCard: React.FC<ArticleProps> = (props: ArticleProps) => {
         return;
       }
 
-      if (event.key === 'm') {
-        toggleParseContent();
+      // Match the pressed key against the central keybinding definitions.
+      const keybinding = Keybindings.articleView.find(
+        (kb) => kb.key === event.key && !kb.isChord
+      );
+      if (keybinding) {
+        const handler = articleViewHandlersRef.current[keybinding.handlerKey];
+        if (handler) handler();
       }
     },
-    [props.isSelected, toggleParseContent]
+    [props.isSelected, showKeybindingsModal]
   );
 
   useEffect(() => {

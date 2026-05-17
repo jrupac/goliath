@@ -38,6 +38,7 @@ import {
 } from './utils/helpers';
 import AccountCircleTwoToneIcon from '@mui/icons-material/AccountCircleTwoTone';
 import LogoutTwoToneIcon from '@mui/icons-material/LogoutTwoTone';
+import KeybindingsModal from './components/KeybindingsModal';
 
 export interface AppProps {}
 
@@ -52,10 +53,12 @@ export interface AppState {
   themeInfo: ThemeInfo;
   loginVerified: boolean;
   hideEmpty: boolean;
+  showKeybindingsModal: boolean;
 }
 
 export default class App extends React.Component<AppProps, AppState> {
   private fetchApi: FetchAPI;
+  private globalHandlers: Record<string, () => void>;
 
   constructor(props: AppProps) {
     super(props);
@@ -70,8 +73,40 @@ export default class App extends React.Component<AppProps, AppState> {
       themeInfo: populateThemeInfo(GoliathTheme.Dark),
       loginVerified: false,
       hideEmpty: true,
+      showKeybindingsModal: false,
     };
     this.fetchApi = FetchAPIFactory.Create();
+    this.globalHandlers = {
+      t: () => {
+        this.setState((prevState: AppState): AppState => {
+          const newTheme =
+            prevState.theme === GoliathTheme.Default
+              ? GoliathTheme.Dark
+              : GoliathTheme.Default;
+          return {
+            ...prevState,
+            theme: newTheme,
+            themeInfo: populateThemeInfo(newTheme),
+          };
+        });
+      },
+      u: () => {
+        this.setState((prevState: AppState): AppState => {
+          return {
+            ...prevState,
+            hideEmpty: !prevState.hideEmpty,
+          };
+        });
+      },
+      '?': () => {
+        this.setState((prevState: AppState): AppState => {
+          return {
+            ...prevState,
+            showKeybindingsModal: !prevState.showKeybindingsModal,
+          };
+        });
+      },
+    };
   }
 
   componentWillUnmount() {
@@ -206,6 +241,12 @@ export default class App extends React.Component<AppProps, AppState> {
   };
 
   handleKeyDown = (event: KeyboardEvent) => {
+    // When the keybindings modal is open, swallow all key events so they
+    // don't reach the underlying key handlers (ArticleList, ArticleCard, etc.).
+    if (this.state.showKeybindingsModal) {
+      return;
+    }
+
     // Ignore keypress events when some modifiers are also enabled to avoid
     // triggering on (e.g.) browser shortcuts. Shift is the exception here since
     // we do care about Shift+I.
@@ -213,29 +254,8 @@ export default class App extends React.Component<AppProps, AppState> {
       return;
     }
 
-    switch (event.key) {
-      case 't':
-        this.setState((prevState: AppState): AppState => {
-          const newTheme =
-            prevState.theme === GoliathTheme.Default
-              ? GoliathTheme.Dark
-              : GoliathTheme.Default;
-          return {
-            ...prevState,
-            theme: newTheme,
-            themeInfo: populateThemeInfo(newTheme),
-          };
-        });
-        break;
-      case 'u':
-        this.setState((prevState: AppState): AppState => {
-          return {
-            ...prevState,
-            hideEmpty: !prevState.hideEmpty,
-          };
-        });
-        break;
-    }
+    const handler = this.globalHandlers[event.key];
+    if (handler) handler();
   };
 
   render() {
@@ -265,6 +285,10 @@ export default class App extends React.Component<AppProps, AppState> {
 
     const selectionKey: SelectionKey = this.state.selectionKey;
     const selectionType: SelectionType = this.state.selectionType;
+
+    // Sync theme class to documentElement so CSS variables are accessible
+    // to portaled content (e.g. MUI Dialog) outside the React tree.
+    document.documentElement.className = this.state.themeInfo.themeClasses;
 
     return (
       <ThemeProvider theme={this.state.themeInfo.theme}>
@@ -331,9 +355,14 @@ export default class App extends React.Component<AppProps, AppState> {
                   ? this.handleNavigateToAdjacentEntry
                   : undefined
               }
+              showKeybindingsModal={this.state.showKeybindingsModal}
             />
           </Box>
         </Box>
+        <KeybindingsModal
+          open={this.state.showKeybindingsModal}
+          onClose={() => this.setState({ showKeybindingsModal: false })}
+        />
       </ThemeProvider>
     );
   }

@@ -29,6 +29,7 @@ import {
 } from '@mui/material';
 import ArticleCard from './ArticleCard';
 import ArticleListEntry from './ArticleListEntry';
+import { Keybindings } from '../utils/keybindings';
 import { DoneAllRounded } from '@mui/icons-material';
 
 import { ArticleId, ArticleView } from '../models/article';
@@ -58,6 +59,7 @@ export interface ArticleListProps {
   buildHash: string;
   threshold?: number;
   navigateToAdjacentEntry?: (direction: NavigationDirection) => void;
+  showKeybindingsModal?: boolean;
 }
 
 const ArticleList: React.FC<ArticleListProps> = ({
@@ -72,6 +74,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   buildHash,
   threshold = 500,
   navigateToAdjacentEntry,
+  showKeybindingsModal = false,
 }) => {
   const listRef = useRef<ReactListType | null>(null);
   const selectionKeyRef = useRef<SelectionKey>(selectionKey);
@@ -203,8 +206,34 @@ const ArticleList: React.FC<ArticleListProps> = ({
     [handleMarkArticleRead, handleSelectByIndex, articleEntriesCls]
   );
 
+  // Handler map for article list keybindings — held in a ref so its
+  // identity stays stable across renders.
+  const articleListHandlersRef = useRef<Record<string, () => void>>({
+    scrollDown: handleScrollDown,
+    scrollUp: handleScrollUp,
+    openInTab: () => handleOpenArticle(scrollIndex),
+    togglePreviews: () => setShowPreviews((prev) => !prev),
+    toggleSmoothScroll: () => setSmoothScroll((prev) => !prev),
+    goAll: selectAllCallback,
+    goUnread: selectUnreadCallback,
+    markAllRead: handleMarkAllRead,
+  });
+  // Keep the ref up to date when handlers change.
+  articleListHandlersRef.current.scrollDown = handleScrollDown;
+  articleListHandlersRef.current.scrollUp = handleScrollUp;
+  articleListHandlersRef.current.goAll = selectAllCallback;
+  articleListHandlersRef.current.goUnread = selectUnreadCallback;
+  articleListHandlersRef.current.markAllRead = handleMarkAllRead;
+  articleListHandlersRef.current.openInTab = () =>
+    handleOpenArticle(scrollIndex);
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      // When the keybindings modal is open, swallow all key events.
+      if (showKeybindingsModal) {
+        return;
+      }
+
       // Ignore keypress events when some modifiers are also enabled to avoid
       // triggering on (e.g.) browser shortcuts. Shift is the exception here
       // since we do care about Shift+I.
@@ -228,39 +257,21 @@ const ArticleList: React.FC<ArticleListProps> = ({
         return newBuffer;
       });
 
-      switch (event.key) {
-        case 'f':
-          setSmoothScroll((smoothScroll) => !smoothScroll);
-          break;
-        case 'ArrowDown':
-          event.preventDefault(); // fallthrough
-        case 'j':
-          handleScrollDown();
-          break;
-        case 'ArrowUp':
-          event.preventDefault(); // fallthrough
-        case 'k':
-          handleScrollUp();
-          break;
-        case 'p':
-          setShowPreviews((showPreviews) => !showPreviews);
-          break;
-        case 'v':
-          handleOpenArticle(scrollIndex);
-          break;
-        default:
-          // No known key pressed, just ignore.
-          break;
+      // Match the pressed key against the central keybinding definitions,
+      // excluding chorded entries (the buffer logic owns those).
+      const keybinding = Keybindings.articleList.find(
+        (kb) => kb.key === event.key && !kb.isChord
+      );
+      if (keybinding) {
+        const handler = articleListHandlersRef.current[keybinding.handlerKey];
+        if (handler) handler();
       }
     },
     [
       selectAllCallback,
       selectUnreadCallback,
       handleMarkAllRead,
-      handleScrollDown,
-      handleScrollUp,
-      handleOpenArticle,
-      scrollIndex,
+      showKeybindingsModal,
     ]
   );
 
@@ -464,6 +475,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
               feedId={articleView.feedId}
               isSelected={true}
               onMarkArticleRead={() => handleToggleArticleRead(articleView.id)}
+              showKeybindingsModal={showKeybindingsModal}
             />
           </Grid>
         </Grid>

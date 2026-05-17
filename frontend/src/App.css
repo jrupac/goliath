@@ -883,3 +883,99 @@
 .GoliathArticleContentStyling .feedflare {
   display: none;
 }
+
+/******************************************************************************
+ * Keybindings Modal
+ ******************************************************************************/
+
+/* Frosted-glass backdrop overlay */
+.GoliathKeybindingsModalOverlay {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/* Modal paper */
+.GoliathKeybindingsModalPaper.MuiDialog-paper {
+  background-color: var(--primary-darker-4-color);
+  color: var(--primary-font-color);
+}
+
+/* Dialog title */
+.GoliathKeybindingsDialogTitle.MuiTypography-root {
+  font-size: 20px;
+  font-weight: 600;
+  padding: 20px 24px 12px;
+  font-family: var(--primary-sans-serif-font), sans-serif;
+}
+
+/* Dialog content */
+.GoliathKeybindingsDialogContent.MuiDialogContent-root {
+  padding: 0 24px 16px;
+}
+
+/* Section between groups */
+.GoliathKeybindingSection {
+  margin-bottom: 20px;
+}
+
+/* Section title */
+.GoliathKeybindingSectionTitle.MuiTypography-root {
+  color: var(--primary-font-darker-1-color);
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--action-bar-border-color);
+}
+
+/* Keybinding row */
+.GoliathKeybindingRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+/* Group of key chips (for chorded keys like "g, a") */
+.GoliathKeybindingKeyGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* Separator for multi-key chords: → for sequential (g→a), + for simultaneous (Shift+I) */
+.GoliathKeybindingCombo {
+  font-size: 13px;
+  margin: 0 2px;
+  font-weight: 600;
+}
+
+/* Individual key chip — monospace for legibility */
+.GoliathKeybindingKey {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 26px;
+  padding: 0 8px;
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--primary-font-color);
+  background-color: var(--primary-darker-2-color);
+  border: 1px solid var(--action-bar-border-color);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Action label next to key chip */
+.GoliathKeybindingLabel {
+  color: var(--primary-font-color);
+  flex: 1;
+}
+
+.GoliathKeybindingLabel.MuiTypography-root {
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  font-size: 14px;
+}
