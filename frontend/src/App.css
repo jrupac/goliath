@@ -724,7 +724,6 @@
   padding: 4px 24px 6px 24px;
   background: var(--card-header-background-color);
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border-radius: 8px;
   box-shadow: 0 2px 8px var(--goliath-box-shadow-color);
 }
@@ -891,7 +890,6 @@
 /* Frosted-glass backdrop overlay */
 .GoliathKeybindingsModalOverlay {
   backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
 }
 
 /* Modal paper */
