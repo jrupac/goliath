@@ -499,7 +499,7 @@
   align-items: center;
   gap: 8px;
   height: 32px;
-  padding: 16px 16px 12px 13px;
+  padding: 20px 16px 20px 13px; /* vertical padding below the top row */
 }
 
 /* Fixed-size icon slot — absolute positioning container for smooth transitions */
@@ -548,7 +548,7 @@
 }
 
 .GoliathArticleCardFeedName {
-  font-size: 12px;
+  font-size: 13px;
   font-family: var(--primary-sans-serif-font), sans-serif;
   overflow-x: clip;
   text-overflow: ellipsis;
@@ -560,7 +560,7 @@
 }
 
 .GoliathArticleCardTime {
-  font-size: 12px;
+  font-size: 13px;
   font-family: var(--primary-sans-serif-font), sans-serif;
   color: var(--primary-font-darker-2-color);
   white-space: nowrap;
@@ -569,16 +569,39 @@
   text-box-edge: cap alphabetic;
 }
 
+/* Body container containing text block and preview image side-by-side */
+.GoliathArticleCardBody {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 0 16px 8px 13px;
+  height: 118px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Vertical text container inside card body */
+.GoliathArticleCardText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* Row 2 — title */
 .GoliathArticleCardTitle {
   width: 100%;
   font-family: var(--primary-sans-serif-font), sans-serif;
-  font-size: 22px;
-  line-height: 1;
-  padding: 4px 16px 4px 13px;
+  font-size: 20px;
+  line-height: 1.25;
+  padding: 0 0 4px 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* Up to 2 lines before ellipsizing */
+  -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .GoliathArticleCardTitle a {
@@ -594,22 +617,21 @@
   font-weight: 400;
 }
 
-/* Row 3 — content: snippet + thumbnail */
+/* Row 3 — content snippet wrapper */
 .GoliathArticleCardContent {
-  display: flex;
-  padding: 6px 16px 16px 13px;
-  gap: 10px;
-  flex: 1;
+  display: block;
+  padding: 0;
 }
 
 .GoliathArticleCardSnippet.MuiTypography-root {
   font-family: var(--primary-sans-serif-font), sans-serif;
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--primary-font-darker-1-color);
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 2; /* At most 2 lines before ellipsizing */
   -webkit-box-orient: vertical;
   overflow: hidden;
-  flex: 1;
   min-width: 0;
 }
 
@@ -692,12 +714,12 @@
 }
 
 .GoliathArticleListImagePreviewFigure {
-  width: 100px;
-  height: 100px;
+  width: 110px;
+  height: 110px;
   overflow: hidden;
   position: relative;
-  margin: 0 10px 0 0;
-  border-radius: 10px;
+  margin: 0;
+  border-radius: 8px;
 }
 
 .GoliathArticleListImagePreview {

@@ -122,18 +122,23 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
           </Tooltip>
         </div>
 
-        {/* Row 2 — title */}
-        <div className="GoliathArticleCardTitle">
-          <a target="_blank" rel="noopener noreferrer" href={articleView.url}>
-            {extractedTitle}
-          </a>
-        </div>
+        {/* Body area containing text content and preview image side-by-side */}
+        <div className="GoliathArticleCardBody">
+          <div className="GoliathArticleCardText">
+            {/* Row 2 — title */}
+            <div className="GoliathArticleCardTitle">
+              <a target="_blank" rel="noopener noreferrer" href={articleView.url}>
+                {extractedTitle}
+              </a>
+            </div>
 
-        {/* Row 3 — content */}
-        <div className="GoliathArticleCardContent">
-          <Typography className="GoliathArticleCardSnippet">
-            {extractedContent}
-          </Typography>
+            {/* Row 3 — content */}
+            <div className="GoliathArticleCardContent">
+              <Typography className="GoliathArticleCardSnippet">
+                {extractedContent}
+              </Typography>
+            </div>
+          </div>
           {showPreviews && <ImagePreview article={articleView} />}
         </div>
       </div>

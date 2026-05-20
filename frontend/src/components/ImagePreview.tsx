@@ -91,15 +91,15 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ article }) => {
   return (
     <div
       ref={ref}
-      style={{ width: '100px', height: '100px', marginRight: '10px' }}
+      style={{ width: '110px', height: '110px' }}
     >
       {onScreen && imgSrc === undefined && (
         // On screen and still loading
         <Skeleton
           data-testid="image-preview-skeleton"
           variant="rectangular"
-          width={100}
-          height={100}
+          width={110}
+          height={110}
           animation="wave"
           sx={{ borderRadius: '10px' }}
         />
