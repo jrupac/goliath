@@ -41,6 +41,8 @@ export function formatFriendly(date: Date) {
   const then = moment(date);
   if (then.isBetween(before, now)) {
     return then.fromNow();
+  } else if (then.year() !== now.year()) {
+    return then.format('MMM D, YYYY');
   } else {
     return then.format('ddd, MMM D, h:mm A');
   }

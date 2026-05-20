@@ -325,7 +325,8 @@
 .GoliathFolderFeedList .MuiTreeItem-groupTransition {
   margin-left: 20px;
   padding-left: 12px;
-  border-left: 1px solid color-mix(in srgb, var(--primary-font-color) 10%, transparent);
+  border-left: 1px solid
+    color-mix(in srgb, var(--primary-font-color) 10%, transparent);
 }
 
 .GoliathFolderRow .MuiTreeItem-content {
@@ -425,7 +426,9 @@
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 /* Selected unread active left border stripe using absolute pseudo-element to end with flat bottom edge */
@@ -520,7 +523,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 
 .GoliathArticleCardDot {
@@ -713,18 +718,7 @@
   overflow: hidden;
 }
 
-/* Toolbar — fixed top bar with action icons */
-.GoliathArticleToolbar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 10px;
-  background-color: var(--action-bar-background-color);
-  border-bottom: 1px solid var(--action-bar-border-color);
-  flex-shrink: 0;
-}
-
-/* Scroll container — fills remaining viewport height after toolbar */
+/* Scroll container — fills full viewport height */
 .GoliathSplitViewArticleContainer {
   flex: 1;
   min-height: 0;
@@ -770,7 +764,7 @@
 }
 
 /* Sticky header wrapper — byline + title with blur backdrop */
-/* Floating sticky header — card-style, not touching the action bar */
+/* Floating sticky header — card-style */
 .GoliathArticleHeaderSticky {
   /* Set position at the top and give 24px margin all around. */
   position: sticky;
@@ -782,14 +776,15 @@
   font-family: var(--primary-sans-serif-font), serif;
   margin: 0 auto;
   margin-top: 0;
-  padding: 4px 24px 6px 24px;
+  padding: 0; /* Let children touch edges to control backgrounds */
   background: var(--card-header-background-color);
   backdrop-filter: blur(10px);
-  border-radius: 8px;
+  border-radius: 4px;
   box-shadow: 0 2px 8px var(--goliath-box-shadow-color);
+  overflow: hidden; /* Clip rounded corners for solid byline row */
 }
 
-/* Overlay — sticky so it stays pinned in the gap between toolbar and sticky header */
+/* Overlay — sticky so it stays pinned in the gap above sticky header */
 .GoliathArticleOverlay {
   position: sticky;
   top: 0;
@@ -807,16 +802,31 @@
   z-index: 1; /* Render behind the sticky header (z-index: 2) but above content */
 }
 
-/* Byline row — inline: [icon] feed title · date */
+/* Byline row — display flex with opaque background */
 .GoliathArticleByline {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 0 2px;
-  font-size: 13px;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 16px;
+  font-size: 14px;
   color: var(--primary-font-darker-1-color);
   font-family: var(--primary-sans-serif-font), sans-serif;
   white-space: nowrap;
+  background-color: color-mix(
+    in srgb,
+    var(--article-list-background-color) 85%,
+    var(--accent-color) 15%
+  ); /* Opaque background matching selected, unread card background */
+  border-bottom: 1px solid var(--border-color); /* Distinct separator */
+}
+
+.GoliathArticleBylineInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
 }
 
 .GoliathArticleBylineText {
@@ -824,6 +834,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+  flex-shrink: 1;
   color: var(--primary-font-color);
 }
 
@@ -834,17 +845,46 @@
 }
 
 .GoliathArticleBylineDate {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
+  flex-shrink: 0; /* Keep full date visible; only shrink title first */
   color: var(--primary-font-color);
+}
+
+.GoliathArticleBylineActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   flex-shrink: 0;
+}
+
+/* Make action buttons look beautiful and small inside byline */
+.GoliathArticleBylineActions .MuiIconButton-root {
+  padding: 4px;
+  color: var(--primary-font-darker-2-color);
+}
+
+.GoliathArticleBylineActions .MuiIconButton-root:hover {
+  color: var(--primary-font-color);
+  background-color: color-mix(
+    in srgb,
+    var(--primary-font-color) 8%,
+    transparent
+  );
+}
+
+.GoliathArticleBylineActions .MuiSvgIcon-root {
+  font-size: 18px;
 }
 
 /* Article title — plain styled element replacing CardHeader */
 .GoliathArticleTitle {
   font-family: var(--primary-sans-serif-font), serif;
-  font-size: 32px;
+  font-size: 30px;
   font-weight: normal;
-  padding: 0;
+  padding: 14px 16px 16px;
   margin: 0;
 }
 

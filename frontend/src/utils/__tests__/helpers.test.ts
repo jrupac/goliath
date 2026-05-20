@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import * as momentModule from 'moment';
+const moment = momentModule.default || momentModule;
 import {
+  formatFriendly,
   getAdjacentFeed,
   getAdjacentFolder,
   getFeedInitials,
@@ -330,5 +333,34 @@ describe('hashToSwatchIndex', () => {
 
   it('returns 5 for empty string (djb2 base hash)', () => {
     expect(hashToSwatchIndex('')).toBe(5);
+  });
+});
+
+describe('formatFriendly', () => {
+  it('formats dates within 24 hours relatively', () => {
+    const date = moment().subtract(2, 'hours').toDate();
+    expect(formatFriendly(date)).toBe('2 hours ago');
+  });
+
+  it('formats dates not from this year as MMM D, YYYY', () => {
+    // A date 2 years ago
+    const date = moment().subtract(2, 'years').toDate();
+    const formatted = formatFriendly(date);
+    expect(formatted).toMatch(/^[A-Z][a-z]{2} \d{1,2}, \d{4}$/); // e.g. "Dec 22, 2018"
+  });
+
+  it('formats dates from this year as ddd, MMM D, h:mm A', () => {
+    // If it is this year, but more than 24 hours ago
+    const date = moment().subtract(10, 'days').toDate();
+    // In rare edge case where "10 days ago" crosses the year boundary (e.g. early Jan),
+    // we make sure we test a date within the current year.
+    const startOfThisYear = moment().startOf('year');
+    let targetDate = moment().subtract(2, 'days');
+    if (targetDate.isBefore(startOfThisYear)) {
+      targetDate = moment().add(2, 'days'); // Handle early Jan test run
+    }
+    const formatted = formatFriendly(targetDate.toDate());
+    expect(formatted).toContain(',');
+    expect(formatted).toMatch(/(AM|PM)$/);
   });
 });

@@ -1,8 +1,8 @@
 import React, { memo, useCallback, useMemo, useState } from 'react';
-import { Typography } from '@mui/material';
+import { Tooltip, Typography } from '@mui/material';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
-import { extractText, formatFriendly } from '../utils/helpers';
+import { extractText, formatFriendly, formatFull } from '../utils/helpers';
 import { ArticleId, ArticleView } from '../models/article';
 import { FaviconCls } from '../models/feed';
 import ImagePreview from './ImagePreview';
@@ -117,7 +117,9 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
             </span>
           </span>
           <span className="GoliathArticleCardFeedName">{feedTitle}</span>
-          <span className="GoliathArticleCardTime">{formatFriendly(date)}</span>
+          <Tooltip title={formatFull(date)}>
+            <span className="GoliathArticleCardTime">{formatFriendly(date)}</span>
+          </Tooltip>
         </div>
 
         {/* Row 2 — title */}

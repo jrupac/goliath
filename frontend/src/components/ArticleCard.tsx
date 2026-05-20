@@ -158,71 +158,71 @@ const ArticleCard: React.FC<ArticleProps> = ({
 
   return (
     <Stack className="GoliathArticleCardColumn">
-      {/* Toolbar — fixed, no feed identity */}
-      <Box className="GoliathArticleToolbar">
-        <Tooltip title="Save article">
-          <IconButton
-            aria-label="save article"
-            className="GoliathButton"
-            size="small"
-            onClick={() => {}}
-          >
-            {props.article.isSaved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
-          </IconButton>
-        </Tooltip>
-        <Tooltip
-          title={props.article.isRead ? 'Mark as unread' : 'Mark as read'}
-        >
-          <IconButton
-            aria-label="mark as read"
-            onClick={() => props.onMarkArticleRead()}
-            className="GoliathButton"
-            size="small"
-          >
-            {props.article.isRead ? (
-              <CheckCircleOutlineIcon />
-            ) : (
-              <CheckCircleTwoToneIcon />
-            )}
-          </IconButton>
-        </Tooltip>
-        <Tooltip title="Reader mode (m)">
-          <IconButton
-            aria-label="reader mode"
-            className={`GoliathButton${state.showParsed ? ' GoliathReaderModeActive' : ''}`}
-            size="small"
-            onClick={toggleParseContent}
-          >
-            {state.showParsed ? (
-              <ChromeReaderModeIcon />
-            ) : (
-              <ChromeReaderModeOutlinedIcon />
-            )}
-          </IconButton>
-        </Tooltip>
-      </Box>
-
       {/* Article scroll area */}
       <Box className="GoliathSplitViewArticleContainer">
-        {/* Overlay in the gap between toolbar and sticky header */}
+        {/* Overlay in the gap between top and sticky header */}
         <Box className="GoliathArticleOverlay" />
         {/* Sticky header: byline + title with blur backdrop */}
         <Box className="GoliathArticleHeaderSticky">
           {/* Byline row */}
           <Box className="GoliathArticleByline">
-            <FeedIcon
-              favicon={faviconSrc}
-              feedTitle={feedTitle}
-              feedId={props.feedId}
-              size={16}
-            />
-            <span className="GoliathArticleBylineText">{feedTitle}</span>
-            <span className="GoliathArticleBylineSep">·</span>
-            <Tooltip title={formatFull(date)}>
-              <span className="GoliathArticleBylineDate">
-                {formatFriendly(date)}
-              </span>
-            </Tooltip>
+            <Box className="GoliathArticleBylineInfo">
+              <FeedIcon
+                favicon={faviconSrc}
+                feedTitle={feedTitle}
+                feedId={props.feedId}
+                size={16}
+              />
+              <span className="GoliathArticleBylineText">{feedTitle}</span>
+              <span className="GoliathArticleBylineSep">·</span>
+              <Tooltip title={formatFull(date)}>
+                <span className="GoliathArticleBylineDate">
+                  {formatFriendly(date)}
+                </span>
+              </Tooltip>
+            </Box>
+            <Box className="GoliathArticleBylineActions">
+              <Tooltip title="Reader mode (m)">
+                <IconButton
+                  aria-label="reader mode"
+                  className={`GoliathButton${state.showParsed ? ' GoliathReaderModeActive' : ''}`}
+                  size="small"
+                  onClick={toggleParseContent}
+                >
+                  {state.showParsed ? (
+                    <ChromeReaderModeIcon />
+                  ) : (
+                    <ChromeReaderModeOutlinedIcon />
+                  )}
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Save article">
+                <IconButton
+                  aria-label="save article"
+                  className="GoliathButton"
+                  size="small"
+                  onClick={() => {}}
+                >
+                  {props.article.isSaved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+                </IconButton>
+              </Tooltip>
+              <Tooltip
+                title={props.article.isRead ? 'Mark as unread' : 'Mark as read'}
+              >
+                <IconButton
+                  aria-label="mark as read"
+                  onClick={() => props.onMarkArticleRead()}
+                  className="GoliathButton"
+                  size="small"
+                >
+                  {props.article.isRead ? (
+                    <CheckCircleOutlineIcon />
+                  ) : (
+                    <CheckCircleTwoToneIcon />
+                  )}
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
 
           {/* Article title */}
