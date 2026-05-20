@@ -89,33 +89,32 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
         {/* Row 1 — source */}
         <div className="GoliathArticleCardSource">
           <span className="GoliathArticleCardIconSlot">
-            {cardHovered ? (
-              <span
-                className="GoliathArticleCardDot"
-                onClick={handleToggleRead}
-                onMouseEnter={() => setDotHovered(true)}
-                onMouseLeave={() => setDotHovered(false)}
-              >
-                {showFilledDot ? (
-                  <FiberManualRecordIcon
-                    fontSize="small"
-                    data-testid="FiberManualRecordIcon"
-                  />
-                ) : (
-                  <RadioButtonUncheckedIcon
-                    fontSize="small"
-                    data-testid="RadioButtonUncheckedIcon"
-                  />
-                )}
-              </span>
-            ) : (
+            <span
+              className={`GoliathArticleCardDot ${cardHovered ? 'visible' : 'hidden'}`}
+              onClick={handleToggleRead}
+              onMouseEnter={() => setDotHovered(true)}
+              onMouseLeave={() => setDotHovered(false)}
+            >
+              {showFilledDot ? (
+                <FiberManualRecordIcon
+                  fontSize="small"
+                  data-testid="FiberManualRecordIcon"
+                />
+              ) : (
+                <RadioButtonUncheckedIcon
+                  fontSize="small"
+                  data-testid="RadioButtonUncheckedIcon"
+                />
+              )}
+            </span>
+            <span className={`GoliathArticleCardFavicon ${cardHovered ? 'hidden' : 'visible'}`}>
               <FeedIcon
                 favicon={favicon?.GetFavicon() || ''}
                 feedTitle={feedTitle}
                 feedId={feedId}
                 size={16}
               />
-            )}
+            </span>
           </span>
           <span className="GoliathArticleCardFeedName">{feedTitle}</span>
           <span className="GoliathArticleCardTime">{formatFriendly(date)}</span>

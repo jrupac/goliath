@@ -46,9 +46,8 @@ describe('ArticleListEntry', () => {
       />
     );
     expect(document.querySelector('.GoliathFeedIcon')).toBeInTheDocument();
-    expect(
-      screen.queryByTestId('FiberManualRecordIcon')
-    ).not.toBeInTheDocument();
+    expect(document.querySelector('.GoliathArticleCardDot')).toHaveClass('hidden');
+    expect(document.querySelector('.GoliathArticleCardFavicon')).toHaveClass('visible');
   });
 
   it('renders unread dot on hover for unread article', () => {
@@ -63,6 +62,8 @@ describe('ArticleListEntry', () => {
       />
     );
     fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
+    expect(document.querySelector('.GoliathArticleCardDot')).toHaveClass('visible');
+    expect(document.querySelector('.GoliathArticleCardFavicon')).toHaveClass('hidden');
     expect(screen.getByTestId('FiberManualRecordIcon')).toBeInTheDocument();
   });
 
@@ -78,6 +79,8 @@ describe('ArticleListEntry', () => {
       />
     );
     fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
+    expect(document.querySelector('.GoliathArticleCardDot')).toHaveClass('visible');
+    expect(document.querySelector('.GoliathArticleCardFavicon')).toHaveClass('hidden');
     expect(screen.getByTestId('RadioButtonUncheckedIcon')).toBeInTheDocument();
   });
 

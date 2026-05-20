@@ -323,8 +323,9 @@
 
 /* v7 uses groupTransition instead of group for children container */
 .GoliathFolderFeedList .MuiTreeItem-groupTransition {
-  margin-left: 0;
-  padding-left: 16px;
+  margin-left: 20px;
+  padding-left: 12px;
+  border-left: 1px solid color-mix(in srgb, var(--primary-font-color) 10%, transparent);
 }
 
 .GoliathFolderRow .MuiTreeItem-content {
@@ -417,12 +418,33 @@
 /** Article card — new Phase 3 layout **/
 
 .GoliathArticleCard {
+  position: relative;
   height: 182px;
   border-bottom: 1px solid var(--border-color);
   background-color: var(--article-list-background-color);
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Selected unread active left border stripe using absolute pseudo-element to end with flat bottom edge */
+.GoliathArticleCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: calc(100% - 1px);
+  background-color: var(--accent-color);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.GoliathArticleCardUnreadSelected::before {
+  opacity: 1;
 }
 
 /* Card state: unread, unselected */
@@ -448,29 +470,36 @@
   opacity: var(--card-read-text-opacity);
 }
 
+/* Subtle card hover state with shadow and warm accent tint */
+.GoliathArticleCard:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--article-list-background-color) 92%,
+    var(--accent-color) 8%
+  );
+  box-shadow: 0 4px 12px var(--goliath-box-shadow-color);
+}
+
+/* Retain correct select-background colors during hover */
+.GoliathArticleCardUnreadSelected:hover,
+.GoliathArticleCardReadSelected:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--accent-color-subtle) 90%,
+    var(--primary-font-color) 10%
+  );
+}
+
 /* Row 1 — source: dot · feed name · time */
 .GoliathArticleCardSource {
   display: flex;
   align-items: center;
   gap: 8px;
   height: 32px;
-  padding: 16px 16px 12px;
+  padding: 16px 16px 12px 13px;
 }
 
-.GoliathArticleCardDot {
-  width: 16px;
-  height: 16px;
-  overflow: hidden;
-  border-radius: 50%;
-  cursor: pointer;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Fixed-size icon slot — circular mask so swapping between
-   favicon and dot produces no layout shift on hover. */
+/* Fixed-size icon slot — absolute positioning container for smooth transitions */
 .GoliathArticleCardIconSlot {
   width: 16px;
   height: 16px;
@@ -479,6 +508,38 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+}
+
+.GoliathArticleCardDot,
+.GoliathArticleCardFavicon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.GoliathArticleCardDot {
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.GoliathArticleCardDot.hidden,
+.GoliathArticleCardFavicon.hidden {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.6);
+  pointer-events: none;
+}
+
+.GoliathArticleCardDot.visible,
+.GoliathArticleCardFavicon.visible {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  pointer-events: auto;
 }
 
 .GoliathArticleCardFeedName {
@@ -509,7 +570,7 @@
   font-family: var(--primary-sans-serif-font), sans-serif;
   font-size: 22px;
   line-height: 1;
-  padding: 4px 16px 4px;
+  padding: 4px 16px 4px 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -531,7 +592,7 @@
 /* Row 3 — content: snippet + thumbnail */
 .GoliathArticleCardContent {
   display: flex;
-  padding: 6px 16px 16px;
+  padding: 6px 16px 16px 13px;
   gap: 10px;
   flex: 1;
 }
