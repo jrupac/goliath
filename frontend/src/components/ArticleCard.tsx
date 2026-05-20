@@ -204,6 +204,8 @@ const ArticleCard: React.FC<ArticleProps> = ({
 
       {/* Article scroll area */}
       <Box className="GoliathSplitViewArticleContainer">
+        {/* Overlay in the gap between toolbar and sticky header */}
+        <Box className="GoliathArticleOverlay" />
         {/* Sticky header: byline + title with blur backdrop */}
         <Box className="GoliathArticleHeaderSticky">
           {/* Byline row */}

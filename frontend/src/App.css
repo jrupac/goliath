@@ -715,17 +715,35 @@
   position: sticky;
   top: 24px;
   width: min(80ch, calc(100% - (2 * 24px)));
-  z-index: 1;
+  z-index: 2;
   /* Set font info for consistent ch calculation with the body content */
   font-size: 18px;
   font-family: var(--primary-sans-serif-font), serif;
   margin: 0 auto;
-  margin-top: 12px;
+  margin-top: 0;
   padding: 4px 24px 6px 24px;
   background: var(--card-header-background-color);
   backdrop-filter: blur(10px);
   border-radius: 8px;
   box-shadow: 0 2px 8px var(--goliath-box-shadow-color);
+}
+
+/* Overlay — sticky so it stays pinned in the gap between toolbar and sticky header */
+.GoliathArticleOverlay {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 144px; /* 24px space above header + 120px fade region */
+  margin-bottom: -120px; /* Offset the extra height to prevent pushing content/header down */
+  background: linear-gradient(
+    to bottom,
+    var(--article-background-color) 0px,
+    var(--article-background-color) 24px,
+    transparent 144px
+  );
+  pointer-events: none;
+  z-index: 1; /* Render behind the sticky header (z-index: 2) but above content */
 }
 
 /* Byline row — inline: [icon] feed title · date */
