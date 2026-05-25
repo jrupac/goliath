@@ -598,4 +598,68 @@ describe('ArticleList', () => {
       SelectionType.Article
     );
   });
+
+  it('triggers selectUnreadCallback on "g u" sequential shortcut', () => {
+    render(<ArticleList {...getMockProps()} />);
+
+    // Press 'g' then 'u'
+    fireEvent.keyDown(window, { key: 'g' });
+    fireEvent.keyDown(window, { key: 'u' });
+
+    expect(mockSelectUnreadCallback).toHaveBeenCalledTimes(1);
+  });
+
+  it('triggers selectAllCallback on "g a" sequential shortcut', () => {
+    render(<ArticleList {...getMockProps()} />);
+
+    // Press 'g' then 'a'
+    fireEvent.keyDown(window, { key: 'g' });
+    fireEvent.keyDown(window, { key: 'a' });
+
+    expect(mockSelectAllCallback).toHaveBeenCalledTimes(1);
+  });
+
+  it('triggers handleMarkAllRead on "Shift+I" chord shortcut', () => {
+    render(<ArticleList {...getMockProps()} />);
+
+    // Press Shift then I
+    fireEvent.keyDown(window, { key: 'Shift' });
+    fireEvent.keyDown(window, { key: 'I', shiftKey: true });
+
+    expect(mockHandleMark).toHaveBeenCalledWith(
+      MarkState.Read,
+      '1',
+      SelectionType.Folder
+    );
+  });
+
+  it('toggles previews on "p" shortcut', () => {
+    const { container } = render(<ArticleList {...getMockProps()} />);
+
+    const body = container.querySelector('.GoliathArticleCardBody');
+    expect(body).not.toBeNull();
+    // Initially showPreviews is true, so both text and ImagePreview wrapper are rendered
+    expect(body?.childNodes.length).toBe(2);
+
+    // Trigger 'p'
+    fireEvent.keyDown(window, { key: 'p' });
+
+    // After toggling, ImagePreview is unmounted, leaving only the text child
+    expect(body?.childNodes.length).toBe(1);
+  });
+
+  it('opens article url in a new tab on "v" shortcut', () => {
+    const originalOpen = window.open;
+    window.open = vi.fn();
+
+    render(<ArticleList {...getMockProps()} />);
+
+    // Trigger 'v'
+    fireEvent.keyDown(window, { key: 'v' });
+
+    expect(window.open).toHaveBeenCalledWith('https://example.com/1', '_blank');
+    expect(mockHandleMark).toHaveBeenCalledTimes(1);
+
+    window.open = originalOpen;
+  });
 });

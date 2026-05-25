@@ -32,7 +32,7 @@ export const Keybindings: {
 } = {
   global: [
     {
-      key: '?',
+      key: 'Shift+?',
       display: ['?'],
       label: 'Show keyboard shortcuts',
       description: 'Open this help dialog',
@@ -46,8 +46,8 @@ export const Keybindings: {
       handlerKey: 'toggleTheme',
     },
     {
-      key: 'u',
-      display: ['u'],
+      key: 'f',
+      display: ['f'],
       label: 'Toggle showing empty feeds',
       description: 'Show/hide feeds with no unread items',
       handlerKey: 'toggleHideEmpty',
@@ -97,13 +97,7 @@ export const Keybindings: {
       description: 'Show/hide article image previews in the list',
       handlerKey: 'togglePreviews',
     },
-    {
-      key: 'f',
-      display: ['f'],
-      label: 'Toggle smooth scroll',
-      description: 'Enable/disable smooth scrolling animation',
-      handlerKey: 'toggleSmoothScroll',
-    },
+
     {
       key: 'a',
       display: ['g', 'a'],
@@ -142,3 +136,14 @@ export const Keybindings: {
     },
   ],
 };
+
+/** Helper function to translate a Keybinding object into a tinykeys sequence string. */
+export function getTinykeysSequence(kb: Keybinding): string {
+  if (kb.isSequential) {
+    return kb.display.join(' ');
+  }
+  if (kb.isChord) {
+    return kb.display.join('+');
+  }
+  return kb.key;
+}

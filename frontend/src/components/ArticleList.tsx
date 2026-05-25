@@ -29,7 +29,8 @@ import {
 } from '@mui/material';
 import ArticleCard from './ArticleCard';
 import ArticleListEntry from './ArticleListEntry';
-import { Keybindings } from '../utils/keybindings';
+import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
+import { keybindRegistry } from '../utils/keybindRegistry';
 import { DoneAllRounded } from '@mui/icons-material';
 
 import { ArticleId, ArticleView } from '../models/article';
@@ -37,11 +38,6 @@ import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
 import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
 import DoneAllTwoTone from '@mui/icons-material/DoneAllTwoTone';
 import { FaviconCls, FeedId } from '../models/feed';
-
-const goToAllSequence = ['g', 'a'];
-const goToUnreadSequence = ['g', 'u'];
-const markAllReadSequence = ['Shift', 'I'];
-const keyBufLength = 2;
 
 export interface ArticleListProps {
   articleEntriesCls: ArticleView[];
@@ -81,9 +77,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
   const [selectedArticleId, setSelectedArticleId] = useState<ArticleId | null>(
     null
-  );
-  const [_keypressBuffer, setKeypressBuffer] = useState<string[]>(
-    new Array(keyBufLength)
   );
   const [showPreviews, setShowPreviews] = useState<boolean>(true);
   const [smoothScroll, setSmoothScroll] = useState<boolean>(true);
@@ -227,60 +220,30 @@ const ArticleList: React.FC<ArticleListProps> = ({
   articleListHandlersRef.current.openInTab = () =>
     handleOpenArticle(scrollIndex);
 
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      // When the keybindings modal is open, swallow all key events.
-      if (showKeybindingsModal) {
-        return;
-      }
-
-      // Ignore keypress events when some modifiers are also enabled to avoid
-      // triggering on (e.g.) browser shortcuts. Shift is the exception here
-      // since we do care about Shift+I.
-      if (event.altKey || event.metaKey || event.ctrlKey) {
-        return;
-      }
-
-      setKeypressBuffer((prevBuffer) => {
-        // Add new keypress to buffer, dropping the oldest entry.
-        const newBuffer = [...prevBuffer.slice(1), event.key];
-        if (goToAllSequence.every((e, i) => e === newBuffer[i])) {
-          selectAllCallback();
-          return new Array(keyBufLength);
-        } else if (goToUnreadSequence.every((e, i) => e === newBuffer[i])) {
-          selectUnreadCallback();
-          return new Array(keyBufLength);
-        } else if (markAllReadSequence.every((e, i) => e === newBuffer[i])) {
-          handleMarkAllRead();
-          return new Array(keyBufLength);
-        }
-        return newBuffer;
-      });
-
-      // Match the pressed key against the central keybinding definitions,
-      // excluding chorded entries (the buffer logic owns those).
-      const keybinding = Keybindings.articleList.find(
-        (kb) => kb.key === event.key && !kb.isChord
-      );
-      if (keybinding) {
-        const handler = articleListHandlersRef.current[keybinding.handlerKey];
-        if (handler) handler();
-      }
-    },
-    [
-      selectAllCallback,
-      selectUnreadCallback,
-      handleMarkAllRead,
-      showKeybindingsModal,
-    ]
-  );
-
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
+    if (showKeybindingsModal) {
+      keybindRegistry.unregister('articleList');
+      return;
+    }
+
+    const keymap: Record<string, (event: KeyboardEvent) => void> = {};
+    Keybindings.articleList.forEach((kb) => {
+      const sequence = getTinykeysSequence(kb);
+      keymap[sequence] = (event: KeyboardEvent) => {
+        const handler = articleListHandlersRef.current[kb.handlerKey];
+        if (handler) {
+          event.preventDefault();
+          handler();
+        }
+      };
+    });
+
+    keybindRegistry.register('articleList', keymap);
+
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      keybindRegistry.unregister('articleList');
     };
-  }, [handleKeyDown]);
+  }, [showKeybindingsModal]);
 
   useEffect(() => {
     // When the selection key changes, find the first article and select it.

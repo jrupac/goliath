@@ -1,10 +1,20 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ArticleCard from '../ArticleCard';
 import { ArticleView } from '../../models/article';
 import { FaviconCls } from '../../models/feed';
 import { formatFriendly } from '../../utils/helpers';
+
+vi.mock('../../utils/helpers', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../utils/helpers')>();
+  return {
+    ...actual,
+    fetchReadability: vi
+      .fn()
+      .mockResolvedValue('<p>Parsed readability content</p>'),
+  };
+});
 
 describe('ArticleCard', () => {
   it('renders', () => {
@@ -196,5 +206,42 @@ describe('ArticleCard', () => {
     };
     render(<ArticleCard {...props} />);
     expect(screen.getByTestId('CheckCircleOutlineIcon')).toBeInTheDocument();
+  });
+
+  it('toggles reader mode on "m" shortcut', async () => {
+    const props = {
+      article: {
+        folderId: '1',
+        feedId: '1',
+        feedTitle: 'Test Feed',
+        id: '1',
+        title: 'Test Article',
+        author: '',
+        html: '<p>Test content</p>',
+        url: 'https://example.com',
+        creationTime: 1678886400,
+        isRead: false,
+        isSaved: false,
+      } as ArticleView,
+      title: 'Test Feed',
+      favicon: new FaviconCls(''),
+      feedId: '1',
+      isSelected: true, // Must be true so keyboard listener is bound
+      onMarkArticleRead: () => {},
+    };
+    render(<ArticleCard {...props} />);
+
+    const readerButton = screen.getByLabelText('reader mode');
+    expect(readerButton).not.toHaveClass('GoliathReaderModeActive');
+
+    // Trigger 'm' keydown
+    fireEvent.keyDown(window, { key: 'm' });
+
+    // Expect button to have active class after toggled
+    await waitFor(() => {
+      expect(readerButton).toHaveClass('GoliathReaderModeActive');
+    });
+    // Expect parsed content to be visible
+    expect(screen.getByText('Parsed readability content')).toBeInTheDocument();
   });
 });

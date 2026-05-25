@@ -39,6 +39,8 @@ import {
 import AccountCircleTwoToneIcon from '@mui/icons-material/AccountCircleTwoTone';
 import LogoutTwoToneIcon from '@mui/icons-material/LogoutTwoTone';
 import KeybindingsModal from './components/KeybindingsModal';
+import { Keybindings, getTinykeysSequence } from './utils/keybindings';
+import { keybindRegistry } from './utils/keybindRegistry';
 
 export interface AppProps {}
 
@@ -77,7 +79,7 @@ export default class App extends React.Component<AppProps, AppState> {
     };
     this.fetchApi = FetchAPIFactory.Create();
     this.globalHandlers = {
-      t: () => {
+      toggleTheme: () => {
         this.setState((prevState: AppState): AppState => {
           const newTheme =
             prevState.theme === GoliathTheme.Default
@@ -90,7 +92,7 @@ export default class App extends React.Component<AppProps, AppState> {
           };
         });
       },
-      u: () => {
+      toggleHideEmpty: () => {
         this.setState((prevState: AppState): AppState => {
           return {
             ...prevState,
@@ -98,7 +100,7 @@ export default class App extends React.Component<AppProps, AppState> {
           };
         });
       },
-      '?': () => {
+      toggleKeybindingsModal: () => {
         this.setState((prevState: AppState): AppState => {
           return {
             ...prevState,
@@ -110,7 +112,7 @@ export default class App extends React.Component<AppProps, AppState> {
   }
 
   componentWillUnmount() {
-    window.removeEventListener('keydown', this.handleKeyDown);
+    keybindRegistry.unregister('global');
   }
 
   componentDidMount() {
@@ -130,7 +132,24 @@ export default class App extends React.Component<AppProps, AppState> {
   }
 
   async init(): Promise<void> {
-    window.addEventListener('keydown', this.handleKeyDown);
+    const keymap: Record<string, (event: KeyboardEvent) => void> = {};
+    Keybindings.global.forEach((kb) => {
+      const sequence = getTinykeysSequence(kb);
+      keymap[sequence] = (event: KeyboardEvent) => {
+        if (
+          this.state.showKeybindingsModal &&
+          kb.handlerKey !== 'toggleKeybindingsModal'
+        ) {
+          return;
+        }
+        const handler = this.globalHandlers[kb.handlerKey];
+        if (handler) {
+          event.preventDefault();
+          handler();
+        }
+      };
+    });
+    keybindRegistry.register('global', keymap);
 
     const versionData: VersionData = await GetVersion();
     this.setState({
@@ -238,24 +257,6 @@ export default class App extends React.Component<AppProps, AppState> {
         this.handleSelect(SelectionType.Folder, result);
       }
     }
-  };
-
-  handleKeyDown = (event: KeyboardEvent) => {
-    // When the keybindings modal is open, swallow all key events so they
-    // don't reach the underlying key handlers (ArticleList, ArticleCard, etc.).
-    if (this.state.showKeybindingsModal) {
-      return;
-    }
-
-    // Ignore keypress events when some modifiers are also enabled to avoid
-    // triggering on (e.g.) browser shortcuts. Shift is the exception here since
-    // we do care about Shift+I.
-    if (event.altKey || event.metaKey || event.ctrlKey) {
-      return;
-    }
-
-    const handler = this.globalHandlers[event.key];
-    if (handler) handler();
   };
 
   render() {

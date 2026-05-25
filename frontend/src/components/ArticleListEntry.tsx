@@ -107,7 +107,9 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
                 />
               )}
             </span>
-            <span className={`GoliathArticleCardFavicon ${cardHovered ? 'hidden' : 'visible'}`}>
+            <span
+              className={`GoliathArticleCardFavicon ${cardHovered ? 'hidden' : 'visible'}`}
+            >
               <FeedIcon
                 favicon={favicon?.GetFavicon() || ''}
                 feedTitle={feedTitle}
@@ -118,7 +120,9 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
           </span>
           <span className="GoliathArticleCardFeedName">{feedTitle}</span>
           <Tooltip title={formatFull(date)}>
-            <span className="GoliathArticleCardTime">{formatFriendly(date)}</span>
+            <span className="GoliathArticleCardTime">
+              {formatFriendly(date)}
+            </span>
           </Tooltip>
         </div>
 
@@ -127,7 +131,11 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
           <div className="GoliathArticleCardText">
             {/* Row 2 — title */}
             <div className="GoliathArticleCardTitle">
-              <a target="_blank" rel="noopener noreferrer" href={articleView.url}>
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href={articleView.url}
+              >
                 {extractedTitle}
               </a>
             </div>

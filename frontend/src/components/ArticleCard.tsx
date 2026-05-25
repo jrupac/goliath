@@ -13,7 +13,8 @@ import {
   makeAbsolute,
 } from '../utils/helpers';
 import FeedIcon from './FeedIcon';
-import { Keybindings } from '../utils/keybindings';
+import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
+import { keybindRegistry } from '../utils/keybindRegistry';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
@@ -93,42 +94,30 @@ const ArticleCard: React.FC<ArticleProps> = ({
   // Keep the ref up to date when toggleParseContent changes.
   articleViewHandlersRef.current.toggleReaderMode = toggleParseContent;
 
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      // When the keybindings modal is open, swallow all key events.
-      if (showKeybindingsModal) {
-        return;
-      }
-
-      // Ignore all key events unless this is the selected article.
-      if (!props.isSelected) {
-        return;
-      }
-
-      // Ignore keypress events when some modifiers are also enabled to avoid
-      // triggering on (e.g.) browser shortcuts.
-      if (event.altKey || event.metaKey || event.ctrlKey || event.shiftKey) {
-        return;
-      }
-
-      // Match the pressed key against the central keybinding definitions.
-      const keybinding = Keybindings.articleView.find(
-        (kb) => kb.key === event.key && !kb.isChord
-      );
-      if (keybinding) {
-        const handler = articleViewHandlersRef.current[keybinding.handlerKey];
-        if (handler) handler();
-      }
-    },
-    [props.isSelected, showKeybindingsModal]
-  );
-
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
+    if (showKeybindingsModal || !props.isSelected) {
+      keybindRegistry.unregister('articleCard');
+      return;
+    }
+
+    const keymap: Record<string, (event: KeyboardEvent) => void> = {};
+    Keybindings.articleView.forEach((kb) => {
+      const sequence = getTinykeysSequence(kb);
+      keymap[sequence] = (event: KeyboardEvent) => {
+        const handler = articleViewHandlersRef.current[kb.handlerKey];
+        if (handler) {
+          event.preventDefault();
+          handler();
+        }
+      };
+    });
+
+    keybindRegistry.register('articleCard', keymap);
+
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      keybindRegistry.unregister('articleCard');
     };
-  }, [handleKeyDown]);
+  }, [showKeybindingsModal, props.isSelected]);
 
   const date = new Date(props.article.creationTime * 1000);
   const feedTitle = props.title;
@@ -203,7 +192,11 @@ const ArticleCard: React.FC<ArticleProps> = ({
                   size="small"
                   onClick={() => {}}
                 >
-                  {props.article.isSaved ? <BookmarkIcon /> : <BookmarkBorderIcon />}
+                  {props.article.isSaved ? (
+                    <BookmarkIcon />
+                  ) : (
+                    <BookmarkBorderIcon />
+                  )}
                 </IconButton>
               </Tooltip>
               <Tooltip
