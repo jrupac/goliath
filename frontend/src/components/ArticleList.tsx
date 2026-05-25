@@ -56,6 +56,7 @@ export interface ArticleListProps {
   threshold?: number;
   navigateToAdjacentEntry?: (direction: NavigationDirection) => void;
   showKeybindingsModal?: boolean;
+  clearReadCallback?: (selectedArticleId: ArticleId | null) => void;
 }
 
 const ArticleList: React.FC<ArticleListProps> = ({
@@ -71,6 +72,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   threshold = 500,
   navigateToAdjacentEntry,
   showKeybindingsModal = false,
+  clearReadCallback,
 }) => {
   const listRef = useRef<ReactListType | null>(null);
   const selectionKeyRef = useRef<SelectionKey>(selectionKey);
@@ -210,6 +212,16 @@ const ArticleList: React.FC<ArticleListProps> = ({
     goAll: selectAllCallback,
     goUnread: selectUnreadCallback,
     markAllRead: handleMarkAllRead,
+    clearRead: () => {
+      if (
+        selectionType === SelectionType.Unread ||
+        selectionType === SelectionType.Folder ||
+        selectionType === SelectionType.Feed
+      ) {
+        const activeId = articleEntriesCls[scrollIndex]?.id ?? null;
+        clearReadCallback?.(activeId);
+      }
+    },
   });
   // Keep the ref up to date when handlers change.
   articleListHandlersRef.current.scrollDown = handleScrollDown;
@@ -219,6 +231,16 @@ const ArticleList: React.FC<ArticleListProps> = ({
   articleListHandlersRef.current.markAllRead = handleMarkAllRead;
   articleListHandlersRef.current.openInTab = () =>
     handleOpenArticle(scrollIndex);
+  articleListHandlersRef.current.clearRead = () => {
+    if (
+      selectionType === SelectionType.Unread ||
+      selectionType === SelectionType.Folder ||
+      selectionType === SelectionType.Feed
+    ) {
+      const activeId = articleEntriesCls[scrollIndex]?.id ?? null;
+      clearReadCallback?.(activeId);
+    }
+  };
 
   useEffect(() => {
     if (showKeybindingsModal) {

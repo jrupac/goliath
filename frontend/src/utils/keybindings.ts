@@ -11,7 +11,8 @@ export type HandlerKey =
   | 'goAll'
   | 'goUnread'
   | 'markAllRead'
-  | 'toggleReaderMode';
+  | 'toggleReaderMode'
+  | 'clearRead';
 
 /** Shape of a single keybinding entry. */
 export interface Keybinding {
@@ -123,6 +124,13 @@ export const Keybindings: {
       description: 'Mark all articles in the current view as read',
       handlerKey: 'markAllRead',
       isChord: true,
+    },
+    {
+      key: 'c',
+      display: ['c'],
+      label: 'Clear read articles',
+      description: 'Clear read articles from the current view',
+      handlerKey: 'clearRead',
     },
   ],
 

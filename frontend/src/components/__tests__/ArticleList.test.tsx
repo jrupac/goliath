@@ -662,4 +662,39 @@ describe('ArticleList', () => {
 
     window.open = originalOpen;
   });
+
+  it('triggers clearReadCallback on "c" shortcut when in folder selection', () => {
+    const mockClearReadCallback = vi.fn();
+    render(
+      <ArticleList
+        {...getMockProps({
+          selectionType: SelectionType.Folder,
+          clearReadCallback: mockClearReadCallback,
+        })}
+      />
+    );
+
+    // Trigger 'c'
+    fireEvent.keyDown(window, { key: 'c' });
+
+    expect(mockClearReadCallback).toHaveBeenCalledTimes(1);
+    expect(mockClearReadCallback).toHaveBeenCalledWith('1'); // ID of the first article
+  });
+
+  it('does not trigger clearReadCallback on "c" shortcut when in All stream', () => {
+    const mockClearReadCallback = vi.fn();
+    render(
+      <ArticleList
+        {...getMockProps({
+          selectionType: SelectionType.All,
+          clearReadCallback: mockClearReadCallback,
+        })}
+      />
+    );
+
+    // Trigger 'c'
+    fireEvent.keyDown(window, { key: 'c' });
+
+    expect(mockClearReadCallback).not.toHaveBeenCalled();
+  });
 });

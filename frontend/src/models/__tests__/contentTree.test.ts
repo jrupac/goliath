@@ -170,4 +170,57 @@ describe('ContentTreeCls article mark/display', () => {
     );
     expect(tree.UnreadCount()).toBe(2);
   });
+
+  describe('PruneReadPins', () => {
+    it('prunes other read articles but retains the selected article', () => {
+      const tree = buildTree();
+      // Initially both are unread. Mark both read.
+      tree.Mark(
+        MarkState.Read,
+        ['art1', 'feed1', 'folder1'],
+        SelectionType.Article
+      );
+      tree.Mark(
+        MarkState.Read,
+        ['art2', 'feed1', 'folder1'],
+        SelectionType.Article
+      );
+
+      // Trigger GetArticleView to cache the views and check that they are both in the view because they are pinned.
+      let views = tree.GetArticleView(KeyUnread, SelectionType.Unread);
+      expect(views.find((v) => v.id === 'art1')).toBeDefined();
+      expect(views.find((v) => v.id === 'art2')).toBeDefined();
+
+      // Prune, keeping art1 selected.
+      tree.PruneReadPins('art1');
+
+      // Fetch views again. art1 should be kept (it was selected/pinned), art2 should be pruned.
+      views = tree.GetArticleView(KeyUnread, SelectionType.Unread);
+      expect(views.find((v) => v.id === 'art1')).toBeDefined();
+      expect(views.find((v) => v.id === 'art2')).toBeUndefined();
+    });
+
+    it('does not affect unread articles when pruning', () => {
+      const tree = buildTree();
+      // art1 is marked read, art2 remains unread.
+      tree.Mark(
+        MarkState.Read,
+        ['art1', 'feed1', 'folder1'],
+        SelectionType.Article
+      );
+
+      let views = tree.GetArticleView(KeyUnread, SelectionType.Unread);
+      expect(views.find((v) => v.id === 'art1')).toBeDefined();
+      expect(views.find((v) => v.id === 'art2')).toBeDefined();
+
+      // Prune with no selected article (or selecting the read one, doesn't matter for the unread one).
+      tree.PruneReadPins(null);
+
+      views = tree.GetArticleView(KeyUnread, SelectionType.Unread);
+      // art1 (read) is pruned because it's not selected.
+      expect(views.find((v) => v.id === 'art1')).toBeUndefined();
+      // art2 (unread) is still there because it's unread.
+      expect(views.find((v) => v.id === 'art2')).toBeDefined();
+    });
+  });
 });

@@ -128,6 +128,14 @@ export class ContentTreeCls {
     return this.unread_count;
   }
 
+  public PruneReadPins(selectedArticleId: ArticleId | null): void {
+    this.pinnedArticleIds.clear();
+    if (selectedArticleId !== null) {
+      this.pinnedArticleIds.add(JSON.stringify(selectedArticleId));
+    }
+    this.invalidateCaches();
+  }
+
   public GetArticleView(key: SelectionKey, type: SelectionType): ArticleView[] {
     const keyStr = JSON.stringify(key);
 

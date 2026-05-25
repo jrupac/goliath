@@ -31,6 +31,7 @@ import { FetchAPI, FetchAPIFactory } from './api/interface';
 import { GetVersion, VersionData } from './api/goliath';
 import { Navigate } from 'react-router-dom';
 import { ContentTreeCls } from './models/contentTree';
+import { ArticleId } from './models/article';
 import {
   getAdjacentFeed,
   getAdjacentFolder,
@@ -220,6 +221,17 @@ export default class App extends React.Component<AppProps, AppState> {
     });
   };
 
+  handleClearRead = (selectedArticleId: ArticleId | null) => {
+    this.setState((prevState: AppState): AppState => {
+      const contentTreeCls = prevState.contentTreeCls;
+      contentTreeCls.PruneReadPins(selectedArticleId);
+      return {
+        ...prevState,
+        contentTreeCls: contentTreeCls,
+      };
+    });
+  };
+
   handleToggleHideEmpty = () => {
     this.setState((prevState: AppState): AppState => {
       return {
@@ -342,6 +354,7 @@ export default class App extends React.Component<AppProps, AppState> {
               selectionKey={selectionKey}
               selectionType={selectionType}
               handleMark={this.handleMark}
+              clearReadCallback={this.handleClearRead}
               selectAllCallback={() =>
                 this.handleSelect(SelectionType.All, KeyAllItems)
               }
