@@ -350,8 +350,6 @@ describe('formatFriendly', () => {
   });
 
   it('formats dates from this year as ddd, MMM D, h:mm A', () => {
-    // If it is this year, but more than 24 hours ago
-    const date = moment().subtract(10, 'days').toDate();
     // In rare edge case where "10 days ago" crosses the year boundary (e.g. early Jan),
     // we make sure we test a date within the current year.
     const startOfThisYear = moment().startOf('year');

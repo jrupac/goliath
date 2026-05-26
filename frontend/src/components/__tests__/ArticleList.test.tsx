@@ -776,4 +776,47 @@ describe('ArticleList', () => {
       SelectionType.Article
     );
   });
+
+  it('triggers selectSavedCallback on "g s" shortcut and does not trigger toggleSave', () => {
+    vi.useFakeTimers();
+    const mockSelectSavedCallback = vi.fn();
+    render(
+      <ArticleList
+        {...getMockProps({
+          selectSavedCallback: mockSelectSavedCallback,
+        })}
+      />
+    );
+
+    // Trigger 'g' then 's' quickly
+    fireEvent.keyDown(window, { key: 'g' });
+    vi.advanceTimersByTime(100);
+    fireEvent.keyDown(window, { key: 's' });
+
+    expect(mockSelectSavedCallback).toHaveBeenCalledTimes(1);
+    // Standalone toggleSave handler should be skipped because of suffix collision
+    expect(mockHandleMark).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it('triggers toggleSave on "s" if "g" was pressed more than 1000ms ago', () => {
+    vi.useFakeTimers();
+    render(<ArticleList {...getMockProps()} />);
+
+    // Trigger 'g' then wait 1500ms and trigger 's'
+    fireEvent.keyDown(window, { key: 'g' });
+    vi.advanceTimersByTime(1500);
+    fireEvent.keyDown(window, { key: 's' });
+
+    // Standalone toggleSave handler should execute because timing gap > 1000ms
+    expect(mockHandleMark).toHaveBeenCalledTimes(1);
+    expect(mockHandleMark).toHaveBeenCalledWith(
+      MarkState.Saved,
+      ['1', '1', '1'],
+      SelectionType.Article
+    );
+
+    vi.useRealTimers();
+  });
 });

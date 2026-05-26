@@ -10,6 +10,7 @@ import {
   GoliathTheme,
   KeyUnread,
   KeyAllItems,
+  KeySaved,
   MarkState,
   NavigationDirection,
   SelectionKey,
@@ -382,6 +383,9 @@ export default class App extends React.Component<AppProps, AppState> {
               }
               selectUnreadCallback={() =>
                 this.handleSelect(SelectionType.Unread, KeyUnread)
+              }
+              selectSavedCallback={() =>
+                this.handleSelect(SelectionType.Saved, KeySaved)
               }
               buildTimestamp={this.state.buildTimestamp}
               buildHash={this.state.buildHash}

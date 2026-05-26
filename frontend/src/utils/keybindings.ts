@@ -13,7 +13,8 @@ export type HandlerKey =
   | 'markAllRead'
   | 'toggleReaderMode'
   | 'clearRead'
-  | 'toggleSave';
+  | 'toggleSave'
+  | 'goSaved';
 
 /** Shape of a single keybinding entry. */
 export interface Keybinding {
@@ -139,6 +140,15 @@ export const Keybindings: {
       label: 'Toggle saved',
       description: 'Toggle whether the selected article is saved or unsaved',
       handlerKey: 'toggleSave',
+    },
+    {
+      key: 's',
+      display: ['g', 's'],
+      label: 'Go to Saved',
+      description: 'Navigate to the Saved items stream',
+      handlerKey: 'goSaved',
+      isChord: true,
+      isSequential: true,
     },
   ],
 

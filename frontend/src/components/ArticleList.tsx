@@ -59,6 +59,7 @@ export interface ArticleListProps {
   navigateToAdjacentEntry?: (direction: NavigationDirection) => void;
   showKeybindingsModal?: boolean;
   clearReadCallback?: (selectedArticleId: ArticleId | null) => void;
+  selectSavedCallback?: () => void;
 }
 
 const ArticleList: React.FC<ArticleListProps> = ({
@@ -68,6 +69,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   selectionType,
   selectAllCallback,
   selectUnreadCallback,
+  selectSavedCallback,
   handleMark,
   buildTimestamp,
   buildHash,
@@ -256,12 +258,16 @@ const ArticleList: React.FC<ArticleListProps> = ({
         handleToggleArticleSave(selectedArticle.id);
       }
     },
+    goSaved: () => {
+      selectSavedCallback?.();
+    },
   });
   // Keep the ref up to date when handlers change.
   articleListHandlersRef.current.scrollDown = handleScrollDown;
   articleListHandlersRef.current.scrollUp = handleScrollUp;
   articleListHandlersRef.current.goAll = selectAllCallback;
   articleListHandlersRef.current.goUnread = selectUnreadCallback;
+  articleListHandlersRef.current.goSaved = () => selectSavedCallback?.();
   articleListHandlersRef.current.markAllRead = handleMarkAllRead;
   articleListHandlersRef.current.openInTab = () =>
     handleOpenArticle(scrollIndex);
