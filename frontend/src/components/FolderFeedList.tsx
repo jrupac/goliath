@@ -19,7 +19,7 @@ import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import { FolderView } from '../models/folder';
 import { FeedView } from '../models/feed';
-import BookmarkTwoToneIcon from '@mui/icons-material/BookmarkTwoTone';
+import StarTwoToneIcon from '@mui/icons-material/StarTwoTone';
 import FeedIcon from './FeedIcon';
 
 function precomputeIdToSelectionKey(
@@ -325,7 +325,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         onClick={(e) => handleItemSelect(e, KeySaved)}
         className={savedSelectedClass}
       >
-        <BookmarkTwoToneIcon fontSize="small" />
+        <StarTwoToneIcon fontSize="small" />
         {renderSavedItemsTitle()}
       </Box>
 

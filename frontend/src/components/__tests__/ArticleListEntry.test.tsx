@@ -4,6 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 import ArticleListEntry from '../ArticleListEntry';
 import { ArticleView } from '../../models/article';
 import { FaviconCls } from '../../models/feed';
+import { SelectionType } from '../../utils/types';
 
 const mockArticleView: ArticleView = {
   folderId: '1',
@@ -212,7 +213,7 @@ describe('ArticleListEntry', () => {
       />
     );
     expect(
-      document.querySelector('.GoliathArticleCardUnreadSelected')
+      document.querySelector('.GoliathArticleCardSelected')
     ).toBeInTheDocument();
 
     rerender(
@@ -226,11 +227,11 @@ describe('ArticleListEntry', () => {
       />
     );
     expect(
-      document.querySelector('.GoliathArticleCardUnreadSelected')
+      document.querySelector('.GoliathArticleCardSelected')
     ).not.toBeInTheDocument();
   });
 
-  it('applies read + selected class when read and selected', () => {
+  it('applies dimmed class when read', () => {
     render(
       <ArticleListEntry
         articleView={{ ...mockArticleView, isRead: true }}
@@ -242,7 +243,116 @@ describe('ArticleListEntry', () => {
       />
     );
     expect(
-      document.querySelector('.GoliathArticleCardReadSelected')
+      document.querySelector('.GoliathArticleCardDimmed')
     ).toBeInTheDocument();
+    expect(
+      document.querySelector('.GoliathArticleCardSelected')
+    ).toBeInTheDocument();
+  });
+
+  it('forces bright class in Saved items stream view even if article is read', () => {
+    render(
+      <ArticleListEntry
+        articleView={{ ...mockArticleView, isRead: true, isSaved: true }}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={false}
+        showPreviews={false}
+        selectionType={SelectionType.Saved}
+      />
+    );
+    expect(
+      document.querySelector('.GoliathArticleCardDimmed')
+    ).not.toBeInTheDocument();
+    expect(
+      document.querySelector('.GoliathArticleCardBright')
+    ).toBeInTheDocument();
+  });
+
+  it('applies dimmed class when unsaved in Saved items stream view', () => {
+    render(
+      <ArticleListEntry
+        articleView={{ ...mockArticleView, isSaved: false }}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={false}
+        showPreviews={false}
+        selectionType={SelectionType.Saved}
+      />
+    );
+    expect(
+      document.querySelector('.GoliathArticleCardDimmed')
+    ).toBeInTheDocument();
+  });
+
+  it('does not apply dimmed class when saved in Saved items stream view', () => {
+    render(
+      <ArticleListEntry
+        articleView={{ ...mockArticleView, isSaved: true }}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={false}
+        showPreviews={false}
+        selectionType={SelectionType.Saved}
+      />
+    );
+    expect(
+      document.querySelector('.GoliathArticleCardDimmed')
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders star border dot on hover for unsaved article in Saved view', () => {
+    render(
+      <ArticleListEntry
+        articleView={{ ...mockArticleView, isSaved: false }}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={false}
+        showPreviews={false}
+        selectionType={SelectionType.Saved}
+      />
+    );
+    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
+    expect(screen.getByTestId('StarBorderIcon')).toBeInTheDocument();
+  });
+
+  it('renders star dot on hover for saved article in Saved view', () => {
+    render(
+      <ArticleListEntry
+        articleView={{ ...mockArticleView, isSaved: true }}
+        favicon={undefined}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={false}
+        showPreviews={false}
+        selectionType={SelectionType.Saved}
+      />
+    );
+    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
+    expect(screen.getByTestId('StarIcon')).toBeInTheDocument();
+  });
+
+  it('calls onToggleSave when star dot is clicked in Saved view', () => {
+    const onToggleSave = vi.fn();
+    render(
+      <ArticleListEntry
+        articleView={{ ...mockArticleView, isSaved: true }}
+        favicon={new FaviconCls('')}
+        feedTitle={mockArticleView.feedTitle}
+        feedId={mockArticleView.feedId}
+        selected={false}
+        showPreviews={false}
+        selectionType={SelectionType.Saved}
+        onToggleSave={onToggleSave}
+      />
+    );
+    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
+    const dot = screen.getByTestId('StarIcon');
+    fireEvent.click(dot);
+    expect(onToggleSave).toHaveBeenCalledWith('1');
   });
 });

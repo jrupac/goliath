@@ -15,8 +15,9 @@ import {
 import FeedIcon from './FeedIcon';
 import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
 import { keybindRegistry } from '../utils/keybindRegistry';
-import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
-import BookmarkIcon from '@mui/icons-material/Bookmark';
+import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
+import { SelectionType } from '../utils/types';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CheckCircleTwoToneIcon from '@mui/icons-material/CheckCircleTwoTone';
 import ChromeReaderModeOutlinedIcon from '@mui/icons-material/ChromeReaderModeOutlined';
@@ -31,6 +32,8 @@ export interface ArticleProps {
   feedId: string;
   isSelected: boolean;
   onMarkArticleRead: () => void;
+  onToggleSave: () => void;
+  selectionType: SelectionType;
   showKeybindingsModal?: boolean;
 }
 
@@ -185,36 +188,40 @@ const ArticleCard: React.FC<ArticleProps> = ({
                   )}
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Save article">
+              <Tooltip
+                title={
+                  props.article.isSaved ? 'Unsave article' : 'Save article'
+                }
+              >
                 <IconButton
                   aria-label="save article"
                   className="GoliathButton"
                   size="small"
-                  onClick={() => {}}
+                  onClick={props.onToggleSave}
                 >
-                  {props.article.isSaved ? (
-                    <BookmarkIcon />
-                  ) : (
-                    <BookmarkBorderIcon />
-                  )}
+                  {props.article.isSaved ? <StarIcon /> : <StarBorderIcon />}
                 </IconButton>
               </Tooltip>
-              <Tooltip
-                title={props.article.isRead ? 'Mark as unread' : 'Mark as read'}
-              >
-                <IconButton
-                  aria-label="mark as read"
-                  onClick={() => props.onMarkArticleRead()}
-                  className="GoliathButton"
-                  size="small"
+              {props.selectionType !== SelectionType.Saved && (
+                <Tooltip
+                  title={
+                    props.article.isRead ? 'Mark as unread' : 'Mark as read'
+                  }
                 >
-                  {props.article.isRead ? (
-                    <CheckCircleOutlineIcon />
-                  ) : (
-                    <CheckCircleTwoToneIcon />
-                  )}
-                </IconButton>
-              </Tooltip>
+                  <IconButton
+                    aria-label="mark as read"
+                    onClick={() => props.onMarkArticleRead()}
+                    className="GoliathButton"
+                    size="small"
+                  >
+                    {props.article.isRead ? (
+                      <CheckCircleOutlineIcon />
+                    ) : (
+                      <CheckCircleTwoToneIcon />
+                    )}
+                  </IconButton>
+                </Tooltip>
+              )}
             </Box>
           </Box>
 

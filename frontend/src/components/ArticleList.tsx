@@ -37,6 +37,8 @@ import { ArticleId, ArticleView } from '../models/article';
 import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
 import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
 import DoneAllTwoTone from '@mui/icons-material/DoneAllTwoTone';
+import HotelClassTwoTone from '@mui/icons-material/HotelClassTwoTone';
+import HotelClassRounded from '@mui/icons-material/HotelClassRounded';
 import { FaviconCls, FeedId } from '../models/feed';
 
 export interface ArticleListProps {
@@ -111,6 +113,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
   const handleMarkArticleRead = useCallback(
     (index: number) => {
+      if (selectionType === SelectionType.Saved) {
+        return;
+      }
       if (index >= 0 && index <= articleEntriesCls.length - 1) {
         const articleView: ArticleView = articleEntriesCls[index];
         if (articleView && !articleView.isRead) {
@@ -122,8 +127,30 @@ const ArticleList: React.FC<ArticleListProps> = ({
         }
       }
     },
+    [articleEntriesCls, handleMark, selectionType]
+  );
+
+  const handleToggleArticleSave = useCallback(
+    (id: ArticleId) => {
+      const articleView = articleEntriesCls.find((a) => a.id === id);
+      if (!articleView) return;
+      const newState = articleView.isSaved
+        ? MarkState.Unsaved
+        : MarkState.Saved;
+      handleMark(
+        newState,
+        [articleView.id, articleView.feedId, articleView.folderId],
+        SelectionType.Article
+      );
+    },
     [articleEntriesCls, handleMark]
   );
+
+  const handleMarkAllSavedToggle = useCallback(() => {
+    const anySaved = articleEntriesCls.some((a) => a.isSaved);
+    const newState = anySaved ? MarkState.Unsaved : MarkState.Saved;
+    handleMark(newState, selectionKey, selectionType);
+  }, [handleMark, selectionKey, selectionType, articleEntriesCls]);
 
   const handleToggleArticleRead = useCallback(
     (id: ArticleId) => {
@@ -216,10 +243,17 @@ const ArticleList: React.FC<ArticleListProps> = ({
       if (
         selectionType === SelectionType.Unread ||
         selectionType === SelectionType.Folder ||
-        selectionType === SelectionType.Feed
+        selectionType === SelectionType.Feed ||
+        selectionType === SelectionType.Saved
       ) {
         const activeId = articleEntriesCls[scrollIndex]?.id ?? null;
         clearReadCallback?.(activeId);
+      }
+    },
+    toggleSave: () => {
+      const selectedArticle = articleEntriesCls[scrollIndex];
+      if (selectedArticle) {
+        handleToggleArticleSave(selectedArticle.id);
       }
     },
   });
@@ -235,10 +269,17 @@ const ArticleList: React.FC<ArticleListProps> = ({
     if (
       selectionType === SelectionType.Unread ||
       selectionType === SelectionType.Folder ||
-      selectionType === SelectionType.Feed
+      selectionType === SelectionType.Feed ||
+      selectionType === SelectionType.Saved
     ) {
       const activeId = articleEntriesCls[scrollIndex]?.id ?? null;
       clearReadCallback?.(activeId);
+    }
+  };
+  articleListHandlersRef.current.toggleSave = () => {
+    const selectedArticle = articleEntriesCls[scrollIndex];
+    if (selectedArticle) {
+      handleToggleArticleSave(selectedArticle.id);
     }
   };
 
@@ -319,6 +360,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
           showPreviews={showPreviews}
           onSelect={handleClickArticle}
           onToggleRead={handleToggleArticleRead}
+          selectionType={selectionType}
+          onToggleSave={handleToggleArticleSave}
         />
       );
     },
@@ -329,6 +372,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
       faviconMap,
       handleClickArticle,
       handleToggleArticleRead,
+      handleToggleArticleSave,
+      selectionType,
     ]
   );
 
@@ -374,7 +419,11 @@ const ArticleList: React.FC<ArticleListProps> = ({
   const renderEmpty = () => (
     <Container fixed className="GoliathArticleListContainer">
       <Box className="GoliathArticleListEmpty">
-        <DoneAllRounded className="GoliathArticleListEmptyIcon" />
+        {selectionType === SelectionType.Saved ? (
+          <HotelClassRounded className="GoliathArticleListEmptyIcon" />
+        ) : (
+          <DoneAllRounded className="GoliathArticleListEmptyIcon" />
+        )}
         <Box className="GoliathFooter">
           Goliath RSS
           <br />
@@ -407,16 +456,35 @@ const ArticleList: React.FC<ArticleListProps> = ({
         <Grid container wrap="nowrap" size="grow">
           <Stack className="GoliathArticleListColumn">
             <Box className="GoliathSplitViewArticleListActionBar">
-              <Tooltip title="Mark all as read">
-                <IconButton
-                  aria-label="mark all as read"
-                  onClick={() => handleMarkAllRead()}
-                  className="GoliathButton"
-                  size="small"
+              {selectionType === SelectionType.Saved ? (
+                <Tooltip
+                  title={
+                    articleEntriesCls.some((a) => a.isSaved)
+                      ? 'Unsave all'
+                      : 'Save all'
+                  }
                 >
-                  <DoneAllTwoTone />
-                </IconButton>
-              </Tooltip>
+                  <IconButton
+                    aria-label="mark all as unsaved"
+                    onClick={() => handleMarkAllSavedToggle()}
+                    className="GoliathButton"
+                    size="small"
+                  >
+                    <HotelClassTwoTone />
+                  </IconButton>
+                </Tooltip>
+              ) : (
+                <Tooltip title="Mark all as read">
+                  <IconButton
+                    aria-label="mark all as read"
+                    onClick={() => handleMarkAllRead()}
+                    className="GoliathButton"
+                    size="small"
+                  >
+                    <DoneAllTwoTone />
+                  </IconButton>
+                </Tooltip>
+              )}
               <div className="GoliathActionBarSpacer"></div>
               <Tooltip title="Scroll up">
                 <IconButton
@@ -460,6 +528,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
               feedId={articleView.feedId}
               isSelected={true}
               onMarkArticleRead={() => handleToggleArticleRead(articleView.id)}
+              onToggleSave={() => handleToggleArticleSave(articleView.id)}
+              selectionType={selectionType}
               showKeybindingsModal={showKeybindingsModal}
             />
           </Grid>

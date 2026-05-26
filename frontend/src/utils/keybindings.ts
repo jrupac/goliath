@@ -12,7 +12,8 @@ export type HandlerKey =
   | 'goUnread'
   | 'markAllRead'
   | 'toggleReaderMode'
-  | 'clearRead';
+  | 'clearRead'
+  | 'toggleSave';
 
 /** Shape of a single keybinding entry. */
 export interface Keybinding {
@@ -131,6 +132,13 @@ export const Keybindings: {
       label: 'Clear read articles',
       description: 'Clear read articles from the current view',
       handlerKey: 'clearRead',
+    },
+    {
+      key: 's',
+      display: ['s'],
+      label: 'Toggle saved',
+      description: 'Toggle whether the selected article is saved or unsaved',
+      handlerKey: 'toggleSave',
     },
   ],
 

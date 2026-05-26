@@ -446,31 +446,25 @@
   z-index: 3;
 }
 
-.GoliathArticleCardUnreadSelected::before {
+.GoliathArticleCardBright.GoliathArticleCardSelected::before {
   opacity: 1;
 }
 
-/* Card state: unread, unselected */
-.GoliathArticleCardUnread {
+/* Card state: bright (unread/saved), unselected */
+.GoliathArticleCardBright {
   color: var(--primary-font-color);
   background-color: var(--primary-darker-1-color);
 }
 
-/* Card state: unread, selected */
-.GoliathArticleCardUnreadSelected {
+/* Card state: dimmed (read/unsaved), unselected */
+.GoliathArticleCardDimmed {
+  opacity: var(--card-read-text-opacity);
+}
+
+/* Card state: selected */
+.GoliathArticleCardSelected {
   background-color: var(--accent-color-subtle);
   color: var(--primary-font-color);
-}
-
-/* Card state: read, unselected */
-.GoliathArticleCardRead {
-  opacity: var(--card-read-text-opacity);
-}
-
-/* Card state: read, selected */
-.GoliathArticleCardReadSelected {
-  background-color: var(--accent-color-subtle);
-  opacity: var(--card-read-text-opacity);
 }
 
 /* Subtle card hover state with shadow and warm accent tint */
@@ -484,8 +478,7 @@
 }
 
 /* Retain correct select-background colors during hover */
-.GoliathArticleCardUnreadSelected:hover,
-.GoliathArticleCardReadSelected:hover {
+.GoliathArticleCardSelected:hover {
   background-color: color-mix(
     in srgb,
     var(--accent-color-subtle) 90%,
@@ -609,11 +602,11 @@
   text-decoration: none;
 }
 
-.GoliathArticleCardUnread .GoliathArticleCardTitle {
+.GoliathArticleCardBright .GoliathArticleCardTitle {
   font-weight: 500;
 }
 
-.GoliathArticleCardRead .GoliathArticleCardTitle {
+.GoliathArticleCardDimmed .GoliathArticleCardTitle {
   font-weight: 400;
 }
 
@@ -635,8 +628,8 @@
   min-width: 0;
 }
 
-/* Thumbnail grayscale when article is read */
-.GoliathArticleCardRead .GoliathArticleListImagePreview {
+/* Thumbnail grayscale when article is dimmed */
+.GoliathArticleCardDimmed .GoliathArticleListImagePreview {
   filter: grayscale(100%);
 }
 

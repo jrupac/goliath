@@ -7,6 +7,9 @@ import { ArticleId, ArticleView } from '../models/article';
 import { FaviconCls } from '../models/feed';
 import ImagePreview from './ImagePreview';
 import FeedIcon from './FeedIcon';
+import { SelectionType } from '../utils/types';
+import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
 
 export interface ArticleListEntryProps {
   articleView: ArticleView;
@@ -17,6 +20,8 @@ export interface ArticleListEntryProps {
   showPreviews: boolean;
   onSelect?: (id: ArticleId) => void;
   onToggleRead?: (id: ArticleId) => void;
+  onToggleSave?: (id: ArticleId) => void;
+  selectionType?: SelectionType;
 }
 
 const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
@@ -29,6 +34,8 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
     showPreviews,
     onSelect,
     onToggleRead,
+    onToggleSave,
+    selectionType,
   }: ArticleListEntryProps) {
     const [cardHovered, setCardHovered] = useState(false);
     const [dotHovered, setDotHovered] = useState(false);
@@ -48,12 +55,19 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
       [articleView.creationTime]
     );
 
-    const handleToggleRead = useCallback(
+    const isSavedStream = selectionType === SelectionType.Saved;
+    const isDimmed = isSavedStream ? !articleView.isSaved : articleView.isRead;
+
+    const handleToggleAction = useCallback(
       (e: React.MouseEvent) => {
         e.stopPropagation();
-        onToggleRead?.(articleView.id);
+        if (isSavedStream) {
+          onToggleSave?.(articleView.id);
+        } else {
+          onToggleRead?.(articleView.id);
+        }
       },
-      [onToggleRead, articleView.id]
+      [isSavedStream, onToggleRead, onToggleSave, articleView.id]
     );
 
     const handleSelect = useCallback(
@@ -64,19 +78,16 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
     // Swap dot style on hover as click affordance: unread shows filled, read shows hollow.
     // On hover, invert: read shows filled (affordance to mark unread), unread shows hollow.
     const showFilledDot = articleView.isRead ? dotHovered : !dotHovered;
+    const showFilledStar = articleView.isSaved ? !dotHovered : dotHovered;
 
     const extraClasses: string[] = ['GoliathArticleCard'];
-    if (articleView.isRead) {
-      extraClasses.push('GoliathArticleCardRead');
+    if (isDimmed) {
+      extraClasses.push('GoliathArticleCardDimmed');
     } else {
-      extraClasses.push('GoliathArticleCardUnread');
+      extraClasses.push('GoliathArticleCardBright');
     }
     if (selected) {
-      extraClasses.push(
-        articleView.isRead
-          ? 'GoliathArticleCardReadSelected'
-          : 'GoliathArticleCardUnreadSelected'
-      );
+      extraClasses.push('GoliathArticleCardSelected');
     }
 
     return (
@@ -91,11 +102,20 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
           <span className="GoliathArticleCardIconSlot">
             <span
               className={`GoliathArticleCardDot ${cardHovered ? 'visible' : 'hidden'}`}
-              onClick={handleToggleRead}
+              onClick={handleToggleAction}
               onMouseEnter={() => setDotHovered(true)}
               onMouseLeave={() => setDotHovered(false)}
             >
-              {showFilledDot ? (
+              {isSavedStream ? (
+                showFilledStar ? (
+                  <StarIcon fontSize="small" data-testid="StarIcon" />
+                ) : (
+                  <StarBorderIcon
+                    fontSize="small"
+                    data-testid="StarBorderIcon"
+                  />
+                )
+              ) : showFilledDot ? (
                 <FiberManualRecordIcon
                   fontSize="small"
                   data-testid="FiberManualRecordIcon"

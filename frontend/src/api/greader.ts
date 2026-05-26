@@ -145,6 +145,12 @@ export default class GReader implements FetchAPI {
     } else if (mark === MarkState.Unread) {
       // Remove the "read" tag to mark as unread.
       formData.set('r', GReaderTag.Read);
+    } else if (mark === MarkState.Saved) {
+      // Add the "starred" tag to mark as saved.
+      formData.set('a', GReaderTag.Starred);
+    } else if (mark === MarkState.Unsaved) {
+      // Remove the "starred" tag to mark as unsaved.
+      formData.set('r', GReaderTag.Starred);
     } else {
       console.log('Unexpected mark state: ' + mark);
       return Promise.reject(new Error('Unexpected mark state: ' + mark));
@@ -229,12 +235,42 @@ export default class GReader implements FetchAPI {
     const articleRefLimit = 1000;
     const articleContentLimit = 100;
 
-    const formData = new FormData();
-    formData.set('s', GReaderStream.ReadingList);
-    formData.set('xt', GReaderTag.Read);
-    formData.set('n', articleRefLimit.toString());
+    // Fetch unread items
+    const unreadFormData = new FormData();
+    unreadFormData.set('s', GReaderStream.ReadingList);
+    unreadFormData.set('xt', GReaderTag.Read);
+    unreadFormData.set('n', articleRefLimit.toString());
 
-    const articleIdStrs = await this.fetchStreamIds(formData, articleRefLimit);
+    const unreadArticleIdStrs = await this.fetchStreamIds(
+      unreadFormData,
+      articleRefLimit
+    );
+
+    // Fetch saved items
+    const savedFormData = new FormData();
+    savedFormData.set('s', GReaderStream.Starred);
+    savedFormData.set('n', articleRefLimit.toString());
+
+    const savedArticleIdStrs = await this.fetchStreamIds(
+      savedFormData,
+      articleRefLimit
+    );
+
+    const unreadSet = new Set(unreadArticleIdStrs.map(([id]) => id));
+    const savedSet = new Set(savedArticleIdStrs.map(([id]) => id));
+
+    // Combine into a single list of unique article IDs (maintaining metadata)
+    const uniqueArticleMap = new Map<string, [string, string]>();
+    unreadArticleIdStrs.forEach(([id, feedId, folderId]) => {
+      uniqueArticleMap.set(id, [feedId, folderId]);
+    });
+    savedArticleIdStrs.forEach(([id, feedId, folderId]) => {
+      uniqueArticleMap.set(id, [feedId, folderId]);
+    });
+
+    const articleIdStrs = Array.from(uniqueArticleMap.entries()).map(
+      ([id, [feedId, folderId]]) => [id, feedId, folderId]
+    );
 
     for (let i = 0; i < articleIdStrs.length; i += articleContentLimit) {
       const articleContentsForm = new FormData();
@@ -262,15 +298,23 @@ export default class GReader implements FetchAPI {
       }
 
       streamItemContents.items.forEach((item: GReaderItemContent) => {
+        const hexId = this.parseArticleID(item.id);
+        const isRead = unreadSet.has(hexId)
+          ? ReadStatus.Unread
+          : ReadStatus.Read;
+        const isSaved = savedSet.has(hexId)
+          ? SavedStatus.Saved
+          : SavedStatus.Unsaved;
+
         const article = new ArticleCls(
-          this.parseArticleID(item.id),
+          hexId,
           item.title,
           '',
           item.summary.content,
           item.canonical[0].href,
-          SavedStatus.Unsaved,
+          isSaved,
           item.published,
-          ReadStatus.Unread
+          isRead
         );
 
         const feedId = this.parseFeedID(item.categories[1]);

@@ -71,6 +71,8 @@ export type SelectionKey =
 export enum MarkState {
   Read = 0,
   Unread = 1,
+  Saved = 2,
+  Unsaved = 3,
 }
 
 /** NavigationDirection describes the direction of adjacency navigation. */

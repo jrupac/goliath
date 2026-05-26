@@ -76,9 +76,9 @@ describe('ArticleList', () => {
     const card = articleEntry.closest('.GoliathArticleCard');
     expect(card).not.toBeNull();
     if (selected && card) {
-      const hasSelectedClass =
-        card.classList.contains('GoliathArticleCardUnreadSelected') ||
-        card.classList.contains('GoliathArticleCardReadSelected');
+      const hasSelectedClass = card.classList.contains(
+        'GoliathArticleCardSelected'
+      );
       expect(hasSelectedClass).toBe(true);
     }
   };
@@ -696,5 +696,84 @@ describe('ArticleList', () => {
     fireEvent.keyDown(window, { key: 'c' });
 
     expect(mockClearReadCallback).not.toHaveBeenCalled();
+  });
+
+  it('renders HotelClassTwoTone icon in Saved selectionType and toggles saved state', () => {
+    render(
+      <ArticleList
+        {...getMockProps({
+          selectionType: SelectionType.Saved,
+          selectionKey: 'SAVED',
+        })}
+      />
+    );
+
+    const toggleIcon = screen.getByLabelText('mark all as unsaved');
+    expect(toggleIcon).toBeInTheDocument();
+    expect(screen.getByTestId('HotelClassTwoToneIcon')).toBeInTheDocument();
+
+    fireEvent.click(toggleIcon);
+
+    expect(mockHandleMark).toHaveBeenCalledWith(
+      MarkState.Saved,
+      'SAVED',
+      SelectionType.Saved
+    );
+  });
+
+  it('renders HotelClassRounded when selectionType is Saved and list is empty', () => {
+    render(
+      <ArticleList
+        {...getMockProps({
+          articleEntriesCls: [],
+          selectionType: SelectionType.Saved,
+        })}
+      />
+    );
+
+    expect(screen.getByTestId('HotelClassRoundedIcon')).toBeInTheDocument();
+    expect(screen.queryByTestId('DoneAllRoundedIcon')).not.toBeInTheDocument();
+  });
+
+  it('toggles save status of currently selected article on "s" shortcut when unsaved', () => {
+    render(<ArticleList {...getMockProps()} />);
+
+    // Trigger 's'
+    fireEvent.keyDown(window, { key: 's' });
+
+    expect(mockHandleMark).toHaveBeenCalledTimes(1);
+    expect(mockHandleMark).toHaveBeenCalledWith(
+      MarkState.Saved,
+      ['1', '1', '1'],
+      SelectionType.Article
+    );
+  });
+
+  it('toggles save status of currently selected article on "s" shortcut when saved', () => {
+    const savedArticles = [
+      {
+        ...mockArticles[0],
+        isSaved: true,
+      },
+      mockArticles[1],
+    ];
+
+    render(
+      <ArticleList
+        {...getMockProps({
+          articleEntriesCls: savedArticles,
+        })}
+      />
+    );
+
+    // Trigger 's'
+    fireEvent.keyDown(window, { key: 's' });
+
+    expect(mockHandleMark).toHaveBeenCalledTimes(1);
+    expect(mockHandleMark).toHaveBeenCalledWith(
+      MarkState.Unsaved,
+      ['1', '1', '1'],
+      SelectionType.Article
+    );
   });
 });

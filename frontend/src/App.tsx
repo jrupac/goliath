@@ -199,6 +199,28 @@ export default class App extends React.Component<AppProps, AppState> {
         functor = (m: MarkState, e: SelectionKey) =>
           this.fetchApi.MarkAll(m, e);
         break;
+      case SelectionType.Saved:
+        functor = async (m: MarkState, e: SelectionKey) => {
+          const articles = this.state.contentTreeCls.GetArticleView(
+            e,
+            SelectionType.Saved
+          );
+          const promises = articles.map((article) => {
+            const isTargetState =
+              m === MarkState.Unsaved ? article.isSaved : !article.isSaved;
+            if (isTargetState) {
+              return this.fetchApi.MarkArticle(m, [
+                article.id,
+                article.feedId,
+                article.folderId,
+              ]);
+            }
+            return Promise.resolve(null);
+          });
+          await Promise.all(promises);
+          return new Response('OK');
+        };
+        break;
       default:
         throw new Error(`Unexpected enclosing type: ${type}`);
     }

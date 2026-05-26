@@ -120,8 +120,19 @@ export class ContentTreeCls {
         this.invalidateCaches();
         break;
       case SelectionType.Saved:
-        // TODO: Support saved articles.
-        console.log('Saving articles not yet supported!');
+        this.tree.forEach((f: FolderCls): void => {
+          f.GetArticleView().forEach((article) => {
+            const isSaved = article.isSaved;
+            const isPinned = this.pinnedArticleIds.has(
+              JSON.stringify(article.id)
+            );
+            if (isSaved || isPinned) {
+              f.MarkArticle(article.id, article.feedId, markState);
+            }
+          });
+        });
+        this.pinnedArticleIds.clear();
+        this.invalidateCaches();
         break;
     }
 
@@ -194,8 +205,13 @@ export class ContentTreeCls {
         });
         break;
       case SelectionType.Saved:
-        // TODO: Support saved articles.
-        console.log('Showing saved articles not yet supported!');
+        this.tree.forEach((f: FolderCls): void => {
+          articleViews.push(
+            ...f
+              .GetArticleView()
+              .filter((v) => v.isSaved || pinned.has(JSON.stringify(v.id)))
+          );
+        });
         break;
     }
 

@@ -81,6 +81,10 @@ export class ArticleCls {
       this.readStatus = ReadStatus.Read;
     } else if (markState === MarkState.Unread) {
       this.readStatus = ReadStatus.Unread;
+    } else if (markState === MarkState.Saved) {
+      this.savedStatus = SavedStatus.Saved;
+    } else if (markState === MarkState.Unsaved) {
+      this.savedStatus = SavedStatus.Unsaved;
     }
   }
 

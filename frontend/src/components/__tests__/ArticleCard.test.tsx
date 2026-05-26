@@ -5,6 +5,7 @@ import ArticleCard from '../ArticleCard';
 import { ArticleView } from '../../models/article';
 import { FaviconCls } from '../../models/feed';
 import { formatFriendly } from '../../utils/helpers';
+import { SelectionType } from '../../utils/types';
 
 vi.mock('../../utils/helpers', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../utils/helpers')>();
@@ -38,6 +39,8 @@ describe('ArticleCard', () => {
       feedId: '1',
       isSelected: false,
       onMarkArticleRead: () => {},
+      onToggleSave: () => {},
+      selectionType: SelectionType.Unread,
     };
     render(<ArticleCard {...props} />);
   });
@@ -68,6 +71,8 @@ describe('ArticleCard', () => {
       feedId: '1',
       isSelected: false,
       onMarkArticleRead: () => {},
+      onToggleSave: () => {},
+      selectionType: SelectionType.Unread,
     };
     render(<ArticleCard {...props} />);
 
@@ -114,6 +119,8 @@ describe('ArticleCard', () => {
       feedId: '1',
       isSelected: false,
       onMarkArticleRead: () => {},
+      onToggleSave: () => {},
+      selectionType: SelectionType.Unread,
     };
     render(<ArticleCard {...props} />);
 
@@ -145,6 +152,8 @@ describe('ArticleCard', () => {
       feedId: '1',
       isSelected: true, // Ensure it's selected so keydown handler is active if needed
       onMarkArticleRead: mockOnMarkArticleRead,
+      onToggleSave: () => {},
+      selectionType: SelectionType.Unread,
     };
     render(<ArticleCard {...props} />);
 
@@ -178,6 +187,8 @@ describe('ArticleCard', () => {
       feedId: '1',
       isSelected: true,
       onMarkArticleRead: () => {},
+      onToggleSave: () => {},
+      selectionType: SelectionType.Unread,
     };
     render(<ArticleCard {...props} />);
     expect(screen.getByTestId('CheckCircleTwoToneIcon')).toBeInTheDocument();
@@ -203,6 +214,8 @@ describe('ArticleCard', () => {
       feedId: '1',
       isSelected: true,
       onMarkArticleRead: () => {},
+      onToggleSave: () => {},
+      selectionType: SelectionType.Unread,
     };
     render(<ArticleCard {...props} />);
     expect(screen.getByTestId('CheckCircleOutlineIcon')).toBeInTheDocument();
@@ -228,6 +241,8 @@ describe('ArticleCard', () => {
       feedId: '1',
       isSelected: true, // Must be true so keyboard listener is bound
       onMarkArticleRead: () => {},
+      onToggleSave: () => {},
+      selectionType: SelectionType.Unread,
     };
     render(<ArticleCard {...props} />);
 
