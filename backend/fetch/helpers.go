@@ -6,6 +6,8 @@ import (
 	"image"
 	"net/url"
 
+	"golang.org/x/net/html"
+
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/utils"
@@ -23,12 +25,13 @@ func isValidAbsoluteURL(s string) bool {
 
 func (f Fetcher) updateFeedMetadataForUser(ctx context.Context, u models.User, mFeed *models.Feed, rFeed *rss.Feed) {
 	if rFeed.Title != "" {
-		t := maybeUnescapeHtml(rFeed.Title)
-		mFeed.Title = extractTextFromHtmlUnsafe(t)
+		// Feed titles are plain text (possibly with HTML entities), not HTML
+		// documents. Use html.UnescapeString to decode entities without parsing
+		// angle brackets as tags — this preserves titles like "<antirez>".
+		mFeed.Title = html.UnescapeString(rFeed.Title)
 	}
 	if rFeed.Description != "" {
-		d := maybeUnescapeHtml(rFeed.Description)
-		mFeed.Description = extractTextFromHtmlUnsafe(d)
+		mFeed.Description = html.UnescapeString(rFeed.Description)
 	}
 	if rFeed.Link != "" && isValidAbsoluteURL(rFeed.Link) {
 		mFeed.Link = rFeed.Link

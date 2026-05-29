@@ -77,6 +77,42 @@ func TestUpdateFeedMetadataForUser(t *testing.T) {
 			t.Error("expected UpdateFeedMetadataForUser to be called on the database")
 		}
 	})
+
+	t.Run("angle bracket title is preserved as literal text", func(t *testing.T) {
+		modelFeed := &models.Feed{ID: 1}
+		rssFeed := &rss.Feed{
+			Title:       " <antirez> ",
+			Description: "A <description> with tags",
+			Link:        "http://example.com",
+		}
+
+		fetcher.updateFeedMetadataForUser(context.Background(), user, modelFeed, rssFeed)
+
+		if modelFeed.Title != " <antirez> " {
+			t.Errorf("expected title to be %q, got %q", " <antirez> ", modelFeed.Title)
+		}
+		if modelFeed.Description != "A <description> with tags" {
+			t.Errorf("expected description to be %q, got %q", "A <description> with tags", modelFeed.Description)
+		}
+	})
+
+	t.Run("HTML entities are unescaped", func(t *testing.T) {
+		modelFeed := &models.Feed{ID: 1}
+		rssFeed := &rss.Feed{
+			Title:       "My &amp; Feed",
+			Description: "A &lt;description&gt; &amp; more",
+			Link:        "http://example.com",
+		}
+
+		fetcher.updateFeedMetadataForUser(context.Background(), user, modelFeed, rssFeed)
+
+		if modelFeed.Title != "My & Feed" {
+			t.Errorf("expected title to be %q, got %q", "My & Feed", modelFeed.Title)
+		}
+		if modelFeed.Description != "A <description> & more" {
+			t.Errorf("expected description to be %q, got %q", "A <description> & more", modelFeed.Description)
+		}
+	})
 }
 
 func TestTryIconFetch(t *testing.T) {
