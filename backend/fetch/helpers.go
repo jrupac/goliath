@@ -5,6 +5,7 @@ import (
 	"errors"
 	"image"
 	"net/url"
+	"strings"
 
 	"golang.org/x/net/html"
 
@@ -28,10 +29,10 @@ func (f Fetcher) updateFeedMetadataForUser(ctx context.Context, u models.User, m
 		// Feed titles are plain text (possibly with HTML entities), not HTML
 		// documents. Use html.UnescapeString to decode entities without parsing
 		// angle brackets as tags — this preserves titles like "<antirez>".
-		mFeed.Title = html.UnescapeString(rFeed.Title)
+		mFeed.Title = strings.TrimSpace(html.UnescapeString(rFeed.Title))
 	}
 	if rFeed.Description != "" {
-		mFeed.Description = html.UnescapeString(rFeed.Description)
+		mFeed.Description = strings.TrimSpace(html.UnescapeString(rFeed.Description))
 	}
 	if rFeed.Link != "" && isValidAbsoluteURL(rFeed.Link) {
 		mFeed.Link = rFeed.Link

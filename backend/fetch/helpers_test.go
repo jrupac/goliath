@@ -88,11 +88,29 @@ func TestUpdateFeedMetadataForUser(t *testing.T) {
 
 		fetcher.updateFeedMetadataForUser(context.Background(), user, modelFeed, rssFeed)
 
-		if modelFeed.Title != " <antirez> " {
-			t.Errorf("expected title to be %q, got %q", " <antirez> ", modelFeed.Title)
+		if modelFeed.Title != "<antirez>" {
+			t.Errorf("expected title to be %q, got %q", "<antirez>", modelFeed.Title)
 		}
 		if modelFeed.Description != "A <description> with tags" {
 			t.Errorf("expected description to be %q, got %q", "A <description> with tags", modelFeed.Description)
+		}
+	})
+
+	t.Run("trims leading/trailing whitespace from title and description", func(t *testing.T) {
+		modelFeed := &models.Feed{ID: 1}
+		rssFeed := &rss.Feed{
+			Title:       "\n<antirez>\n",
+			Description: "\nA <desc>\n",
+			Link:        "http://example.com",
+		}
+
+		fetcher.updateFeedMetadataForUser(context.Background(), user, modelFeed, rssFeed)
+
+		if modelFeed.Title != "<antirez>" {
+			t.Errorf("expected title to be %q, got %q", "<antirez>", modelFeed.Title)
+		}
+		if modelFeed.Description != "A <desc>" {
+			t.Errorf("expected description to be %q, got %q", "A <desc>", modelFeed.Description)
 		}
 	})
 
