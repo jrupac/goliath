@@ -191,20 +191,25 @@ const ArticleList: React.FC<ArticleListProps> = ({
     handleSelectByIndex(scrollIndex - 1);
   }, [handleSelectByIndex, scrollIndex, navigateToAdjacentEntry]);
 
-  const handleScrollDown = useCallback(() => {
-    handleMarkArticleRead(scrollIndex);
-    if (scrollIndex >= articleEntriesCls.length - 1) {
-      navigateToAdjacentEntry?.(NavigationDirection.Next);
-      return;
-    }
-    handleSelectByIndex(scrollIndex + 1);
-  }, [
-    handleMarkArticleRead,
-    handleSelectByIndex,
-    scrollIndex,
-    navigateToAdjacentEntry,
-    articleEntriesCls.length,
-  ]);
+  const handleScrollDown = useCallback(
+    (options?: { markRead?: boolean }) => {
+      if (options?.markRead !== false) {
+        handleMarkArticleRead(scrollIndex);
+      }
+      if (scrollIndex >= articleEntriesCls.length - 1) {
+        navigateToAdjacentEntry?.(NavigationDirection.Next);
+        return;
+      }
+      handleSelectByIndex(scrollIndex + 1);
+    },
+    [
+      handleMarkArticleRead,
+      handleSelectByIndex,
+      scrollIndex,
+      navigateToAdjacentEntry,
+      articleEntriesCls.length,
+    ]
+  );
 
   const handleOpenArticle = useCallback(
     (index: number) => {
@@ -233,8 +238,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
   // Handler map for article list keybindings — held in a ref so its
   // identity stays stable across renders.
   const articleListHandlersRef = useRef<Record<string, () => void>>({
-    scrollDown: handleScrollDown,
+    scrollDown: () => handleScrollDown({ markRead: true }),
     scrollUp: handleScrollUp,
+    scrollDownNoRead: () => handleScrollDown({ markRead: false }),
     openInTab: () => handleOpenArticle(scrollIndex),
     togglePreviews: () => setShowPreviews((prev) => !prev),
     toggleSmoothScroll: () => setSmoothScroll((prev) => !prev),
@@ -263,8 +269,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
     },
   });
   // Keep the ref up to date when handlers change.
-  articleListHandlersRef.current.scrollDown = handleScrollDown;
+  articleListHandlersRef.current.scrollDown = () => handleScrollDown({ markRead: true });
   articleListHandlersRef.current.scrollUp = handleScrollUp;
+  articleListHandlersRef.current.scrollDownNoRead = () => handleScrollDown({ markRead: false });
   articleListHandlersRef.current.goAll = selectAllCallback;
   articleListHandlersRef.current.goUnread = selectUnreadCallback;
   articleListHandlersRef.current.goSaved = () => selectSavedCallback?.();

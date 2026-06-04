@@ -5,6 +5,7 @@ export type HandlerKey =
   | 'toggleKeybindingsModal'
   | 'scrollDown'
   | 'scrollUp'
+  | 'scrollDownNoRead'
   | 'openInTab'
   | 'togglePreviews'
   | 'toggleSmoothScroll'
@@ -60,17 +61,17 @@ export const Keybindings: {
   articleList: [
     {
       key: 'j',
-      display: ['j', '↓'],
-      label: 'Next article',
-      description: 'Select the next article',
+      display: ['j'],
+      label: 'Next article (marks as read)',
+      description: 'Select the next article (marks the current one as read)',
       handlerKey: 'scrollDown',
     },
     {
       key: 'ArrowDown',
-      display: [],
-      label: 'Next article',
-      description: 'Select the next article',
-      handlerKey: 'scrollDown',
+      display: ['↓'],
+      label: 'Next article (keep unread)',
+      description: 'Select the next article without marking as read',
+      handlerKey: 'scrollDownNoRead',
     },
     {
       key: 'k',

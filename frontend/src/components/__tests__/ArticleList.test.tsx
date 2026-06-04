@@ -163,6 +163,41 @@ describe('ArticleList', () => {
     expectArticleSelected(container, 'Test Article 2', true);
   });
 
+  it('selects next article on scroll down with arrow key without marking as read', () => {
+    const { container } = render(<ArticleList {...getMockProps()} />);
+
+    // Before scroll, Article 1 is selected
+    expectArticleSelected(container, 'Test Article 1', true);
+
+    // Simulate scroll down with ArrowDown key
+    fireEvent.keyDown(window, { key: 'ArrowDown' });
+
+    // Check that handleMark was NOT called
+    expect(mockHandleMark).not.toHaveBeenCalled();
+
+    // After scroll, Article 2 should be selected
+    expectArticleSelected(container, 'Test Article 1', false);
+    expectArticleSelected(container, 'Test Article 2', true);
+  });
+
+  it('selects previous article on scroll up with arrow key without marking as read', () => {
+    const { container } = render(<ArticleList {...getMockProps()} />);
+
+    // First scroll down with ArrowDown to select Article 2
+    fireEvent.keyDown(window, { key: 'ArrowDown' });
+    expectArticleSelected(container, 'Test Article 2', true);
+
+    // Simulate scroll up with ArrowUp key
+    fireEvent.keyDown(window, { key: 'ArrowUp' });
+
+    // Check that handleMark was NOT called
+    expect(mockHandleMark).not.toHaveBeenCalled();
+
+    // After scroll up, Article 1 should be selected
+    expectArticleSelected(container, 'Test Article 1', true);
+    expectArticleSelected(container, 'Test Article 2', false);
+  });
+
   it('selects previous article on scroll up', () => {
     const { container, rerender } = render(<ArticleList {...getMockProps()} />);
 
