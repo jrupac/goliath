@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/jrupac/rss"
 	"github.com/mat/besticon/v3/besticon"
 	"github.com/microcosm-cc/bluemonday"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 var (
@@ -37,6 +39,36 @@ var (
 	bluemondayTitlePolicy = bluemonday.StrictPolicy()
 	bluemondayBodyPolicy  = makeBodyPolicy()
 )
+
+var (
+	feedFetchIntervalMetric = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "feed_fetch_interval_seconds",
+			Help: "Calculated adaptive fetch interval in seconds on a per-user, per-feed basis.",
+		},
+		[]string{"username", "feed_id", "feed_title", "feed_url"},
+	)
+	feedFetchConsecutiveFailuresMetric = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "feed_fetch_consecutive_failures",
+			Help: "Current number of consecutive fetch failures on a per-user, per-feed basis.",
+		},
+		[]string{"username", "feed_id", "feed_title", "feed_url"},
+	)
+	feedFetchErrorsMetric = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "feed_fetch_errors_total",
+			Help: "Total number of fetch errors on a per-user, per-feed basis.",
+		},
+		[]string{"username", "feed_id", "feed_title", "feed_url"},
+	)
+)
+
+func init() {
+	prometheus.MustRegister(feedFetchIntervalMetric)
+	prometheus.MustRegister(feedFetchConsecutiveFailuresMetric)
+	prometheus.MustRegister(feedFetchErrorsMetric)
+}
 
 type imagePair struct {
 	folderId int64
@@ -195,6 +227,13 @@ func (f Fetcher) fetchUserFeed(ctx context.Context, parent *sync.WaitGroup, user
 	tick := make(<-chan time.Time)
 	firstFetchDone := make(chan firstFetchResult, 1)
 
+	feedIDStr := strconv.FormatInt(feed.ID, 10)
+	defer func() {
+		feedFetchIntervalMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL)
+		feedFetchConsecutiveFailuresMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL)
+		feedFetchErrorsMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL)
+	}()
+
 	go func() {
 		fetchTime := time.Now()
 		fetch, err := rss.FetchByFunc(f.fetchFunc, feed.URL)
@@ -228,9 +267,13 @@ func (f Fetcher) fetchUserFeed(ctx context.Context, parent *sync.WaitGroup, user
 		case result := <-firstFetchDone:
 			if result.err != nil {
 				consecutiveFailures = 1
+				feedFetchErrorsMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Inc()
 			} else {
 				consecutiveFailures = 0
 			}
+			feedFetchIntervalMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Set(result.interval.Seconds())
+			feedFetchConsecutiveFailuresMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Set(float64(consecutiveFailures))
+
 			tick = time.After(time.Until(result.nextFetch))
 			log.Infof("First fetch done for %s %s. Waiting until %s (interval: %s)", user, feed, result.nextFetch, result.interval)
 			// Disable the channel so we do not read from it again.
@@ -245,12 +288,16 @@ func (f Fetcher) fetchUserFeed(ctx context.Context, parent *sync.WaitGroup, user
 				consecutiveFailures++
 				interval = f.calculateFailureBackoff(consecutiveFailures)
 				refresh = fetchTime.Add(interval)
+				feedFetchErrorsMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Inc()
 			} else {
 				f.processUserFeedItems(ctx, user, &feed, fetch.Items)
 				consecutiveFailures = 0
 				refresh = f.calculateNextInterval(user, feed, fetch, fetchTime)
 				interval = refresh.Sub(fetchTime)
 			}
+			feedFetchIntervalMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Set(interval.Seconds())
+			feedFetchConsecutiveFailuresMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Set(float64(consecutiveFailures))
+
 			log.Infof("Waiting to fetch %s %s until %s (interval: %s, consecutive failures: %d)", user, feed, refresh, interval, consecutiveFailures)
 			tick = time.After(time.Until(refresh))
 		case <-ctx.Done():
