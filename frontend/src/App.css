@@ -947,9 +947,25 @@
  * Common Article styling
  ******************************************************************************/
 
+.GoliathArticleContentStyling {
+  line-height: 1.65;
+}
+
+.GoliathArticleContentStyling p {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
 .GoliathArticleContentStyling a {
-  color: var(--article-font-color);
-  font-weight: bold;
+  color: var(--accent-color);
+  font-weight: 500;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent-color);
+}
+
+.GoliathArticleContentStyling a:hover {
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-color);
 }
 
 .GoliathArticleContentStyling h1,
@@ -959,40 +975,86 @@
 .GoliathArticleContentStyling h5,
 .GoliathArticleContentStyling h6 {
   color: var(--article-font-color);
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 2rem;
+  margin-bottom: 0.8rem;
+}
+
+.GoliathArticleContentStyling h1 {
+  font-size: 2.2rem;
+}
+.GoliathArticleContentStyling h2 {
+  font-size: 1.8rem;
+}
+.GoliathArticleContentStyling h3 {
+  font-size: 1.4rem;
+}
+.GoliathArticleContentStyling h4 {
+  font-size: 1.2rem;
+}
+
+.GoliathArticleContentStyling ul,
+.GoliathArticleContentStyling ol {
+  padding-left: 2rem;
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+}
+
+.GoliathArticleContentStyling li {
+  margin-bottom: 0.5rem;
+}
+
+.GoliathArticleContentStyling blockquote {
+  margin: 1.5rem 0;
+  padding: 0.5rem 0 0.5rem 1.5rem;
+  font-style: italic;
+  color: var(--primary-font-darker-1-color);
+  border-left: 4px solid var(--accent-color);
+  background-color: color-mix(in srgb, var(--accent-color) 4%, transparent);
 }
 
 .GoliathArticleContentStyling pre {
   color: var(--primary-font-color);
   background: var(--pre-background-color);
-  box-shadow: 0px 0px 10px 1px var(--pre-box-shadow);
-  font-size: smaller;
-  margin-left: 25%;
-  padding: 10px;
-  width: 50%;
-  border-radius: 5px;
+  box-shadow: 0px 4px 12px var(--pre-box-shadow);
+  font-size: 0.9rem;
+  font-family: monospace;
+  margin: 1.5rem 0;
+  padding: 14px;
+  width: 100%;
+  border-radius: 6px;
+  overflow-x: auto;
+  box-sizing: border-box;
 }
 
 .GoliathArticleContentStyling :not(pre) > code {
   color: var(--primary-font-code-color);
   background: var(--code-background-color);
-  font-size: smaller;
+  font-family: monospace;
+  font-size: 0.85em;
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 .GoliathArticleContentStyling table {
   border-collapse: collapse;
-  max-width: 75%;
-  margin: 0 auto;
+  width: 100%;
+  margin: 1.5rem 0;
 }
 
 .GoliathArticleContentStyling table th,
 .GoliathArticleContentStyling table td {
-  padding: 8px;
+  padding: 10px 12px;
+  text-align: left;
 }
 
 .GoliathArticleContentStyling table th {
   background-color: var(--table-header-background-color);
   border: 1px solid var(--table-header-border-color);
   color: var(--table-header-font-color);
+  font-weight: 600;
 }
 
 .GoliathArticleContentStyling table td {
@@ -1001,14 +1063,14 @@
 }
 
 .GoliathArticleContentStyling img {
-  max-width: 75%;
+  max-width: 100%;
   height: auto;
-  box-shadow: 0px 0px 10px 1px var(--pre-box-shadow);
+  box-shadow: 0px 4px 12px var(--pre-box-shadow);
   border: 1px solid var(--img-border-color);
   background-color: var(--primary-img-background-color);
-  /* Center images */
-  display: flex;
-  margin: 0 auto;
+  border-radius: 6px;
+  display: block;
+  margin: 2rem auto;
 }
 
 /* Hide some elements that clutter article display. */
