@@ -7,6 +7,7 @@ import {
   getAdjacentFolder,
   getFeedInitials,
   hashToSwatchIndex,
+  scopeArticleHtml,
 } from '../helpers';
 import { NavigationDirection } from '../types';
 import { FeedView } from '../../models/feed';
@@ -360,5 +361,30 @@ describe('formatFriendly', () => {
     const formatted = formatFriendly(targetDate.toDate());
     expect(formatted).toContain(',');
     expect(formatted).toMatch(/(AM|PM)$/);
+  });
+});
+
+describe('scopeArticleHtml', () => {
+  it('scopes element ids and in-page anchor links', () => {
+    const rawHtml = `<p>Footnote ref<sup id="fnref-1"><a href="#fn-1">1</a></sup></p><ul><li id="fn-1">Footnote content <a href="#fnref-1">↩</a></li></ul>`;
+    const articleId = '12345';
+    const scoped = scopeArticleHtml(rawHtml, articleId);
+    
+    expect(scoped).toContain('id="article-12345-fnref-1"');
+    expect(scoped).toContain('href="#article-12345-fn-1"');
+    expect(scoped).toContain('id="article-12345-fn-1"');
+    expect(scoped).toContain('href="#article-12345-fnref-1"');
+  });
+
+  it('ignores absolute or external anchor links', () => {
+    const rawHtml = `<a href="https://example.com#section">External Link</a>`;
+    const articleId = '12345';
+    const scoped = scopeArticleHtml(rawHtml, articleId);
+    
+    expect(scoped).toContain('href="https://example.com#section"');
+  });
+
+  it('handles empty input gracefully', () => {
+    expect(scopeArticleHtml('', '12345')).toBe('');
   });
 });

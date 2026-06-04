@@ -6,7 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { Box, IconButton, Skeleton, Stack, Tooltip } from '@mui/material';
-import { formatFriendly, formatFull } from '../utils/helpers';
+import { formatFriendly, formatFull, scopeArticleHtml } from '../utils/helpers';
 import FeedIcon from './FeedIcon';
 import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
 import { keybindRegistry } from '../utils/keybindRegistry';
@@ -141,11 +141,29 @@ const ArticleCard: React.FC<ArticleProps> = ({
   const faviconSrc = props.favicon?.GetFavicon() || '';
 
   const getArticleContent = (): string => {
-    if (state.showParsed) {
-      return props.article.parsed || '';
-    }
-    return props.article.html;
+    const rawContent = state.showParsed ? (props.article.parsed || '') : props.article.html;
+    return scopeArticleHtml(rawContent, props.article.id);
   };
+
+  const handleArticleContentClick = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement;
+      const anchor = target.closest('a');
+      if (!anchor) return;
+
+      const href = anchor.getAttribute('href');
+      if (href && href.startsWith('#')) {
+        event.preventDefault();
+        const targetId = href.substring(1);
+        const container = event.currentTarget;
+        const targetEl = container.querySelector(`[id="${targetId}"]`);
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
+    },
+    []
+  );
 
   const renderContent = (): ReactNode => {
     if (state.loading) {
@@ -157,7 +175,12 @@ const ArticleCard: React.FC<ArticleProps> = ({
         </Box>
       );
     } else {
-      return <div dangerouslySetInnerHTML={{ __html: getArticleContent() }} />;
+      return (
+        <div
+          dangerouslySetInnerHTML={{ __html: getArticleContent() }}
+          onClick={handleArticleContentClick}
+        />
+      );
     }
   };
 

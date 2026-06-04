@@ -282,3 +282,36 @@ export async function getPreviewImage(
 
   return { src: first.src, x: 0, y: 0, width: 0, height: 0, origWidth: 0 };
 }
+
+export function scopeArticleHtml(html: string, articleId: ArticleId): string {
+  if (!html) return html;
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    // Find all elements with an ID attribute and prefix their ID.
+    const elementsWithId = doc.querySelectorAll('[id]');
+    elementsWithId.forEach((el) => {
+      const originalId = el.getAttribute('id');
+      if (originalId) {
+        el.setAttribute('id', `article-${articleId}-${originalId}`);
+      }
+    });
+
+    // Find all <a> elements with a fragment-only href (starting with #) and prefix them.
+    const links = doc.querySelectorAll('a[href^="#"]');
+    links.forEach((el) => {
+      const originalHref = el.getAttribute('href');
+      if (originalHref && originalHref.startsWith('#')) {
+        const fragment = originalHref.substring(1);
+        el.setAttribute('href', `#article-${articleId}-${fragment}`);
+      }
+    });
+
+    return doc.body.innerHTML;
+  } catch (e) {
+    console.error('Error scoping article HTML:', e);
+    return html;
+  }
+}
