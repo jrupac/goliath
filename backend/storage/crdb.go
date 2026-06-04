@@ -704,6 +704,15 @@ func (crdb *Crdb) UpdateFolderForFeedForUser(u models.User, feedId int64, folder
 	return err
 }
 
+// UpdateArticleParsedContentForUser updates the parsed content column of the article.
+func (crdb *Crdb) UpdateArticleParsedContentForUser(u models.User, articleID int64, parsed string) error {
+	defer logElapsedTime(time.Now(), "UpdateArticleParsedContentForUser")
+
+	query := `UPDATE Article SET parsed = $1 WHERE userid = $2 AND id = $3`
+	_, err := crdb.db.Exec(query, parsed, u.UserId, articleID)
+	return err
+}
+
 /*******************************************************************************
  * Content retrieval
  ******************************************************************************/

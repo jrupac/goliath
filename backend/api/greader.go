@@ -10,6 +10,7 @@ import (
 	"time"
 
 	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/fetch"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
@@ -121,6 +122,8 @@ func (a GReader) route(w http.ResponseWriter, r *http.Request) {
 		a.withAuth(w, r, a.handleEditTag)
 	case "/greader/reader/api/0/mark-all-as-read":
 		a.withAuth(w, r, a.markAllAsRead)
+	case "/greader/ext/parse-full-article":
+		a.withAuth(w, r, a.handleParseFullArticle)
 	default:
 		log.Warningf("Got unexpected route: %s", r.URL.String())
 		dump, err := httputil.DumpRequest(r, true)
@@ -626,4 +629,83 @@ func (a GReader) returnSuccess(w http.ResponseWriter, resp any) {
 			a.returnError(w, http.StatusInternalServerError)
 		}
 	}
+}
+
+type parseFullArticleResponse struct {
+	Content string `json:"content"`
+}
+
+func (a GReader) handleParseFullArticle(w http.ResponseWriter, r *http.Request, user models.User) {
+	if !*serveParsedArticles {
+		a.returnError(w, http.StatusForbidden)
+		return
+	}
+
+	err := r.ParseForm()
+	if err != nil {
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	postToken := r.Form.Get("T")
+	if !validatePostToken(postToken) {
+		a.returnInvalidPostToken(w, postToken)
+		return
+	}
+
+	articleIDStr := r.Form.Get("i")
+	if articleIDStr == "" {
+		log.Warning("Missing article ID parameter 'i'")
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	id, err := strconv.ParseInt(articleIDStr, 16, 64)
+	if err != nil {
+		log.Warningf("Invalid article ID: %s", articleIDStr)
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	articles, err := a.d.GetArticlesForUser(user, []int64{id})
+	if err != nil {
+		log.Warningf("Failed to retrieve article: %s", err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	if len(articles) == 0 {
+		log.Warningf("Article %d not found for user", id)
+		a.returnError(w, http.StatusNotFound)
+		return
+	}
+
+	article := articles[0]
+
+	// If the article is already parsed, return it directly.
+	if article.Parsed != "" {
+		a.returnSuccess(w, parseFullArticleResponse{Content: article.Parsed})
+		return
+	}
+
+	// Fetch and parse the URL.
+	parsedContent, err := fetch.ExtractFullText(r.Context(), article.Link)
+	if err != nil {
+		log.Warningf("Failed to extract full text for article %d (%s): %s", id, article.Link, err)
+		a.returnError(w, http.StatusBadGateway)
+		return
+	}
+
+	// Sanitize content using the fetch package policy.
+	sanitizedContent := fetch.SanitizeBody(parsedContent)
+
+	// Persist the sanitized parsed content to CockroachDB.
+	err = a.d.UpdateArticleParsedContentForUser(user, id, sanitizedContent)
+	if err != nil {
+		log.Warningf("Failed to persist parsed article content to DB: %s", err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	a.returnSuccess(w, parseFullArticleResponse{Content: sanitizedContent})
 }

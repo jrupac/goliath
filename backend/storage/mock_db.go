@@ -141,3 +141,7 @@ func (m *MockDB) GetArticlesForFeedForUser(u models.User, feedID int64) ([]model
 	}
 	return []models.Article{}, nil
 }
+
+func (m *MockDB) UpdateArticleParsedContentForUser(u models.User, articleID int64, parsed string) error {
+	return nil
+}

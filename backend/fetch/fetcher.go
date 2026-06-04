@@ -48,6 +48,11 @@ func makeBodyPolicy() *bluemonday.Policy {
 	return p
 }
 
+// SanitizeBody sanitizes html body content using the default bluemonday policy.
+func SanitizeBody(html string) string {
+	return bluemondayBodyPolicy.Sanitize(html)
+}
+
 func fetchFuncWithAcceptHeader(url string) (*http.Response, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest("GET", url, nil)

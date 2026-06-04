@@ -53,7 +53,7 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 	// or not, so we use a heuristic.
 	contents = maybeUnescapeHtml(contents)
 
-	parsed := maybeParseArticleContent(item.Link)
+	parsed := ""
 
 	if item.Enclosures != nil {
 		for _, enc := range item.Enclosures {
