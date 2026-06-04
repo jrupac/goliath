@@ -26,6 +26,8 @@ var (
 	strictDedup       = flag.Bool("strictDedup", true, "If true, only the link name is used to de-duplicate unread articles.")
 	maxEditDedup      = flag.Float64("maxEditDedup", 0.1,
 		"The max edit distance between articles to be de-duplicated, expressed as percent of content. If `strictDedup` is set, this is ignored.")
+	minFetchInterval = flag.Duration("minFetchInterval", 10*time.Minute, "Minimum interval between feed fetches.")
+	maxFetchInterval = flag.Duration("maxFetchInterval", 24*time.Hour, "Maximum interval between feed fetches.")
 )
 
 var (
@@ -191,12 +193,18 @@ func (f Fetcher) fetchUserFeed(ctx context.Context, parent *sync.WaitGroup, user
 
 	log.Infof("Starting fetch for:\n\t%s %s", user, feed)
 	tick := make(<-chan time.Time)
-	firstFetch := make(chan struct{})
+	firstFetchDone := make(chan firstFetchResult, 1)
 
 	go func() {
+		fetchTime := time.Now()
 		fetch, err := rss.FetchByFunc(f.fetchFunc, feed.URL)
 		if err != nil {
 			log.Warningf("during first fetch for %s %s: %s", user, feed, err)
+			firstFetchDone <- firstFetchResult{
+				nextFetch: fetchTime.Add(*minFetchInterval),
+				interval:  *minFetchInterval,
+				err:       err,
+			}
 			return
 		}
 
@@ -206,33 +214,44 @@ func (f Fetcher) fetchUserFeed(ctx context.Context, parent *sync.WaitGroup, user
 
 		f.processUserFeedItems(ctx, user, &feed, fetch.Items)
 
-		tick = time.After(time.Until(fetch.Refresh))
-		log.Infof("First fetch done for %s %s. Waiting until %s", user, feed, fetch.Refresh)
-
-		// Mark the first fetch as complete
-		firstFetch <- struct{}{}
+		refresh := f.calculateNextInterval(user, feed, fetch, fetchTime)
+		firstFetchDone <- firstFetchResult{
+			nextFetch: refresh,
+			interval:  refresh.Sub(fetchTime),
+			err:       nil,
+		}
 	}()
 
+	var consecutiveFailures int
 	for {
 		select {
-		case <-firstFetch:
-			// Block on first fetch here so that we can return early if needed.
-			// If the first fetch fails, we will wait here indefinitely until the
-			// parent context is canceled.
-			continue
+		case result := <-firstFetchDone:
+			if result.err != nil {
+				consecutiveFailures = 1
+			} else {
+				consecutiveFailures = 0
+			}
+			tick = time.After(time.Until(result.nextFetch))
+			log.Infof("First fetch done for %s %s. Waiting until %s (interval: %s)", user, feed, result.nextFetch, result.interval)
+			// Disable the channel so we do not read from it again.
+			firstFetchDone = nil
 		case <-tick:
 			log.Infof("Fetching %s %s", user, feed)
 			var refresh time.Time
+			var interval time.Duration
+			fetchTime := time.Now()
 			if fetch, err := rss.FetchByFunc(f.fetchFunc, feed.URL); err != nil {
 				log.Warningf("while fetching %s %s: %s", user, feed, err)
-				// This URL was previously successfully fetched, so this might be a
-				// transient failure. Retry at a fixed interval.
-				refresh = time.Now().Add(10 * time.Minute)
+				consecutiveFailures++
+				interval = f.calculateFailureBackoff(consecutiveFailures)
+				refresh = fetchTime.Add(interval)
 			} else {
 				f.processUserFeedItems(ctx, user, &feed, fetch.Items)
-				refresh = fetch.Refresh
+				consecutiveFailures = 0
+				refresh = f.calculateNextInterval(user, feed, fetch, fetchTime)
+				interval = refresh.Sub(fetchTime)
 			}
-			log.Infof("Waiting to fetch %s %s until %s", user, feed, refresh)
+			log.Infof("Waiting to fetch %s %s until %s (interval: %s, consecutive failures: %d)", user, feed, refresh, interval, consecutiveFailures)
 			tick = time.After(time.Until(refresh))
 		case <-ctx.Done():
 			return
@@ -339,3 +358,10 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 		"Fetch stats:\n\t%s %s\n\ttotal=%d, inserted=%d (marked read=%d, updated existing=%d, existing removed=%d), too old=%d, retrieval cache=%d, muted=%d",
 		user, feed, numTotal, numInserted, numMarkedRead, numUpdatedExisting, numExistingRemoved, numTooOld, numRetrievalCache, numMuted)
 }
+
+type firstFetchResult struct {
+	nextFetch time.Time
+	interval  time.Duration
+	err       error
+}
+
