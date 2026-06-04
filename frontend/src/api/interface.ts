@@ -36,6 +36,9 @@ export interface FetchAPI {
 
   // MarkAll will mark all items with the specified mark status.
   MarkAll(mark: MarkState, entity: SelectionKey): Promise<Response>;
+
+  // ParseFullArticle fetches and extracts the full text of the article.
+  ParseFullArticle(articleId: string): Promise<string>;
 }
 
 export class FetchAPIFactory {

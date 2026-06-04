@@ -30,6 +30,7 @@ export type ArticleView = Readonly<{
   title: string;
   author: string;
   html: string;
+  parsed?: string | null;
   url: string;
   creationTime: number;
   isRead: boolean;
@@ -51,6 +52,7 @@ export class ArticleCls {
   private readonly title: string;
   private readonly author: string;
   private readonly html: string;
+  private parsed: string | null;
   private readonly url: string;
   private readonly creationTime: number;
   private savedStatus: SavedStatus;
@@ -70,10 +72,15 @@ export class ArticleCls {
     this.title = title;
     this.author = author;
     this.html = html;
+    this.parsed = null;
     this.url = url;
     this.creationTime = creationTime;
     this.readStatus = readStatus;
     this.savedStatus = savedStatus;
+  }
+
+  public UpdateParsed(parsed: string): void {
+    this.parsed = parsed;
   }
 
   public MarkArticle(markState: MarkState): void {
@@ -101,6 +108,7 @@ export class ArticleCls {
       title: this.title,
       author: this.author,
       html: this.html,
+      parsed: this.parsed,
       url: this.url,
       isRead: this.readStatus === ReadStatus.Read,
       isSaved: this.savedStatus === SavedStatus.Saved,

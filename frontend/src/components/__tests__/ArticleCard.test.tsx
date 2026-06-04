@@ -7,20 +7,19 @@ import { FaviconCls } from '../../models/feed';
 import { formatFriendly } from '../../utils/helpers';
 import { SelectionType } from '../../utils/types';
 
-vi.mock('../../utils/helpers', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../utils/helpers')>();
-  return {
-    ...actual,
-    fetchReadability: vi
+describe('ArticleCard', () => {
+  const mockFetchApi = {
+    ParseFullArticle: vi
       .fn()
       .mockResolvedValue('<p>Parsed readability content</p>'),
   };
-});
+  const mockHandleUpdateArticleParsed = vi.fn();
 
-describe('ArticleCard', () => {
-  it('renders', () => {
-    // Minimal rendering test
-    const props = {
+  const makeProps = (overrides: Record<string, any> = {}) => {
+    const articleOverrides = overrides.article || {};
+    return {
+      fetchApi: mockFetchApi as any,
+      handleUpdateArticleParsed: mockHandleUpdateArticleParsed,
       article: {
         folderId: '1',
         feedId: '1',
@@ -33,6 +32,8 @@ describe('ArticleCard', () => {
         creationTime: 1678886400, // March 15, 2023
         isRead: false,
         isSaved: false,
+        parsed: null,
+        ...articleOverrides,
       } as ArticleView,
       title: 'Test Feed',
       favicon: new FaviconCls(''),
@@ -41,8 +42,12 @@ describe('ArticleCard', () => {
       onMarkArticleRead: () => {},
       onToggleSave: () => {},
       selectionType: SelectionType.Unread,
+      ...overrides,
     };
-    render(<ArticleCard {...props} />);
+  };
+
+  it('renders', () => {
+    render(<ArticleCard {...makeProps()} />);
   });
 
   it('renders with all props correctly', () => {
@@ -52,7 +57,7 @@ describe('ArticleCard', () => {
       new Date(articleCreationTime * 1000)
     );
 
-    const props = {
+    const props = makeProps({
       article: {
         folderId: '1',
         feedId: '1',
@@ -65,15 +70,11 @@ describe('ArticleCard', () => {
         creationTime: articleCreationTime,
         isRead: false,
         isSaved: false,
-      } as ArticleView,
+        parsed: null,
+      },
       title: 'Test Feed Title',
-      favicon: new FaviconCls(undefined),
-      feedId: '1',
-      isSelected: false,
-      onMarkArticleRead: () => {},
-      onToggleSave: () => {},
-      selectionType: SelectionType.Unread,
-    };
+    });
+
     render(<ArticleCard {...props} />);
 
     // Assert feed title
@@ -96,35 +97,15 @@ describe('ArticleCard', () => {
   });
 
   it('renders the correct favicon image when provided', () => {
-    // 1x1 transparent GIF
     const testFaviconData =
       'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
-    const props = {
-      article: {
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed',
-        id: '1',
-        title: 'Test Article',
-        author: '',
-        html: '<p>Test content</p>',
-        url: 'https://example.com',
-        creationTime: 1678886400,
-        isRead: false,
-        isSaved: false,
-      } as ArticleView,
-      title: 'Test Feed',
-      favicon: new FaviconCls(testFaviconData),
-      feedId: '1',
-      isSelected: false,
-      onMarkArticleRead: () => {},
-      onToggleSave: () => {},
-      selectionType: SelectionType.Unread,
-    };
-    render(<ArticleCard {...props} />);
+    render(
+      <ArticleCard
+        {...makeProps({ favicon: new FaviconCls(testFaviconData) })}
+      />
+    );
 
-    // Assert favicon image src
     expect(screen.getByRole('img', { name: '' })).toHaveAttribute(
       'src',
       testFaviconData
@@ -133,130 +114,54 @@ describe('ArticleCard', () => {
 
   it('calls onMarkArticleRead when mark as read button is clicked', () => {
     const mockOnMarkArticleRead = vi.fn();
-    const props = {
-      article: {
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed',
-        id: '1',
-        title: 'Test Article',
-        author: '',
-        html: '<p>Test content</p>',
-        url: 'https://example.com',
-        creationTime: 1678886400,
-        isRead: false, // Ensure article is unread for this test
-        isSaved: false,
-      } as ArticleView,
-      title: 'Test Feed',
-      favicon: new FaviconCls(''),
-      feedId: '1',
-      isSelected: true, // Ensure it's selected so keydown handler is active if needed
-      onMarkArticleRead: mockOnMarkArticleRead,
-      onToggleSave: () => {},
-      selectionType: SelectionType.Unread,
-    };
-    render(<ArticleCard {...props} />);
+    render(
+      <ArticleCard
+        {...makeProps({
+          isSelected: true,
+          onMarkArticleRead: mockOnMarkArticleRead,
+        })}
+      />
+    );
 
-    // Get the mark as read button
     const markAsReadButton = screen.getByLabelText('mark as read');
-
-    // Simulate click
     fireEvent.click(markAsReadButton);
 
-    // Assert that the onMarkArticleRead callback was called
     expect(mockOnMarkArticleRead).toHaveBeenCalledTimes(1);
   });
 
   it('shows CheckCircle icon for unread article', () => {
-    const props = {
-      article: {
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed',
-        id: '1',
-        title: 'Test Article',
-        author: '',
-        html: '<p>Test content</p>',
-        url: 'https://example.com',
-        creationTime: 1678886400,
-        isRead: false,
-        isSaved: false,
-      } as ArticleView,
-      title: 'Test Feed',
-      favicon: new FaviconCls(''),
-      feedId: '1',
-      isSelected: true,
-      onMarkArticleRead: () => {},
-      onToggleSave: () => {},
-      selectionType: SelectionType.Unread,
-    };
-    render(<ArticleCard {...props} />);
+    render(<ArticleCard {...makeProps({ isSelected: true })} />);
     expect(screen.getByTestId('CheckCircleTwoToneIcon')).toBeInTheDocument();
   });
 
   it('shows Check icon for read article', () => {
-    const props = {
-      article: {
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed',
-        id: '1',
-        title: 'Test Article',
-        author: '',
-        html: '<p>Test content</p>',
-        url: 'https://example.com',
-        creationTime: 1678886400,
-        isRead: true,
-        isSaved: false,
-      } as ArticleView,
-      title: 'Test Feed',
-      favicon: new FaviconCls(''),
-      feedId: '1',
-      isSelected: true,
-      onMarkArticleRead: () => {},
-      onToggleSave: () => {},
-      selectionType: SelectionType.Unread,
-    };
-    render(<ArticleCard {...props} />);
+    render(
+      <ArticleCard
+        {...makeProps({ isSelected: true, article: { isRead: true } })}
+      />
+    );
     expect(screen.getByTestId('CheckCircleOutlineIcon')).toBeInTheDocument();
   });
 
   it('toggles reader mode on "m" shortcut', async () => {
-    const props = {
-      article: {
-        folderId: '1',
-        feedId: '1',
-        feedTitle: 'Test Feed',
-        id: '1',
-        title: 'Test Article',
-        author: '',
-        html: '<p>Test content</p>',
-        url: 'https://example.com',
-        creationTime: 1678886400,
-        isRead: false,
-        isSaved: false,
-      } as ArticleView,
-      title: 'Test Feed',
-      favicon: new FaviconCls(''),
-      feedId: '1',
-      isSelected: true, // Must be true so keyboard listener is bound
-      onMarkArticleRead: () => {},
-      onToggleSave: () => {},
-      selectionType: SelectionType.Unread,
-    };
+    const props = makeProps({ isSelected: true });
     render(<ArticleCard {...props} />);
 
     const readerButton = screen.getByLabelText('reader mode');
     expect(readerButton).not.toHaveClass('GoliathReaderModeActive');
 
-    // Trigger 'm' keydown
     fireEvent.keyDown(window, { key: 'm' });
 
-    // Expect button to have active class after toggled
     await waitFor(() => {
       expect(readerButton).toHaveClass('GoliathReaderModeActive');
     });
-    // Expect parsed content to be visible
-    expect(screen.getByText('Parsed readability content')).toBeInTheDocument();
+
+    expect(mockFetchApi.ParseFullArticle).toHaveBeenCalledWith('1');
+    expect(mockHandleUpdateArticleParsed).toHaveBeenCalledWith(
+      '1',
+      '1',
+      '1',
+      '<p>Parsed readability content</p>'
+    );
   });
 });

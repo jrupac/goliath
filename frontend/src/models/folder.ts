@@ -61,6 +61,15 @@ export class FolderCls {
     return this.unread_count;
   }
 
+  public UpdateArticleParsed(
+    articleId: ArticleId,
+    feedId: FeedId,
+    parsed: string
+  ): void {
+    const feed = this.getFeedOrThrow(feedId);
+    feed.UpdateArticleParsed(articleId, parsed);
+  }
+
   public MarkFeed(feedId: FeedId, markState: MarkState): number {
     const feed = this.getFeedOrThrow(feedId);
 

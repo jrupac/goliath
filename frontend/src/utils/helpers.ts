@@ -4,7 +4,6 @@
 import * as momentModule from 'moment';
 const moment = momentModule.default || momentModule;
 import { Decimal } from 'decimal.js-light';
-import { Readability } from '@mozilla/readability';
 import * as LosslessJSON from 'lossless-json';
 
 import { ArticleId, ArticleView } from '../models/article';
@@ -55,24 +54,6 @@ export function maxDecimal(
   a = new Decimal(a.toString());
   b = new Decimal(b.toString());
   return a.greaterThan(b) ? a : b;
-}
-
-export function fetchReadability(url: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    fetch(url)
-      .then((response) => response.text())
-      .then((result) => {
-        const doc = new DOMParser().parseFromString(result, 'text/html');
-        const parsed = new Readability(doc).parse();
-
-        if (!parsed || !parsed.content) {
-          reject(new Error('Could not parse document'));
-        } else {
-          resolve(parsed.content);
-        }
-      })
-      .catch(reject);
-  });
 }
 
 export function parseJson(text: string): any {

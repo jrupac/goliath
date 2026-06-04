@@ -139,6 +139,17 @@ export class ContentTreeCls {
     return this.unread_count;
   }
 
+  public UpdateArticleParsed(
+    articleId: ArticleId,
+    feedId: FeedId,
+    folderId: FolderId,
+    parsed: string
+  ): void {
+    const folder = this.getFolderOrThrow(folderId);
+    folder.UpdateArticleParsed(articleId, feedId, parsed);
+    this.invalidateCaches();
+  }
+
   public PruneReadPins(selectedArticleId: ArticleId | null): void {
     this.pinnedArticleIds.clear();
     if (selectedArticleId !== null) {

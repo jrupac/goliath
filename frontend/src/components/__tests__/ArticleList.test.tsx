@@ -11,6 +11,7 @@ import {
   SelectionType,
 } from '../../utils/types';
 import { FaviconCls, FeedId } from '../../models/feed';
+import { FetchAPI } from '../../api/interface';
 
 describe('ArticleList', () => {
   // Mock ArticleView data
@@ -52,6 +53,8 @@ describe('ArticleList', () => {
   const getMockProps = (
     props?: Partial<ArticleListProps>
   ): ArticleListProps => ({
+    fetchApi: {} as FetchAPI,
+    handleUpdateArticleParsed: vi.fn(),
     articleEntriesCls: mockArticles,
     faviconMap: new Map<FeedId, FaviconCls>(),
     selectionKey: '1' as SelectionKey,

@@ -109,6 +109,11 @@ export class FeedCls {
     return this.unread_count;
   }
 
+  public UpdateArticleParsed(articleId: ArticleId, parsed: string): void {
+    const article: ArticleCls = this.getArticleOrThrow(articleId);
+    article.UpdateParsed(parsed);
+  }
+
   public MarkFeed(markState: MarkState): number {
     let unread: number = 0;
 

@@ -6,12 +6,7 @@ import React, {
   useState,
 } from 'react';
 import { Box, IconButton, Skeleton, Stack, Tooltip } from '@mui/material';
-import {
-  fetchReadability,
-  formatFriendly,
-  formatFull,
-  makeAbsolute,
-} from '../utils/helpers';
+import { formatFriendly, formatFull } from '../utils/helpers';
 import FeedIcon from './FeedIcon';
 import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
 import { keybindRegistry } from '../utils/keybindRegistry';
@@ -22,10 +17,19 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import CheckCircleTwoToneIcon from '@mui/icons-material/CheckCircleTwoTone';
 import ChromeReaderModeOutlinedIcon from '@mui/icons-material/ChromeReaderModeOutlined';
 import ChromeReaderModeIcon from '@mui/icons-material/ChromeReaderMode';
-import { ArticleView } from '../models/article';
-import { FaviconCls } from '../models/feed';
+import { ArticleId, ArticleView } from '../models/article';
+import { FaviconCls, FeedId } from '../models/feed';
+import { FolderId } from '../models/folder';
+import { FetchAPI } from '../api/interface';
 
 export interface ArticleProps {
+  fetchApi: FetchAPI;
+  handleUpdateArticleParsed: (
+    articleId: ArticleId,
+    feedId: FeedId,
+    folderId: FolderId,
+    parsed: string
+  ) => void;
   article: ArticleView;
   title: string;
   favicon: FaviconCls | undefined;
@@ -38,7 +42,6 @@ export interface ArticleProps {
 }
 
 interface ArticleState {
-  parsed: string | null;
   showParsed: boolean;
   loading: boolean;
 }
@@ -47,8 +50,9 @@ const ArticleCard: React.FC<ArticleProps> = ({
   showKeybindingsModal = false,
   ...props
 }: ArticleProps) => {
+  const { fetchApi, handleUpdateArticleParsed, article } = props;
+
   const [state, setState] = useState<ArticleState>({
-    parsed: null,
     showParsed: false,
     loading: false,
   });
@@ -60,25 +64,28 @@ const ArticleCard: React.FC<ArticleProps> = ({
         return { ...prevState, showParsed: false };
       }
 
-      // If already parsed before, just enabling showing it.
-      if (prevState.parsed !== null) {
+      // If already parsed in global state, just enable showing it.
+      if (article.parsed !== null) {
         return { ...prevState, showParsed: true };
       }
 
-      // It's okay if this state change doesn't happen fast enough, it'll just
-      // get reset lower down anyway.
-      const url = makeAbsolute('/cache?url=' + encodeURI(props.article.url));
-      fetchReadability(url)
+      fetchApi
+        .ParseFullArticle(article.id)
         .then((content) => {
+          handleUpdateArticleParsed(
+            article.id,
+            article.feedId,
+            article.folderId,
+            content
+          );
           setState((innerPrevState) => ({
             ...innerPrevState,
-            parsed: content,
             showParsed: true,
             loading: false,
           }));
         })
         .catch((e) => {
-          console.log('Could not parse URL %s: %s', url, e);
+          console.log('Could not parse article %s: %s', article.id, e);
           setState((innerPrevState) => ({
             ...innerPrevState,
             showParsed: false,
@@ -87,7 +94,14 @@ const ArticleCard: React.FC<ArticleProps> = ({
         });
       return { ...prevState, loading: true };
     });
-  }, [props.article.url]);
+  }, [
+    article.id,
+    article.feedId,
+    article.folderId,
+    article.parsed,
+    fetchApi,
+    handleUpdateArticleParsed,
+  ]);
 
   // Handler map for article view keybindings — held in a ref so its
   // identity stays stable across renders.
@@ -128,8 +142,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
 
   const getArticleContent = (): string => {
     if (state.showParsed) {
-      // This field is checked for non-nullity before being set.
-      return state.parsed!;
+      return props.article.parsed || '';
     }
     return props.article.html;
   };

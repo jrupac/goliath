@@ -206,6 +206,25 @@ export default class GReader implements FetchAPI {
     });
   }
 
+  public async ParseFullArticle(articleId: string): Promise<string> {
+    const formData = new FormData();
+    formData.set('i', articleId);
+
+    const res: Response = await this.doFetch({
+      uri: GReaderURI.ParseFullArticle,
+      formData: formData,
+    });
+
+    if (!res.ok) {
+      console.log('Parsing full article failed: ' + res.statusText);
+      return Promise.reject(new Error(res.statusText));
+    }
+
+    const result = await res.text();
+    const responseJson = parseJson(result);
+    return responseJson.content;
+  }
+
   private async fetchSubscriptions(
     cb: (status: Status) => void
   ): Promise<void> {

@@ -33,6 +33,8 @@ import { GetVersion, VersionData } from './api/goliath';
 import { Navigate } from 'react-router-dom';
 import { ContentTreeCls } from './models/contentTree';
 import { ArticleId } from './models/article';
+import { FeedId } from './models/feed';
+import { FolderId } from './models/folder';
 import {
   getAdjacentFeed,
   getAdjacentFolder,
@@ -255,6 +257,22 @@ export default class App extends React.Component<AppProps, AppState> {
     });
   };
 
+  handleUpdateArticleParsed = (
+    articleId: ArticleId,
+    feedId: FeedId,
+    folderId: FolderId,
+    parsed: string
+  ) => {
+    this.setState((prevState: AppState): AppState => {
+      const contentTreeCls = prevState.contentTreeCls;
+      contentTreeCls.UpdateArticleParsed(articleId, feedId, folderId, parsed);
+      return {
+        ...prevState,
+        contentTreeCls: contentTreeCls,
+      };
+    });
+  };
+
   handleToggleHideEmpty = () => {
     this.setState((prevState: AppState): AppState => {
       return {
@@ -369,6 +387,8 @@ export default class App extends React.Component<AppProps, AppState> {
             sx={{ display: 'flex', flexGrow: 1 }}
           >
             <ArticleList
+              fetchApi={this.fetchApi}
+              handleUpdateArticleParsed={this.handleUpdateArticleParsed}
               articleEntriesCls={this.state.contentTreeCls.GetArticleView(
                 selectionKey,
                 selectionType

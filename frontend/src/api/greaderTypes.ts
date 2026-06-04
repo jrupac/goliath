@@ -6,6 +6,7 @@ export const enum GReaderURI {
   StreamItemIds = '/greader/reader/api/0/stream/items/ids',
   StreamItemContents = '/greader/reader/api/0/stream/items/contents',
   MarkAllAsRead = '/greader/reader/api/0/mark-all-as-read',
+  ParseFullArticle = '/greader/ext/parse-full-article',
 }
 
 export const enum GReaderTag {

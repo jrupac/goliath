@@ -34,14 +34,23 @@ import { keybindRegistry } from '../utils/keybindRegistry';
 import { DoneAllRounded } from '@mui/icons-material';
 
 import { ArticleId, ArticleView } from '../models/article';
+import { FolderId } from '../models/folder';
 import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
 import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
 import DoneAllTwoTone from '@mui/icons-material/DoneAllTwoTone';
 import HotelClassTwoTone from '@mui/icons-material/HotelClassTwoTone';
 import HotelClassRounded from '@mui/icons-material/HotelClassRounded';
 import { FaviconCls, FeedId } from '../models/feed';
+import { FetchAPI } from '../api/interface';
 
 export interface ArticleListProps {
+  fetchApi: FetchAPI;
+  handleUpdateArticleParsed: (
+    articleId: ArticleId,
+    feedId: FeedId,
+    folderId: FolderId,
+    parsed: string
+  ) => void;
   articleEntriesCls: ArticleView[];
   faviconMap: Map<FeedId, FaviconCls>;
   selectionKey: SelectionKey;
@@ -63,6 +72,8 @@ export interface ArticleListProps {
 }
 
 const ArticleList: React.FC<ArticleListProps> = ({
+  fetchApi,
+  handleUpdateArticleParsed,
   articleEntriesCls,
   faviconMap,
   selectionKey,
@@ -269,9 +280,11 @@ const ArticleList: React.FC<ArticleListProps> = ({
     },
   });
   // Keep the ref up to date when handlers change.
-  articleListHandlersRef.current.scrollDown = () => handleScrollDown({ markRead: true });
+  articleListHandlersRef.current.scrollDown = () =>
+    handleScrollDown({ markRead: true });
   articleListHandlersRef.current.scrollUp = handleScrollUp;
-  articleListHandlersRef.current.scrollDownNoRead = () => handleScrollDown({ markRead: false });
+  articleListHandlersRef.current.scrollDownNoRead = () =>
+    handleScrollDown({ markRead: false });
   articleListHandlersRef.current.goAll = selectAllCallback;
   articleListHandlersRef.current.goUnread = selectUnreadCallback;
   articleListHandlersRef.current.goSaved = () => selectSavedCallback?.();
@@ -535,6 +548,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
           <Grid className="GoliathSplitViewArticleOuter" size="grow">
             <ArticleCard
               key={articleView.id}
+              fetchApi={fetchApi}
+              handleUpdateArticleParsed={handleUpdateArticleParsed}
               article={articleView}
               title={articleView.feedTitle}
               favicon={faviconMap.get(articleView.feedId)}
