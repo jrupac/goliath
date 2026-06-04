@@ -286,7 +286,7 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 		if !a.Date.After(prevLatest) {
 			log.V(2).Infof("Not persisting too old article: %s", a)
 			numTooOld += 1
-		} else if f.retCache.Lookup(user, a.Hash()) {
+		} else if f.retCache.Lookup(user, feed.ID, a.Hash()) {
 			log.V(2).Infof("Not persisting because present in retrieval cache: %s", a)
 			numRetrievalCache += 1
 		} else if maybeMuteArticleByRegex(a, feedRegexes) {
@@ -321,7 +321,7 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 			if err = f.d.InsertArticleForUser(user, a); err != nil {
 				log.Warningf("while persisting article for %s due to %s: %s", user, err, a)
 			} else {
-				f.retCache.Add(user, a.Hash())
+				f.retCache.Add(user, feed.ID, a.Hash())
 			}
 
 			if a.Date.After(feed.Latest) {

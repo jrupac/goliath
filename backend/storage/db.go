@@ -62,8 +62,9 @@ type Database interface {
 
 	// Retrieval cache
 
-	GetAllRetrievalCaches() (map[string]string, error)
-	PersistAllRetrievalCaches(map[string][]byte) error
+	GetActiveFeedKeys() (map[UserFeedKey]bool, error)
+	GetAllRetrievalCaches() (map[UserFeedKey]string, error)
+	PersistAllRetrievalCaches(map[UserFeedKey][]byte) error
 
 	// Content insertion
 
@@ -116,6 +117,12 @@ type Database interface {
 func Open(dbPath string) (Database, error) {
 	db := &Crdb{}
 	return db, db.Open(dbPath)
+}
+
+// UserFeedKey is a composite key identifying a specific feed for a specific user.
+type UserFeedKey struct {
+	UserID models.UserId
+	FeedID int64
 }
 
 /*******************************************************************************

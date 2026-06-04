@@ -13,8 +13,8 @@ import (
 func TestAddAndLookup(t *testing.T) {
 	db := &storage.MockDB{}
 	user := models.User{UserId: "test-user"}
-	db.OnGetAllUsers = func() ([]models.User, error) {
-		return []models.User{user}, nil
+	db.OnGetAllRetrievalCaches = func() (map[storage.UserFeedKey]string, error) {
+		return map[storage.UserFeedKey]string{}, nil
 	}
 
 	cache, err := StartRetrievalCache(context.Background(), db)
@@ -25,14 +25,18 @@ func TestAddAndLookup(t *testing.T) {
 	entry1 := "hello"
 	entry2 := "world"
 
-	cache.Add(user, entry1)
+	cache.Add(user, 123, entry1)
 
-	if !cache.Lookup(user, entry1) {
+	if !cache.Lookup(user, 123, entry1) {
 		t.Error("expected to find entry1 in cache")
 	}
 
-	if cache.Lookup(user, entry2) {
+	if cache.Lookup(user, 123, entry2) {
 		t.Error("did not expect to find entry2 in cache")
+	}
+
+	if cache.Lookup(user, 456, entry1) {
+		t.Error("did not expect to find entry1 under a different feed ID in cache")
 	}
 }
 
@@ -41,11 +45,8 @@ func TestLoadCache(t *testing.T) {
 
 	t.Run("no existing caches", func(t *testing.T) {
 		db := &storage.MockDB{}
-		db.OnGetAllRetrievalCaches = func() (map[string]string, error) {
-			return map[string]string{}, nil
-		}
-		db.OnGetAllUsers = func() ([]models.User, error) {
-			return []models.User{user}, nil
+		db.OnGetAllRetrievalCaches = func() (map[storage.UserFeedKey]string, error) {
+			return map[storage.UserFeedKey]string{}, nil
 		}
 
 		cache, err := StartRetrievalCache(context.Background(), db)
@@ -53,7 +54,7 @@ func TestLoadCache(t *testing.T) {
 			t.Fatalf("Failed to start retrieval cache: %v", err)
 		}
 
-		if cache.Lookup(user, "any") {
+		if cache.Lookup(user, 123, "any") {
 			t.Error("expected new cache to be empty")
 		}
 	})
@@ -65,8 +66,9 @@ func TestLoadCache(t *testing.T) {
 		encoded := base64.StdEncoding.EncodeToString(cf.Encode())
 
 		db := &storage.MockDB{}
-		db.OnGetAllRetrievalCaches = func() (map[string]string, error) {
-			return map[string]string{string(user.UserId): encoded}, nil
+		key := storage.UserFeedKey{UserID: user.UserId, FeedID: 123}
+		db.OnGetAllRetrievalCaches = func() (map[storage.UserFeedKey]string, error) {
+			return map[storage.UserFeedKey]string{key: encoded}, nil
 		}
 
 		cache, err := StartRetrievalCache(context.Background(), db)
@@ -74,7 +76,7 @@ func TestLoadCache(t *testing.T) {
 			t.Fatalf("Failed to start retrieval cache: %v", err)
 		}
 
-		if !cache.Lookup(user, "existing-entry") {
+		if !cache.Lookup(user, 123, "existing-entry") {
 			t.Error("expected to find existing entry in loaded cache")
 		}
 	})

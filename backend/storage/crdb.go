@@ -338,16 +338,15 @@ func (crdb *Crdb) DeleteMuteRegexForFeedForUser(u models.User, feedId int64, reg
 
 	return err
 }
-
 /*******************************************************************************
  * Retrieval cache
  ******************************************************************************/
 
-// GetAllRetrievalCaches retrieves the cache for all users.
-func (crdb *Crdb) GetAllRetrievalCaches() (map[string]string, error) {
-	defer logElapsedTime(time.Now(), "GetAllRetrievalCaches")
+// GetActiveFeedKeys retrieves the keys of all active feeds.
+func (crdb *Crdb) GetActiveFeedKeys() (map[UserFeedKey]bool, error) {
+	defer logElapsedTime(time.Now(), "GetActiveFeedKeys")
 
-	query := `SELECT userid, cache FROM RetrievalCache`
+	query := `SELECT userid, id FROM Feed`
 	rows, err := crdb.db.Query(query)
 	defer closeSilent(rows)
 
@@ -355,15 +354,15 @@ func (crdb *Crdb) GetAllRetrievalCaches() (map[string]string, error) {
 		return nil, err
 	}
 
-	ret := map[string]string{}
+	ret := map[UserFeedKey]bool{}
 
 	for rows.Next() {
-		var id string
-		var cache string
-		if err = rows.Scan(&id, &cache); err != nil {
+		var userID models.UserId
+		var feedID int64
+		if err = rows.Scan(&userID, &feedID); err != nil {
 			return nil, err
 		}
-		ret[id] = cache
+		ret[UserFeedKey{UserID: userID, FeedID: feedID}] = true
 	}
 
 	if rows.Err() != nil {
@@ -373,8 +372,39 @@ func (crdb *Crdb) GetAllRetrievalCaches() (map[string]string, error) {
 	return ret, nil
 }
 
-// PersistAllRetrievalCaches writes the retrieval caches for all users.
-func (crdb *Crdb) PersistAllRetrievalCaches(entries map[string][]byte) error {
+// GetAllRetrievalCaches retrieves the cache for all feeds.
+func (crdb *Crdb) GetAllRetrievalCaches() (map[UserFeedKey]string, error) {
+	defer logElapsedTime(time.Now(), "GetAllRetrievalCaches")
+
+	query := `SELECT userid, feedid, cache FROM RetrievalCache`
+	rows, err := crdb.db.Query(query)
+	defer closeSilent(rows)
+
+	if err != nil {
+		return nil, err
+	}
+
+	ret := map[UserFeedKey]string{}
+
+	for rows.Next() {
+		var userID models.UserId
+		var feedID int64
+		var cache string
+		if err = rows.Scan(&userID, &feedID, &cache); err != nil {
+			return nil, err
+		}
+		ret[UserFeedKey{UserID: userID, FeedID: feedID}] = cache
+	}
+
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+
+	return ret, nil
+}
+
+// PersistAllRetrievalCaches writes the retrieval caches for all feeds.
+func (crdb *Crdb) PersistAllRetrievalCaches(entries map[UserFeedKey][]byte) error {
 	defer logElapsedTime(time.Now(), "PersistAllRetrievalCaches")
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxOperationTime)
@@ -385,16 +415,16 @@ func (crdb *Crdb) PersistAllRetrievalCaches(entries map[string][]byte) error {
 	}
 	defer rollbackSilent(tx)
 
-	query := `UPSERT INTO RetrievalCache (userid, cache) VALUES ($1, $2)`
+	query := `UPSERT INTO RetrievalCache (userid, feedid, cache) VALUES ($1, $2, $3)`
 	stmt, err := tx.PrepareContext(ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
 	}
 
-	for id, cache := range entries {
+	for key, cache := range entries {
 		// TODO: Change to BYTE type for this column instead of string encoding
 		encodedCache := base64.StdEncoding.EncodeToString(cache)
-		_, err = stmt.ExecContext(ctx, id, encodedCache)
+		_, err = stmt.ExecContext(ctx, key.UserID, key.FeedID, encodedCache)
 		if err != nil {
 			return fmt.Errorf("failed to execute statement: %w", err)
 		}

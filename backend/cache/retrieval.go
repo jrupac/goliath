@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"flag"
-	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,7 +20,7 @@ var (
 
 // CuckooFilterRetrievalCache is a probabilistic cache storing the hashes of all past retrieved articles.
 type CuckooFilterRetrievalCache struct {
-	caches map[string]*cuckoo.ScalableCuckooFilter
+	caches map[storage.UserFeedKey]*cuckoo.ScalableCuckooFilter
 	lock   sync.Mutex
 	ready  atomic.Value
 }
@@ -38,8 +37,8 @@ func StartRetrievalCache(ctx context.Context, d storage.Database) (RetrievalCach
 	return &r, nil
 }
 
-// Add adds a new entry into the retrieval cache for the specified user.
-func (r *CuckooFilterRetrievalCache) Add(u models.User, entry string) {
+// Add adds a new entry into the retrieval cache for the specified user and feed.
+func (r *CuckooFilterRetrievalCache) Add(u models.User, feedId int64, entry string) {
 	if r.ready.Load() == nil {
 		log.Errorf("retrieval cache not ready: %s", entry)
 		return
@@ -48,15 +47,17 @@ func (r *CuckooFilterRetrievalCache) Add(u models.User, entry string) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	if cache, ok := r.caches[string(u.UserId)]; !ok {
-		log.Errorf("unknown user: %s", u.UserId)
-	} else {
-		cache.InsertUnique([]byte(entry))
+	key := storage.UserFeedKey{UserID: u.UserId, FeedID: feedId}
+	cache, ok := r.caches[key]
+	if !ok {
+		cache = cuckoo.NewScalableCuckooFilter()
+		r.caches[key] = cache
 	}
+	cache.InsertUnique([]byte(entry))
 }
 
-// Lookup returns whether the specified entry is present in the retrieval cache for the specified user.
-func (r *CuckooFilterRetrievalCache) Lookup(u models.User, entry string) bool {
+// Lookup returns whether the specified entry is present in the retrieval cache for the specified user and feed.
+func (r *CuckooFilterRetrievalCache) Lookup(u models.User, feedId int64, entry string) bool {
 	if r.ready.Load() == nil {
 		log.Errorf("retrieval cache not ready: %s", entry)
 		return false
@@ -65,8 +66,8 @@ func (r *CuckooFilterRetrievalCache) Lookup(u models.User, entry string) bool {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	if cache, ok := r.caches[string(u.UserId)]; !ok {
-		log.Errorf("unknown user: %s", u.UserId)
+	key := storage.UserFeedKey{UserID: u.UserId, FeedID: feedId}
+	if cache, ok := r.caches[key]; !ok {
 		return false
 	} else {
 		res := cache.Lookup([]byte(entry))
@@ -75,31 +76,22 @@ func (r *CuckooFilterRetrievalCache) Lookup(u models.User, entry string) bool {
 }
 
 func (r *CuckooFilterRetrievalCache) loadCache(d storage.Database) error {
-	r.caches = map[string]*cuckoo.ScalableCuckooFilter{}
+	r.caches = map[storage.UserFeedKey]*cuckoo.ScalableCuckooFilter{}
 
 	retrievalCaches, err := d.GetAllRetrievalCaches()
 
 	// If there is an error or no entries, just initialize as empty.
 	if err != nil || len(retrievalCaches) == 0 {
-		log.Errorf("while loading retrieval cache: %s", err)
-
-		users, err := d.GetAllUsers()
 		if err != nil {
-			// This is really the only fatal case. If we cannot even fetch the
-			// users, we can't create even an empty cache for each user, and we'll
-			// throw errors for all subsequent operations.
-			return fmt.Errorf("while fetching users: %s", err)
+			log.Errorf("while loading retrieval cache: %s", err)
 		}
-
-		r.lock.Lock()
-		defer r.lock.Unlock()
-		for _, user := range users {
-			r.caches[string(user.UserId)] = cuckoo.NewScalableCuckooFilter()
-		}
+		// In the per-feed sharded cache design, we dynamically create
+		// cuckoo filters as feeds are fetched, so we don't need to populate
+		// anything upfront here.
 	} else {
 		r.lock.Lock()
 		defer r.lock.Unlock()
-		for id, encoded := range retrievalCaches {
+		for key, encoded := range retrievalCaches {
 			var cache *cuckoo.ScalableCuckooFilter
 
 			// If the cache is corrupt, just create an empty one.
@@ -115,7 +107,7 @@ func (r *CuckooFilterRetrievalCache) loadCache(d storage.Database) error {
 				}
 			}
 
-			r.caches[id] = cache
+			r.caches[key] = cache
 		}
 	}
 
@@ -153,12 +145,24 @@ func (r *CuckooFilterRetrievalCache) persistCache(d storage.Database) {
 	defer r.lock.Unlock()
 	log.Infof("Persisting retrieval cache.")
 
-	entries := map[string][]byte{}
-	for id, cache := range r.caches {
-		entries[id] = cache.Encode()
+	activeKeys, err := d.GetActiveFeedKeys()
+	if err != nil {
+		log.Errorf("failed to prune cache: could not get active feed keys: %s", err)
+		return
 	}
 
-	err := d.PersistAllRetrievalCaches(entries)
+	for key := range r.caches {
+		if !activeKeys[key] {
+			delete(r.caches, key)
+		}
+	}
+
+	entries := map[storage.UserFeedKey][]byte{}
+	for key, cache := range r.caches {
+		entries[key] = cache.Encode()
+	}
+
+	err = d.PersistAllRetrievalCaches(entries)
 	if err != nil {
 		log.Errorf("failed to persist retrieval cache: %s", err)
 	}

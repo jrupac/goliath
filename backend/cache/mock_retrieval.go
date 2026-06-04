@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/jrupac/goliath/models"
@@ -20,15 +21,17 @@ func NewMockRetrievalCache() *MockRetrievalCache {
 }
 
 // Add adds a new entry into the mock cache.
-func (m *MockRetrievalCache) Add(u models.User, entry string) {
+func (m *MockRetrievalCache) Add(u models.User, feedId int64, entry string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	m.cache[string(u.UserId)+":"+entry] = true
+	key := fmt.Sprintf("%s:%d:%s", u.UserId, feedId, entry)
+	m.cache[key] = true
 }
 
 // Lookup returns whether the specified entry is present in the mock cache.
-func (m *MockRetrievalCache) Lookup(u models.User, entry string) bool {
+func (m *MockRetrievalCache) Lookup(u models.User, feedId int64, entry string) bool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
-	return m.cache[string(u.UserId)+":"+entry]
+	key := fmt.Sprintf("%s:%d:%s", u.UserId, feedId, entry)
+	return m.cache[key]
 }

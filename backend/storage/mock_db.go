@@ -28,7 +28,8 @@ type MockDB struct {
 	OnGetArticlesForFeedForUser func(u models.User, feedID int64) ([]models.Article, error)
 	OnGetAllUsers               func() ([]models.User, error)
 	OnGetAllFeedsForUser        func(u models.User) ([]models.Feed, error)
-	OnGetAllRetrievalCaches     func() (map[string]string, error)
+	OnGetAllRetrievalCaches     func() (map[UserFeedKey]string, error)
+	OnGetActiveFeedKeys         func() (map[UserFeedKey]bool, error)
 }
 
 func (m *MockDB) Open(string) error            { return nil }
@@ -60,13 +61,19 @@ func (m *MockDB) GetMuteRegexesForFeedForUser(models.User, int64) ([]string, err
 func (m *MockDB) AddMuteRegexForFeedForUser(models.User, int64, string) error         { return nil }
 func (m *MockDB) DeleteMuteRegexForFeedForUser(models.User, int64, string) error      { return nil }
 
-func (m *MockDB) GetAllRetrievalCaches() (map[string]string, error) {
+func (m *MockDB) GetActiveFeedKeys() (map[UserFeedKey]bool, error) {
+	if m.OnGetActiveFeedKeys != nil {
+		return m.OnGetActiveFeedKeys()
+	}
+	return nil, nil
+}
+func (m *MockDB) GetAllRetrievalCaches() (map[UserFeedKey]string, error) {
 	if m.OnGetAllRetrievalCaches != nil {
 		return m.OnGetAllRetrievalCaches()
 	}
 	return nil, nil
 }
-func (m *MockDB) PersistAllRetrievalCaches(map[string][]byte) error { return nil }
+func (m *MockDB) PersistAllRetrievalCaches(map[UserFeedKey][]byte) error { return nil }
 func (m *MockDB) InsertFeedForUser(models.User, models.Feed, int64) (int64, error) {
 	return 0, nil
 }
