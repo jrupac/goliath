@@ -1015,6 +1015,10 @@
   background-color: color-mix(in srgb, var(--accent-color) 4%, transparent);
 }
 
+.GoliathArticleContentStyling blockquote > :last-child {
+  margin-bottom: 0;
+}
+
 .GoliathArticleContentStyling pre {
   color: var(--primary-font-color);
   background: var(--pre-background-color);
