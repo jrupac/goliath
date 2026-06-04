@@ -125,3 +125,36 @@ func TestCrossHostRedirectBlocking(t *testing.T) {
 		t.Errorf("expected cross-host redirect error, got: %v", err)
 	}
 }
+
+func TestPromoteImageSources(t *testing.T) {
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "data-src promotion",
+			input:    `<img src="placeholder.jpg" data-src="highres.jpg" />`,
+			expected: `src="highres.jpg"`,
+		},
+		{
+			name:     "data-loading JSON promotion",
+			input:    `<img src="placeholder.jpg" data-loading='{"mobile":"mob.jpg","desktop":"desk.jpg"}' />`,
+			expected: `src="desk.jpg"`,
+		},
+		{
+			name:     "srcset promotion",
+			input:    `<img src="placeholder.jpg" srcset="low.jpg 100w, high.jpg 500w" />`,
+			expected: `src="high.jpg"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := promoteImageSources(tc.input)
+			if !strings.Contains(result, tc.expected) {
+				t.Errorf("expected result to contain %q, but got %q", tc.expected, result)
+			}
+		})
+	}
+}

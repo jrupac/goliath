@@ -3,17 +3,21 @@ package fetch
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"codeberg.org/readeck/go-readability/v2"
+	"github.com/PuerkitoBio/goquery"
 	log "github.com/golang/glog"
 )
 
@@ -143,6 +147,8 @@ func (e *articleExtractor) Extract(ctx context.Context, articleURL string) (stri
 		return "", ErrEmptyContent
 	}
 
+	content = promoteImageSources(content)
+
 	return content, nil
 }
 
@@ -162,4 +168,103 @@ func ExtractFullText(ctx context.Context, url string) (string, error) {
 	})
 
 	return extractor.Extract(ctx, url)
+}
+
+func parseSrcset(srcset string) string {
+	parts := strings.Split(srcset, ",")
+	var bestURL string
+	var maxVal float64 = -1
+
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		subparts := strings.Fields(part)
+		if len(subparts) == 0 {
+			continue
+		}
+		imgURL := subparts[0]
+		if len(subparts) == 1 {
+			if bestURL == "" {
+				bestURL = imgURL
+			}
+			continue
+		}
+		desc := subparts[1]
+		var val float64
+		var err error
+		if strings.HasSuffix(desc, "w") {
+			val, err = strconv.ParseFloat(strings.TrimSuffix(desc, "w"), 64)
+		} else if strings.HasSuffix(desc, "x") {
+			val, err = strconv.ParseFloat(strings.TrimSuffix(desc, "x"), 64)
+		}
+		if err == nil && val > maxVal {
+			maxVal = val
+			bestURL = imgURL
+		} else if bestURL == "" {
+			bestURL = imgURL
+		}
+	}
+	return bestURL
+}
+
+type dataLoading struct {
+	Desktop string `json:"desktop"`
+	Mobile  string `json:"mobile"`
+}
+
+func parseDataLoading(jsonStr string) string {
+	var dl dataLoading
+	if err := json.Unmarshal([]byte(jsonStr), &dl); err == nil {
+		if dl.Desktop != "" {
+			return dl.Desktop
+		}
+		if dl.Mobile != "" {
+			return dl.Mobile
+		}
+	}
+	return ""
+}
+
+func promoteImageSources(content string) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
+	if err != nil {
+		log.Warningf("failed to parse HTML for image source promotion: %s", err)
+		return content
+	}
+
+	doc.Find("img").Each(func(i int, s *goquery.Selection) {
+		// Check data-src / data-original (standard lazy loading)
+		if val, exists := s.Attr("data-src"); exists && val != "" {
+			s.SetAttr("src", val)
+			return
+		}
+		if val, exists := s.Attr("data-original"); exists && val != "" {
+			s.SetAttr("src", val)
+			return
+		}
+
+		// Check data-loading (custom JSON attribute, e.g., Google Blog)
+		if val, exists := s.Attr("data-loading"); exists && val != "" {
+			if dlURL := parseDataLoading(val); dlURL != "" {
+				s.SetAttr("src", dlURL)
+				return
+			}
+		}
+
+		// Check srcset
+		if val, exists := s.Attr("srcset"); exists && val != "" {
+			if highRes := parseSrcset(val); highRes != "" {
+				s.SetAttr("src", highRes)
+			}
+		}
+	})
+
+	htmlStr, err := doc.Html()
+	if err != nil {
+		log.Warningf("failed to render HTML after image source promotion: %s", err)
+		return content
+	}
+	return htmlStr
 }

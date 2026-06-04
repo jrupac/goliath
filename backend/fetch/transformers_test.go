@@ -111,9 +111,9 @@ func TestProcessItem(t *testing.T) {
 			t.Error("article content should be transformed, but was same as original")
 		}
 
-		// Also check Parsed field
-		if !strings.Contains(article.Parsed, expectedUrl) {
-			t.Errorf("article parsed content should contain absolute enclosure URL %q, but was %q", expectedUrl, article.Parsed)
+		// Also check Parsed field is empty
+		if article.Parsed != "" {
+			t.Errorf("expected article parsed content to be empty, but was %q", article.Parsed)
 		}
 	})
 
