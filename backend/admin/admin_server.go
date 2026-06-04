@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 	"net"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -406,6 +407,114 @@ func (s *server) EditFeed(_ context.Context, req *EditFeedRequest) (*EditFeedRes
 	err = s.db.UpdateFolderForFeedForUser(user, req.Id, folderId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "internal error")
+	}
+
+	return resp, nil
+}
+
+// GetFeedMuteRegexes retrieves the current feed-specific mute regexes for a user.
+func (s *server) GetFeedMuteRegexes(_ context.Context, req *GetFeedMuteRegexesRequest) (*GetFeedMuteRegexesResponse, error) {
+	resp := &GetFeedMuteRegexesResponse{}
+
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	rulesMap, err := s.db.GetFeedMuteRegexesForUser(user)
+	if err != nil {
+		log.Warningf("while retrieving feed mute regexes for user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not retrieve feed mute regexes")
+	}
+
+	for feedId, regexes := range rulesMap {
+		for _, r := range regexes {
+			resp.Rules = append(resp.Rules, &FeedMuteRegexRule{
+				FeedId: feedId,
+				Regex:  r,
+			})
+		}
+	}
+
+	return resp, nil
+}
+
+// AddFeedMuteRegex adds a feed-specific mute regex for a user.
+func (s *server) AddFeedMuteRegex(_ context.Context, req *AddFeedMuteRegexRequest) (*AddFeedMuteRegexResponse, error) {
+	resp := &AddFeedMuteRegexResponse{}
+
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+	if req.FeedId == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify non-zero FeedId")
+	}
+	if req.Regex == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Regex")
+	}
+
+	// Validate regex syntax first
+	if _, err := regexp.Compile(req.Regex); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid regex: %v", err)
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	// Check if feed exists for user
+	feeds, err := s.db.GetAllFeedsForUser(user)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "could not fetch feeds")
+	}
+	feedExists := false
+	for _, f := range feeds {
+		if f.ID == req.FeedId {
+			feedExists = true
+			break
+		}
+	}
+	if !feedExists {
+		return nil, status.Errorf(codes.NotFound, "could not find feed with ID %d for user", req.FeedId)
+	}
+
+	err = s.db.AddMuteRegexForFeedForUser(user, req.FeedId, req.Regex)
+	if err != nil {
+		log.Warningf("while adding feed mute regex: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not insert feed mute regex")
+	}
+
+	return resp, nil
+}
+
+// DeleteFeedMuteRegex deletes a feed-specific mute regex for a user.
+func (s *server) DeleteFeedMuteRegex(_ context.Context, req *DeleteFeedMuteRegexRequest) (*DeleteFeedMuteRegexResponse, error) {
+	resp := &DeleteFeedMuteRegexResponse{}
+
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+	if req.FeedId == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify non-zero FeedId")
+	}
+	if req.Regex == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Regex")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	err = s.db.DeleteMuteRegexForFeedForUser(user, req.FeedId, req.Regex)
+	if err != nil {
+		log.Warningf("while deleting feed mute regex: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not delete feed mute regex")
 	}
 
 	return resp, nil

@@ -55,6 +55,11 @@ func (m *MockDB) GetUnmuteFeedsForUser(models.User) ([]int64, error)  { return n
 func (m *MockDB) UpdateUnmuteFeedsForUser(models.User, []int64) error { return nil }
 func (m *MockDB) DeleteUnmuteFeedsForUser(models.User, []int64) error { return nil }
 
+func (m *MockDB) GetFeedMuteRegexesForUser(models.User) (map[int64][]string, error) { return nil, nil }
+func (m *MockDB) GetMuteRegexesForFeedForUser(models.User, int64) ([]string, error)   { return nil, nil }
+func (m *MockDB) AddMuteRegexForFeedForUser(models.User, int64, string) error         { return nil }
+func (m *MockDB) DeleteMuteRegexForFeedForUser(models.User, int64, string) error      { return nil }
+
 func (m *MockDB) GetAllRetrievalCaches() (map[string]string, error) {
 	if m.OnGetAllRetrievalCaches != nil {
 		return m.OnGetAllRetrievalCaches()

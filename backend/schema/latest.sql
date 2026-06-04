@@ -144,3 +144,19 @@ CREATE
 CREATE
     INDEX ON Article (userid, id, read)
     STORING (title, summary, content, parsed, link, date);
+
+CREATE TABLE IF NOT EXISTS UserFeedMuteRegexes
+(
+    userid UUID NOT NULL,
+    feedid INT  NOT NULL,
+    regex  STRING NOT NULL,
+    PRIMARY KEY (userid, feedid, regex),
+    CONSTRAINT fk_user
+        FOREIGN KEY (userid)
+            REFERENCES UserTable (id)
+            ON DELETE CASCADE,
+    CONSTRAINT fk_feed
+        FOREIGN KEY (feedid)
+            REFERENCES Feed (id)
+            ON DELETE CASCADE
+);

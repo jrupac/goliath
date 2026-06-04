@@ -162,6 +162,59 @@ message EditFeedRequest {
 message EditFeedResponse {
 }
 
+// Rule mapping a feed ID to a mute regex pattern.
+message FeedMuteRegexRule {
+  // Required. The internal identifier of the feed.
+  int64 FeedId = 1;
+
+  // Required. The regex pattern to filter articles for this feed.
+  string Regex = 2;
+}
+
+// Request to get all feed-specific mute regexes for a user.
+message GetFeedMuteRegexesRequest {
+  // Required. Username for user for whom feed mute regexes should be retrieved.
+  string Username = 1;
+}
+
+// Response containing all feed-specific mute regex rules for a user.
+message GetFeedMuteRegexesResponse {
+  // List of feed mute regex rules for the user.
+  repeated FeedMuteRegexRule Rules = 1;
+}
+
+// Request to add a feed-specific mute regex pattern.
+message AddFeedMuteRegexRequest {
+  // Required. Username for user for whom the feed mute regex should be added.
+  string Username = 1;
+
+  // Required. The internal identifier of the feed to apply the regex to.
+  int64 FeedId = 2;
+
+  // Required. The regex pattern to match against article title and contents.
+  string Regex = 3;
+}
+
+// Empty response. Success is indicated by gRPC-level status code.
+message AddFeedMuteRegexResponse {
+}
+
+// Request to delete a feed-specific mute regex pattern.
+message DeleteFeedMuteRegexRequest {
+  // Required. Username for user for whom the feed mute regex should be deleted.
+  string Username = 1;
+
+  // Required. The internal identifier of the feed.
+  int64 FeedId = 2;
+
+  // Required. The specific regex pattern to remove.
+  string Regex = 3;
+}
+
+// Empty response. Success is indicated by gRPC-level status code.
+message DeleteFeedMuteRegexResponse {
+}
+
 service AdminService {
   // Add a new user into the system.
   rpc AddUser (AddUserRequest) returns (AddUserResponse);
@@ -183,6 +236,15 @@ service AdminService {
 
   // Delete unmute feed for a user.
   rpc DeleteUnmutedFeed (DeleteUnmutedFeedRequest) returns (DeleteUnmutedFeedResponse);
+
+  // Get feed-specific mute regexes for a user.
+  rpc GetFeedMuteRegexes (GetFeedMuteRegexesRequest) returns (GetFeedMuteRegexesResponse);
+
+  // Add a feed-specific mute regex for a user.
+  rpc AddFeedMuteRegex (AddFeedMuteRegexRequest) returns (AddFeedMuteRegexResponse);
+
+  // Delete a feed-specific mute regex for a user.
+  rpc DeleteFeedMuteRegex (DeleteFeedMuteRegexRequest) returns (DeleteFeedMuteRegexResponse);
 
   // Return all feeds for a user.
   rpc GetFeeds (GetFeedsRequest) returns (GetFeedsResponse);

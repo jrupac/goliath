@@ -1,6 +1,7 @@
 package fetch
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -456,6 +457,49 @@ func TestMaybeMuteArticle(t *testing.T) {
 	t.Run("does not mute for unmuted feed", func(t *testing.T) {
 		if maybeMuteArticle(article, []string{"article"}, []int64{1}) {
 			t.Error("did not expect to mute article from unmuted feed")
+		}
+	})
+}
+
+func TestMaybeMuteArticleByRegex(t *testing.T) {
+	article := models.Article{
+		FeedID:  1,
+		Title:   "50% Off DoorDash Promo Code | June 2026",
+		Summary: "Get Walmart Promo Codes: Up to 65% Off for June 2026",
+		Content: "Check out these NordVPN Coupons and Deals: 77% Off in June 2026.",
+	}
+
+	t.Run("returns false when no regexes", func(t *testing.T) {
+		if maybeMuteArticleByRegex(article, nil) {
+			t.Error("did not expect to mute article with no regexes")
+		}
+	})
+
+	t.Run("matches case-insensitively on title", func(t *testing.T) {
+		r := regexp.MustCompile("(?i)(promo|coupons|deals)")
+		if !maybeMuteArticleByRegex(article, []*regexp.Regexp{r}) {
+			t.Error("expected to mute article based on title regex")
+		}
+	})
+
+	t.Run("matches case-insensitively on summary", func(t *testing.T) {
+		r := regexp.MustCompile("(?i)walmart")
+		if !maybeMuteArticleByRegex(article, []*regexp.Regexp{r}) {
+			t.Error("expected to mute article based on summary regex")
+		}
+	})
+
+	t.Run("matches case-insensitively on content", func(t *testing.T) {
+		r := regexp.MustCompile("(?i)nordvpn")
+		if !maybeMuteArticleByRegex(article, []*regexp.Regexp{r}) {
+			t.Error("expected to mute article based on content regex")
+		}
+	})
+
+	t.Run("does not match non-matching regex", func(t *testing.T) {
+		r := regexp.MustCompile("(?i)nonexistent")
+		if maybeMuteArticleByRegex(article, []*regexp.Regexp{r}) {
+			t.Error("did not expect to mute article with non-matching regex")
 		}
 	})
 }

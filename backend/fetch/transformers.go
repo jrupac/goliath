@@ -349,6 +349,26 @@ func maybeMuteArticle(a models.Article, muteWords []string, unmuteFeeds []int64)
 			return true
 		}
 	}
+	return false
+}
+
+// maybeMuteArticleByRegex returns true if any of the compiled regexes match
+// the article's title, summary, or content.
+func maybeMuteArticleByRegex(a models.Article, regexes []*regexp.Regexp) bool {
+	if len(regexes) == 0 {
+		return false
+	}
+
+	titleText := extractTextFromHtmlUnsafe(a.Title)
+	summaryText := extractTextFromHtmlUnsafe(a.Summary)
+	contentText := extractTextFromHtmlUnsafe(a.Content)
+
+	for _, r := range regexes {
+		if r.MatchString(titleText) || r.MatchString(summaryText) || r.MatchString(contentText) {
+			log.Infof("Filtering article due to feed regex %q: %s", r.String(), a.String())
+			return true
+		}
+	}
 
 	return false
 }

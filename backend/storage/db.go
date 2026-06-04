@@ -55,6 +55,11 @@ type Database interface {
 	UpdateUnmuteFeedsForUser(models.User, []int64) error
 	DeleteUnmuteFeedsForUser(models.User, []int64) error
 
+	GetFeedMuteRegexesForUser(models.User) (map[int64][]string, error)
+	GetMuteRegexesForFeedForUser(models.User, int64) ([]string, error)
+	AddMuteRegexForFeedForUser(models.User, int64, string) error
+	DeleteMuteRegexForFeedForUser(models.User, int64, string) error
+
 	// Retrieval cache
 
 	GetAllRetrievalCaches() (map[string]string, error)

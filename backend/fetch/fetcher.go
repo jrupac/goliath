@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"sync"
 	"time"
 
@@ -259,6 +260,21 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 		log.Warningf("while fetching unmuted feeds for user %s: %s", user, err)
 	}
 
+	feedRegexStrings, err := f.d.GetMuteRegexesForFeedForUser(user, feed.ID)
+	if err != nil {
+		log.Warningf("while fetching feed mute regexes for user %s, feed %d: %s", user, feed.ID, err)
+	}
+	var feedRegexes []*regexp.Regexp
+	for _, rStr := range feedRegexStrings {
+		// Prepend (?i) to ensure case-insensitive matching
+		r, err := regexp.Compile("(?i)" + rStr)
+		if err != nil {
+			log.Warningf("invalid feed mute regex %q: %s", rStr, err)
+			continue
+		}
+		feedRegexes = append(feedRegexes, r)
+	}
+
 	for _, item := range items {
 		// The context is canceled, so just return
 		if ctx.Err() != nil {
@@ -273,6 +289,9 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 		} else if f.retCache.Lookup(user, a.Hash()) {
 			log.V(2).Infof("Not persisting because present in retrieval cache: %s", a)
 			numRetrievalCache += 1
+		} else if maybeMuteArticleByRegex(a, feedRegexes) {
+			log.V(2).Infof("Not persisting because of feed mute regex: %s", a)
+			numMuted += 1
 		} else if maybeMuteArticle(a, muteWords, unmuteFeeds) {
 			log.V(2).Infof("Not persisting because of muted word: %s", a)
 			numMuted += 1

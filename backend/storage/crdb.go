@@ -270,6 +270,75 @@ func (crdb *Crdb) DeleteUnmuteFeedsForUser(u models.User, feedIds []int64) error
 
 }
 
+// GetFeedMuteRegexesForUser returns all feed mute regexes for a given user.
+func (crdb *Crdb) GetFeedMuteRegexesForUser(u models.User) (map[int64][]string, error) {
+	defer logElapsedTime(time.Now(), "GetFeedMuteRegexesForUser")
+
+	ret := make(map[int64][]string)
+
+	query := `SELECT feedid, regex FROM UserFeedMuteRegexes WHERE userid = $1`
+	rows, err := crdb.db.Query(query, u.UserId)
+	defer closeSilent(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var feedId int64
+		var regex string
+		if err = rows.Scan(&feedId, &regex); err != nil {
+			return nil, err
+		}
+		ret[feedId] = append(ret[feedId], regex)
+	}
+
+	return ret, err
+}
+
+// GetMuteRegexesForFeedForUser returns the mute regexes for a specific user and feed.
+func (crdb *Crdb) GetMuteRegexesForFeedForUser(u models.User, feedId int64) ([]string, error) {
+	defer logElapsedTime(time.Now(), "GetMuteRegexesForFeedForUser")
+
+	var regexes []string
+
+	query := `SELECT regex FROM UserFeedMuteRegexes WHERE userid = $1 AND feedid = $2`
+	rows, err := crdb.db.Query(query, u.UserId, feedId)
+	defer closeSilent(rows)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var regex string
+		if err = rows.Scan(&regex); err != nil {
+			return nil, err
+		}
+		regexes = append(regexes, regex)
+	}
+
+	return regexes, err
+}
+
+// AddMuteRegexForFeedForUser adds a feed mute regex for a given user and feed.
+func (crdb *Crdb) AddMuteRegexForFeedForUser(u models.User, feedId int64, regex string) error {
+	defer logElapsedTime(time.Now(), "AddMuteRegexForFeedForUser")
+
+	query := `INSERT INTO UserFeedMuteRegexes (userid, feedid, regex) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`
+	_, err := crdb.db.Exec(query, u.UserId, feedId, regex)
+
+	return err
+}
+
+// DeleteMuteRegexForFeedForUser deletes a specific feed mute regex for a given user and feed.
+func (crdb *Crdb) DeleteMuteRegexForFeedForUser(u models.User, feedId int64, regex string) error {
+	defer logElapsedTime(time.Now(), "DeleteMuteRegexForFeedForUser")
+
+	query := `DELETE FROM UserFeedMuteRegexes WHERE userid = $1 AND feedid = $2 AND regex = $3`
+	_, err := crdb.db.Exec(query, u.UserId, feedId, regex)
+
+	return err
+}
+
 /*******************************************************************************
  * Retrieval cache
  ******************************************************************************/
