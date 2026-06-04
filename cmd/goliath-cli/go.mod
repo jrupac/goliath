@@ -16,8 +16,10 @@ require (
 )
 
 require (
+	codeberg.org/readeck/go-readability/v2 v2.1.1 // indirect
 	github.com/PuerkitoBio/goquery v1.10.2 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
+	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/arbovm/levenshtein v0.0.0-20160628152529-48b4e1c0c4d0 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/axgle/mahonia v0.0.0-20180208002826-3358181d7394 // indirect
@@ -31,6 +33,8 @@ require (
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
+	github.com/go-shiori/dom v0.0.0-20230515143342-73569d674e1c // indirect
+	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
 	github.com/golang/glog v1.2.5 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
