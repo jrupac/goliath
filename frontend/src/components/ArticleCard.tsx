@@ -141,7 +141,9 @@ const ArticleCard: React.FC<ArticleProps> = ({
   const faviconSrc = props.favicon?.GetFavicon() || '';
 
   const getArticleContent = (): string => {
-    const rawContent = state.showParsed ? (props.article.parsed || '') : props.article.html;
+    const rawContent = state.showParsed
+      ? props.article.parsed || ''
+      : props.article.html;
     return scopeArticleHtml(rawContent, props.article.id);
   };
 
