@@ -1,3 +1,40 @@
+##############################################################################
+# External Service Templates
+##############################################################################
+
+x-prometheus-base: &prometheus_template
+  image: prom/prometheus:v2.51.0
+  command:
+    - "--config.file=/etc/prometheus/prometheus.yml"
+    - "--storage.tsdb.path=/prometheus"
+    - "--storage.tsdb.retention.time=15d"
+  volumes:
+    - ./monitoring/prometheus:/etc/prometheus
+    - prometheus_data:/prometheus
+  networks:
+    goliath-backend:
+      aliases:
+        - prometheus-server
+
+x-grafana-base: &grafana_template
+  image: grafana/grafana:10.4.1
+  volumes:
+    - grafana_data:/var/lib/grafana
+    - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    - ./monitoring/grafana/dashboards:/etc/grafana/dashboards
+  networks:
+    - goliath-backend
+
+x-crdb-base: &crdb_template
+  image: cockroachdb/cockroach:v23.2.2
+  hostname: crdb
+  command: "start-single-node --insecure --advertise-addr=crdb --log-dir=/tmp"
+  dns: 8.8.8.8
+  volumes:
+    - "crdb_volume:/cockroach/cockroach-data"
+    - "./backend/schema:/cockroach/scripts"
+    - "/tmp:/tmp"
+
 services:
   ##############################################################################
   # Prod Environment
@@ -24,6 +61,45 @@ services:
     volumes:
       - "./config.ini:/config.ini"
       - "/tmp:/tmp"
+
+  crdb:
+    <<: *crdb_template
+    container_name: "crdb-service"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        max_attempts: 10
+        window: 120s
+    profiles: ["prod"]
+    expose:
+      - "26257"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://crdb:8080/health?ready=1"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    networks:
+      - goliath-backend
+      - goliath-backend-nonprod
+    ports:
+      - "8080:8080"
+
+  prometheus:
+    <<: *prometheus_template
+    container_name: "prometheus"
+    profiles: ["prod"]
+
+  grafana:
+    <<: *grafana_template
+    container_name: "grafana"
+    profiles: ["prod"]
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_SERVER_ROOT_URL=${GRAFANA_SERVER_ROOT_URL}
+      - GF_SERVER_DOMAIN=${GRAFANA_SERVER_DOMAIN}
 
   ##############################################################################
   # Dev Environment
@@ -65,12 +141,9 @@ services:
       - "./config.ini:/config.ini"
       - "/tmp:/tmp"
 
-  crdb-dev: &crdb_template
-    image: cockroachdb/cockroach:v23.2.2
+  crdb-dev:
+    <<: *crdb_template
     container_name: "crdb-dev"
-    command: "start-single-node --insecure --advertise-addr=crdb --log-dir=/tmp"
-    hostname: crdb
-    dns: 8.8.8.8
     profiles: ["dev"]
     ports:
       # Also map 26257 to the host in the non-prod
@@ -78,10 +151,25 @@ services:
     networks:
       - goliath-backend
       - goliath-backend-nonprod
-    volumes:
-      - "crdb_volume:/cockroach/cockroach-data"
-      - "./backend/schema:/cockroach/scripts"
-      - "/tmp:/tmp"
+
+  prometheus-dev:
+    <<: *prometheus_template
+    container_name: "prometheus-dev"
+    profiles: ["dev"]
+    ports:
+      - "9996:9090"
+
+  grafana-dev:
+    <<: *grafana_template
+    container_name: "grafana-dev"
+    profiles: ["dev"]
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+      - GF_SERVER_DOMAIN=localhost
 
   ##############################################################################
   # Debug Environment
@@ -113,12 +201,9 @@ services:
     security_opt:
       - seccomp:unconfined
 
-  crdb-debug: &crdb_template
-    image: cockroachdb/cockroach:v23.2.2
-    hostname: crdb
-    command: "start-single-node --insecure --advertise-addr=crdb --log-dir=/tmp"
+  crdb-debug:
+    <<: *crdb_template
     container_name: "crdb-debug"
-    dns: 8.8.8.8
     profiles: ["debug"]
     ports:
       # Also map 26257 to the host in the non-prod
@@ -126,70 +211,6 @@ services:
     networks:
       - goliath-backend
       - goliath-backend-nonprod
-    volumes:
-      - "crdb_volume:/cockroach/cockroach-data"
-      - "./backend/schema:/cockroach/scripts"
-      - "/tmp:/tmp"
-
-  ##############################################################################
-  # External Services
-  ##############################################################################
-
-  crdb:
-    <<: *crdb_template
-    image: cockroachdb/cockroach:v23.2.2
-    hostname: crdb
-    command: "start-single-node --insecure --advertise-addr=crdb --log-dir=/tmp"
-    container_name: "crdb-service"
-    deploy:
-      restart_policy:
-        condition: on-failure
-        max_attempts: 10
-        window: 120s
-    dns: 8.8.8.8
-    profiles: ["prod"]
-    expose:
-      - "26257"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://crdb:8080/health?ready=1"]
-      interval: 3s
-      timeout: 3s
-      retries: 5
-    networks:
-      - goliath-backend
-      - goliath-backend-nonprod
-    ports:
-      - "8080:8080"
-    volumes:
-      - "crdb_volume:/cockroach/cockroach-data"
-      - "./backend/schema:/cockroach/scripts"
-      - "/tmp:/tmp"
-
-  prometheus: &prometheus_template
-    image: prom/prometheus:v2.51.0
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=15d"
-    volumes:
-      - ./monitoring/prometheus:/etc/prometheus
-      - prometheus_data:/prometheus
-    networks:
-      goliath-backend:
-        aliases:
-          - prometheus-server
-
-  prometheus-prod:
-    <<: *prometheus_template
-    container_name: "prometheus"
-    profiles: ["prod"]
-
-  prometheus-dev:
-    <<: *prometheus_template
-    container_name: "prometheus-dev"
-    profiles: ["dev"]
-    ports:
-      - "9996:9090"
 
   prometheus-debug:
     <<: *prometheus_template
@@ -197,39 +218,6 @@ services:
     profiles: ["debug"]
     ports:
       - "9996:9090"
-
-  grafana: &grafana_template
-    image: grafana/grafana:10.4.1
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/etc/grafana/dashboards
-    networks:
-      - goliath-backend
-
-  grafana-prod:
-    <<: *grafana_template
-    container_name: "grafana"
-    profiles: ["prod"]
-    ports:
-      - "127.0.0.1:3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
-      - GF_SERVER_ROOT_URL=${GRAFANA_SERVER_ROOT_URL}
-      - GF_SERVER_DOMAIN=${GRAFANA_SERVER_DOMAIN}
-
-  grafana-dev:
-    <<: *grafana_template
-    container_name: "grafana-dev"
-    profiles: ["dev"]
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_SERVER_ROOT_URL=http://localhost:3001
-      - GF_SERVER_DOMAIN=localhost
 
   grafana-debug:
     <<: *grafana_template
@@ -243,11 +231,19 @@ services:
       - GF_SERVER_ROOT_URL=http://localhost:3001
       - GF_SERVER_DOMAIN=localhost
 
+##############################################################################
+# Networks
+##############################################################################
+
 networks:
   goliath-backend: {}
   # Only needed in non-prod environments where the frontend is not bundled
   # into the backend.
   goliath-backend-nonprod: {}
+
+##############################################################################
+# Volumes
+##############################################################################
 
 volumes:
   crdb_volume:
