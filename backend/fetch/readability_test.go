@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -152,6 +153,51 @@ func TestPromoteImageSources(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			result := promoteImageSources(tc.input)
+			if !strings.Contains(result, tc.expected) {
+				t.Errorf("expected result to contain %q, but got %q", tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestRewriteFragmentUrls(t *testing.T) {
+	articleURL, _ := url.Parse("https://example.com/post")
+
+	testCases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "rewrites absolute match with fragment",
+			input:    `<a href="https://example.com/post#fn-1">Footnote 1</a>`,
+			expected: `<a href="#fn-1">Footnote 1</a>`,
+		},
+		{
+			name:     "rewrites absolute match with trailing slash and fragment",
+			input:    `<a href="https://example.com/post/#fn-1">Footnote 1</a>`,
+			expected: `<a href="#fn-1">Footnote 1</a>`,
+		},
+		{
+			name:     "ignores absolute match without fragment",
+			input:    `<a href="https://example.com/post">Post Link</a>`,
+			expected: `href="https://example.com/post"`,
+		},
+		{
+			name:     "ignores different host link with fragment",
+			input:    `<a href="https://other.com/post#fn-1">Other Link</a>`,
+			expected: `href="https://other.com/post#fn-1"`,
+		},
+		{
+			name:     "ignores different path link with fragment",
+			input:    `<a href="https://example.com/about#team">Team Section</a>`,
+			expected: `href="https://example.com/about#team"`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := rewriteFragmentUrls(tc.input, articleURL)
 			if !strings.Contains(result, tc.expected) {
 				t.Errorf("expected result to contain %q, but got %q", tc.expected, result)
 			}

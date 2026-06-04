@@ -366,6 +366,15 @@ func TestMaybeRewriteUrls(t *testing.T) {
 			t.Errorf("expected %s, got %s", expected, result)
 		}
 	})
+
+	t.Run("does not rewrite fragment-only relative url in <a> tag", func(t *testing.T) {
+		content := "<a href='#fn-2'>Footnote Link</a>"
+		expected := "<html><head></head><body><a href=\"#fn-2\">Footnote Link</a></body></html>"
+		result := maybeRewriteUrls(feed, content)
+		if result != expected {
+			t.Errorf("expected %s, got %s", expected, result)
+		}
+	})
 }
 
 func TestExtractTextFromHtmlUnsafe(t *testing.T) {

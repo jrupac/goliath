@@ -146,6 +146,10 @@ func maybeUnescapeHtml(content string) string {
 // absolute URL string.
 func getAbsoluteUrl(feedLink, inputUrlStr string) string {
 	feedLink = strings.TrimSpace(feedLink)
+	if strings.HasPrefix(inputUrlStr, "#") {
+		return inputUrlStr
+	}
+
 	base, err := url.Parse(feedLink)
 	if err != nil {
 		log.Warningf("could not parse feed link %s: %s", feedLink, err)

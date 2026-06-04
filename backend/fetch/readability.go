@@ -148,6 +148,7 @@ func (e *articleExtractor) Extract(ctx context.Context, articleURL string) (stri
 	}
 
 	content = promoteImageSources(content)
+	content = rewriteFragmentUrls(content, parsedURL)
 
 	return content, nil
 }
@@ -264,6 +265,42 @@ func promoteImageSources(content string) string {
 	htmlStr, err := doc.Html()
 	if err != nil {
 		log.Warningf("failed to render HTML after image source promotion: %s", err)
+		return content
+	}
+	return htmlStr
+}
+
+func rewriteFragmentUrls(content string, articleURL *url.URL) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
+	if err != nil {
+		log.Warningf("failed to parse HTML for fragment URL rewriting: %s", err)
+		return content
+	}
+
+	normalizePath := func(p string) string {
+		return strings.TrimSuffix(p, "/")
+	}
+
+	doc.Find("a").Each(func(i int, s *goquery.Selection) {
+		href, exists := s.Attr("href")
+		if !exists || href == "" {
+			return
+		}
+		parsedHref, err := url.Parse(href)
+		if err != nil {
+			return
+		}
+		if parsedHref.Scheme == articleURL.Scheme &&
+			parsedHref.Host == articleURL.Host &&
+			normalizePath(parsedHref.Path) == normalizePath(articleURL.Path) &&
+			parsedHref.Fragment != "" {
+			s.SetAttr("href", "#"+parsedHref.Fragment)
+		}
+	})
+
+	htmlStr, err := doc.Html()
+	if err != nil {
+		log.Warningf("failed to render HTML after fragment URL rewriting: %s", err)
 		return content
 	}
 	return htmlStr
