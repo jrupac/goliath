@@ -6,3 +6,5 @@ scrape_configs:
   - job_name: 'goliath'
     static_configs:
       - targets: ['goliath:9998']
+        labels:
+          instance: 'goliath'
