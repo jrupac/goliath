@@ -26,6 +26,8 @@ type MockDB struct {
 
 	// Function overrides
 	OnGetArticlesForFeedForUser func(u models.User, feedID int64) ([]models.Article, error)
+	OnGetArticlesForUser        func(u models.User, ids []int64) ([]models.Article, error)
+	OnUpdateArticleParsedContentForUser func(u models.User, articleID int64, parsed string) error
 	OnGetAllUsers               func() ([]models.User, error)
 	OnGetAllFeedsForUser        func(u models.User) ([]models.Feed, error)
 	OnGetAllRetrievalCaches     func() (map[UserFeedKey]string, error)
@@ -119,7 +121,10 @@ func (m *MockDB) GetAllFaviconsForUser(models.User) (map[int64]string, error) {
 func (m *MockDB) GetArticleMetaWithFilterForUser(models.User, models.StreamFilter, int, int64) ([]models.ArticleMeta, error) {
 	return nil, nil
 }
-func (m *MockDB) GetArticlesForUser(models.User, []int64) ([]models.Article, error) {
+func (m *MockDB) GetArticlesForUser(u models.User, ids []int64) ([]models.Article, error) {
+	if m.OnGetArticlesForUser != nil {
+		return m.OnGetArticlesForUser(u, ids)
+	}
 	return nil, nil
 }
 func (m *MockDB) GetArticlesWithFilterForUser(models.User, models.StreamFilter, int, int64) ([]models.Article, error) {
@@ -155,5 +160,8 @@ func (m *MockDB) GetArticlesForFeedForUser(u models.User, feedID int64) ([]model
 }
 
 func (m *MockDB) UpdateArticleParsedContentForUser(u models.User, articleID int64, parsed string) error {
+	if m.OnUpdateArticleParsedContentForUser != nil {
+		return m.OnUpdateArticleParsedContentForUser(u, articleID, parsed)
+	}
 	return nil
 }

@@ -70,7 +70,7 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 		parsed = bluemondayBodyPolicy.Sanitize(parsed)
 	}
 
-	contents = maybeRewriteUrls(feed, contents)
+	contents = ProcessHTMLContent(feed.Link, contents)
 
 	syntheticDate := false
 	retrieved := time.Now()
@@ -202,10 +202,10 @@ func processImageUrl(feedLink, imageUrl string) string {
 	return newUrl.String()
 }
 
-// maybeRewriteUrls parses the given string as HTML, searches for
+// ProcessHTMLContent parses the given string as HTML, searches for
 // image source URLs, makes them absolute if they are relative, and then rewrites
-// them to point at the reverse image proxy. Also replace relative URLs in <a> tags.
-func maybeRewriteUrls(feed *models.Feed, s string) string {
+// them to point at the reverse image proxy. Also replaces relative URLs in <a> tags.
+func ProcessHTMLContent(baseURL string, s string) string {
 	// If we get an empty string, don't try to parse it. Doing so and then
 	// re-rendering will produce a non-empty but semantically empty HTML document.
 	if s == "" {
@@ -222,7 +222,7 @@ func maybeRewriteUrls(feed *models.Feed, s string) string {
 	doc.Find("img").Each(func(i int, s *goquery.Selection) {
 		for _, attr := range s.Nodes[0].Attr {
 			if attr.Key == "src" {
-				finalUrl := processImageUrl(feed.Link, attr.Val)
+				finalUrl := processImageUrl(baseURL, attr.Val)
 				s.SetAttr(attr.Key, finalUrl)
 			}
 		}
@@ -232,7 +232,7 @@ func maybeRewriteUrls(feed *models.Feed, s string) string {
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
 		for _, attr := range s.Nodes[0].Attr {
 			if attr.Key == "href" {
-				finalUrl := getAbsoluteUrl(feed.Link, attr.Val)
+				finalUrl := getAbsoluteUrl(baseURL, attr.Val)
 				s.SetAttr(attr.Key, finalUrl)
 			}
 		}

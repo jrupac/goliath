@@ -335,7 +335,7 @@ func TestMaybeRewriteUrls(t *testing.T) {
 	t.Run("rewrite relative url in <a> tag", func(t *testing.T) {
 		content := "<a href='/relative'>Relative Link</a>"
 		expected := "<html><head></head><body><a href=\"http://example.com/relative\">Relative Link</a></body></html>"
-		result := maybeRewriteUrls(feed, content)
+		result := ProcessHTMLContent(feed.Link, content)
 		if result != expected {
 			t.Errorf("expected %s, got %s", expected, result)
 		}
@@ -348,7 +348,7 @@ func TestMaybeRewriteUrls(t *testing.T) {
 
 		content := "Hello world <img src='http://insecure.com/foo.jpg'>"
 		expected := "<html><head></head><body>Hello world <img src=\"/cache?url=http%3A%2F%2Finsecure.com%2Ffoo.jpg\"/></body></html>"
-		result := maybeRewriteUrls(feed, content)
+		result := ProcessHTMLContent(feed.Link, content)
 		if result != expected {
 			t.Errorf("expected %s, got %s", expected, result)
 		}
@@ -361,7 +361,7 @@ func TestMaybeRewriteUrls(t *testing.T) {
 
 		content := "Hello world <img src='/foo.jpg'>"
 		expected := "<html><head></head><body>Hello world <img src=\"/cache?url=http%3A%2F%2Fexample.com%2Ffoo.jpg\"/></body></html>"
-		result := maybeRewriteUrls(feed, content)
+		result := ProcessHTMLContent(feed.Link, content)
 		if result != expected {
 			t.Errorf("expected %s, got %s", expected, result)
 		}
@@ -370,7 +370,7 @@ func TestMaybeRewriteUrls(t *testing.T) {
 	t.Run("does not rewrite fragment-only relative url in <a> tag", func(t *testing.T) {
 		content := "<a href='#fn-2'>Footnote Link</a>"
 		expected := "<html><head></head><body><a href=\"#fn-2\">Footnote Link</a></body></html>"
-		result := maybeRewriteUrls(feed, content)
+		result := ProcessHTMLContent(feed.Link, content)
 		if result != expected {
 			t.Errorf("expected %s, got %s", expected, result)
 		}

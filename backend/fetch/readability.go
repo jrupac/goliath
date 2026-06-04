@@ -305,3 +305,12 @@ func rewriteFragmentUrls(content string, articleURL *url.URL) string {
 	}
 	return htmlStr
 }
+
+// SetClientForTesting overrides the HTTP client of the default extractor for unit testing.
+func SetClientForTesting(client *http.Client) {
+	extractorOnce.Do(func() {
+		extractor = newArticleExtractor(10*time.Second, "Goliath/Test")
+	})
+	extractor.client = client
+}
+

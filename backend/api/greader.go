@@ -696,8 +696,11 @@ func (a GReader) handleParseFullArticle(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
+	// Rewrite relative URLs/images and proxy them using the article's URL as base.
+	rewrittenContent := fetch.ProcessHTMLContent(article.Link, parsedContent)
+
 	// Sanitize content using the fetch package policy.
-	sanitizedContent := fetch.SanitizeBody(parsedContent)
+	sanitizedContent := fetch.SanitizeBody(rewrittenContent)
 
 	// Persist the sanitized parsed content to CockroachDB.
 	err = a.d.UpdateArticleParsedContentForUser(user, id, sanitizedContent)
