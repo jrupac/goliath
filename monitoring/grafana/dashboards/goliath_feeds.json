@@ -17,7 +17,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
-  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -47,6 +46,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -97,10 +97,12 @@
       "id": 2,
       "options": {
         "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
+          "calcs": ["lastNotNull"],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "sortBy": "Last *",
+          "sortDesc": true
         },
         "tooltip": {
           "mode": "single",
@@ -137,6 +139,7 @@
             "axisBorderShow": false,
             "axisCenteredZero": false,
             "axisColorMode": "text",
+            "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
@@ -225,7 +228,9 @@
           },
           "custom": {
             "align": "auto",
-            "displayMode": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
             "inspect": false
           },
           "mappings": [],
@@ -296,20 +301,20 @@
       "options": {
         "cellHeight": "sm",
         "footer": {
+          "countRows": false,
           "fields": [],
-          "reducer": [
-            "sum"
-          ],
+          "reducer": ["sum"],
           "show": false
         },
         "showHeader": true,
         "sortBy": [
           {
-            "displayName": "Consecutive Failures",
-            "desc": true
+            "desc": true,
+            "displayName": "Consecutive Failures"
           }
         ]
       },
+      "pluginVersion": "10.4.1",
       "targets": [
         {
           "datasource": {
@@ -366,6 +371,6 @@
   "timezone": "",
   "title": "Goliath Feed Fetching Dashboard",
   "uid": "goliath-feed-fetching-dashboard",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
