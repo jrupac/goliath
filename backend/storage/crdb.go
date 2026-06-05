@@ -789,6 +789,19 @@ func (crdb *Crdb) UpdateLatestTimeForFeedForUser(u models.User, folderId int64, 
 	return err
 }
 
+// UpdateEstimatedRefreshIntervalForFeedForUser sets the estimated refresh interval (in seconds) for the given feed.
+func (crdb *Crdb) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, folderId int64, id int64, interval int) error {
+	defer logElapsedTime(time.Now(), "UpdateEstimatedRefreshIntervalForFeedForUser")
+
+	query := `
+		UPDATE Feed
+		SET estimated_refresh_interval = $1
+		WHERE userid = $2 AND folder = $3 AND id = $4
+	`
+	_, err := crdb.db.Exec(query, interval, u.UserId, folderId, id)
+	return err
+}
+
 // UpdateFolderForFeedForUser updates the folder of the given feed.
 // The new `folderId` must already exist and is enforced by a foreign key
 // constraint on the `Feed` folder.
@@ -876,7 +889,7 @@ func (crdb *Crdb) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
 	var feeds []models.Feed
 
 	query := `
-		SELECT id, folder, title, description, url, link, latest
+		SELECT id, folder, title, description, url, link, latest, estimated_refresh_interval
 		FROM Feed
 		WHERE userid = $1
 	`
@@ -889,7 +902,7 @@ func (crdb *Crdb) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
 
 	for rows.Next() {
 		f := models.Feed{}
-		if err = rows.Scan(&f.ID, &f.FolderID, &f.Title, &f.Description, &f.URL, &f.Link, &f.Latest); err != nil {
+		if err = rows.Scan(&f.ID, &f.FolderID, &f.Title, &f.Description, &f.URL, &f.Link, &f.Latest, &f.EstimatedRefreshInterval); err != nil {
 			return feeds, err
 		}
 		feeds = append(feeds, f)

@@ -89,6 +89,7 @@ type Database interface {
 
 	UpdateFeedMetadataForUser(models.User, models.Feed) error
 	UpdateLatestTimeForFeedForUser(models.User, int64, int64, time.Time) error
+	UpdateEstimatedRefreshIntervalForFeedForUser(models.User, int64, int64, int) error
 	UpdateFolderForFeedForUser(models.User, int64, int64) error
 	UpdateArticleParsedContentForUser(models.User, int64, string) error
 

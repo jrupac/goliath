@@ -32,6 +32,7 @@ type MockDB struct {
 	OnGetAllFeedsForUser        func(u models.User) ([]models.Feed, error)
 	OnGetAllRetrievalCaches     func() (map[UserFeedKey]string, error)
 	OnGetActiveFeedKeys         func() (map[UserFeedKey]bool, error)
+	OnUpdateEstimatedRefreshIntervalForFeedForUser func(u models.User, folderId, id int64, interval int) error
 }
 
 func (m *MockDB) Open(string) error            { return nil }
@@ -91,6 +92,12 @@ func (m *MockDB) MarkArticleForUser(models.User, int64, models.MarkAction) error
 func (m *MockDB) MarkFeedForUser(models.User, int64, models.MarkAction) error   { return nil }
 func (m *MockDB) MarkFolderForUser(models.User, int64, models.MarkAction) error { return nil }
 func (m *MockDB) UpdateLatestTimeForFeedForUser(models.User, int64, int64, time.Time) error {
+	return nil
+}
+func (m *MockDB) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, folderId, id int64, interval int) error {
+	if m.OnUpdateEstimatedRefreshIntervalForFeedForUser != nil {
+		return m.OnUpdateEstimatedRefreshIntervalForFeedForUser(u, folderId, id, interval)
+	}
 	return nil
 }
 func (m *MockDB) UpdateFolderForFeedForUser(models.User, int64, int64) error { return nil }

@@ -18,6 +18,7 @@ type Feed struct {
 	URL         string
 	Link        string
 	Latest      time.Time
+	EstimatedRefreshInterval int
 }
 
 // Hash returns a SHA256 hash of this object.

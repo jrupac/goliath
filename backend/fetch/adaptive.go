@@ -17,86 +17,122 @@ import (
 // to diurnal publication changes without causing severe scheduler jitter.
 const emaAlpha = 0.25
 
-// calculateAdaptiveInterval computes the optimal duration to wait before the
-// next feed fetch based on the history of published articles.
+// calculateNextInterval determines the absolute timestamp for the next fetch.
+// It uses an Online Exponential Moving Average (EMA) of publication gaps,
+// persisted in the database, to adaptively schedule updates.
 //
-// Math:
-// 1. Sort article dates descending to get publication timestamps t_0, t_1, ..., t_k.
-// 2. Compute publication gaps between adjacent articles: g_i = t_{i-1} - t_i.
-// 3. Compute EMA of these gaps:
-//    S_k = g_k
-//    S_i = alpha * g_i + (1 - alpha) * S_{i+1} for i = k-1 down to 1.
-//    Estimated interval T_ema = S_1.
-// 4. Calculate silence duration since the newest article: T_silent = now - t_0.
-// 5. Raw interval T_raw = max(T_ema, T_silent).
-// 6. Return T_raw clamped to minFetchInterval and maxFetchInterval flags.
-func calculateAdaptiveInterval(fetchTime time.Time, articles []models.Article) time.Duration {
-	var validDates []time.Time
-	for _, a := range articles {
-		// Filter out invalid dates (zero value) and articles published in the future
-		// (which can occur due to misconfigured feed generators or server clock drift).
-		if !a.Date.IsZero() && !a.Date.After(fetchTime) {
-			validDates = append(validDates, a.Date)
+// Math & Logic:
+// 1. Identify any "new" items in the fetched feed: items with a valid publication
+//    timestamp strictly after the feed's previous latest timestamp.
+// 2. If new items exist, sort them chronologically (oldest to newest) to process gaps.
+// 3. Compute publication gaps:
+//    - Gap 0: oldest new item date minus prev feed latest date (if valid).
+//    - Gap i: date of new item i minus date of new item i-1.
+// 4. Update the estimated_refresh_interval in the DB step-by-step:
+//    - For each gap: I_new = alpha * gap + (1 - alpha) * I_old.
+// 5. If no new items are found, the estimated_refresh_interval remains unchanged.
+// 6. Calculate the inactivity silent duration: T_silent = now - feed.Latest.
+// 7. Schedule the next fetch at now + max(I, T_silent), clamped between min and max flags.
+func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetch *rss.Feed, fetchTime time.Time) time.Time {
+	// First, check if the feed provided a custom non-default interval (like a TTL).
+	d := fetch.Refresh.Sub(fetchTime)
+	if math.Abs(d.Seconds()-600.0) > 5.0 {
+		log.V(2).Infof("Feed %s %s specifies non-default refresh interval: %s. Respecting it.", user, feed, d)
+		return fetch.Refresh
+	}
+
+	// 1. Identify new items since the feed's last known latest article
+	var newItems []*rss.Item
+	for _, item := range fetch.Items {
+		if item.DateValid && !item.Date.IsZero() && !item.Date.After(fetchTime) {
+			// If feed.Latest is zero, all valid items are considered "new" for bootstrapping
+			if feed.Latest.IsZero() || item.Date.After(feed.Latest) {
+				newItems = append(newItems, item)
+			}
 		}
 	}
 
-	// Sort dates descending (newest first).
-	sort.Slice(validDates, func(i, j int) bool {
-		return validDates[i].After(validDates[j])
+	// 2. Sort new items chronologically (oldest first)
+	sort.Slice(newItems, func(i, j int) bool {
+		return newItems[i].Date.Before(newItems[j].Date)
 	})
 
-	// De-duplicate dates. If multiple articles are published at the same second
-	// (common during batch uploads or migrations), their gap is zero. Keeping
-	// duplicates would artificially deflate the average publication gap.
-	var uniqueDates []time.Time
-	for _, d := range validDates {
-		if len(uniqueDates) == 0 || !d.Equal(uniqueDates[len(uniqueDates)-1]) {
-			uniqueDates = append(uniqueDates, d)
+	// De-duplicate timestamps to avoid zero-gap anomalies
+	var uniqueNewDates []time.Time
+	for _, item := range newItems {
+		d := item.Date
+		if len(uniqueNewDates) == 0 || !d.Equal(uniqueNewDates[len(uniqueNewDates)-1]) {
+			uniqueNewDates = append(uniqueNewDates, d)
 		}
 	}
 
-	// We need at least 2 distinct dates to calculate at least one gap.
-	if len(uniqueDates) < 2 {
-		return *minFetchInterval
+	// Read current stored EMA (default to 600s if not set)
+	emaSeconds := feed.EstimatedRefreshInterval
+	if emaSeconds <= 0 {
+		emaSeconds = 600
 	}
 
-	// Calculate gaps between consecutive publications. Gaps are positive durations.
-	var gaps []time.Duration
-	for i := 1; i < len(uniqueDates); i++ {
-		gap := uniqueDates[i-1].Sub(uniqueDates[i])
-		if gap > 0 {
-			gaps = append(gaps, gap)
+	// 3 & 4. Compute updated EMA step-by-step
+	if len(uniqueNewDates) > 0 {
+		var newEmaSeconds int
+
+		if feed.Latest.IsZero() {
+			// Bootstrap: Calculate gaps purely between the new items
+			if len(uniqueNewDates) < 2 {
+				newEmaSeconds = emaSeconds
+			} else {
+				ema := uniqueNewDates[1].Sub(uniqueNewDates[0])
+				for i := 2; i < len(uniqueNewDates); i++ {
+					gap := uniqueNewDates[i].Sub(uniqueNewDates[i-1])
+					ema = time.Duration(emaAlpha*float64(gap) + (1.0-emaAlpha)*float64(ema))
+				}
+				newEmaSeconds = int(ema.Seconds())
+			}
+		} else {
+			// Standard update: compute first gap against previous Latest, then subsequent gaps
+			gap0 := uniqueNewDates[0].Sub(feed.Latest)
+			ema := time.Duration(emaSeconds) * time.Second
+			ema = time.Duration(emaAlpha*float64(gap0) + (1.0-emaAlpha)*float64(ema))
+
+			for i := 1; i < len(uniqueNewDates); i++ {
+				gap := uniqueNewDates[i].Sub(uniqueNewDates[i-1])
+				ema = time.Duration(emaAlpha*float64(gap) + (1.0-emaAlpha)*float64(ema))
+			}
+			newEmaSeconds = int(ema.Seconds())
+		}
+
+		// Update database and local copy if the estimate changed
+		if newEmaSeconds != emaSeconds {
+			log.V(2).Infof("Updating estimated refresh interval for %s %s to %s", user, feed, time.Duration(newEmaSeconds)*time.Second)
+			err := f.d.UpdateEstimatedRefreshIntervalForFeedForUser(user, feed.FolderID, feed.ID, newEmaSeconds)
+			if err != nil {
+				log.Warningf("Failed to update estimated refresh interval in DB: %s", err)
+			} else {
+				feed.EstimatedRefreshInterval = newEmaSeconds
+			}
 		}
 	}
 
-	if len(gaps) == 0 {
-		return *minFetchInterval
+	// 5. Calculate final next interval: max(EMA, silence_time)
+	emaDuration := time.Duration(feed.EstimatedRefreshInterval) * time.Second
+	if emaDuration <= 0 {
+		emaDuration = *minFetchInterval
 	}
 
-	// Compute EMA of gaps starting from the oldest gap (end of the array)
-	// to the newest gap (beginning of the array).
-	ema := float64(gaps[len(gaps)-1])
-	for i := len(gaps) - 2; i >= 0; i-- {
-		ema = emaAlpha*float64(gaps[i]) + (1.0-emaAlpha)*ema
-	}
-	emaDuration := time.Duration(ema)
-
-	// Measure inactivity duration. If the feed has been inactive for a while,
-	// back off fetching frequency proportionally.
-	timeSinceLatest := fetchTime.Sub(uniqueDates[0])
-	if timeSinceLatest < 0 {
-		timeSinceLatest = 0
+	var timeSinceLatest time.Duration
+	if !feed.Latest.IsZero() {
+		timeSinceLatest = fetchTime.Sub(feed.Latest)
+		if timeSinceLatest < 0 {
+			timeSinceLatest = 0
+		}
 	}
 
-	// The proposed interval is the maximum of the average publication gap and
-	// the inactivity duration. This automatically decreases fetch frequency for
-	// dead feeds while keeping active ones fresh.
 	interval := emaDuration
 	if timeSinceLatest > interval {
 		interval = timeSinceLatest
 	}
 
-	// Clamp within configured limits
+	// Clamp to min/max flags
 	if interval < *minFetchInterval {
 		interval = *minFetchInterval
 	}
@@ -104,45 +140,16 @@ func calculateAdaptiveInterval(fetchTime time.Time, articles []models.Article) t
 		interval = *maxFetchInterval
 	}
 
-	return interval
-}
-
-// calculateNextInterval determines the absolute timestamp for the next fetch.
-// It bypasses the adaptive logic and respects the feed's TTL directly if the
-// feed explicitly specified a non-default (non-10m) refresh interval.
-func (f Fetcher) calculateNextInterval(user models.User, feed models.Feed, fetch *rss.Feed, fetchTime time.Time) time.Time {
-	d := fetch.Refresh.Sub(fetchTime)
-	// Check if feed provided a custom interval (i.e. not the default 10 minutes,
-	// allowing for a 5-second execution latency buffer).
-	if math.Abs(d.Seconds()-600.0) > 5.0 {
-		log.V(2).Infof("Feed %s %s specifies non-default refresh interval: %s. Respecting it.", user, feed, d)
-		return fetch.Refresh
-	}
-
-	// Retrieve historical articles for this feed from the database.
-	articles, err := f.d.GetArticlesForFeedForUser(user, feed.ID)
-	if err != nil {
-		log.Warningf("Failed to retrieve article history for feed %d: %s. Using default min interval.", feed.ID, err)
-		return fetchTime.Add(*minFetchInterval)
-	}
-
-	interval := calculateAdaptiveInterval(fetchTime, articles)
-	log.V(2).Infof("Calculated adaptive fetch interval for %s %s: %s", user, feed, interval)
 	return fetchTime.Add(interval)
 }
 
-// calculateFailureBackoff computes the wait duration after fetch errors.
-// It uses exponential backoff: T_min * 2^(consecutiveFailures - 1).
-// Capped at 15 failures to prevent time.Duration int64 overflow, and clamped
-// to the maxFetchInterval limit.
+// calculateFailureBackoff computes retry duration on fetch failure.
 func (f Fetcher) calculateFailureBackoff(consecutiveFailures int) time.Duration {
 	if consecutiveFailures <= 0 {
 		return *minFetchInterval
 	}
 
 	failures := consecutiveFailures
-	// 2^14 * 10m is approx 113 days, which safely fits inside int64 duration
-	// and will be correctly clamped to the max interval flag.
 	if failures > 15 {
 		failures = 15
 	}

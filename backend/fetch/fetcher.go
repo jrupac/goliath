@@ -253,7 +253,7 @@ func (f Fetcher) fetchUserFeed(ctx context.Context, parent *sync.WaitGroup, user
 
 		f.processUserFeedItems(ctx, user, &feed, fetch.Items)
 
-		refresh := f.calculateNextInterval(user, feed, fetch, fetchTime)
+		refresh := f.calculateNextInterval(user, &feed, fetch, fetchTime)
 		firstFetchDone <- firstFetchResult{
 			nextFetch: refresh,
 			interval:  refresh.Sub(fetchTime),
@@ -292,7 +292,7 @@ func (f Fetcher) fetchUserFeed(ctx context.Context, parent *sync.WaitGroup, user
 			} else {
 				f.processUserFeedItems(ctx, user, &feed, fetch.Items)
 				consecutiveFailures = 0
-				refresh = f.calculateNextInterval(user, feed, fetch, fetchTime)
+				refresh = f.calculateNextInterval(user, &feed, fetch, fetchTime)
 				interval = refresh.Sub(fetchTime)
 			}
 			feedFetchIntervalMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Set(interval.Seconds())

@@ -109,6 +109,8 @@ CREATE TABLE IF NOT EXISTS Feed
     favicon     STRING,
     -- Latest timestamp of articles in this feed
     latest TIMESTAMPTZ DEFAULT CAST(0 AS TIMESTAMPTZ),
+    -- Estimated interval between feed fetches (in seconds)
+    estimated_refresh_interval INT DEFAULT 600,
     CONSTRAINT unique_userid_hash
         UNIQUE (userid, hash)
 );

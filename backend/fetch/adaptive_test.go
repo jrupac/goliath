@@ -10,109 +10,6 @@ import (
 	"github.com/jrupac/rss"
 )
 
-func TestCalculateAdaptiveInterval(t *testing.T) {
-	// Temporarily override flags to ensure tests are deterministic
-	oldMin := *minFetchInterval
-	oldMax := *maxFetchInterval
-	*minFetchInterval = 10 * time.Minute
-	*maxFetchInterval = 24 * time.Hour
-	defer func() {
-		*minFetchInterval = oldMin
-		*maxFetchInterval = oldMax
-	}()
-
-	now := time.Now()
-
-	tests := []struct {
-		name     string
-		articles []models.Article
-		expected time.Duration
-	}{
-		{
-			name:     "fewer than 2 articles",
-			articles: []models.Article{{Date: now.Add(-1 * time.Hour)}},
-			expected: 10 * time.Minute,
-		},
-		{
-			name: "duplicate timestamps (less than 2 unique)",
-			articles: []models.Article{
-				{Date: now.Add(-1 * time.Hour)},
-				{Date: now.Add(-1 * time.Hour)},
-			},
-			expected: 10 * time.Minute,
-		},
-		{
-			name: "correct EMA gap calculation (active)",
-			articles: []models.Article{
-				{Date: now.Add(-1 * time.Hour)},
-				{Date: now.Add(-3 * time.Hour)},
-				{Date: now.Add(-7 * time.Hour)},
-				{Date: now.Add(-15 * time.Hour)},
-			},
-			// Gaps: 2h, 4h, 8h
-			// S_3 = 8h
-			// S_2 = 0.25*4h + 0.75*8h = 7h
-			// S_1 = 0.25*2h + 0.75*7h = 5.75h (5h45m)
-			// Silent time = 1h. Max(5.75h, 1h) = 5.75h.
-			expected: 5*time.Hour + 45*time.Minute,
-		},
-		{
-			name: "quiet period back-off",
-			articles: []models.Article{
-				{Date: now.Add(-12 * time.Hour)},
-				{Date: now.Add(-13 * time.Hour)},
-				{Date: now.Add(-14 * time.Hour)},
-				{Date: now.Add(-15 * time.Hour)},
-			},
-			// Gaps: 1h, 1h, 1h
-			// S_1 = 1h
-			// Silent time = 12h. Max(1h, 12h) = 12h.
-			expected: 12 * time.Hour,
-		},
-		{
-			name: "max clamping",
-			articles: []models.Article{
-				{Date: now.Add(-48 * time.Hour)},
-				{Date: now.Add(-49 * time.Hour)},
-				{Date: now.Add(-50 * time.Hour)},
-			},
-			// EMA = 1h. Silent = 48h. Clamped to Max flag (24h).
-			expected: 24 * time.Hour,
-		},
-		{
-			name: "filters out future-dated articles",
-			articles: []models.Article{
-				{Date: now.Add(2 * time.Hour)}, // Future
-				{Date: now.Add(-1 * time.Hour)},
-				{Date: now.Add(-3 * time.Hour)},
-				{Date: now.Add(-7 * time.Hour)},
-				{Date: now.Add(-15 * time.Hour)},
-			},
-			expected: 5*time.Hour + 45*time.Minute,
-		},
-		{
-			name: "filters out zero dates",
-			articles: []models.Article{
-				{Date: time.Time{}},
-				{Date: now.Add(-1 * time.Hour)},
-				{Date: now.Add(-3 * time.Hour)},
-				{Date: now.Add(-7 * time.Hour)},
-				{Date: now.Add(-15 * time.Hour)},
-			},
-			expected: 5*time.Hour + 45*time.Minute,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := calculateAdaptiveInterval(now, tc.articles)
-			if got != tc.expected {
-				t.Errorf("expected %s, got %s", tc.expected, got)
-			}
-		})
-	}
-}
-
 func TestCalculateFailureBackoff(t *testing.T) {
 	oldMin := *minFetchInterval
 	oldMax := *maxFetchInterval
@@ -160,45 +57,124 @@ func TestCalculateNextInterval(t *testing.T) {
 
 	now := time.Now()
 	user := models.User{UserId: "test-user"}
-	feed := models.Feed{ID: 123}
 
 	t.Run("respects custom non-10m refresh directly", func(t *testing.T) {
 		db := &storage.MockDB{}
 		f := Fetcher{d: db}
+		feed := models.Feed{ID: 123}
 
 		customRefresh := now.Add(3 * time.Hour)
 		rssFeed := &rss.Feed{
 			Refresh: customRefresh,
 		}
 
-		got := f.calculateNextInterval(user, feed, rssFeed, now)
+		got := f.calculateNextInterval(user, &feed, rssFeed, now)
 		if !got.Equal(customRefresh) {
 			t.Errorf("expected custom refresh %s to be respected, got %s", customRefresh, got)
 		}
 	})
 
-	t.Run("calculates adaptive interval on default 10m refresh", func(t *testing.T) {
-		db := &storage.MockDB{
-			OnGetArticlesForFeedForUser: func(u models.User, id int64) ([]models.Article, error) {
-				return []models.Article{
-					{Date: now.Add(-1 * time.Hour)},
-					{Date: now.Add(-3 * time.Hour)},
-					{Date: now.Add(-7 * time.Hour)},
-					{Date: now.Add(-15 * time.Hour)},
-				}, nil
-			},
+	t.Run("bootstraps new feed with multiple items (Latest is zero)", func(t *testing.T) {
+		var updatedInterval int
+		db := &storage.MockDB{}
+		db.OnUpdateEstimatedRefreshIntervalForFeedForUser = func(u models.User, folderId, id int64, interval int) error {
+			updatedInterval = interval
+			return nil
 		}
 		f := Fetcher{d: db}
+		feed := models.Feed{ID: 123, Latest: time.Time{}} // Latest is zero
 
-		// Exact 10m duration from now
 		rssFeed := &rss.Feed{
 			Refresh: now.Add(10 * time.Minute),
+			Items: []*rss.Item{
+				{Date: now.Add(-1 * time.Hour), DateValid: true},
+				{Date: now.Add(-3 * time.Hour), DateValid: true},
+				{Date: now.Add(-7 * time.Hour), DateValid: true},
+				{Date: now.Add(-15 * time.Hour), DateValid: true},
+			},
 		}
 
-		got := f.calculateNextInterval(user, feed, rssFeed, now)
+		got := f.calculateNextInterval(user, &feed, rssFeed, now)
+		
+		// Expected bootstrap:
+		// Sorted chronologically: -15h, -7h, -3h, -1h
+		// Gaps: 8h, 4h, 2h
+		// Step 1: Initialize ema = 8h
+		// Step 2 (gap = 4h): ema = 0.25*4h + 0.75*8h = 7h
+		// Step 3 (gap = 2h): ema = 0.25*2h + 0.75*7h = 5.75h = 20700 seconds
+		expectedEma := 20700 // 5.75 hours in seconds
+		if updatedInterval != expectedEma {
+			t.Errorf("expected bootstrapped interval in DB to be %d, got %d", expectedEma, updatedInterval)
+		}
+		if feed.EstimatedRefreshInterval != expectedEma {
+			t.Errorf("expected local feed copy EstimatedRefreshInterval to be updated, got %d", feed.EstimatedRefreshInterval)
+		}
+
+		// Silence time: newest is -1h. So T_silent = 1h. Proposed = max(5.75h, 1h) = 5.75h.
 		expectedNext := now.Add(5*time.Hour + 45*time.Minute)
 		if math.Abs(got.Sub(expectedNext).Seconds()) > 1.0 {
-			t.Errorf("expected adaptive interval to resolve to %s, got %s", expectedNext, got)
+			t.Errorf("expected next fetch at %s, got %s", expectedNext, got)
+		}
+	})
+
+	t.Run("incremental update for single new item", func(t *testing.T) {
+		var updatedInterval int
+		db := &storage.MockDB{}
+		db.OnUpdateEstimatedRefreshIntervalForFeedForUser = func(u models.User, folderId, id int64, interval int) error {
+			updatedInterval = interval
+			return nil
+		}
+		f := Fetcher{d: db}
+		
+		// Setup feed with prev latest = now - 6h, and current estimate = 4h (14400s)
+		feed := models.Feed{
+			ID:                       123,
+			Latest:                   now.Add(-6 * time.Hour),
+			EstimatedRefreshInterval: 14400,
+		}
+
+		// New item date is now - 1h (which is after latest of -6h)
+		rssFeed := &rss.Feed{
+			Refresh: now.Add(10 * time.Minute),
+			Items: []*rss.Item{
+				{Date: now.Add(-1 * time.Hour), DateValid: true},
+			},
+		}
+
+		f.calculateNextInterval(user, &feed, rssFeed, now)
+
+		// Expected update:
+		// Gap: (now - 1h) - (now - 6h) = 5 hours = 18000s
+		// ema_new = 0.25 * 18000 + 0.75 * 14400 = 4500 + 10800 = 15300s (4.25h)
+		expectedEma := 15300
+		if updatedInterval != expectedEma {
+			t.Errorf("expected updated interval in DB to be %d, got %d", expectedEma, updatedInterval)
+		}
+	})
+
+	t.Run("quiet period silence back-off overrides EMA", func(t *testing.T) {
+		db := &storage.MockDB{}
+		f := Fetcher{d: db}
+
+		// Feed Latest is 12h ago. Stored EMA is 4h (14400s).
+		feed := models.Feed{
+			ID:                       123,
+			Latest:                   now.Add(-12 * time.Hour),
+			EstimatedRefreshInterval: 14400,
+		}
+
+		// No new items in fetch
+		rssFeed := &rss.Feed{
+			Refresh: now.Add(10 * time.Minute),
+			Items:   []*rss.Item{},
+		}
+
+		got := f.calculateNextInterval(user, &feed, rssFeed, now)
+
+		// T_silent = 12h. Max(4h, 12h) = 12h.
+		expectedNext := now.Add(12 * time.Hour)
+		if math.Abs(got.Sub(expectedNext).Seconds()) > 1.0 {
+			t.Errorf("expected next fetch at %s, got %s", expectedNext, got)
 		}
 	})
 }
