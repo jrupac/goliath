@@ -50,7 +50,7 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 10,
+            "fillOpacity": 0,
             "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
@@ -58,7 +58,7 @@
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "stepAfter",
             "lineWidth": 2,
             "pointSize": 5,
             "scaleDistribution": {
@@ -102,7 +102,8 @@
           "placement": "right",
           "showLegend": true,
           "sortBy": "Last *",
-          "sortDesc": true
+          "sortDesc": true,
+          "width": 250
         },
         "tooltip": {
           "mode": "single",
@@ -381,13 +382,13 @@
     ]
   },
   "time": {
-    "from": "now-1h",
+    "from": "now-7d",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Goliath Feed Fetching Dashboard",
   "uid": "goliath-feed-fetching-dashboard",
-  "version": 4,
+  "version": 5,
   "weekStart": ""
 }
