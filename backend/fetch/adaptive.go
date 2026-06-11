@@ -10,13 +10,6 @@ import (
 	"github.com/jrupac/rss"
 )
 
-// emaAlpha is the smoothing factor for the Exponential Moving Average (EMA)
-// of publication gaps. A value of 0.25 places moderate weight on the most
-// recent publication interval (25%) while reserving the remaining weight
-// (75%) for historical average intervals. This responds relatively quickly
-// to diurnal publication changes without causing severe scheduler jitter.
-const emaAlpha = 0.25
-
 // calculateNextInterval determines the absolute timestamp for the next fetch.
 // It uses an Online Exponential Moving Average (EMA) of publication gaps,
 // persisted in the database, to adaptively schedule updates.
@@ -28,11 +21,17 @@ const emaAlpha = 0.25
 // 3. Compute publication gaps:
 //    - Gap 0: oldest new item date minus prev feed latest date (if valid).
 //    - Gap i: date of new item i minus date of new item i-1.
-// 4. Update the estimated_refresh_interval in the DB step-by-step:
-//    - For each gap: I_new = alpha * gap + (1 - alpha) * I_old.
+// 4. Update the estimated_refresh_interval in the DB step-by-step. Each gap is
+//    first clamped to maxGapEMAMultiple * currentEMA to prevent a single anomalous
+//    observation from inflating the estimate. Then an asymmetric alpha is applied:
+//    emaAlphaFaster when the gap is shorter than the current EMA (feed speeding up),
+//    emaAlphaSlower when longer (resist upward drift from silence or outlier gaps).
 // 5. If no new items are found, the estimated_refresh_interval remains unchanged.
-// 6. Calculate the inactivity silent duration: T_silent = now - feed.Latest.
-// 7. Schedule the next fetch at now + max(I, T_silent), clamped between min and max flags.
+// 6. Schedule the next fetch at now + EMA, clamped between min and max flags.
+//    The silence penalty (using time-since-last-article as a scheduling floor) is
+//    intentionally omitted: for feeds with a known publication history it creates a
+//    feedback loop that delays detection of the next burst on bursty feeds, which
+//    can cause missed articles when feed backlogs are shallow.
 func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetch *rss.Feed, fetchTime time.Time) time.Time {
 	// First, check if the feed provided a custom non-default interval (like a TTL).
 	d := fetch.Refresh.Sub(fetchTime)
@@ -72,6 +71,22 @@ func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetc
 		emaSeconds = 600
 	}
 
+	// applyAlpha clamps gap to maxGapEMAMultiple * currentEMA then applies
+	// emaAlphaFaster or emaAlphaSlower depending on whether the gap is shorter
+	// or longer than the current EMA.
+	applyAlpha := func(gap, currentEMA time.Duration) time.Duration {
+		if currentEMA > 0 {
+			if cap := time.Duration(float64(currentEMA) * *maxGapEMAMultiple); gap > cap {
+				gap = cap
+			}
+		}
+		alpha := *emaAlphaFaster
+		if gap > currentEMA {
+			alpha = *emaAlphaSlower
+		}
+		return time.Duration(alpha*float64(gap) + (1.0-alpha)*float64(currentEMA))
+	}
+
 	// 3 & 4. Compute updated EMA step-by-step
 	if len(uniqueNewDates) > 0 {
 		var newEmaSeconds int
@@ -84,7 +99,7 @@ func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetc
 				ema := uniqueNewDates[1].Sub(uniqueNewDates[0])
 				for i := 2; i < len(uniqueNewDates); i++ {
 					gap := uniqueNewDates[i].Sub(uniqueNewDates[i-1])
-					ema = time.Duration(emaAlpha*float64(gap) + (1.0-emaAlpha)*float64(ema))
+					ema = applyAlpha(gap, ema)
 				}
 				newEmaSeconds = int(ema.Seconds())
 			}
@@ -92,11 +107,11 @@ func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetc
 			// Standard update: compute first gap against previous Latest, then subsequent gaps
 			gap0 := uniqueNewDates[0].Sub(feed.Latest)
 			ema := time.Duration(emaSeconds) * time.Second
-			ema = time.Duration(emaAlpha*float64(gap0) + (1.0-emaAlpha)*float64(ema))
+			ema = applyAlpha(gap0, ema)
 
 			for i := 1; i < len(uniqueNewDates); i++ {
 				gap := uniqueNewDates[i].Sub(uniqueNewDates[i-1])
-				ema = time.Duration(emaAlpha*float64(gap) + (1.0-emaAlpha)*float64(ema))
+				ema = applyAlpha(gap, ema)
 			}
 			newEmaSeconds = int(ema.Seconds())
 		}
@@ -113,26 +128,13 @@ func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetc
 		}
 	}
 
-	// 5. Calculate final next interval: max(EMA, silence_time)
+	// 5. Schedule the next fetch using EMA alone.
 	emaDuration := time.Duration(feed.EstimatedRefreshInterval) * time.Second
 	if emaDuration <= 0 {
 		emaDuration = *minFetchInterval
 	}
 
-	var timeSinceLatest time.Duration
-	if !feed.Latest.IsZero() {
-		timeSinceLatest = fetchTime.Sub(feed.Latest)
-		if timeSinceLatest < 0 {
-			timeSinceLatest = 0
-		}
-	}
-
 	interval := emaDuration
-	if timeSinceLatest > interval {
-		interval = timeSinceLatest
-	}
-
-	// Clamp to min/max flags
 	if interval < *minFetchInterval {
 		interval = *minFetchInterval
 	}

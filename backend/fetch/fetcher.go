@@ -30,6 +30,12 @@ var (
 		"The max edit distance between articles to be de-duplicated, expressed as percent of content. If `strictDedup` is set, this is ignored.")
 	minFetchInterval = flag.Duration("minFetchInterval", 10*time.Minute, "Minimum interval between feed fetches.")
 	maxFetchInterval = flag.Duration("maxFetchInterval", 24*time.Hour, "Maximum interval between feed fetches.")
+	emaAlphaFaster   = flag.Float64("emaAlphaFaster", 0.5,
+		"EMA smoothing factor applied when the observed publication gap is shorter than the current estimated interval (feed is becoming more active). Higher values converge faster toward a shorter cadence.")
+	emaAlphaSlower = flag.Float64("emaAlphaSlower", 0.1,
+		"EMA smoothing factor applied when the observed publication gap is longer than the current estimated interval (feed appears to be slowing down). Lower values resist upward drift from anomalous gaps such as silence periods or server restarts.")
+	maxGapEMAMultiple = flag.Float64("maxGapEMAMultiple", 3.0,
+		"Maximum ratio by which a single observed publication gap may exceed the current estimated interval before being clamped for the EMA update. Prevents a single long quiet period from disproportionately inflating the estimate in one step.")
 )
 
 var (
