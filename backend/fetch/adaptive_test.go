@@ -117,7 +117,7 @@ func TestCalculateNextInterval(t *testing.T) {
 			t.Errorf("expected local feed copy EstimatedRefreshInterval to be updated, got %d", feed.EstimatedRefreshInterval)
 		}
 
-		// Next fetch is EMA = 4h with no silence penalty.
+		// Next fetch is EMA = 4h; no silence penalty because Latest is zero.
 		expectedNext := now.Add(4 * time.Hour)
 		if math.Abs(got.Sub(expectedNext).Seconds()) > 1.0 {
 			t.Errorf("expected next fetch at %s, got %s", expectedNext, got)
@@ -158,7 +158,7 @@ func TestCalculateNextInterval(t *testing.T) {
 		}
 	})
 
-	t.Run("no silence penalty when feed has known Latest and no new items", func(t *testing.T) {
+	t.Run("silence penalty applied and capped when feed has known Latest and no new items", func(t *testing.T) {
 		db := &storage.MockDB{}
 		f := Fetcher{d: db}
 
@@ -177,8 +177,85 @@ func TestCalculateNextInterval(t *testing.T) {
 
 		got := f.calculateNextInterval(user, &feed, rssFeed, now)
 
-		// EMA unchanged (no new items). No silence penalty → interval = EMA = 4h.
+		// EMA unchanged (no new items). timeSinceLatest=12h, cap=3×4h=12h (exactly at cap).
+		// interval = max(EMA=4h, silenceCapped=12h) = 12h.
+		expectedNext := now.Add(12 * time.Hour)
+		if math.Abs(got.Sub(expectedNext).Seconds()) > 1.0 {
+			t.Errorf("expected next fetch at %s, got %s", expectedNext, got)
+		}
+	})
+
+	t.Run("silence penalty does not dominate when timeSinceLatest is below EMA", func(t *testing.T) {
+		db := &storage.MockDB{}
+		f := Fetcher{d: db}
+
+		// Feed Latest is 2h ago, stored EMA is 4h (14400s).
+		feed := models.Feed{
+			ID:                       123,
+			Latest:                   now.Add(-2 * time.Hour),
+			EstimatedRefreshInterval: 14400,
+		}
+
+		rssFeed := &rss.Feed{
+			Refresh: now.Add(10 * time.Minute),
+			Items:   []*rss.Item{},
+		}
+
+		got := f.calculateNextInterval(user, &feed, rssFeed, now)
+
+		// timeSinceLatest=2h < EMA=4h → silence penalty does not dominate.
+		// interval = max(EMA=4h, silence=2h) = 4h.
 		expectedNext := now.Add(4 * time.Hour)
+		if math.Abs(got.Sub(expectedNext).Seconds()) > 1.0 {
+			t.Errorf("expected next fetch at %s, got %s", expectedNext, got)
+		}
+	})
+
+	t.Run("silence penalty capped when timeSinceLatest far exceeds EMA", func(t *testing.T) {
+		db := &storage.MockDB{}
+		f := Fetcher{d: db}
+
+		// Feed Latest is 20h ago, stored EMA is 4h (14400s).
+		feed := models.Feed{
+			ID:                       123,
+			Latest:                   now.Add(-20 * time.Hour),
+			EstimatedRefreshInterval: 14400,
+		}
+
+		rssFeed := &rss.Feed{
+			Refresh: now.Add(10 * time.Minute),
+			Items:   []*rss.Item{},
+		}
+
+		got := f.calculateNextInterval(user, &feed, rssFeed, now)
+
+		// timeSinceLatest=20h, cap=3×4h=12h → capped to 12h.
+		// interval = max(EMA=4h, silenceCapped=12h) = 12h.
+		expectedNext := now.Add(12 * time.Hour)
+		if math.Abs(got.Sub(expectedNext).Seconds()) > 1.0 {
+			t.Errorf("expected next fetch at %s, got %s", expectedNext, got)
+		}
+	})
+
+	t.Run("no silence penalty when Latest is zero (fresh feed)", func(t *testing.T) {
+		db := &storage.MockDB{}
+		f := Fetcher{d: db}
+
+		// Fresh feed with no history and no items found.
+		feed := models.Feed{
+			ID:     123,
+			Latest: time.Time{},
+		}
+
+		rssFeed := &rss.Feed{
+			Refresh: now.Add(10 * time.Minute),
+			Items:   []*rss.Item{},
+		}
+
+		got := f.calculateNextInterval(user, &feed, rssFeed, now)
+
+		// No silence penalty (Latest is zero). EMA defaults to maxFetchInterval/2 = 12h.
+		expectedNext := now.Add(12 * time.Hour)
 		if math.Abs(got.Sub(expectedNext).Seconds()) > 1.0 {
 			t.Errorf("expected next fetch at %s, got %s", expectedNext, got)
 		}

@@ -27,11 +27,11 @@ import (
 //    emaAlphaFaster when the gap is shorter than the current EMA (feed speeding up),
 //    emaAlphaSlower when longer (resist upward drift from silence or outlier gaps).
 // 5. If no new items are found, the estimated_refresh_interval remains unchanged.
-// 6. Schedule the next fetch at now + EMA, clamped between min and max flags.
-//    The silence penalty (using time-since-last-article as a scheduling floor) is
-//    intentionally omitted: for feeds with a known publication history it creates a
-//    feedback loop that delays detection of the next burst on bursty feeds, which
-//    can cause missed articles when feed backlogs are shallow.
+// 6. Schedule the next fetch at now + max(EMA, cappedSilence), clamped to [min, max].
+//    cappedSilence = min(timeSinceLatest, maxGapEMAMultiple * EMA). Capping bounds
+//    the feedback loop for bursty feeds while still backing off truly silent ones.
+//    Feeds with no publication history (Latest is zero) skip the silence penalty.
+//    Feeds with no stored EMA default to maxFetchInterval/2 as a conservative start.
 func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetch *rss.Feed, fetchTime time.Time) time.Time {
 	// First, check if the feed provided a custom non-default interval (like a TTL).
 	d := fetch.Refresh.Sub(fetchTime)
@@ -65,10 +65,12 @@ func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetc
 		}
 	}
 
-	// Read current stored EMA (default to 600s if not set)
+	// Read current stored EMA. Default to half of maxFetchInterval for feeds
+	// with no publication history, as a conservative starting point that
+	// converges down once articles are observed.
 	emaSeconds := feed.EstimatedRefreshInterval
 	if emaSeconds <= 0 {
-		emaSeconds = 600
+		emaSeconds = int((*maxFetchInterval / 2).Seconds())
 	}
 
 	// applyAlpha clamps gap to maxGapEMAMultiple * currentEMA then applies
@@ -128,13 +130,28 @@ func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetc
 		}
 	}
 
-	// 5. Schedule the next fetch using EMA alone.
+	// 5. Schedule the next fetch using EMA, with a capped silence penalty.
 	emaDuration := time.Duration(feed.EstimatedRefreshInterval) * time.Second
 	if emaDuration <= 0 {
-		emaDuration = *minFetchInterval
+		emaDuration = time.Duration(emaSeconds) * time.Second
 	}
 
 	interval := emaDuration
+	// Re-apply a silence penalty (time since last article) as a scheduling
+	// floor, capped at maxGapEMAMultiple * EMA. This backs off silent feeds
+	// without allowing an unbounded spiral for bursty feeds.
+	if !feed.Latest.IsZero() {
+		timeSinceLatest := fetchTime.Sub(feed.Latest)
+		if timeSinceLatest < 0 {
+			timeSinceLatest = 0
+		}
+		if cap := time.Duration(float64(emaDuration) * *maxGapEMAMultiple); timeSinceLatest > cap {
+			timeSinceLatest = cap
+		}
+		if timeSinceLatest > interval {
+			interval = timeSinceLatest
+		}
+	}
 	if interval < *minFetchInterval {
 		interval = *minFetchInterval
 	}
