@@ -460,6 +460,13 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 		}
 	}
 
+	switch mark {
+	case models.MarkActionRead:
+		articlesMarkedReadMetric.WithLabelValues(user.Username, "individual").Add(float64(len(articleIds)))
+	case models.MarkActionSaved:
+		articlesSavedMetric.WithLabelValues(user.Username).Add(float64(len(articleIds)))
+	}
+
 	_, _ = w.Write([]byte("OK"))
 	a.returnSuccess(w, nil)
 }
@@ -494,6 +501,7 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 			a.returnError(w, http.StatusInternalServerError)
 			return
 		}
+		articlesMarkedReadMetric.WithLabelValues(user.Username, "folder").Inc()
 	} else if feedStr := r.Form.Get("s"); feedStr != "" {
 		feedId, err := strconv.ParseInt(feedStr, 10, 64)
 		if err != nil {
@@ -508,6 +516,7 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 			a.returnError(w, http.StatusInternalServerError)
 			return
 		}
+		articlesMarkedReadMetric.WithLabelValues(user.Username, "feed").Inc()
 	} else {
 		log.Warningf("Missing feed or folder ID")
 		a.returnError(w, http.StatusBadRequest)

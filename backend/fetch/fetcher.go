@@ -68,12 +68,33 @@ var (
 		},
 		[]string{"username", "feed_id", "feed_title", "feed_url"},
 	)
+	feedFetchAttemptsMetric = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "feed_fetch_attempts_total",
+			Help: "Total number of fetch attempts on a per-user, per-feed basis.",
+		},
+		[]string{"username", "feed_id", "feed_title", "feed_url"},
+	)
+	feedFetchStatsMetric = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "feed_fetch_stats_total",
+			Help: "Per-fetch item disposition counts on a per-user, per-feed basis. The 'stat' label identifies the disposition: total (items seen in feed response), inserted (new articles persisted), marked_read_auto (inserted but auto-marked read due to dedup), updated_existing (replaced a similar existing article), existing_removed (existing articles deleted by dedup), too_old (older than last known article), retrieval_cache_hit (already seen via cache), muted (suppressed by mute rules).",
+		},
+		[]string{"username", "feed_id", "feed_title", "feed_url", "stat"},
+	)
 )
+
+var feedFetchStatKeys = []string{
+	"total", "inserted", "marked_read_auto", "updated_existing",
+	"existing_removed", "too_old", "retrieval_cache_hit", "muted",
+}
 
 func init() {
 	prometheus.MustRegister(feedFetchIntervalMetric)
 	prometheus.MustRegister(feedFetchConsecutiveFailuresMetric)
 	prometheus.MustRegister(feedFetchErrorsMetric)
+	prometheus.MustRegister(feedFetchAttemptsMetric)
+	prometheus.MustRegister(feedFetchStatsMetric)
 }
 
 type imagePair struct {
@@ -238,9 +259,14 @@ func (f Fetcher) fetchUserFeed(ctx context.Context, parent *sync.WaitGroup, user
 		feedFetchIntervalMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL)
 		feedFetchConsecutiveFailuresMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL)
 		feedFetchErrorsMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL)
+		feedFetchAttemptsMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL)
+		for _, stat := range feedFetchStatKeys {
+			feedFetchStatsMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL, stat)
+		}
 	}()
 
 	go func() {
+		feedFetchAttemptsMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Inc()
 		fetchTime := time.Now()
 		fetch, err := rss.FetchByFunc(f.fetchFunc, feed.URL)
 		if err != nil {
@@ -285,6 +311,7 @@ func (f Fetcher) fetchUserFeed(ctx context.Context, parent *sync.WaitGroup, user
 			// Disable the channel so we do not read from it again.
 			firstFetchDone = nil
 		case <-tick:
+			feedFetchAttemptsMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Inc()
 			log.Infof("Fetching %s %s", user, feed)
 			var refresh time.Time
 			var interval time.Duration
@@ -410,6 +437,14 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 	log.Infof(
 		"Fetch stats:\n\t%s %s\n\ttotal=%d, inserted=%d (marked read=%d, updated existing=%d, existing removed=%d), too old=%d, retrieval cache=%d, muted=%d",
 		user, feed, numTotal, numInserted, numMarkedRead, numUpdatedExisting, numExistingRemoved, numTooOld, numRetrievalCache, numMuted)
+
+	feedIDStr := strconv.FormatInt(feed.ID, 10)
+	statCounts := []int{numTotal, numInserted, numMarkedRead, numUpdatedExisting, numExistingRemoved, numTooOld, numRetrievalCache, numMuted}
+	for i, stat := range feedFetchStatKeys {
+		if statCounts[i] > 0 {
+			feedFetchStatsMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL, stat).Add(float64(statCounts[i]))
+		}
+	}
 }
 
 type firstFetchResult struct {
