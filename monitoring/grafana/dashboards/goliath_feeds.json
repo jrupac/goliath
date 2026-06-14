@@ -121,7 +121,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 9 },
       "id": 5,
       "options": {
         "legend": {
@@ -180,7 +180,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
       "id": 6,
       "options": {
         "legend": {
@@ -239,7 +239,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 17 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 25 },
       "id": 7,
       "options": {
         "legend": {
@@ -298,7 +298,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 17 },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 25 },
       "id": 12,
       "options": {
         "legend": {
@@ -357,7 +357,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 17 },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 25 },
       "id": 13,
       "options": {
         "legend": {
@@ -383,7 +383,7 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
+      "gridPos": { "h": 8, "w": 8, "x": 17, "y": 26 },
       "id": 8,
       "title": "Reading Activity",
       "type": "row"
@@ -423,7 +423,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
       "id": 9,
       "options": {
         "legend": {
@@ -490,7 +490,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
       "id": 10,
       "options": {
         "legend": {
@@ -818,7 +818,9 @@
         "overrides": [
           {
             "matcher": { "id": "byName", "options": "Value" },
-            "properties": [{ "id": "displayName", "value": "Consecutive Failures" }]
+            "properties": [
+              { "id": "displayName", "value": "Consecutive Failures" }
+            ]
           },
           {
             "matcher": { "id": "byName", "options": "feed_title" },
@@ -861,7 +863,14 @@
           "id": "filterFieldsByName",
           "options": {
             "include": {
-              "names": ["Time", "feed_id", "feed_title", "feed_url", "username", "Value"]
+              "names": [
+                "Time",
+                "feed_id",
+                "feed_title",
+                "feed_url",
+                "username",
+                "Value"
+              ]
             }
           }
         }
