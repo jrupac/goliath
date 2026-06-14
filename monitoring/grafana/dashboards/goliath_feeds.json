@@ -66,21 +66,18 @@
       "id": 2,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull"],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true,
-          "width": 250
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "tooltip": { "mode": "multi", "sort": "none" }
       },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "feed_fetch_interval_seconds{username=\"$username\"}",
+          "expr": "feed_fetch_interval_seconds{username=\"$username\", feed_title=~\"$feed_title\"}",
           "legendFormat": "{{feed_title}}",
           "range": true,
           "refId": "A"
@@ -128,21 +125,18 @@
       "id": 5,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull"],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true,
-          "width": 200
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "tooltip": { "mode": "multi", "sort": "none" }
       },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "rate(feed_fetch_attempts_total{username=\"$username\"}[5m])",
+          "expr": "rate(feed_fetch_attempts_total{username=\"$username\", feed_title=~\"$feed_title\"}[5m])",
           "legendFormat": "{{feed_title}}",
           "range": true,
           "refId": "A"
@@ -190,21 +184,18 @@
       "id": 6,
       "options": {
         "legend": {
-          "calcs": ["lastNotNull"],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true,
-          "width": 200
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "tooltip": { "mode": "multi", "sort": "none" }
       },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "rate(feed_fetch_stats_total{username=\"$username\", stat=\"inserted\"}[5m])",
+          "expr": "increase(feed_fetch_stats_total{username=\"$username\", feed_title=~\"$feed_title\", stat=\"inserted\"}[5m])",
           "legendFormat": "{{feed_title}}",
           "range": true,
           "refId": "A"
@@ -248,7 +239,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 17 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 17 },
       "id": 7,
       "options": {
         "legend": {
@@ -257,19 +248,19 @@
           "placement": "bottom",
           "showLegend": true
         },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "tooltip": { "mode": "multi", "sort": "none" }
       },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "rate(feed_fetch_stats_total{username=\"$username\", stat=~\"too_old|muted|retrieval_cache_hit\"}[5m])",
-          "legendFormat": "{{feed_title}} — {{stat}}",
+          "expr": "rate(feed_fetch_stats_total{username=\"$username\", feed_title=~\"$feed_title\", stat=\"too_old\"}[5m])",
+          "legendFormat": "{{feed_title}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Articles Filtered (too_old / muted / retrieval_cache_hit)",
+      "title": "Articles Filtered — too_old",
       "type": "timeseries"
     },
     {
@@ -285,12 +276,12 @@
             "axisPlacement": "auto",
             "barAlignment": 0,
             "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "opacity",
+            "fillOpacity": 5,
+            "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
             "insertNulls": false,
             "lineInterpolation": "smooth",
-            "lineWidth": 2,
+            "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": { "type": "linear" },
             "showPoints": "auto",
@@ -307,8 +298,8 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 25 },
-      "id": 3,
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 17 },
+      "id": 12,
       "options": {
         "legend": {
           "calcs": [],
@@ -316,97 +307,83 @@
           "placement": "bottom",
           "showLegend": true
         },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "tooltip": { "mode": "multi", "sort": "none" }
       },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "rate(feed_fetch_errors_total{username=\"$username\"}[5m]) > 0",
+          "expr": "rate(feed_fetch_stats_total{username=\"$username\", feed_title=~\"$feed_title\", stat=\"muted\"}[5m])",
           "legendFormat": "{{feed_title}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Fetch Error Rate (Active Errors)",
+      "title": "Articles Filtered — muted",
       "type": "timeseries"
     },
     {
       "datasource": { "type": "prometheus", "uid": "Prometheus" },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": { "mode": "palette-classic" },
           "custom": {
-            "align": "auto",
-            "cellOptions": { "type": "auto" },
-            "inspect": false
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 5,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": { "type": "linear" },
+            "showPoints": "auto",
+            "spanNulls": true,
+            "stacking": { "group": "A", "mode": "none" },
+            "thresholdsStyle": { "mode": "off" }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
-            "steps": [
-              { "color": "blue", "value": null },
-              { "color": "orange", "value": 1 },
-              { "color": "red", "value": 5 }
-            ]
-          }
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "short"
         },
-        "overrides": [
-          {
-            "matcher": { "id": "byName", "options": "Value" },
-            "properties": [{ "id": "displayName", "value": "Consecutive Failures" }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "feed_title" },
-            "properties": [{ "id": "displayName", "value": "Feed Title" }]
-          },
-          {
-            "matcher": { "id": "byName", "options": "feed_url" },
-            "properties": [{ "id": "displayName", "value": "Feed URL" }]
-          }
-        ]
+        "overrides": []
       },
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 34 },
-      "id": 4,
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 17 },
+      "id": 13,
       "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": [],
-          "reducer": ["sum"],
-          "show": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        "showHeader": true,
-        "sortBy": [{ "desc": true, "displayName": "Consecutive Failures" }]
+        "tooltip": { "mode": "multi", "sort": "none" }
       },
-      "pluginVersion": "10.4.1",
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "feed_fetch_consecutive_failures{username=\"$username\"} > 0",
-          "format": "table",
-          "instant": true,
-          "range": false,
+          "expr": "rate(feed_fetch_stats_total{username=\"$username\", feed_title=~\"$feed_title\", stat=\"retrieval_cache_hit\"}[5m])",
+          "legendFormat": "{{feed_title}}",
+          "range": true,
           "refId": "A"
         }
       ],
-      "title": "Active Feed Connection Failures",
-      "transformations": [
-        {
-          "id": "filterFieldsByName",
-          "options": {
-            "include": {
-              "names": ["Time", "feed_id", "feed_title", "feed_url", "username", "Value"]
-            }
-          }
-        }
-      ],
-      "type": "table"
+      "title": "Articles Filtered — retrieval_cache_hit",
+      "type": "timeseries"
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 25 },
       "id": 8,
       "title": "Reading Activity",
       "type": "row"
@@ -446,12 +423,12 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
       "id": 9,
       "options": {
         "legend": {
           "calcs": ["lastNotNull"],
-          "displayMode": "table",
+          "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
         },
@@ -461,7 +438,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "rate(articles_marked_read_total{username=\"$username\", scope=\"individual\"}[5m])",
+          "expr": "sum without(hour_of_day, day_of_week) (increase(articles_marked_read_total{username=\"$username\", scope=\"individual\", hour_of_day!=\"\"}[5m]))",
           "legendFormat": "Individual",
           "range": true,
           "refId": "A"
@@ -469,7 +446,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "rate(articles_marked_read_total{username=\"$username\", scope=~\"feed|folder\"}[5m])",
+          "expr": "sum without(hour_of_day, day_of_week) (increase(articles_marked_read_total{username=\"$username\", scope=~\"feed|folder\", hour_of_day!=\"\"}[5m]))",
           "legendFormat": "Bulk ({{scope}})",
           "range": true,
           "refId": "B"
@@ -513,28 +490,28 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
       "id": 10,
       "options": {
         "legend": {
           "calcs": ["lastNotNull"],
-          "displayMode": "table",
+          "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
         },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "tooltip": { "mode": "multi", "sort": "none" }
       },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "rate(articles_saved_total{username=\"$username\"}[6h])",
-          "legendFormat": "Saves/hour",
+          "expr": "increase(articles_saved_total{username=\"$username\"}[1h])",
+          "legendFormat": "Saves (1h window)",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Saved Article Rate",
+      "title": "Saved Articles",
       "type": "timeseries"
     },
     {
@@ -548,18 +525,240 @@
             "axisColorMode": "text",
             "axisLabel": "",
             "axisPlacement": "auto",
-            "barAlignment": 0,
-            "drawStyle": "bars",
             "fillOpacity": 80,
             "gradientMode": "none",
             "hideFrom": { "legend": false, "tooltip": false, "viz": false },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
             "lineWidth": 1,
+            "scaleDistribution": { "type": "linear" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "hour_of_day" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "00": { "text": "12 AM", "index": 0 },
+                      "01": { "text": "1 AM", "index": 1 },
+                      "02": { "text": "2 AM", "index": 2 },
+                      "03": { "text": "3 AM", "index": 3 },
+                      "04": { "text": "4 AM", "index": 4 },
+                      "05": { "text": "5 AM", "index": 5 },
+                      "06": { "text": "6 AM", "index": 6 },
+                      "07": { "text": "7 AM", "index": 7 },
+                      "08": { "text": "8 AM", "index": 8 },
+                      "09": { "text": "9 AM", "index": 9 },
+                      "10": { "text": "10 AM", "index": 10 },
+                      "11": { "text": "11 AM", "index": 11 },
+                      "12": { "text": "12 PM", "index": 12 },
+                      "13": { "text": "1 PM", "index": 13 },
+                      "14": { "text": "2 PM", "index": 14 },
+                      "15": { "text": "3 PM", "index": 15 },
+                      "16": { "text": "4 PM", "index": 16 },
+                      "17": { "text": "5 PM", "index": 17 },
+                      "18": { "text": "6 PM", "index": 18 },
+                      "19": { "text": "7 PM", "index": 19 },
+                      "20": { "text": "8 PM", "index": 20 },
+                      "21": { "text": "9 PM", "index": 21 },
+                      "22": { "text": "10 PM", "index": 22 },
+                      "23": { "text": "11 PM", "index": 23 }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+      "id": 11,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.9,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": { "mode": "single", "sort": "none" },
+        "xField": "hour_of_day",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "editorMode": "code",
+          "expr": "sum by (hour_of_day) (increase(articles_marked_read_total{username=\"$username\", scope=\"individual\", hour_of_day!=\"\"}[$__range]))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Reading Activity by Hour of Day",
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": { "names": ["hour_of_day", "Value"] }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [{ "displayName": "hour_of_day", "desc": false }]
+          }
+        }
+      ],
+      "type": "barchart"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineWidth": 1,
+            "scaleDistribution": { "type": "linear" },
+            "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "day_of_week" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1-Mon": { "text": "Monday", "index": 0 },
+                      "2-Tue": { "text": "Tuesday", "index": 1 },
+                      "3-Wed": { "text": "Wednesday", "index": 2 },
+                      "4-Thu": { "text": "Thursday", "index": 3 },
+                      "5-Fri": { "text": "Friday", "index": 4 },
+                      "6-Sat": { "text": "Saturday", "index": 5 },
+                      "7-Sun": { "text": "Sunday", "index": 6 }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+      "id": 14,
+      "options": {
+        "barRadius": 0,
+        "barWidth": 0.9,
+        "fullHighlight": false,
+        "groupWidth": 0.7,
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "orientation": "auto",
+        "showValue": "auto",
+        "stacking": "none",
+        "tooltip": { "mode": "single", "sort": "none" },
+        "xField": "day_of_week",
+        "xTickLabelRotation": 0,
+        "xTickLabelSpacing": 0
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "editorMode": "code",
+          "expr": "sum by (day_of_week) (increase(articles_marked_read_total{username=\"$username\", scope=\"individual\", day_of_week!=\"\"}[$__range]))",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Reading Activity by Day of Week",
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": { "names": ["day_of_week", "Value"] }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": [{ "displayName": "day_of_week", "desc": false }]
+          }
+        }
+      ],
+      "type": "barchart"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+      "id": 15,
+      "title": "Feed Errors",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "opacity",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "insertNulls": false,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
             "pointSize": 5,
             "scaleDistribution": { "type": "linear" },
-            "showPoints": "never",
-            "spanNulls": false,
+            "showPoints": "auto",
+            "spanNulls": true,
             "stacking": { "group": "A", "mode": "none" },
             "thresholdsStyle": { "mode": "off" }
           },
@@ -572,30 +771,102 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 52 },
-      "id": 11,
-      "interval": "1h",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 43 },
+      "id": 3,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": false
+          "showLegend": true
         },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "tooltip": { "mode": "multi", "sort": "none" }
       },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "increase(articles_marked_read_total{username=\"$username\", scope=\"individual\"}[1h])",
-          "legendFormat": "Individual reads",
+          "expr": "rate(feed_fetch_errors_total{username=\"$username\", feed_title=~\"$feed_title\"}[5m]) > 0",
+          "legendFormat": "{{feed_title}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Reading Activity by Time of Day (1h buckets)",
+      "title": "Fetch Error Rate (Active Errors)",
       "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Value" },
+            "properties": [{ "id": "displayName", "value": "Consecutive Failures" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "feed_title" },
+            "properties": [{ "id": "displayName", "value": "Feed Title" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "feed_url" },
+            "properties": [{ "id": "displayName", "value": "Feed URL" }]
+          }
+        ]
+      },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 52 },
+      "id": 4,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": [],
+          "reducer": ["sum"],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Consecutive Failures" }]
+      },
+      "pluginVersion": "10.4.1",
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "Prometheus" },
+          "editorMode": "code",
+          "expr": "feed_fetch_consecutive_failures{username=\"$username\", feed_title=~\"$feed_title\"} > 0",
+          "format": "table",
+          "instant": true,
+          "range": false,
+          "refId": "A"
+        }
+      ],
+      "title": "Active Feed Connection Failures",
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": ["Time", "feed_id", "feed_title", "feed_url", "username", "Value"]
+            }
+          }
+        }
+      ],
+      "type": "table"
     }
   ],
   "refresh": "5s",
@@ -622,6 +893,27 @@
         "skipUrlSync": false,
         "sort": 1,
         "type": "query"
+      },
+      {
+        "current": {},
+        "datasource": { "type": "prometheus", "uid": "Prometheus" },
+        "definition": "label_values(feed_fetch_interval_seconds{username=\"$username\"}, feed_title)",
+        "hide": 0,
+        "includeAll": true,
+        "allValue": ".+",
+        "label": "Feed",
+        "multi": false,
+        "name": "feed_title",
+        "options": [],
+        "query": {
+          "query": "label_values(feed_fetch_interval_seconds{username=\"$username\"}, feed_title)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
       }
     ]
   },
@@ -630,6 +922,6 @@
   "timezone": "",
   "title": "Goliath Feed Fetching Dashboard",
   "uid": "goliath-feed-fetching-dashboard",
-  "version": 6,
+  "version": 8,
   "weekStart": ""
 }
