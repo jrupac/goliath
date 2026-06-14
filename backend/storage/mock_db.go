@@ -89,8 +89,12 @@ func (m *MockDB) DeleteFeedForUser(models.User, int64, int64) error           { 
 func (m *MockDB) MarkArticleForUser(models.User, int64, models.MarkAction) error {
 	return nil
 }
-func (m *MockDB) MarkFeedForUser(models.User, int64, models.MarkAction) error   { return nil }
-func (m *MockDB) MarkFolderForUser(models.User, int64, models.MarkAction) error { return nil }
+func (m *MockDB) MarkFeedForUser(models.User, int64, models.MarkAction) (int64, error) {
+	return 0, nil
+}
+func (m *MockDB) MarkFolderForUser(models.User, int64, models.MarkAction) (int64, error) {
+	return 0, nil
+}
 func (m *MockDB) UpdateLatestTimeForFeedForUser(models.User, int64, int64, time.Time) error {
 	return nil
 }

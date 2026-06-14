@@ -496,14 +496,14 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 			return
 		}
 
-		err = a.d.MarkFolderForUser(user, folderId, models.MarkActionRead)
+		n, err := a.d.MarkFolderForUser(user, folderId, models.MarkActionRead)
 		if err != nil {
 			log.Warningf("Failed to mark folder: %s", folderStr)
 			a.returnError(w, http.StatusInternalServerError)
 			return
 		}
 		hour, day := readActivityLabels()
-		articlesMarkedReadMetric.WithLabelValues(user.Username, "folder", hour, day).Inc()
+		articlesMarkedReadMetric.WithLabelValues(user.Username, "folder", hour, day).Add(float64(n))
 	} else if feedStr := r.Form.Get("s"); feedStr != "" {
 		feedId, err := strconv.ParseInt(feedStr, 10, 64)
 		if err != nil {
@@ -512,14 +512,14 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 			return
 		}
 
-		err = a.d.MarkFeedForUser(user, feedId, models.MarkActionRead)
+		n, err := a.d.MarkFeedForUser(user, feedId, models.MarkActionRead)
 		if err != nil {
 			log.Warningf("Failed to mark feed: %d", feedId)
 			a.returnError(w, http.StatusInternalServerError)
 			return
 		}
 		hour, day := readActivityLabels()
-		articlesMarkedReadMetric.WithLabelValues(user.Username, "feed", hour, day).Inc()
+		articlesMarkedReadMetric.WithLabelValues(user.Username, "feed", hour, day).Add(float64(n))
 	} else {
 		log.Warningf("Missing feed or folder ID")
 		a.returnError(w, http.StatusBadRequest)

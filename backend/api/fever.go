@@ -399,11 +399,11 @@ func (a Fever) handleMark(d storage.Database, u models.User, _ *responseType, r 
 			return &apiError{err, true}
 		}
 	case "feed":
-		if err = d.MarkFeedForUser(u, id, as); err != nil {
+		if _, err = d.MarkFeedForUser(u, id, as); err != nil {
 			return &apiError{err, true}
 		}
 	case "group":
-		if err = d.MarkFolderForUser(u, id, as); err != nil {
+		if _, err = d.MarkFolderForUser(u, id, as); err != nil {
 			return &apiError{err, true}
 		}
 	default:

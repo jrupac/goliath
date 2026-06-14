@@ -686,74 +686,82 @@ func (crdb *Crdb) MarkArticleForUser(u models.User, articleId int64, mark models
 }
 
 // MarkFeedForUser sets the mark status of all articles in `feedId` to `mark`.
-func (crdb *Crdb) MarkFeedForUser(u models.User, feedId int64, mark models.MarkAction) error {
+// Returns the number of articles whose state was changed.
+func (crdb *Crdb) MarkFeedForUser(u models.User, feedId int64, mark models.MarkAction) (int64, error) {
 	defer logElapsedTime(time.Now(), "MarkFeedForUser")
 
 	if mark != models.MarkActionRead {
-		return fmt.Errorf("feeds can only be marked as read")
+		return 0, fmt.Errorf("feeds can only be marked as read")
 	}
 
 	_, value, err := mark.Parse()
 	if err != nil {
-		return fmt.Errorf("invalid mark action: %+v", mark)
+		return 0, fmt.Errorf("invalid mark action: %+v", mark)
 	}
 
 	query := `UPDATE Article SET read = $1 WHERE userid = $2 AND feed = $3`
-	_, err = crdb.db.Exec(query, value, u.UserId, feedId)
-	return err
+	result, err := crdb.db.Exec(query, value, u.UserId, feedId)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := result.RowsAffected()
+	return n, nil
 }
 
-// MarkFolderForUser sets the mark status of all articles in `folderId`to
+// MarkFolderForUser sets the mark status of all articles in `folderId` to
 // `mark`. An ID of 0 will mark all articles in all folders to the given status.
-func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, mark models.MarkAction) error {
+// Returns the number of articles whose state was changed.
+func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, mark models.MarkAction) (int64, error) {
 	defer logElapsedTime(time.Now(), "MarkFolderForUser")
 
 	if mark != models.MarkActionRead {
-		return fmt.Errorf("folders can only be marked as read")
+		return 0, fmt.Errorf("folders can only be marked as read")
 	}
 
 	_, value, err := mark.Parse()
 	if err != nil {
-		return fmt.Errorf("invalid mark action: %+v", mark)
+		return 0, fmt.Errorf("invalid mark action: %+v", mark)
 	}
 
 	// With folderID = 0, mark everything as read.
 	if folderId == 0 {
 		query := `UPDATE Article SET read = $1 WHERE userid = $2`
-		_, err = crdb.db.Exec(query, value, u.UserId)
+		result, err := crdb.db.Exec(query, value, u.UserId)
 		if err != nil {
-			return fmt.Errorf("failed to update articles for all folders: %w", err)
+			return 0, fmt.Errorf("failed to update articles for all folders: %w", err)
 		}
-	} else {
-		// Enumerate all descendant folders of folderId in a recursive CTE and then
-		// mark all articles in any of that set of folders (including the original
-		// folder itself) in one update.
-		query := `
-			WITH RECURSIVE RecursiveFolders AS (
-				SELECT child
-				FROM FolderChildren
-				WHERE userid = $1 AND parent = $2
-				UNION ALL
-				SELECT fc.child
-				FROM FolderChildren fc
-				INNER JOIN RecursiveFolders rf ON fc.parent = rf.child
-				WHERE fc.userid = $1
-			)
-			UPDATE Article AS a
-			SET read = $3
-			WHERE a.userid = $1
-			  AND (
-				a.folder IN (SELECT child FROM RecursiveFolders)
-				OR a.folder = $2
-			  );
-		`
-		_, err = crdb.db.Exec(query, u.UserId, folderId, value)
-		if err != nil {
-			return fmt.Errorf("failed to update articles for folder %d and its descendants: %w", folderId, err)
-		}
+		n, _ := result.RowsAffected()
+		return n, nil
 	}
 
-	return nil
+	// Enumerate all descendant folders of folderId in a recursive CTE and then
+	// mark all articles in any of that set of folders (including the original
+	// folder itself) in one update.
+	query := `
+		WITH RECURSIVE RecursiveFolders AS (
+			SELECT child
+			FROM FolderChildren
+			WHERE userid = $1 AND parent = $2
+			UNION ALL
+			SELECT fc.child
+			FROM FolderChildren fc
+			INNER JOIN RecursiveFolders rf ON fc.parent = rf.child
+			WHERE fc.userid = $1
+		)
+		UPDATE Article AS a
+		SET read = $3
+		WHERE a.userid = $1
+		  AND (
+			a.folder IN (SELECT child FROM RecursiveFolders)
+			OR a.folder = $2
+		  );
+	`
+	result, err := crdb.db.Exec(query, u.UserId, folderId, value)
+	if err != nil {
+		return 0, fmt.Errorf("failed to update articles for folder %d and its descendants: %w", folderId, err)
+	}
+	n, _ := result.RowsAffected()
+	return n, nil
 }
 
 /*******************************************************************************
