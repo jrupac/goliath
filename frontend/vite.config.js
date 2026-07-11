@@ -35,6 +35,7 @@ export default defineConfig(() => {
     ],
     server: {
       port: 3000,
+      allowedHosts: true,
       proxy: {
         '^(/auth|/fever|/greader|/version)': {
           target: 'http://goliath-dev:9999',
