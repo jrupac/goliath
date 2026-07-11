@@ -37,7 +37,6 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
     onToggleSave,
     selectionType,
   }: ArticleListEntryProps) {
-    const [cardHovered, setCardHovered] = useState(false);
     const [dotHovered, setDotHovered] = useState(false);
 
     const extractedTitle = useMemo(
@@ -94,14 +93,12 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
       <div
         className={extraClasses.join(' ')}
         onClick={handleSelect}
-        onMouseEnter={() => setCardHovered(true)}
-        onMouseLeave={() => setCardHovered(false)}
       >
         {/* Row 1 — source */}
         <div className="GoliathArticleCardSource">
           <span className="GoliathArticleCardIconSlot">
             <span
-              className={`GoliathArticleCardDot ${cardHovered ? 'visible' : 'hidden'}`}
+              className="GoliathArticleCardDot"
               onClick={handleToggleAction}
               onMouseEnter={() => setDotHovered(true)}
               onMouseLeave={() => setDotHovered(false)}
@@ -128,7 +125,7 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
               )}
             </span>
             <span
-              className={`GoliathArticleCardFavicon ${cardHovered ? 'hidden' : 'visible'}`}
+              className="GoliathArticleCardFavicon"
             >
               <FeedIcon
                 favicon={favicon?.GetFavicon() || ''}
@@ -151,13 +148,7 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
           <div className="GoliathArticleCardText">
             {/* Row 2 — title */}
             <div className="GoliathArticleCardTitle">
-              <a
-                target="_blank"
-                rel="noopener noreferrer"
-                href={articleView.url}
-              >
-                {extractedTitle}
-              </a>
+              {extractedTitle}
             </div>
 
             {/* Row 3 — content */}

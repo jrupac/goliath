@@ -526,18 +526,30 @@
   cursor: pointer;
 }
 
-.GoliathArticleCardDot.hidden,
-.GoliathArticleCardFavicon.hidden {
+.GoliathArticleCardDot {
   opacity: 0;
   transform: translate(-50%, -50%) scale(0.6);
   pointer-events: none;
 }
 
-.GoliathArticleCardDot.visible,
-.GoliathArticleCardFavicon.visible {
+.GoliathArticleCardFavicon {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
   pointer-events: auto;
+}
+
+@media (hover: hover) {
+  .GoliathArticleCard:hover .GoliathArticleCardDot {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    pointer-events: auto;
+  }
+
+  .GoliathArticleCard:hover .GoliathArticleCardFavicon {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+    pointer-events: none;
+  }
 }
 
 .GoliathArticleCardFeedName {
@@ -1261,6 +1273,13 @@
   .GoliathArticleByline {
     padding: 6px 12px !important;
     font-size: 12px !important;
+  }
+
+  .GoliathLogo {
+    font-size: 36px !important;
+    padding-top: 16px !important;
+    padding-bottom: 16px !important;
+    line-height: 1.2 !important;
   }
 }
 

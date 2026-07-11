@@ -35,7 +35,7 @@ describe('ArticleListEntry', () => {
     expect(document.querySelector('.GoliathArticleCard')).toBeInTheDocument();
   });
 
-  it('shows FeedIcon (initials) when not hovered and no favicon', () => {
+  it('shows FeedIcon (initials) when no favicon', () => {
     render(
       <ArticleListEntry
         articleView={mockArticleView}
@@ -47,15 +47,11 @@ describe('ArticleListEntry', () => {
       />
     );
     expect(document.querySelector('.GoliathFeedIcon')).toBeInTheDocument();
-    expect(document.querySelector('.GoliathArticleCardDot')).toHaveClass(
-      'hidden'
-    );
-    expect(document.querySelector('.GoliathArticleCardFavicon')).toHaveClass(
-      'visible'
-    );
+    expect(document.querySelector('.GoliathArticleCardDot')).toBeInTheDocument();
+    expect(document.querySelector('.GoliathArticleCardFavicon')).toBeInTheDocument();
   });
 
-  it('renders unread dot on hover for unread article', () => {
+  it('renders unread dot icon for unread article', () => {
     render(
       <ArticleListEntry
         articleView={mockArticleView}
@@ -66,17 +62,10 @@ describe('ArticleListEntry', () => {
         showPreviews={false}
       />
     );
-    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
-    expect(document.querySelector('.GoliathArticleCardDot')).toHaveClass(
-      'visible'
-    );
-    expect(document.querySelector('.GoliathArticleCardFavicon')).toHaveClass(
-      'hidden'
-    );
     expect(screen.getByTestId('FiberManualRecordIcon')).toBeInTheDocument();
   });
 
-  it('renders read dot on hover for read article', () => {
+  it('renders read dot icon for read article', () => {
     render(
       <ArticleListEntry
         articleView={{ ...mockArticleView, isRead: true }}
@@ -86,13 +75,6 @@ describe('ArticleListEntry', () => {
         selected={false}
         showPreviews={false}
       />
-    );
-    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
-    expect(document.querySelector('.GoliathArticleCardDot')).toHaveClass(
-      'visible'
-    );
-    expect(document.querySelector('.GoliathArticleCardFavicon')).toHaveClass(
-      'hidden'
     );
     expect(screen.getByTestId('RadioButtonUncheckedIcon')).toBeInTheDocument();
   });
@@ -111,7 +93,7 @@ describe('ArticleListEntry', () => {
     expect(screen.getByText('Test Feed')).toBeInTheDocument();
   });
 
-  it('renders article title as link', () => {
+  it('renders article title as text', () => {
     render(
       <ArticleListEntry
         articleView={mockArticleView}
@@ -122,9 +104,8 @@ describe('ArticleListEntry', () => {
         showPreviews={false}
       />
     );
-    const link = screen.getByRole('link', { name: 'Test Article' });
-    expect(link).toHaveAttribute('href', 'https://example.com');
-    expect(link).toHaveAttribute('target', '_blank');
+    expect(screen.getByText('Test Article')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Test Article' })).not.toBeInTheDocument();
   });
 
   it('calls onSelect when clicked', () => {
@@ -140,7 +121,7 @@ describe('ArticleListEntry', () => {
         onSelect={onSelect}
       />
     );
-    fireEvent.click(screen.getByRole('link', { name: 'Test Article' }));
+    fireEvent.click(screen.getByText('Test Article'));
     expect(onSelect).toHaveBeenCalledWith('1');
   });
 
@@ -156,7 +137,7 @@ describe('ArticleListEntry', () => {
       />
     );
     expect(() =>
-      fireEvent.click(screen.getByRole('link', { name: 'Test Article' }))
+      fireEvent.click(screen.getByText('Test Article'))
     ).not.toThrow();
   });
 
@@ -173,7 +154,6 @@ describe('ArticleListEntry', () => {
         onToggleRead={onToggleRead}
       />
     );
-    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
     const dot = screen.getByTestId('FiberManualRecordIcon');
     fireEvent.click(dot);
     expect(onToggleRead).toHaveBeenCalledWith('1');
@@ -194,7 +174,6 @@ describe('ArticleListEntry', () => {
         onToggleRead={onToggleRead}
       />
     );
-    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
     const dot = screen.getByTestId('FiberManualRecordIcon');
     fireEvent.click(dot);
     expect(onToggleRead).toHaveBeenCalledTimes(1);
@@ -304,7 +283,7 @@ describe('ArticleListEntry', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('renders star border dot on hover for unsaved article in Saved view', () => {
+  it('renders star border dot for unsaved article in Saved view', () => {
     render(
       <ArticleListEntry
         articleView={{ ...mockArticleView, isSaved: false }}
@@ -316,11 +295,10 @@ describe('ArticleListEntry', () => {
         selectionType={SelectionType.Saved}
       />
     );
-    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
     expect(screen.getByTestId('StarBorderIcon')).toBeInTheDocument();
   });
 
-  it('renders star dot on hover for saved article in Saved view', () => {
+  it('renders star dot for saved article in Saved view', () => {
     render(
       <ArticleListEntry
         articleView={{ ...mockArticleView, isSaved: true }}
@@ -332,7 +310,6 @@ describe('ArticleListEntry', () => {
         selectionType={SelectionType.Saved}
       />
     );
-    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
     expect(screen.getByTestId('StarIcon')).toBeInTheDocument();
   });
 
@@ -350,7 +327,6 @@ describe('ArticleListEntry', () => {
         onToggleSave={onToggleSave}
       />
     );
-    fireEvent.mouseEnter(document.querySelector('.GoliathArticleCard')!);
     const dot = screen.getByTestId('StarIcon');
     fireEvent.click(dot);
     expect(onToggleSave).toHaveBeenCalledWith('1');

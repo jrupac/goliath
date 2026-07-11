@@ -42,6 +42,7 @@ import {
 } from './utils/helpers';
 import AccountCircleTwoToneIcon from '@mui/icons-material/AccountCircleTwoTone';
 import LogoutTwoToneIcon from '@mui/icons-material/LogoutTwoTone';
+import MenuTwoToneIcon from '@mui/icons-material/MenuTwoTone';
 import KeybindingsModal from './components/KeybindingsModal';
 import { Keybindings, getTinykeysSequence } from './utils/keybindings';
 import { keybindRegistry } from './utils/keybindRegistry';
@@ -405,13 +406,24 @@ export default class App extends React.Component<AppProps, AppState> {
             }}
           >
             <Box className="GoliathDrawerActionBar">
-              <IconButton
-                aria-label="Account"
-                className="GoliathButton"
-                size="small"
-              >
-                <AccountCircleTwoToneIcon />
-              </IconButton>
+              {this.state.isMobile ? (
+                <IconButton
+                  aria-label="Close drawer"
+                  className="GoliathButton"
+                  size="small"
+                  onClick={() => this.setState({ drawerOpen: false })}
+                >
+                  <MenuTwoToneIcon />
+                </IconButton>
+              ) : (
+                <IconButton
+                  aria-label="Account"
+                  className="GoliathButton"
+                  size="small"
+                >
+                  <AccountCircleTwoToneIcon />
+                </IconButton>
+              )}
               <div className="GoliathActionBarSpacer"></div>
               <IconButton
                 aria-label="Account"
