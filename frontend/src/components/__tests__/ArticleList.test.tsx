@@ -72,6 +72,7 @@ describe('ArticleList', () => {
     onMobileNavigate: vi.fn(),
     onArticleSelect: vi.fn(),
     openDrawer: vi.fn(),
+    selectionTitle: 'Unread items',
     ...props,
   });
 

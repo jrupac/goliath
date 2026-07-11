@@ -46,6 +46,7 @@ export interface ArticleProps {
   onPrev?: () => void;
   onNext?: () => void;
   isMobile?: boolean;
+  showMobileLayout?: boolean;
 }
 
 interface ArticleState {
@@ -57,7 +58,8 @@ const ArticleCard: React.FC<ArticleProps> = ({
   showKeybindingsModal = false,
   ...props
 }: ArticleProps) => {
-  const { fetchApi, handleUpdateArticleParsed, article, onBack, onPrev, onNext, isMobile } = props;
+  const { fetchApi, handleUpdateArticleParsed, article, onBack, onPrev, onNext, isMobile, showMobileLayout } = props;
+  const useMobileLayout = showMobileLayout ?? isMobile;
 
   const [state, setState] = useState<ArticleState>({
     showParsed: false,
@@ -204,7 +206,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
           {/* Byline row */}
           <Box className="GoliathArticleByline">
             <Box className="GoliathArticleBylineInfo">
-              {!isMobile && onBack && (
+              {!useMobileLayout && onBack && (
                 <IconButton
                   aria-label="back to list"
                   onClick={onBack}
@@ -230,7 +232,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
               </Tooltip>
             </Box>
             <Box className="GoliathArticleBylineActions">
-              {!isMobile && onPrev && (
+              {!useMobileLayout && onPrev && (
                 <Tooltip title="Scroll up / Previous article">
                   <IconButton
                     aria-label="previous article"
@@ -242,7 +244,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
                   </IconButton>
                 </Tooltip>
               )}
-              {!isMobile && onNext && (
+              {!useMobileLayout && onNext && (
                 <Tooltip title="Scroll down / Next article">
                   <IconButton
                     aria-label="next article"
@@ -254,7 +256,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
                   </IconButton>
                 </Tooltip>
               )}
-              {!isMobile && (
+              {!useMobileLayout && (
                 <Tooltip title="Reader mode (m)">
                   <IconButton
                     aria-label="reader mode"
@@ -270,7 +272,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
                   </IconButton>
                 </Tooltip>
               )}
-              {!isMobile && (
+              {!useMobileLayout && (
                 <Tooltip
                   title={
                     props.article.isSaved ? 'Unsave article' : 'Save article'
@@ -286,7 +288,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
                   </IconButton>
                 </Tooltip>
               )}
-              {!isMobile && props.selectionType !== SelectionType.Saved && (
+              {!useMobileLayout && props.selectionType !== SelectionType.Saved && (
                 <Tooltip
                   title={
                     props.article.isRead ? 'Mark as unread' : 'Mark as read'
@@ -328,7 +330,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
       </Box>
 
       {/* Mobile Bottom Navigation Bar */}
-      {isMobile && (
+      {useMobileLayout && (
         <Box className="GoliathMobileBottomBar">
           <IconButton
             aria-label="back to list"

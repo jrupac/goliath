@@ -26,6 +26,7 @@ import {
   IconButton,
   Stack,
   Tooltip,
+  Typography,
 } from '@mui/material';
 import ArticleCard from './ArticleCard';
 import ArticleListEntry from './ArticleListEntry';
@@ -33,7 +34,6 @@ import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
 import { keybindRegistry } from '../utils/keybindRegistry';
 import { DoneAllRounded } from '@mui/icons-material';
 import MenuTwoToneIcon from '@mui/icons-material/MenuTwoTone';
-import ArrowBackTwoToneIcon from '@mui/icons-material/ArrowBackTwoTone';
 
 import { ArticleId, ArticleView } from '../models/article';
 import { FolderId } from '../models/folder';
@@ -79,6 +79,7 @@ export interface ArticleListProps {
   onMobileNavigate: (pane: 'list' | 'card') => void;
   onArticleSelect: () => void;
   openDrawer: () => void;
+  selectionTitle: string;
 }
 
 const ArticleList: React.FC<ArticleListProps> = ({
@@ -100,13 +101,14 @@ const ArticleList: React.FC<ArticleListProps> = ({
   clearReadCallback,
   isMobile,
   isTabletPortrait,
-  isTabletLandscape,
   mobilePane,
   tabletShowFeedList,
   onMobileNavigate,
   onArticleSelect,
   openDrawer,
+  selectionTitle,
 }) => {
+  const showListMobileLayout = isMobile || (isTabletPortrait && !tabletShowFeedList);
   const listRef = useRef<ReactListType | null>(null);
   const selectionKeyRef = useRef<SelectionKey>(selectionKey);
 
@@ -509,71 +511,96 @@ const ArticleList: React.FC<ArticleListProps> = ({
               flexGrow: isTabletPortrait && tabletShowFeedList ? 1 : undefined,
             }}
             sx={{
-              display: isMobile && mobilePane !== 'list' ? 'none' : 'flex',
+              display:
+                isMobile && mobilePane !== 'list'
+                  ? 'none'
+                  : isTabletPortrait && !tabletShowFeedList
+                  ? 'none'
+                  : 'flex',
             }}
           >
             <Box className="GoliathSplitViewArticleListActionBar">
-              {(isMobile || (isTabletPortrait && !tabletShowFeedList)) && (
-                <IconButton
-                  aria-label="open navigation menu"
-                  onClick={openDrawer}
-                  className="GoliathButton"
-                  size="small"
-                  sx={{ mr: 1 }}
-                >
-                  <MenuTwoToneIcon />
-                </IconButton>
-              )}
-              {selectionType === SelectionType.Saved ? (
-                <Tooltip
-                  title={
-                    articleEntriesCls.some((a) => a.isSaved)
-                      ? 'Unsave all'
-                      : 'Save all'
-                  }
-                >
+              {showListMobileLayout ? (
+                <>
                   <IconButton
-                    aria-label="mark all as unsaved"
-                    onClick={() => handleMarkAllSavedToggle()}
+                    aria-label="open navigation menu"
+                    onClick={openDrawer}
                     className="GoliathButton"
                     size="small"
+                    sx={{ mr: 1 }}
                   >
-                    <HotelClassTwoTone />
+                    <MenuTwoToneIcon />
                   </IconButton>
-                </Tooltip>
+                  <Typography
+                    variant="subtitle1"
+                    className="GoliathArticleListTitleText"
+                    sx={{
+                      fontWeight: 600,
+                      fontFamily: 'var(--primary-sans-serif-font), sans-serif',
+                      color: 'var(--primary-font-color)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flexGrow: 1,
+                    }}
+                  >
+                    {selectionTitle}
+                  </Typography>
+                </>
               ) : (
-                <Tooltip title="Mark all as read">
-                  <IconButton
-                    aria-label="mark all as read"
-                    onClick={() => handleMarkAllRead()}
-                    className="GoliathButton"
-                    size="small"
-                  >
-                    <DoneAllTwoTone />
-                  </IconButton>
-                </Tooltip>
+                <>
+                  {selectionType === SelectionType.Saved ? (
+                    <Tooltip
+                      title={
+                        articleEntriesCls.some((a) => a.isSaved)
+                          ? 'Unsave all'
+                          : 'Save all'
+                      }
+                    >
+                      <IconButton
+                        aria-label="mark all as unsaved"
+                        onClick={() => handleMarkAllSavedToggle()}
+                        className="GoliathButton"
+                        size="small"
+                      >
+                        <HotelClassTwoTone />
+                      </IconButton>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title="Mark all as read">
+                      <IconButton
+                        aria-label="mark all as read"
+                        onClick={() => handleMarkAllRead()}
+                        className="GoliathButton"
+                        size="small"
+                      >
+                        <DoneAllTwoTone />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  <div className="GoliathActionBarSpacer"></div>
+                  <Tooltip title="Scroll up">
+                    <IconButton
+                      aria-label="scroll up"
+                      onClick={() => handleScrollUp()}
+                      className="GoliathButton"
+                      size="small"
+                    >
+                      <ExpandLessTwoToneIcon />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Scroll down">
+                    <IconButton
+                      aria-label="scroll down"
+                      onClick={() => handleScrollDown()}
+                      className="GoliathButton"
+                      size="small"
+                    >
+                      <ExpandMoreTwoToneIcon />
+                    </IconButton>
+                  </Tooltip>
+                </>
               )}
-              <div className="GoliathActionBarSpacer"></div>
-              <Tooltip title="Scroll up">
-                <IconButton
-                  aria-label="scroll up"
-                  onClick={() => handleScrollUp()}
-                  className="GoliathButton"
-                  size="small"
-                >
-                  <ExpandLessTwoToneIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Scroll down">
-                <IconButton
-                  aria-label="scroll down"
-                  onClick={() => handleScrollDown()}
-                  className="GoliathButton"
-                  size="small"
-                >
-                  <ExpandMoreTwoToneIcon />
-                </IconButton>
-              </Tooltip>
             </Box>
             <Box className="GoliathSplitViewArticleListBox">
               <ReactList
@@ -586,6 +613,42 @@ const ArticleList: React.FC<ArticleListProps> = ({
                 type="uniform"
               />
             </Box>
+            {showListMobileLayout && (
+              <Box className="GoliathMobileBottomBar" style={{ position: 'relative', marginTop: 'auto' }}>
+                {selectionType !== SelectionType.Saved && (
+                  <Tooltip title="Mark all as read">
+                    <IconButton
+                      aria-label="mark all as read"
+                      onClick={() => handleMarkAllRead()}
+                      className="GoliathButton"
+                      size="small"
+                    >
+                      <DoneAllTwoTone />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                <Tooltip title="Scroll up">
+                  <IconButton
+                    aria-label="scroll up"
+                    onClick={() => handleScrollUp()}
+                    className="GoliathButton"
+                    size="small"
+                  >
+                    <ExpandLessTwoToneIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Scroll down">
+                  <IconButton
+                    aria-label="scroll down"
+                    onClick={() => handleScrollDown()}
+                    className="GoliathButton"
+                    size="small"
+                  >
+                    <ExpandMoreTwoToneIcon />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            )}
           </Stack>
           <Grid
             className="GoliathSplitViewArticleOuter"
@@ -613,10 +676,25 @@ const ArticleList: React.FC<ArticleListProps> = ({
                 onToggleSave={() => handleToggleArticleSave(articleView.id)}
                 selectionType={selectionType}
                 showKeybindingsModal={showKeybindingsModal}
-                onBack={isMobile ? () => onMobileNavigate('list') : undefined}
-                onPrev={isMobile ? handleScrollUp : undefined}
-                onNext={isMobile ? () => handleScrollDown({ markRead: true }) : undefined}
+                onBack={
+                  isMobile
+                    ? () => onMobileNavigate('list')
+                    : isTabletPortrait && !tabletShowFeedList
+                    ? openDrawer
+                    : undefined
+                }
+                onPrev={
+                  isMobile || (isTabletPortrait && !tabletShowFeedList)
+                    ? handleScrollUp
+                    : undefined
+                }
+                onNext={
+                  isMobile || (isTabletPortrait && !tabletShowFeedList)
+                    ? () => handleScrollDown({ markRead: true })
+                    : undefined
+                }
                 isMobile={isMobile}
+                showMobileLayout={isMobile || (isTabletPortrait && !tabletShowFeedList)}
               />
             </Box>
           </Grid>

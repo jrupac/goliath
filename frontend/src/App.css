@@ -116,7 +116,8 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 8px;
   background-color: var(--primary-darker-2-color);
   padding: 10px;
   border-bottom: 1px solid var(--action-bar-border-color);
@@ -1271,8 +1272,18 @@
   }
 
   .GoliathArticleByline {
-    padding: 6px 12px !important;
-    font-size: 12px !important;
+    height: 56px !important;
+    font-size: 15px !important;
+    padding: 0 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  .GoliathSplitViewArticleListActionBar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 12px !important;
+    padding: 10px 16px !important;
   }
 
   .GoliathLogo {
@@ -1283,8 +1294,8 @@
   }
 }
 
-/* Tablet layouts (600px to 1023.95px) */
-@media (min-width: 600px) and (min-height: 500px) and (max-width: 1023.95px) {
+/* Tablet layouts (600px to 1024px in portrait) */
+@media (min-width: 600px) and (min-height: 500px) and (max-width: 1024px) and (orientation: portrait) {
   .GoliathDrawer {
     width: 280px !important;
   }
@@ -1302,14 +1313,14 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 56px;
+  height: auto;
   background-color: var(--primary-darker-2-color);
   border-top: 1px solid var(--action-bar-border-color);
   display: flex;
   align-items: center;
   justify-content: space-around;
   z-index: 10;
-  padding: 0 16px;
+  padding: 10px 16px;
 }
 
 .GoliathMobileBottomBar .MuiIconButton-root {

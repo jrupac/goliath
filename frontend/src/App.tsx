@@ -47,6 +47,13 @@ import KeybindingsModal from './components/KeybindingsModal';
 import { Keybindings, getTinykeysSequence } from './utils/keybindings';
 import { keybindRegistry } from './utils/keybindRegistry';
 
+export function getLayoutMetrics(width: number, height: number) {
+  const isMobile = width < 600 || height < 500;
+  const isTabletPortrait = !isMobile && width >= 600 && (width < 900 || (width <= 1024 && height > width));
+  const isTabletLandscape = !isMobile && !isTabletPortrait && width >= 900 && width < 1200 && height >= 500;
+  return { isMobile, isTabletPortrait, isTabletLandscape };
+}
+
 export interface AppProps {}
 
 export interface AppState {
@@ -76,6 +83,10 @@ export default class App extends React.Component<AppProps, AppState> {
 
   constructor(props: AppProps) {
     super(props);
+    const metrics = typeof window !== 'undefined'
+      ? getLayoutMetrics(window.innerWidth, window.innerHeight)
+      : { isMobile: false, isTabletPortrait: false, isTabletLandscape: false };
+
     this.state = {
       buildTimestamp: '',
       buildHash: '',
@@ -88,9 +99,9 @@ export default class App extends React.Component<AppProps, AppState> {
       loginVerified: false,
       hideEmpty: true,
       showKeybindingsModal: false,
-      isMobile: typeof window !== 'undefined' ? (window.innerWidth < 600 || window.innerHeight < 500) : false,
-      isTabletPortrait: typeof window !== 'undefined' ? (window.innerWidth >= 600 && window.innerWidth < 900 && window.innerHeight >= 500) : false,
-      isTabletLandscape: typeof window !== 'undefined' ? (window.innerWidth >= 900 && window.innerWidth < 1200 && window.innerHeight >= 500) : false,
+      isMobile: metrics.isMobile,
+      isTabletPortrait: metrics.isTabletPortrait,
+      isTabletLandscape: metrics.isTabletLandscape,
       mobilePane: 'list',
       tabletShowFeedList: true,
       drawerOpen: false,
@@ -138,13 +149,11 @@ export default class App extends React.Component<AppProps, AppState> {
 
   componentDidMount() {
     this.resizeListener = () => {
-      const isMobile = window.innerWidth < 600 || window.innerHeight < 500;
-      const isTabletPortrait = window.innerWidth >= 600 && window.innerWidth < 900 && window.innerHeight >= 500;
-      const isTabletLandscape = window.innerWidth >= 900 && window.innerWidth < 1200 && window.innerHeight >= 500;
+      const metrics = getLayoutMetrics(window.innerWidth, window.innerHeight);
       this.setState({
-        isMobile,
-        isTabletPortrait,
-        isTabletLandscape,
+        isMobile: metrics.isMobile,
+        isTabletPortrait: metrics.isTabletPortrait,
+        isTabletLandscape: metrics.isTabletLandscape,
       });
     };
     window.addEventListener('resize', this.resizeListener);
@@ -348,6 +357,37 @@ export default class App extends React.Component<AppProps, AppState> {
     }
   };
 
+  getSelectionTitle(): string {
+    const { selectionKey, selectionType, contentTreeCls } = this.state;
+    if (selectionKey === KeyUnread) {
+      return 'Unread items';
+    } else if (selectionKey === KeyAllItems) {
+      return 'All items';
+    } else if (selectionKey === KeySaved) {
+      return 'Saved items';
+    }
+
+    const folderFeedView = contentTreeCls.GetFolderFeedView();
+    if (selectionType === SelectionType.Folder) {
+      for (const folder of folderFeedView.keys()) {
+        if (folder.id === selectionKey) {
+          return folder.title;
+        }
+      }
+    } else if (selectionType === SelectionType.Feed) {
+      const [feedId, folderId] = selectionKey as FeedSelection;
+      for (const [folder, feeds] of folderFeedView.entries()) {
+        if (folder.id === folderId) {
+          const feed = feeds.find(f => f.id === feedId);
+          if (feed) {
+            return feed.title;
+          }
+        }
+      }
+    }
+    return '';
+  }
+
   render() {
     // If verification has completed and failed, redirect to the login page.
     if (
@@ -406,7 +446,7 @@ export default class App extends React.Component<AppProps, AppState> {
             }}
           >
             <Box className="GoliathDrawerActionBar">
-              {this.state.isMobile ? (
+              {this.state.isMobile && (
                 <IconButton
                   aria-label="Close drawer"
                   className="GoliathButton"
@@ -415,18 +455,16 @@ export default class App extends React.Component<AppProps, AppState> {
                 >
                   <MenuTwoToneIcon />
                 </IconButton>
-              ) : (
-                <IconButton
-                  aria-label="Account"
-                  className="GoliathButton"
-                  size="small"
-                >
-                  <AccountCircleTwoToneIcon />
-                </IconButton>
               )}
-              <div className="GoliathActionBarSpacer"></div>
               <IconButton
                 aria-label="Account"
+                className="GoliathButton"
+                size="small"
+              >
+                <AccountCircleTwoToneIcon />
+              </IconButton>
+              <IconButton
+                aria-label="Logout"
                 className="GoliathButton"
                 size="small"
               >
@@ -452,6 +490,7 @@ export default class App extends React.Component<AppProps, AppState> {
             <ArticleList
               fetchApi={this.fetchApi}
               handleUpdateArticleParsed={this.handleUpdateArticleParsed}
+              selectionTitle={this.getSelectionTitle()}
               articleEntriesCls={this.state.contentTreeCls.GetArticleView(
                 selectionKey,
                 selectionType
