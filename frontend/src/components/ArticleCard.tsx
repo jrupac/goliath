@@ -21,6 +21,9 @@ import { ArticleId, ArticleView } from '../models/article';
 import { FaviconCls, FeedId } from '../models/feed';
 import { FolderId } from '../models/folder';
 import { FetchAPI } from '../api/interface';
+import ArrowBackTwoToneIcon from '@mui/icons-material/ArrowBackTwoTone';
+import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
+import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
 
 export interface ArticleProps {
   fetchApi: FetchAPI;
@@ -39,6 +42,10 @@ export interface ArticleProps {
   onToggleSave: () => void;
   selectionType: SelectionType;
   showKeybindingsModal?: boolean;
+  onBack?: () => void;
+  onPrev?: () => void;
+  onNext?: () => void;
+  isMobile?: boolean;
 }
 
 interface ArticleState {
@@ -50,7 +57,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
   showKeybindingsModal = false,
   ...props
 }: ArticleProps) => {
-  const { fetchApi, handleUpdateArticleParsed, article } = props;
+  const { fetchApi, handleUpdateArticleParsed, article, onBack, onPrev, onNext, isMobile } = props;
 
   const [state, setState] = useState<ArticleState>({
     showParsed: false,
@@ -197,6 +204,17 @@ const ArticleCard: React.FC<ArticleProps> = ({
           {/* Byline row */}
           <Box className="GoliathArticleByline">
             <Box className="GoliathArticleBylineInfo">
+              {!isMobile && onBack && (
+                <IconButton
+                  aria-label="back to list"
+                  onClick={onBack}
+                  className="GoliathButton"
+                  size="small"
+                  sx={{ mr: 1 }}
+                >
+                  <ArrowBackTwoToneIcon />
+                </IconButton>
+              )}
               <FeedIcon
                 favicon={faviconSrc}
                 feedTitle={feedTitle}
@@ -212,35 +230,63 @@ const ArticleCard: React.FC<ArticleProps> = ({
               </Tooltip>
             </Box>
             <Box className="GoliathArticleBylineActions">
-              <Tooltip title="Reader mode (m)">
-                <IconButton
-                  aria-label="reader mode"
-                  className={`GoliathButton${state.showParsed ? ' GoliathReaderModeActive' : ''}`}
-                  size="small"
-                  onClick={toggleParseContent}
+              {!isMobile && onPrev && (
+                <Tooltip title="Scroll up / Previous article">
+                  <IconButton
+                    aria-label="previous article"
+                    onClick={onPrev}
+                    className="GoliathButton"
+                    size="small"
+                  >
+                    <ExpandLessTwoToneIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {!isMobile && onNext && (
+                <Tooltip title="Scroll down / Next article">
+                  <IconButton
+                    aria-label="next article"
+                    onClick={onNext}
+                    className="GoliathButton"
+                    size="small"
+                  >
+                    <ExpandMoreTwoToneIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {!isMobile && (
+                <Tooltip title="Reader mode (m)">
+                  <IconButton
+                    aria-label="reader mode"
+                    className={`GoliathButton${state.showParsed ? ' GoliathReaderModeActive' : ''}`}
+                    size="small"
+                    onClick={toggleParseContent}
+                  >
+                    {state.showParsed ? (
+                      <ChromeReaderModeIcon />
+                    ) : (
+                      <ChromeReaderModeOutlinedIcon />
+                    )}
+                  </IconButton>
+                </Tooltip>
+              )}
+              {!isMobile && (
+                <Tooltip
+                  title={
+                    props.article.isSaved ? 'Unsave article' : 'Save article'
+                  }
                 >
-                  {state.showParsed ? (
-                    <ChromeReaderModeIcon />
-                  ) : (
-                    <ChromeReaderModeOutlinedIcon />
-                  )}
-                </IconButton>
-              </Tooltip>
-              <Tooltip
-                title={
-                  props.article.isSaved ? 'Unsave article' : 'Save article'
-                }
-              >
-                <IconButton
-                  aria-label="save article"
-                  className="GoliathButton"
-                  size="small"
-                  onClick={props.onToggleSave}
-                >
-                  {props.article.isSaved ? <StarIcon /> : <StarBorderIcon />}
-                </IconButton>
-              </Tooltip>
-              {props.selectionType !== SelectionType.Saved && (
+                  <IconButton
+                    aria-label="save article"
+                    className="GoliathButton"
+                    size="small"
+                    onClick={props.onToggleSave}
+                  >
+                    {props.article.isSaved ? <StarIcon /> : <StarBorderIcon />}
+                  </IconButton>
+                </Tooltip>
+              )}
+              {!isMobile && props.selectionType !== SelectionType.Saved && (
                 <Tooltip
                   title={
                     props.article.isRead ? 'Mark as unread' : 'Mark as read'
@@ -280,6 +326,72 @@ const ArticleCard: React.FC<ArticleProps> = ({
           {renderContent()}
         </div>
       </Box>
+
+      {/* Mobile Bottom Navigation Bar */}
+      {isMobile && (
+        <Box className="GoliathMobileBottomBar">
+          <IconButton
+            aria-label="back to list"
+            onClick={onBack}
+            className="GoliathButton"
+            size="small"
+          >
+            <ArrowBackTwoToneIcon />
+          </IconButton>
+          <IconButton
+            aria-label="previous article"
+            onClick={onPrev}
+            disabled={!onPrev}
+            className="GoliathButton"
+            size="small"
+          >
+            <ExpandLessTwoToneIcon />
+          </IconButton>
+          <IconButton
+            aria-label="next article"
+            onClick={onNext}
+            disabled={!onNext}
+            className="GoliathButton"
+            size="small"
+          >
+            <ExpandMoreTwoToneIcon />
+          </IconButton>
+          <IconButton
+            aria-label="reader mode"
+            className={`GoliathButton${state.showParsed ? ' GoliathReaderModeActive' : ''}`}
+            size="small"
+            onClick={toggleParseContent}
+          >
+            {state.showParsed ? (
+              <ChromeReaderModeIcon />
+            ) : (
+              <ChromeReaderModeOutlinedIcon />
+            )}
+          </IconButton>
+          <IconButton
+            aria-label="save article"
+            className="GoliathButton"
+            size="small"
+            onClick={props.onToggleSave}
+          >
+            {props.article.isSaved ? <StarIcon /> : <StarBorderIcon />}
+          </IconButton>
+          {props.selectionType !== SelectionType.Saved && (
+            <IconButton
+              aria-label="mark as read"
+              onClick={() => props.onMarkArticleRead()}
+              className="GoliathButton"
+              size="small"
+            >
+              {props.article.isRead ? (
+                <CheckCircleOutlineIcon />
+              ) : (
+                <CheckCircleTwoToneIcon />
+              )}
+            </IconButton>
+          )}
+        </Box>
+      )}
     </Stack>
   );
 };

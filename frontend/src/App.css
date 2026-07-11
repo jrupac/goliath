@@ -691,6 +691,8 @@
 
 .GoliathSplitViewArticleListContainer .MuiGrid-root {
   height: fit-content;
+  width: 100%;
+  flex-grow: 1;
 }
 
 .GoliathArticleListColumn {
@@ -1176,4 +1178,121 @@
 .GoliathKeybindingLabel.MuiTypography-root {
   font-family: var(--primary-sans-serif-font), sans-serif;
   font-size: 14px;
+}
+
+/* Mobile/Phone layouts (< 600px or very short height) */
+@media (max-width: 599.95px), (max-height: 499.95px) {
+  .GoliathLoginPage {
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--primary-background-color);
+    padding: 24px;
+  }
+
+  .GoliathLoginPageLogo {
+    width: 100% !important;
+    justify-content: center !important;
+    padding-right: 0 !important;
+    font-size: 36px !important;
+    margin-bottom: 24px !important;
+    height: auto !important;
+    background-color: transparent !important;
+  }
+
+  .GoliathLoginPageSecondary {
+    width: 100% !important;
+    justify-content: center !important;
+    padding-left: 0 !important;
+    height: auto !important;
+  }
+
+  .GoliathDrawer {
+    width: clamp(250px, 80vw, 320px) !important;
+  }
+  .GoliathDrawer .MuiDrawer-paper {
+    width: clamp(250px, 80vw, 320px) !important;
+  }
+
+  .GoliathArticleListColumn {
+    width: 100vw !important;
+  }
+
+  .GoliathSplitViewArticleOuter {
+    width: 100vw !important;
+    border-left: none !important;
+  }
+
+  .GoliathSplitViewArticleListContainer.MuiContainer-root {
+    width: 100vw !important;
+    overflow-x: hidden;
+  }
+
+  .GoliathSplitViewArticleContainer {
+    padding-bottom: 64px !important;
+  }
+
+  /* Flush top bar for native look and scroll stability */
+  .GoliathArticleHeaderSticky {
+    position: sticky !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: 0 1px 3px var(--goliath-box-shadow-color) !important;
+    font-size: 16px !important;
+  }
+
+  .GoliathArticleOverlay {
+    display: none !important;
+  }
+
+  /* Compact text and padding for phone reading */
+  .GoliathSplitViewArticleContent {
+    padding: 16px !important;
+    font-size: 16px !important;
+  }
+
+  .GoliathArticleTitle {
+    font-size: 22px !important;
+    padding: 10px 12px !important;
+  }
+
+  .GoliathArticleByline {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+}
+
+/* Tablet layouts (600px to 1023.95px) */
+@media (min-width: 600px) and (min-height: 500px) and (max-width: 1023.95px) {
+  .GoliathDrawer {
+    width: 280px !important;
+  }
+  .GoliathDrawer .MuiDrawer-paper {
+    width: 280px !important;
+  }
+
+  .GoliathArticleListColumn {
+    width: 320px; /* Removed !important to allow dynamic inline width overrides on portrait mode */
+  }
+}
+
+.GoliathMobileBottomBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background-color: var(--primary-darker-2-color);
+  border-top: 1px solid var(--action-bar-border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 10;
+  padding: 0 16px;
+}
+
+.GoliathMobileBottomBar .MuiIconButton-root {
+  color: var(--primary-font-color);
 }

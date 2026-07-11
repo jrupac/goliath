@@ -64,6 +64,14 @@ describe('ArticleList', () => {
     handleMark: mockHandleMark,
     buildTimestamp: '',
     buildHash: '',
+    isMobile: false,
+    isTabletPortrait: false,
+    isTabletLandscape: false,
+    mobilePane: 'list',
+    tabletShowFeedList: true,
+    onMobileNavigate: vi.fn(),
+    onArticleSelect: vi.fn(),
+    openDrawer: vi.fn(),
     ...props,
   });
 
@@ -856,5 +864,133 @@ describe('ArticleList', () => {
     );
 
     vi.useRealTimers();
+  });
+
+  it('renders menu button on mobile or tablet portrait (when feed list is hidden) and triggers openDrawer when clicked', () => {
+    const mockOpenDrawer = vi.fn();
+    const mockOnMobileNavigate = vi.fn();
+
+    const { rerender } = render(
+      <ArticleList
+        {...getMockProps({
+          isMobile: true,
+          isTabletPortrait: false,
+          mobilePane: 'list',
+          onMobileNavigate: mockOnMobileNavigate,
+          openDrawer: mockOpenDrawer,
+        })}
+      />
+    );
+
+    const menuButton = screen.getByLabelText('open navigation menu');
+    expect(menuButton).toBeInTheDocument();
+    fireEvent.click(menuButton);
+    expect(mockOpenDrawer).toHaveBeenCalledTimes(1);
+
+    // Rerender as tablet portrait with feed list hidden, should render menu button
+    rerender(
+      <ArticleList
+        {...getMockProps({
+          isMobile: false,
+          isTabletPortrait: true,
+          tabletShowFeedList: false,
+          mobilePane: 'list',
+          onMobileNavigate: mockOnMobileNavigate,
+          openDrawer: mockOpenDrawer,
+        })}
+      />
+    );
+    expect(screen.getByLabelText('open navigation menu')).toBeInTheDocument();
+  });
+
+  it('applies display: none to columns on mobile based on mobilePane', () => {
+    const { container, rerender } = render(
+      <ArticleList
+        {...getMockProps({
+          isMobile: true,
+          isTabletPortrait: false,
+          mobilePane: 'list',
+          onMobileNavigate: vi.fn(),
+          openDrawer: vi.fn(),
+        })}
+      />
+    );
+
+    const listCol = container.querySelector('.GoliathArticleListColumn');
+    const cardCol = container.querySelector('.GoliathSplitViewArticleOuter');
+
+    expect(listCol).not.toHaveStyle('display: none');
+    expect(cardCol).toHaveStyle('display: none');
+
+    // Rerender with mobilePane = 'card'
+    rerender(
+      <ArticleList
+        {...getMockProps({
+          isMobile: true,
+          isTabletPortrait: false,
+          mobilePane: 'card',
+          onMobileNavigate: vi.fn(),
+          openDrawer: vi.fn(),
+        })}
+      />
+    );
+
+    expect(listCol).toHaveStyle('display: none');
+    expect(cardCol).not.toHaveStyle('display: none');
+  });
+
+  it('navigates to card view and calls onArticleSelect on article selection when in mobile mode', () => {
+    const mockOnMobileNavigate = vi.fn();
+    const mockOnArticleSelect = vi.fn();
+    const { container } = render(
+      <ArticleList
+        {...getMockProps({
+          isMobile: true,
+          isTabletPortrait: false,
+          mobilePane: 'list',
+          onMobileNavigate: mockOnMobileNavigate,
+          onArticleSelect: mockOnArticleSelect,
+          openDrawer: vi.fn(),
+        })}
+      />
+    );
+
+    const articleListBox = container.querySelector(
+      '.GoliathSplitViewArticleListBox'
+    ) as HTMLElement;
+    const entries = articleListBox.querySelectorAll('.GoliathArticleCard');
+    fireEvent.click(entries[1]);
+
+    expect(mockOnMobileNavigate).toHaveBeenCalledWith('card');
+    expect(mockOnMobileNavigate).toHaveBeenCalledTimes(1);
+    expect(mockOnArticleSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies display: none to Card column on tablet portrait based on tabletShowFeedList', () => {
+    const { container, rerender } = render(
+      <ArticleList
+        {...getMockProps({
+          isMobile: false,
+          isTabletPortrait: true,
+          tabletShowFeedList: true,
+        })}
+      />
+    );
+
+    const cardCol = container.querySelector('.GoliathSplitViewArticleOuter');
+    expect(cardCol).toHaveStyle('display: none');
+
+    // Rerender with tabletShowFeedList = false
+    rerender(
+      <ArticleList
+        {...getMockProps({
+          isMobile: false,
+          isTabletPortrait: true,
+          tabletShowFeedList: false,
+        })}
+      />
+    );
+
+    expect(cardCol).not.toHaveStyle('display: none');
   });
 });

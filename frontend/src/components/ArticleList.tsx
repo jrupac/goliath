@@ -32,6 +32,8 @@ import ArticleListEntry from './ArticleListEntry';
 import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
 import { keybindRegistry } from '../utils/keybindRegistry';
 import { DoneAllRounded } from '@mui/icons-material';
+import MenuTwoToneIcon from '@mui/icons-material/MenuTwoTone';
+import ArrowBackTwoToneIcon from '@mui/icons-material/ArrowBackTwoTone';
 
 import { ArticleId, ArticleView } from '../models/article';
 import { FolderId } from '../models/folder';
@@ -69,6 +71,14 @@ export interface ArticleListProps {
   showKeybindingsModal?: boolean;
   clearReadCallback?: (selectedArticleId: ArticleId | null) => void;
   selectSavedCallback?: () => void;
+  isMobile: boolean;
+  isTabletPortrait: boolean;
+  isTabletLandscape: boolean;
+  mobilePane: 'list' | 'card';
+  tabletShowFeedList: boolean;
+  onMobileNavigate: (pane: 'list' | 'card') => void;
+  onArticleSelect: () => void;
+  openDrawer: () => void;
 }
 
 const ArticleList: React.FC<ArticleListProps> = ({
@@ -88,6 +98,14 @@ const ArticleList: React.FC<ArticleListProps> = ({
   navigateToAdjacentEntry,
   showKeybindingsModal = false,
   clearReadCallback,
+  isMobile,
+  isTabletPortrait,
+  isTabletLandscape,
+  mobilePane,
+  tabletShowFeedList,
+  onMobileNavigate,
+  onArticleSelect,
+  openDrawer,
 }) => {
   const listRef = useRef<ReactListType | null>(null);
   const selectionKeyRef = useRef<SelectionKey>(selectionKey);
@@ -118,7 +136,11 @@ const ArticleList: React.FC<ArticleListProps> = ({
 
   const handleClickArticle = useCallback((articleId: ArticleId) => {
     setSelectedArticleId(articleId);
-  }, []);
+    if (isMobile) {
+      onMobileNavigate('card');
+    }
+    onArticleSelect();
+  }, [isMobile, onMobileNavigate, onArticleSelect]);
 
   const handleMarkAllRead = useCallback(() => {
     handleMark(MarkState.Read, selectionKey, selectionType);
@@ -479,9 +501,29 @@ const ArticleList: React.FC<ArticleListProps> = ({
         maxWidth={false}
         className="GoliathSplitViewArticleListContainer"
       >
-        <Grid container wrap="nowrap" size="grow">
-          <Stack className="GoliathArticleListColumn">
+        <Grid container wrap="nowrap" size="grow" sx={{ width: '100%', flexGrow: 1 }}>
+          <Stack
+            className="GoliathArticleListColumn"
+            style={{
+              width: isTabletPortrait && tabletShowFeedList ? '100%' : undefined,
+              flexGrow: isTabletPortrait && tabletShowFeedList ? 1 : undefined,
+            }}
+            sx={{
+              display: isMobile && mobilePane !== 'list' ? 'none' : 'flex',
+            }}
+          >
             <Box className="GoliathSplitViewArticleListActionBar">
+              {(isMobile || (isTabletPortrait && !tabletShowFeedList)) && (
+                <IconButton
+                  aria-label="open navigation menu"
+                  onClick={openDrawer}
+                  className="GoliathButton"
+                  size="small"
+                  sx={{ mr: 1 }}
+                >
+                  <MenuTwoToneIcon />
+                </IconButton>
+              )}
               {selectionType === SelectionType.Saved ? (
                 <Tooltip
                   title={
@@ -545,21 +587,38 @@ const ArticleList: React.FC<ArticleListProps> = ({
               />
             </Box>
           </Stack>
-          <Grid className="GoliathSplitViewArticleOuter" size="grow">
-            <ArticleCard
-              key={articleView.id}
-              fetchApi={fetchApi}
-              handleUpdateArticleParsed={handleUpdateArticleParsed}
-              article={articleView}
-              title={articleView.feedTitle}
-              favicon={faviconMap.get(articleView.feedId)}
-              feedId={articleView.feedId}
-              isSelected={true}
-              onMarkArticleRead={() => handleToggleArticleRead(articleView.id)}
-              onToggleSave={() => handleToggleArticleSave(articleView.id)}
-              selectionType={selectionType}
-              showKeybindingsModal={showKeybindingsModal}
-            />
+          <Grid
+            className="GoliathSplitViewArticleOuter"
+            size="grow"
+            sx={{
+              display:
+                isMobile && mobilePane !== 'card'
+                  ? 'none'
+                  : isTabletPortrait && tabletShowFeedList
+                  ? 'none'
+                  : 'block',
+            }}
+          >
+            <Box sx={{ height: '100%' }}>
+              <ArticleCard
+                key={articleView.id}
+                fetchApi={fetchApi}
+                handleUpdateArticleParsed={handleUpdateArticleParsed}
+                article={articleView}
+                title={articleView.feedTitle}
+                favicon={faviconMap.get(articleView.feedId)}
+                feedId={articleView.feedId}
+                isSelected={true}
+                onMarkArticleRead={() => handleToggleArticleRead(articleView.id)}
+                onToggleSave={() => handleToggleArticleSave(articleView.id)}
+                selectionType={selectionType}
+                showKeybindingsModal={showKeybindingsModal}
+                onBack={isMobile ? () => onMobileNavigate('list') : undefined}
+                onPrev={isMobile ? handleScrollUp : undefined}
+                onNext={isMobile ? () => handleScrollDown({ markRead: true }) : undefined}
+                isMobile={isMobile}
+              />
+            </Box>
           </Grid>
         </Grid>
       </Container>

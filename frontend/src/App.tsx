@@ -60,11 +60,18 @@ export interface AppState {
   loginVerified: boolean;
   hideEmpty: boolean;
   showKeybindingsModal: boolean;
+  isMobile: boolean;
+  isTabletPortrait: boolean;
+  isTabletLandscape: boolean;
+  mobilePane: 'list' | 'card';
+  tabletShowFeedList: boolean;
+  drawerOpen: boolean;
 }
 
 export default class App extends React.Component<AppProps, AppState> {
   private fetchApi: FetchAPI;
   private globalHandlers: Record<string, () => void>;
+  private resizeListener?: () => void;
 
   constructor(props: AppProps) {
     super(props);
@@ -80,6 +87,12 @@ export default class App extends React.Component<AppProps, AppState> {
       loginVerified: false,
       hideEmpty: true,
       showKeybindingsModal: false,
+      isMobile: typeof window !== 'undefined' ? (window.innerWidth < 600 || window.innerHeight < 500) : false,
+      isTabletPortrait: typeof window !== 'undefined' ? (window.innerWidth >= 600 && window.innerWidth < 900 && window.innerHeight >= 500) : false,
+      isTabletLandscape: typeof window !== 'undefined' ? (window.innerWidth >= 900 && window.innerWidth < 1200 && window.innerHeight >= 500) : false,
+      mobilePane: 'list',
+      tabletShowFeedList: true,
+      drawerOpen: false,
     };
     this.fetchApi = FetchAPIFactory.Create();
     this.globalHandlers = {
@@ -117,9 +130,24 @@ export default class App extends React.Component<AppProps, AppState> {
 
   componentWillUnmount() {
     keybindRegistry.unregister('global');
+    if (this.resizeListener) {
+      window.removeEventListener('resize', this.resizeListener);
+    }
   }
 
   componentDidMount() {
+    this.resizeListener = () => {
+      const isMobile = window.innerWidth < 600 || window.innerHeight < 500;
+      const isTabletPortrait = window.innerWidth >= 600 && window.innerWidth < 900 && window.innerHeight >= 500;
+      const isTabletLandscape = window.innerWidth >= 900 && window.innerWidth < 1200 && window.innerHeight >= 500;
+      this.setState({
+        isMobile,
+        isTabletPortrait,
+        isTabletLandscape,
+      });
+    };
+    window.addEventListener('resize', this.resizeListener);
+
     // This is defense-in-depth to redirect to the login page if the
     // appropriate cookie is not present. This check is also done on the
     // server side and returns an HTTP redirect.
@@ -283,9 +311,16 @@ export default class App extends React.Component<AppProps, AppState> {
   };
 
   handleSelect = (type: SelectionType, key: SelectionKey) => {
-    this.setState({
-      selectionKey: key,
-      selectionType: type,
+    this.setState((prevState) => {
+      const nextState: Partial<AppState> = {
+        selectionKey: key,
+        selectionType: type,
+        drawerOpen: false,
+      };
+      if (prevState.isMobile) {
+        nextState.mobilePane = 'list';
+      }
+      return nextState as AppState;
     });
   };
 
@@ -352,7 +387,23 @@ export default class App extends React.Component<AppProps, AppState> {
           sx={{ display: 'flex', overflow: 'hidden', height: '100vh' }}
           className={`${this.state.themeInfo.themeClasses}`}
         >
-          <Drawer variant="permanent" anchor="left" className="GoliathDrawer">
+          <Drawer
+            variant={this.state.isMobile ? 'temporary' : 'permanent'}
+            open={this.state.isMobile ? this.state.drawerOpen : undefined}
+            onClose={this.state.isMobile ? () => this.setState({ drawerOpen: false }) : undefined}
+            anchor="left"
+            className="GoliathDrawer"
+            sx={{
+              display:
+                this.state.isMobile
+                  ? 'flex'
+                  : this.state.isTabletPortrait
+                  ? this.state.tabletShowFeedList
+                    ? 'flex'
+                    : 'none'
+                  : 'flex',
+            }}
+          >
             <Box className="GoliathDrawerActionBar">
               <IconButton
                 aria-label="Account"
@@ -416,6 +467,24 @@ export default class App extends React.Component<AppProps, AppState> {
                   : undefined
               }
               showKeybindingsModal={this.state.showKeybindingsModal}
+              isMobile={this.state.isMobile}
+              isTabletPortrait={this.state.isTabletPortrait}
+              isTabletLandscape={this.state.isTabletLandscape}
+              mobilePane={this.state.mobilePane}
+              tabletShowFeedList={this.state.tabletShowFeedList}
+              onMobileNavigate={(pane: 'list' | 'card') => this.setState({ mobilePane: pane })}
+              onArticleSelect={() => {
+                if (this.state.isTabletPortrait) {
+                  this.setState({ tabletShowFeedList: false });
+                }
+              }}
+              openDrawer={() => {
+                if (this.state.isTabletPortrait) {
+                  this.setState({ tabletShowFeedList: true });
+                } else {
+                  this.setState({ drawerOpen: true });
+                }
+              }}
             />
           </Box>
         </Box>

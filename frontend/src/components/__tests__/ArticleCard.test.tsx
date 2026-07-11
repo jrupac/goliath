@@ -164,4 +164,39 @@ describe('ArticleCard', () => {
       '<p>Parsed readability content</p>'
     );
   });
+
+  it('renders the back button and calls onBack when clicked', () => {
+    const mockOnBack = vi.fn();
+    render(<ArticleCard {...makeProps({ onBack: mockOnBack })} />);
+
+    const backButton = screen.getByLabelText('back to list');
+    expect(backButton).toBeInTheDocument();
+    fireEvent.click(backButton);
+    expect(mockOnBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders previous and next buttons and calls callbacks when clicked', () => {
+    const mockOnPrev = vi.fn();
+    const mockOnNext = vi.fn();
+    render(
+      <ArticleCard
+        {...makeProps({
+          onPrev: mockOnPrev,
+          onNext: mockOnNext,
+        })}
+      />
+    );
+
+    const prevButton = screen.getByLabelText('previous article');
+    const nextButton = screen.getByLabelText('next article');
+
+    expect(prevButton).toBeInTheDocument();
+    expect(nextButton).toBeInTheDocument();
+
+    fireEvent.click(prevButton);
+    expect(mockOnPrev).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(nextButton);
+    expect(mockOnNext).toHaveBeenCalledTimes(1);
+  });
 });
