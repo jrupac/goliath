@@ -7,7 +7,7 @@ x-prometheus-base: &prometheus_template
   command:
     - "--config.file=/etc/prometheus/prometheus.yml"
     - "--storage.tsdb.path=/prometheus"
-    - "--storage.tsdb.retention.time=15d"
+    - "--storage.tsdb.retention.time=180d"
   volumes:
     - ./monitoring/prometheus:/etc/prometheus
     - prometheus_data:/prometheus

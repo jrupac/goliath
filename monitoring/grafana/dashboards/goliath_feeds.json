@@ -383,7 +383,7 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 8, "w": 8, "x": 17, "y": 26 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
       "id": 8,
       "title": "Reading Activity",
       "type": "row"
@@ -581,7 +581,7 @@
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 34 },
       "id": 11,
       "options": {
         "barRadius": 0,
@@ -680,7 +680,7 @@
           }
         ]
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 42 },
       "id": 14,
       "options": {
         "barRadius": 0,
@@ -731,7 +731,7 @@
     },
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 50 },
       "id": 15,
       "title": "Feed Errors",
       "type": "row"
@@ -771,7 +771,7 @@
         },
         "overrides": []
       },
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 43 },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 51 },
       "id": 3,
       "options": {
         "legend": {
@@ -832,7 +832,7 @@
           }
         ]
       },
-      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 52 },
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 60 },
       "id": 4,
       "options": {
         "cellHeight": "sm",

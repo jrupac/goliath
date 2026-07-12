@@ -74,6 +74,15 @@ func main() {
 
 	processOpml(d)
 
+	users, err := d.GetAllUsers()
+	if err != nil {
+		log.Warningf("Failed to query users to initialize metrics: %s", err)
+	} else {
+		for _, u := range users {
+			api.InitUserMetrics(u.Username)
+		}
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	installSignalHandler(cancel)
 

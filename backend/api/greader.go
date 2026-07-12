@@ -580,6 +580,8 @@ func (a GReader) withAuth(w http.ResponseWriter, r *http.Request, handler func(h
 		return
 	}
 
+	InitUserMetrics(user.Username)
+
 	handler(w, r, user)
 }
 
