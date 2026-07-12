@@ -75,7 +75,7 @@
 .GoliathLoginPageForm .MuiInputBase-input,
 .GoliathLoginPageForm .MuiInputLabel-root,
 .GoliathLoginPageForm .MuiFormHelperText-root {
-  font-family: var(--primary-sans-serif-font), sans-serif !important;
+  font-family: var(--primary-sans-serif-font), sans-serif;
 }
 
 .GoliathLoginFormButton,
@@ -1205,35 +1205,35 @@
 /* Mobile/Phone layouts (< 600px or very short height) */
 @media (max-width: 599.95px), (max-height: 499.95px) {
   .GoliathLoginPage {
-    flex-direction: column !important;
-    justify-content: flex-start !important;
-    align-items: stretch !important;
-    background-color: var(--primary-darker-4-color) !important;
-    padding: 0 !important;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    background-color: var(--primary-darker-4-color);
+    padding: 0;
   }
 
   .GoliathLoginPageLogo {
-    width: 100% !important;
-    height: 40vh !important;
-    min-height: 180px !important;
-    justify-content: center !important;
-    align-items: center !important;
-    padding-right: 0 !important;
-    margin-bottom: 0 !important;
-    font-size: 48px !important;
-    background-color: var(--primary-background-color) !important;
-    color: var(--goliath-login-page-logo-color) !important;
-    box-sizing: border-box !important;
+    width: 100%;
+    height: 40vh;
+    min-height: 180px;
+    justify-content: center;
+    align-items: center;
+    padding-right: 0;
+    margin-bottom: 0;
+    font-size: 48px;
+    background-color: var(--primary-background-color);
+    color: var(--goliath-login-page-logo-color);
+    box-sizing: border-box;
   }
 
   .GoliathLoginPageSecondary {
-    width: 100% !important;
-    height: 60vh !important;
-    justify-content: center !important;
-    align-items: flex-start !important;
-    padding: 40px 24px !important;
-    background-color: var(--primary-darker-4-color) !important;
-    box-sizing: border-box !important;
+    width: 100%;
+    height: 60vh;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 24px;
+    background-color: var(--primary-darker-4-color);
+    box-sizing: border-box;
   }
 
   .GoliathDrawer {
@@ -1244,21 +1244,21 @@
   }
 
   .GoliathArticleListColumn {
-    width: 100vw !important;
+    width: 100vw;
   }
 
   .GoliathSplitViewArticleOuter {
-    width: 100vw !important;
-    border-left: none !important;
+    width: 100vw;
+    border-left: none;
   }
 
   .GoliathSplitViewArticleListContainer.MuiContainer-root {
-    width: 100vw !important;
+    width: 100vw;
     overflow-x: hidden;
   }
 
   .GoliathSplitViewArticleContainer {
-    padding-bottom: 64px !important;
+    padding-bottom: 64px;
   }
 
   /* Flush top bar for native look and scroll stability */
@@ -1278,35 +1278,35 @@
 
   /* Compact text and padding for phone reading */
   .GoliathSplitViewArticleContent {
-    padding: 16px !important;
-    font-size: 16px !important;
+    padding: 16px;
+    font-size: 16px;
   }
 
   .GoliathArticleTitle {
-    font-size: 22px !important;
-    padding: 10px 12px !important;
+    font-size: 22px;
+    padding: 10px 12px;
   }
 
   .GoliathArticleByline {
-    height: 56px !important;
-    font-size: 15px !important;
-    padding: 0 16px !important;
-    box-sizing: border-box !important;
+    height: 56px;
+    font-size: 15px;
+    padding: 0 16px;
+    box-sizing: border-box;
   }
 
   .GoliathSplitViewArticleListActionBar {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    gap: 12px !important;
-    padding: 10px 16px !important;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 10px 16px;
   }
 
   .GoliathLogo {
-    font-size: 36px !important;
-    padding-top: 16px !important;
-    padding-bottom: 16px !important;
-    line-height: 1.2 !important;
+    font-size: 36px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    line-height: 1.2;
   }
 }
 
