@@ -136,13 +136,13 @@
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "rate(feed_fetch_attempts_total{username=\"$username\", feed_title=~\"$feed_title\"}[5m])",
+          "expr": "increase(feed_fetch_attempts_total{username=\"$username\", feed_title=~\"$feed_title\"}[1h])",
           "legendFormat": "{{feed_title}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Feed Poll Rate",
+      "title": "Feed Polls (1h window)",
       "type": "timeseries"
     },
     {
@@ -254,13 +254,13 @@
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "rate(feed_fetch_stats_total{username=\"$username\", feed_title=~\"$feed_title\", stat=\"too_old\"}[5m])",
+          "expr": "increase(feed_fetch_stats_total{username=\"$username\", feed_title=~\"$feed_title\", stat=\"too_old\"}[1h])",
           "legendFormat": "{{feed_title}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Articles Filtered — too_old",
+      "title": "Articles Filtered — too_old (1h window)",
       "type": "timeseries"
     },
     {
@@ -313,13 +313,13 @@
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "rate(feed_fetch_stats_total{username=\"$username\", feed_title=~\"$feed_title\", stat=\"muted\"}[5m])",
+          "expr": "increase(feed_fetch_stats_total{username=\"$username\", feed_title=~\"$feed_title\", stat=\"muted\"}[1h])",
           "legendFormat": "{{feed_title}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Articles Filtered — muted",
+      "title": "Articles Filtered — muted (1h window)",
       "type": "timeseries"
     },
     {
@@ -372,13 +372,13 @@
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "rate(feed_fetch_stats_total{username=\"$username\", feed_title=~\"$feed_title\", stat=\"retrieval_cache_hit\"}[5m])",
+          "expr": "increase(feed_fetch_stats_total{username=\"$username\", feed_title=~\"$feed_title\", stat=\"retrieval_cache_hit\"}[1h])",
           "legendFormat": "{{feed_title}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Articles Filtered — retrieval_cache_hit",
+      "title": "Articles Filtered — retrieval_cache_hit (1h window)",
       "type": "timeseries"
     },
     {
@@ -928,7 +928,7 @@
   },
   "time": { "from": "now-7d", "to": "now" },
   "timepicker": {},
-  "timezone": "",
+  "timezone": "America/New_York",
   "title": "Goliath Feed Fetching Dashboard",
   "uid": "goliath-feed-fetching-dashboard",
   "version": 8,

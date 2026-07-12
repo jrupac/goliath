@@ -4,26 +4,10 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
-
-// activityLabelsForTime returns the hour_of_day (zero-padded "00"–"23")
-// and day_of_week ("1-Mon" through "7-Sun", ISO order) for a specific time.
-func activityLabelsForTime(t time.Time) (hourOfDay, dayOfWeek string) {
-	wd := t.Weekday()
-	isoDay := int(wd)
-	if isoDay == 0 {
-		isoDay = 7
-	}
-	return fmt.Sprintf("%02d", t.Hour()), fmt.Sprintf("%d-%s", isoDay, wd.String()[:3])
-}
-
-// readActivityLabels returns the current hour_of_day (zero-padded "00"–"23")
-// and day_of_week ("1-Mon" through "7-Sun", ISO order) for use as metric labels.
-func readActivityLabels() (hourOfDay, dayOfWeek string) {
-	return activityLabelsForTime(time.Now())
-}
 
 var (
 	articlesMarkedReadMetric = prometheus.NewCounterVec(
@@ -42,7 +26,27 @@ var (
 	)
 
 	initializedUsers sync.Map
+	easternLocation  *time.Location
 )
+
+// activityLabelsForTime returns the hour_of_day (zero-padded "00"–"23")
+// and day_of_week ("1-Mon" through "7-Sun", ISO order) for a specific time,
+// converted to America/New_York timezone.
+func activityLabelsForTime(t time.Time) (hourOfDay, dayOfWeek string) {
+	t = t.In(easternLocation)
+	wd := t.Weekday()
+	isoDay := int(wd)
+	if isoDay == 0 {
+		isoDay = 7
+	}
+	return fmt.Sprintf("%02d", t.Hour()), fmt.Sprintf("%d-%s", isoDay, wd.String()[:3])
+}
+
+// readActivityLabels returns the current hour_of_day (zero-padded "00"–"23")
+// and day_of_week ("1-Mon" through "7-Sun", ISO order) for use as metric labels.
+func readActivityLabels() (hourOfDay, dayOfWeek string) {
+	return activityLabelsForTime(time.Now())
+}
 
 // InitUserMetrics pre-initializes the read activity metrics for a given user
 // with 0 values for all possible combinations of scope, hour, and day.
@@ -70,6 +74,13 @@ func InitUserMetrics(username string) {
 }
 
 func init() {
+	var err error
+	easternLocation, err = time.LoadLocation("America/New_York")
+	if err != nil {
+		// Fallback to static EST (-5) if America/New_York fails to load
+		easternLocation = time.FixedZone("EST", -5*60*60)
+	}
+
 	prometheus.MustRegister(articlesMarkedReadMetric)
 	prometheus.MustRegister(articlesSavedMetric)
 }

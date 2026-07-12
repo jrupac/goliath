@@ -639,7 +639,7 @@
     "to": "now"
   },
   "timepicker": {},
-  "timezone": "",
+  "timezone": "America/New_York",
   "title": "Goliath Application Dashboard",
   "uid": "goliath-app-dashboard",
   "version": 1,
