@@ -61,6 +61,21 @@ const ArticleCard: React.FC<ArticleProps> = ({
   const { fetchApi, handleUpdateArticleParsed, article, onBack, onPrev, onNext, isMobile, showMobileLayout } = props;
   const useMobileLayout = showMobileLayout ?? isMobile;
 
+  const titleBarRef = useRef<HTMLDivElement | null>(null);
+  const [titleBarHeight, setTitleBarHeight] = useState(120);
+
+  useEffect(() => {
+    if (!titleBarRef.current) return;
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setTitleBarHeight(entry.target.clientHeight);
+      }
+    });
+    observer.observe(titleBarRef.current);
+    return () => observer.disconnect();
+  }, [article.id]);
+
   const [state, setState] = useState<ArticleState>({
     showParsed: false,
     loading: false,
@@ -197,131 +212,141 @@ const ArticleCard: React.FC<ArticleProps> = ({
 
   return (
     <Stack className="GoliathArticleCardColumn">
+      <style>{`
+        .GoliathSplitViewArticleContainer::-webkit-scrollbar-track {
+          margin-top: ${titleBarHeight}px !important;
+        }
+        .GoliathArticleTitleBarSpacer {
+          height: ${titleBarHeight}px !important;
+          flex-shrink: 0;
+        }
+      `}</style>
+
+      {/* Topmost bar (feed name, date, buttons) */}
+      <Box className="GoliathArticleByline">
+        <Box className="GoliathArticleBylineInfo">
+          {!useMobileLayout && onBack && (
+            <IconButton
+              aria-label="back to list"
+              onClick={onBack}
+              className="GoliathButton"
+              size="small"
+              sx={{ mr: 1 }}
+            >
+              <ArrowBackTwoToneIcon />
+            </IconButton>
+          )}
+          <FeedIcon
+            favicon={faviconSrc}
+            feedTitle={feedTitle}
+            feedId={props.feedId}
+            size={16}
+          />
+          <span className="GoliathArticleBylineText">{feedTitle}</span>
+          <span className="GoliathArticleBylineSep">·</span>
+          <Tooltip title={formatFull(date)}>
+            <span className="GoliathArticleBylineDate">
+              {formatFriendly(date)}
+            </span>
+          </Tooltip>
+        </Box>
+        <Box className="GoliathArticleBylineActions">
+          {!useMobileLayout && onPrev && (
+            <Tooltip title="Scroll up / Previous article">
+              <IconButton
+                aria-label="previous article"
+                onClick={onPrev}
+                className="GoliathButton"
+                size="small"
+              >
+                <ExpandLessTwoToneIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+          {!useMobileLayout && onNext && (
+            <Tooltip title="Scroll down / Next article">
+              <IconButton
+                aria-label="next article"
+                onClick={onNext}
+                className="GoliathButton"
+                size="small"
+              >
+                <ExpandMoreTwoToneIcon />
+              </IconButton>
+            </Tooltip>
+          )}
+          {!useMobileLayout && (
+            <Tooltip title="Reader mode (m)">
+              <IconButton
+                aria-label="reader mode"
+                className={`GoliathButton${state.showParsed ? ' GoliathReaderModeActive' : ''}`}
+                size="small"
+                onClick={toggleParseContent}
+              >
+                {state.showParsed ? (
+                  <ChromeReaderModeIcon />
+                ) : (
+                  <ChromeReaderModeOutlinedIcon />
+                )}
+              </IconButton>
+            </Tooltip>
+          )}
+          {!useMobileLayout && (
+            <Tooltip
+              title={
+                props.article.isSaved ? 'Unsave article' : 'Save article'
+              }
+            >
+              <IconButton
+                aria-label="save article"
+                className="GoliathButton"
+                size="small"
+                onClick={props.onToggleSave}
+              >
+                {props.article.isSaved ? <StarIcon /> : <StarBorderIcon />}
+              </IconButton>
+            </Tooltip>
+          )}
+          {!useMobileLayout && props.selectionType !== SelectionType.Saved && (
+            <Tooltip
+              title={
+                props.article.isRead ? 'Mark as unread' : 'Mark as read'
+              }
+            >
+              <IconButton
+                aria-label="mark as read"
+                onClick={() => props.onMarkArticleRead()}
+                className="GoliathButton"
+                size="small"
+              >
+                {props.article.isRead ? (
+                  <CheckCircleOutlineIcon />
+                ) : (
+                  <CheckCircleTwoToneIcon />
+                )}
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+      </Box>
+
+      {/* Article title bar (fixed directly below byline) */}
+      <Box className="GoliathArticleTitleBar" ref={titleBarRef}>
+        <h1 className="GoliathArticleTitle">
+          <a
+            target="_blank"
+            rel="noopener noreferrer"
+            href={props.article.url}
+          >
+            <span dangerouslySetInnerHTML={{ __html: props.article.title }} />
+          </a>
+        </h1>
+      </Box>
+
       {/* Article scroll area */}
       <Box className="GoliathSplitViewArticleContainer">
-        {/* Overlay in the gap between top and sticky header */}
-        <Box className="GoliathArticleOverlay" />
-        {/* Sticky header: byline + title with blur backdrop */}
-        <Box className="GoliathArticleHeaderSticky">
-          {/* Byline row */}
-          <Box className="GoliathArticleByline">
-            <Box className="GoliathArticleBylineInfo">
-              {!useMobileLayout && onBack && (
-                <IconButton
-                  aria-label="back to list"
-                  onClick={onBack}
-                  className="GoliathButton"
-                  size="small"
-                  sx={{ mr: 1 }}
-                >
-                  <ArrowBackTwoToneIcon />
-                </IconButton>
-              )}
-              <FeedIcon
-                favicon={faviconSrc}
-                feedTitle={feedTitle}
-                feedId={props.feedId}
-                size={16}
-              />
-              <span className="GoliathArticleBylineText">{feedTitle}</span>
-              <span className="GoliathArticleBylineSep">·</span>
-              <Tooltip title={formatFull(date)}>
-                <span className="GoliathArticleBylineDate">
-                  {formatFriendly(date)}
-                </span>
-              </Tooltip>
-            </Box>
-            <Box className="GoliathArticleBylineActions">
-              {!useMobileLayout && onPrev && (
-                <Tooltip title="Scroll up / Previous article">
-                  <IconButton
-                    aria-label="previous article"
-                    onClick={onPrev}
-                    className="GoliathButton"
-                    size="small"
-                  >
-                    <ExpandLessTwoToneIcon />
-                  </IconButton>
-                </Tooltip>
-              )}
-              {!useMobileLayout && onNext && (
-                <Tooltip title="Scroll down / Next article">
-                  <IconButton
-                    aria-label="next article"
-                    onClick={onNext}
-                    className="GoliathButton"
-                    size="small"
-                  >
-                    <ExpandMoreTwoToneIcon />
-                  </IconButton>
-                </Tooltip>
-              )}
-              {!useMobileLayout && (
-                <Tooltip title="Reader mode (m)">
-                  <IconButton
-                    aria-label="reader mode"
-                    className={`GoliathButton${state.showParsed ? ' GoliathReaderModeActive' : ''}`}
-                    size="small"
-                    onClick={toggleParseContent}
-                  >
-                    {state.showParsed ? (
-                      <ChromeReaderModeIcon />
-                    ) : (
-                      <ChromeReaderModeOutlinedIcon />
-                    )}
-                  </IconButton>
-                </Tooltip>
-              )}
-              {!useMobileLayout && (
-                <Tooltip
-                  title={
-                    props.article.isSaved ? 'Unsave article' : 'Save article'
-                  }
-                >
-                  <IconButton
-                    aria-label="save article"
-                    className="GoliathButton"
-                    size="small"
-                    onClick={props.onToggleSave}
-                  >
-                    {props.article.isSaved ? <StarIcon /> : <StarBorderIcon />}
-                  </IconButton>
-                </Tooltip>
-              )}
-              {!useMobileLayout && props.selectionType !== SelectionType.Saved && (
-                <Tooltip
-                  title={
-                    props.article.isRead ? 'Mark as unread' : 'Mark as read'
-                  }
-                >
-                  <IconButton
-                    aria-label="mark as read"
-                    onClick={() => props.onMarkArticleRead()}
-                    className="GoliathButton"
-                    size="small"
-                  >
-                    {props.article.isRead ? (
-                      <CheckCircleOutlineIcon />
-                    ) : (
-                      <CheckCircleTwoToneIcon />
-                    )}
-                  </IconButton>
-                </Tooltip>
-              )}
-            </Box>
-          </Box>
-
-          {/* Article title */}
-          <h1 className="GoliathArticleTitle">
-            <a
-              target="_blank"
-              rel="noopener noreferrer"
-              href={props.article.url}
-            >
-              <span dangerouslySetInnerHTML={{ __html: props.article.title }} />
-            </a>
-          </h1>
-        </Box>
+        {/* Spacer inside the scroll container to push content below the title bar */}
+        <Box className="GoliathArticleTitleBarSpacer" />
 
         {/* Article content */}
         <div className="GoliathSplitViewArticleContent GoliathArticleContentStyling">

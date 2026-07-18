@@ -199,4 +199,25 @@ describe('ArticleCard', () => {
     fireEvent.click(nextButton);
     expect(mockOnNext).toHaveBeenCalledTimes(1);
   });
+
+  it('renders the title inside the title bar and the byline bar at the root level', () => {
+    const props = makeProps();
+    const { container } = render(<ArticleCard {...props} />);
+
+    // Check for byline bar and title bar outside the container (direct children of GoliathArticleCardColumn stack)
+    const cardColumn = container.firstChild;
+    expect(cardColumn).toHaveClass('GoliathArticleCardColumn');
+
+    const byline = cardColumn?.childNodes[1];
+    expect(byline).toHaveClass('GoliathArticleByline');
+
+    const titleBar = cardColumn?.childNodes[2];
+    expect(titleBar).toHaveClass('GoliathArticleTitleBar');
+
+    const containerEl = cardColumn?.childNodes[3];
+    expect(containerEl).toHaveClass('GoliathSplitViewArticleContainer');
+
+    const title = titleBar?.childNodes[0];
+    expect(title).toHaveClass('GoliathArticleTitle');
+  });
 });

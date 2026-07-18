@@ -132,6 +132,8 @@
   border-bottom: 1px solid var(--action-bar-border-color);
   position: relative;
   z-index: 1;
+  height: 50px;
+  box-sizing: border-box;
 }
 
 .GoliathLogo {
@@ -694,6 +696,8 @@
   gap: 10px;
   padding: 10px;
   border-bottom: 1px solid var(--action-bar-border-color);
+  height: 50px;
+  box-sizing: border-box;
 }
 
 .GoliathArticleListBox.MuiBox-root {
@@ -755,6 +759,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
 /* Scroll container — fills full viewport height */
@@ -765,19 +770,22 @@
   overflow-x: hidden;
   background: var(--article-background-color);
   color: var(--article-font-color);
-  /* Reserve scrollbar gutter so layout doesn't shift when content overflows */
-  scrollbar-gutter: stable;
   /* Thin scrollbar for Firefox */
   scrollbar-width: thin;
+  position: relative;
+  z-index: 1;
+  clip-path: inset(-200px 0px 0px 0px); /* Allow content to scroll behind the title bar */
 }
 
 /* Thin scrollbar for Chromium browsers */
 .GoliathSplitViewArticleContainer::-webkit-scrollbar {
   width: 6px;
+  background: transparent;
 }
 
 .GoliathSplitViewArticleContainer::-webkit-scrollbar-track {
   background: transparent;
+  margin-top: var(--title-bar-height, 120px); /* Restrict scrollbar track to start below the title bar */
 }
 
 .GoliathSplitViewArticleContainer::-webkit-scrollbar-thumb {
@@ -802,43 +810,22 @@
   color: var(--accent-color) !important;
 }
 
-/* Sticky header wrapper — byline + title with blur backdrop */
-/* Floating sticky header — card-style */
-.GoliathArticleHeaderSticky {
-  /* Set position at the top and give 24px margin all around. */
-  position: sticky;
-  top: 24px;
-  width: min(80ch, calc(100% - (2 * 24px)));
-  z-index: 2;
-  /* Set font info for consistent ch calculation with the body content */
-  font-size: 18px;
-  font-family: var(--primary-sans-serif-font), serif;
-  margin: 0 auto;
-  margin-top: 0;
-  padding: 0; /* Let children touch edges to control backgrounds */
-  background: var(--card-header-background-color);
-  backdrop-filter: blur(10px);
-  border-radius: 4px;
-  box-shadow: 0 2px 8px var(--goliath-box-shadow-color);
-  overflow: hidden; /* Clip rounded corners for solid byline row */
-}
-
-/* Overlay — sticky so it stays pinned in the gap above sticky header */
-.GoliathArticleOverlay {
-  position: sticky;
-  top: 0;
+/* Sticky header wrapper — title with blur backdrop */
+.GoliathArticleTitleBar {
+  position: absolute;
+  top: 50px; /* Directly below the 50px height byline bar */
   left: 0;
   right: 0;
-  height: 144px; /* 24px space above header + 120px fade region */
-  margin-bottom: -120px; /* Offset the extra height to prevent pushing content/header down */
-  background: linear-gradient(
-    to bottom,
-    var(--article-background-color) 0px,
-    var(--article-background-color) 24px,
-    transparent 144px
-  );
-  pointer-events: none;
-  z-index: 1; /* Render behind the sticky header (z-index: 2) but above content */
+  z-index: 3; /* Render on top of the scroll container and scrollbar */
+  width: 100%;
+  background: var(--card-header-background-color);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-color);
+  box-sizing: border-box;
+}
+
+.GoliathArticleTitleBarSpacer {
+  flex-shrink: 0;
 }
 
 /* Byline row — display flex with opaque background */
@@ -847,7 +834,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 8px 16px;
+  padding: 10px 16px;
   font-size: 14px;
   color: var(--primary-font-darker-1-color);
   font-family: var(--primary-sans-serif-font), sans-serif;
@@ -858,6 +845,10 @@
     var(--accent-color) 15%
   ); /* Opaque background matching selected, unread card background */
   border-bottom: 1px solid var(--border-color); /* Distinct separator */
+  box-sizing: border-box;
+  height: 50px;
+  position: relative;
+  z-index: 4; /* Render on top of the title bar and any content */
 }
 
 .GoliathArticleBylineInfo {
@@ -923,7 +914,7 @@
   font-family: var(--primary-sans-serif-font), serif;
   font-size: 30px;
   font-weight: normal;
-  padding: 14px 16px 16px;
+  padding: 14px 24px 16px;
   margin: 0;
 }
 
@@ -1261,37 +1252,17 @@
     padding-bottom: 64px;
   }
 
-  /* Flush top bar for native look and scroll stability */
-  .GoliathArticleHeaderSticky {
-    position: sticky !important;
-    top: 0 !important;
-    width: 100% !important;
-    margin: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: 0 1px 3px var(--goliath-box-shadow-color) !important;
-    font-size: 16px !important;
-  }
-
-  .GoliathArticleOverlay {
-    display: none !important;
-  }
-
   /* Compact text and padding for phone reading */
   .GoliathSplitViewArticleContent {
     padding: 16px;
     font-size: 16px;
   }
 
+
+
   .GoliathArticleTitle {
     font-size: 22px;
-    padding: 10px 12px;
-  }
-
-  .GoliathArticleByline {
-    height: 56px;
-    font-size: 15px;
-    padding: 0 16px;
-    box-sizing: border-box;
+    padding: 10px 16px;
   }
 
   .GoliathSplitViewArticleListActionBar {
