@@ -204,7 +204,8 @@ describe('ArticleCard', () => {
     const props = makeProps();
     const { container } = render(<ArticleCard {...props} />);
 
-    // Check for byline bar and title bar outside the container (direct children of GoliathArticleCardColumn stack)
+    // Check for byline bar and title bar outside the container
+    // (direct children of GoliathArticleCardColumn stack)
     const cardColumn = container.firstChild;
     expect(cardColumn).toHaveClass('GoliathArticleCardColumn');
 
@@ -217,7 +218,10 @@ describe('ArticleCard', () => {
     const containerEl = cardColumn?.childNodes[3];
     expect(containerEl).toHaveClass('GoliathSplitViewArticleContainer');
 
-    const title = titleBar?.childNodes[0];
+    const titleBarOccluder = titleBar?.childNodes[0];
+    expect(titleBarOccluder).toHaveClass('GoliathArticleTitleBarOccluder');
+
+    const title = titleBar?.childNodes[1];
     expect(title).toHaveClass('GoliathArticleTitle');
   });
 });

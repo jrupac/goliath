@@ -103,6 +103,14 @@
     var(--primary-background-color) 60%,
     transparent
   );
+  /* Opaque equivalent of --card-header-background-color composited over the
+     article background. Used for gradient edge strips that fade from solid
+     to translucent. */
+  --card-header-background-color-solid: color-mix(
+    in srgb,
+    var(--primary-background-color) 60%,
+    var(--article-background-color) 40%
+  );
 
   --article-header-unread-font-color: var(--primary-font-lighter-1-color);
   --article-header-read-font-color: var(--primary-font-darker-2-color);

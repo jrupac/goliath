@@ -58,7 +58,16 @@ const ArticleCard: React.FC<ArticleProps> = ({
   showKeybindingsModal = false,
   ...props
 }: ArticleProps) => {
-  const { fetchApi, handleUpdateArticleParsed, article, onBack, onPrev, onNext, isMobile, showMobileLayout } = props;
+  const {
+    fetchApi,
+    handleUpdateArticleParsed,
+    article,
+    onBack,
+    onPrev,
+    onNext,
+    isMobile,
+    showMobileLayout,
+  } = props;
   const useMobileLayout = showMobileLayout ?? isMobile;
 
   const titleBarRef = useRef<HTMLDivElement | null>(null);
@@ -293,9 +302,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
           )}
           {!useMobileLayout && (
             <Tooltip
-              title={
-                props.article.isSaved ? 'Unsave article' : 'Save article'
-              }
+              title={props.article.isSaved ? 'Unsave article' : 'Save article'}
             >
               <IconButton
                 aria-label="save article"
@@ -309,9 +316,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
           )}
           {!useMobileLayout && props.selectionType !== SelectionType.Saved && (
             <Tooltip
-              title={
-                props.article.isRead ? 'Mark as unread' : 'Mark as read'
-              }
+              title={props.article.isRead ? 'Mark as unread' : 'Mark as read'}
             >
               <IconButton
                 aria-label="mark as read"
@@ -330,14 +335,12 @@ const ArticleCard: React.FC<ArticleProps> = ({
         </Box>
       </Box>
 
-      {/* Article title bar (fixed directly below byline) */}
+      {/* Article title bar (fixed directly below byline)
+          Frosted glass with a solid-edge occluder behind the text — see App.css */}
       <Box className="GoliathArticleTitleBar" ref={titleBarRef}>
+        <Box className="GoliathArticleTitleBarOccluder" />
         <h1 className="GoliathArticleTitle">
-          <a
-            target="_blank"
-            rel="noopener noreferrer"
-            href={props.article.url}
-          >
+          <a target="_blank" rel="noopener noreferrer" href={props.article.url}>
             <span dangerouslySetInnerHTML={{ __html: props.article.title }} />
           </a>
         </h1>
