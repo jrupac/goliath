@@ -25,6 +25,7 @@ import { FetchAPI } from '../api/interface';
 import ArrowBackTwoToneIcon from '@mui/icons-material/ArrowBackTwoTone';
 import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
 import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
+import { useOverlayScrollbar } from '../utils/useOverlayScrollbar';
 
 export interface ArticleProps {
   fetchApi: FetchAPI;
@@ -88,15 +89,30 @@ const ArticleCard: React.FC<ArticleProps> = ({
     setState({ showParsed: false, loading: false });
   }
 
+  // The scrollbar is drawn as an overlay rather than natively, so that the
+  // title bar can span the full width of the card — see useOverlayScrollbar.
+  const contentScrollRef = useRef<HTMLDivElement | null>(null);
+  const articleContentRef = useRef<HTMLDivElement | null>(null);
+  const {
+    railRef,
+    thumbRef,
+    sync: syncScrollbar,
+    onRailPointerDown,
+    onThumbPointerDown,
+  } = useOverlayScrollbar(contentScrollRef, articleContentRef);
+
   // Likewise, the scroll container is reused across articles, so a new article
   // would otherwise open at the previous one's scroll offset. Reset before
   // paint so the jump is never visible.
-  const contentScrollRef = useRef<HTMLDivElement | null>(null);
   useLayoutEffect(() => {
     if (contentScrollRef.current) {
       contentScrollRef.current.scrollTop = 0;
     }
-  }, [article.id]);
+    // In the same layout pass as the reset, not in a scroll handler: the
+    // scroll event this fires is delivered asynchronously, which would leave
+    // the thumb painted at the previous article's offset for a frame.
+    syncScrollbar();
+  }, [article.id, syncScrollbar]);
 
   const toggleParseContent = useCallback(() => {
     setState((prevState) => {
@@ -354,9 +370,29 @@ const ArticleCard: React.FC<ArticleProps> = ({
         </Box>
 
         {/* Article content */}
-        <div className="GoliathSplitViewArticleContent GoliathArticleContentStyling">
+        <div
+          ref={articleContentRef}
+          className="GoliathSplitViewArticleContent GoliathArticleContentStyling"
+        >
           {renderContent()}
         </div>
+      </Box>
+
+      {/* Scrollbar for the container above, drawn over the title bar rather
+          than under it. Hidden until the first sync finds something to
+          scroll. */}
+      <Box
+        className="GoliathArticleScrollbar"
+        ref={railRef}
+        onPointerDown={onRailPointerDown}
+        aria-hidden="true"
+        hidden
+      >
+        <Box
+          className="GoliathArticleScrollbarThumb"
+          ref={thumbRef}
+          onPointerDown={onThumbPointerDown}
+        />
       </Box>
 
       {/* Mobile Bottom Navigation Bar */}

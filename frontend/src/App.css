@@ -755,6 +755,11 @@
  ******************************************************************************/
 
 .GoliathArticleCardColumn {
+  /* Width of the scrollbar rail. Unlike a native scrollbar's gutter this is
+     ours to choose, and it is reserved whether or not the article scrolls, so
+     nothing shifts when moving between a short article and a long one. */
+  --scrollbar-rail-width: 10px;
+  --byline-height: 50px;
   height: 100vh;
   display: flex;
   flex-direction: column;
@@ -765,51 +770,25 @@
 /* Scroll container — fills the card below the byline.
 
    The title bar is a sticky child of this element rather than an overlay on
-   top of it. That puts the header inside the container's content box, which
-   excludes the scrollbar gutter, so article content scrolls under the frosted
-   header and is blurred by it while the scrollbar stays outside the blur. */
+   top of it, so article content scrolls under the frosted header and is
+   blurred by it. The native scrollbar is hidden and redrawn by
+   .GoliathArticleScrollbar; the space it would have taken is reserved here as
+   padding instead, which the title bar then bleeds back over. */
 .GoliathSplitViewArticleContainer {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  padding-right: var(--scrollbar-rail-width);
   background: var(--article-background-color);
   color: var(--article-font-color);
-  scrollbar-width: thin;
-  /* Reserve the scrollbar gutter whether or not the article scrolls, so the
-     title bar and text keep the same width — and so do not shift by the
-     gutter width — when moving between a short article and a long one. The
-     gutter is as wide as `scrollbar-width: thin` makes it, which is not
-     directly settable, so reserving it is the only way to keep it constant. */
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
   position: relative;
 }
 
-/* Thin scrollbar for Chromium browsers */
+/* Hide the native scrollbar on older WebKit, which predates scrollbar-width */
 .GoliathSplitViewArticleContainer::-webkit-scrollbar {
-  width: 6px;
-  background: transparent;
-}
-
-.GoliathSplitViewArticleContainer::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.GoliathSplitViewArticleContainer::-webkit-scrollbar-thumb {
-  background-color: color-mix(
-    in srgb,
-    var(--primary-font-color) 30%,
-    transparent
-  );
-  border-radius: 3px;
-}
-
-.GoliathSplitViewArticleContainer::-webkit-scrollbar-thumb:hover {
-  background-color: color-mix(
-    in srgb,
-    var(--primary-font-color) 50%,
-    transparent
-  );
+  display: none;
 }
 
 /* Reader mode button — accent color when active */
@@ -820,20 +799,70 @@
 /* Sticky header — frosted glass over the scrolling article.
 
    As the first child of the scroll container it is laid out in that
-   container's content box, so it spans exactly the width the article text
-   occupies and never reaches over the scrollbar gutter: content passing
-   underneath is blurred, the scrollbar is not. Being in flow it also reserves
-   its own space, so no spacer element or measured height is needed, and this
-   holds at any width, including narrow viewports where the text fills the
-   container. */
+   container's content box, so it stays put while content passes underneath
+   and is blurred. Being in flow it also reserves its own space, so no spacer
+   element or measured height is needed, and this holds at any width,
+   including narrow viewports where the text fills the container.
+
+   The negative margin cancels the container's reserved rail so that the
+   frosted band and its divider run edge to edge. That is safe only because
+   the native scrollbar is hidden: with one present, the container would clip
+   to a padding box that excludes it. */
 .GoliathArticleTitleBar {
   position: sticky;
   top: 0;
   z-index: 3; /* Paint above the article content scrolling underneath */
+  margin-right: calc(-1 * var(--scrollbar-rail-width));
   background: var(--card-header-background-color);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border-color);
   box-sizing: border-box;
+}
+
+/* Scrollbar rail, drawn over the title bar rather than under it — which is
+   the whole reason it is not the native scrollbar. See useOverlayScrollbar
+   for why a full-bleed header forces this. */
+.GoliathArticleScrollbar {
+  position: absolute;
+  top: var(--byline-height);
+  right: 0;
+  bottom: 0;
+  width: var(--scrollbar-rail-width);
+  z-index: 5; /* Above the title bar, which is 3 */
+}
+
+/* Set while there is nothing to scroll. Everywhere the rail is hidden it is
+   hidden with visibility, never display: its own height is the track the thumb
+   is measured against, and a display:none rail measures zero — which would
+   both break the thumb's arithmetic and leave the rail unable to ever decide
+   it should be shown again. visibility also keeps it out of hit-testing, so
+   the article underneath stays clickable. */
+.GoliathArticleScrollbar[hidden] {
+  display: block;
+  visibility: hidden;
+}
+
+.GoliathArticleScrollbarThumb {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  width: 6px;
+  border-radius: 3px;
+  background-color: color-mix(
+    in srgb,
+    var(--primary-font-color) 30%,
+    transparent
+  );
+  will-change: transform;
+}
+
+.GoliathArticleScrollbar:hover .GoliathArticleScrollbarThumb,
+.GoliathArticleScrollbarThumbDragging {
+  background-color: color-mix(
+    in srgb,
+    var(--primary-font-color) 50%,
+    transparent
+  );
 }
 
 /* Byline row — display flex with opaque background */
@@ -854,7 +883,7 @@
   ); /* Opaque background matching selected, unread card background */
   border-bottom: 1px solid var(--border-color); /* Distinct separator */
   box-sizing: border-box;
-  height: 50px;
+  height: var(--byline-height);
   position: relative;
   z-index: 4; /* Render on top of the title bar and any content */
 }
@@ -1254,6 +1283,16 @@
   .GoliathSplitViewArticleListContainer.MuiContainer-root {
     width: 100vw;
     overflow-x: hidden;
+  }
+
+  /* Touch scrolling has no persistent scrollbar to imitate, so drop the rail
+     and let the title bar span the container without a bleed. */
+  .GoliathArticleCardColumn {
+    --scrollbar-rail-width: 0px;
+  }
+
+  .GoliathArticleScrollbar {
+    visibility: hidden;
   }
 
   .GoliathSplitViewArticleContainer {
