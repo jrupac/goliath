@@ -1,4 +1,5 @@
 {
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["react", "typescript"],
   "rules": {
     "no-unused-vars": "warn",
@@ -12,5 +13,5 @@
     "no-magic-numbers": "off",
     "react/no-set-state": "off"
   },
-  "ignorePatterns": ["build/**", "dev-dist/**", "node_modules/**"]
+  "ignorePatterns": ["**/build/**", "**/dev-dist/**", "**/node_modules/**"]
 }

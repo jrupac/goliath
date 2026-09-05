@@ -111,7 +111,6 @@ const ArticleList: React.FC<ArticleListProps> = ({
   const showListMobileLayout =
     isMobile || (isTabletPortrait && !tabletShowFeedList);
   const listRef = useRef<ReactListType | null>(null);
-  const selectionKeyRef = useRef<SelectionKey>(selectionKey);
 
   const [selectedArticleId, setSelectedArticleId] = useState<ArticleId | null>(
     null
@@ -274,9 +273,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
     [handleMarkArticleRead, handleSelectByIndex, articleEntriesCls]
   );
 
-  // Handler map for article list keybindings — held in a ref so its
-  // identity stays stable across renders.
-  const articleListHandlersRef = useRef<Record<string, () => void>>({
+  // Latest handler implementations, rebuilt every render so each closure sees
+  // current props and state.
+  const articleListHandlers: Record<string, () => void> = {
     scrollDown: () => handleScrollDown({ markRead: true }),
     scrollUp: handleScrollUp,
     scrollDownNoRead: () => handleScrollDown({ markRead: false }),
@@ -306,36 +305,18 @@ const ArticleList: React.FC<ArticleListProps> = ({
     goSaved: () => {
       selectSavedCallback?.();
     },
+  };
+
+  // The keybinding effect below registers once and dispatches through this
+  // ref, so the ref needs the newest closures without re-registering on every
+  // render. Writing it during render is a render side effect that React does
+  // not guarantee is safe (react(refs)); updating it in an effect with no
+  // dependency array refreshes it after every commit, which is still before
+  // any key event can dispatch through it.
+  const articleListHandlersRef = useRef(articleListHandlers);
+  useEffect(() => {
+    articleListHandlersRef.current = articleListHandlers;
   });
-  // Keep the ref up to date when handlers change.
-  articleListHandlersRef.current.scrollDown = () =>
-    handleScrollDown({ markRead: true });
-  articleListHandlersRef.current.scrollUp = handleScrollUp;
-  articleListHandlersRef.current.scrollDownNoRead = () =>
-    handleScrollDown({ markRead: false });
-  articleListHandlersRef.current.goAll = selectAllCallback;
-  articleListHandlersRef.current.goUnread = selectUnreadCallback;
-  articleListHandlersRef.current.goSaved = () => selectSavedCallback?.();
-  articleListHandlersRef.current.markAllRead = handleMarkAllRead;
-  articleListHandlersRef.current.openInTab = () =>
-    handleOpenArticle(scrollIndex);
-  articleListHandlersRef.current.clearRead = () => {
-    if (
-      selectionType === SelectionType.Unread ||
-      selectionType === SelectionType.Folder ||
-      selectionType === SelectionType.Feed ||
-      selectionType === SelectionType.Saved
-    ) {
-      const activeId = articleEntriesCls[scrollIndex]?.id ?? null;
-      clearReadCallback?.(activeId);
-    }
-  };
-  articleListHandlersRef.current.toggleSave = () => {
-    const selectedArticle = articleEntriesCls[scrollIndex];
-    if (selectedArticle) {
-      handleToggleArticleSave(selectedArticle.id);
-    }
-  };
 
   useEffect(() => {
     if (showKeybindingsModal) {
@@ -362,36 +343,38 @@ const ArticleList: React.FC<ArticleListProps> = ({
     };
   }, [showKeybindingsModal]);
 
-  useEffect(() => {
-    // When the selection key changes, find the first article and select it.
-    if (selectionKey !== selectionKeyRef.current) {
-      if (selectionType === SelectionType.All) {
-        // "All" stream: select first article in list
-        if (articleEntriesCls.length > 0) {
-          setSelectedArticleId(articleEntriesCls[0].id);
-        } else {
-          setSelectedArticleId(null);
-        }
-      } else {
-        const firstUnreadArticle = articleEntriesCls.find(
-          (article) => !article.isRead
-        );
+  // When the selection changes, move to the first article of the new stream.
+  //
+  // Adjusting state during render rather than in an effect: React re-runs this
+  // component immediately with the new value and commits only once, so the
+  // intermediate frame — new stream, previous stream's selected article — is
+  // never rendered. The effect version committed that frame first and then
+  // corrected it. selectionType decides All-stream from Unread-stream
+  // behaviour.
+  const [prevSelectionKey, setPrevSelectionKey] =
+    useState<SelectionKey>(selectionKey);
+  if (selectionKey !== prevSelectionKey) {
+    setPrevSelectionKey(selectionKey);
 
-        if (firstUnreadArticle) {
-          setSelectedArticleId(firstUnreadArticle.id);
-        } else if (articleEntriesCls.length > 0) {
-          // If all are read, default to the top.
-          setSelectedArticleId(articleEntriesCls[0].id);
-        } else {
-          // If the list is empty, select nothing.
-          setSelectedArticleId(null);
-        }
-      }
+    let nextSelectedId: ArticleId | null = null;
+    if (selectionType === SelectionType.All) {
+      // "All" stream: select the first article in the list.
+      nextSelectedId =
+        articleEntriesCls.length > 0 ? articleEntriesCls[0].id : null;
+    } else {
+      const firstUnreadArticle = articleEntriesCls.find(
+        (article) => !article.isRead
+      );
+      // Fall back to the top when everything is read, and to nothing when the
+      // list is empty.
+      nextSelectedId = firstUnreadArticle
+        ? firstUnreadArticle.id
+        : articleEntriesCls.length > 0
+          ? articleEntriesCls[0].id
+          : null;
     }
-
-    // Update ref
-    selectionKeyRef.current = selectionKey;
-  }, [selectionKey, selectionType, articleEntriesCls]); // selectionType needed for All-stream vs Unread-stream logic
+    setSelectedArticleId(nextSelectedId);
+  }
 
   const renderArticleListEntry = useCallback(
     (index: number): ReactElement => {

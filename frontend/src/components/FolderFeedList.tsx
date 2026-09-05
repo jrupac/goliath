@@ -137,9 +137,14 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   hideEmpty = false,
   toggleHideEmpty,
 }) => {
-  const [keyCache, setKeyCache] = useState<
-    Map<string, [SelectionType, SelectionKey]>
-  >(() => precomputeIdToSelectionKey(folderFeedView));
+  // Derived from folderFeedView, so it is memoized rather than held in state
+  // and synced by an effect. The effect version re-rendered the whole sidebar a
+  // second time on every change, and folderFeedView gets a new identity on
+  // every article mark.
+  const keyCache = useMemo(
+    () => precomputeIdToSelectionKey(folderFeedView),
+    [folderFeedView]
+  );
   const [isScrolled, setIsScrolled] = useState(false);
   const treeViewRef = useRef<HTMLUListElement>(null);
 
@@ -185,10 +190,6 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
         return false;
     }
   };
-
-  useEffect(() => {
-    setKeyCache(precomputeIdToSelectionKey(folderFeedView));
-  }, [folderFeedView]);
 
   const plainTitles = useMemo(() => {
     const map = new Map<string, string>();

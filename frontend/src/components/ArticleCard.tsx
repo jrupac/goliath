@@ -162,13 +162,16 @@ const ArticleCard: React.FC<ArticleProps> = ({
     handleUpdateArticleParsed,
   ]);
 
-  // Handler map for article view keybindings — held in a ref so its
-  // identity stays stable across renders.
+  // Handler map for article view keybindings — held in a ref so the effect
+  // below can register once and still dispatch to the newest closure. Updated
+  // in an effect rather than during render, which would be a render side
+  // effect (react(refs)); effects still run before any key event can fire.
   const articleViewHandlersRef = useRef<Record<string, () => void>>({
     toggleReaderMode: toggleParseContent,
   });
-  // Keep the ref up to date when toggleParseContent changes.
-  articleViewHandlersRef.current.toggleReaderMode = toggleParseContent;
+  useEffect(() => {
+    articleViewHandlersRef.current.toggleReaderMode = toggleParseContent;
+  });
 
   useEffect(() => {
     if (showKeybindingsModal || !props.isSelected) {
