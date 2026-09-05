@@ -71,24 +71,6 @@ const ArticleCard: React.FC<ArticleProps> = ({
   } = props;
   const useMobileLayout = showMobileLayout ?? isMobile;
 
-  const titleBarRef = useRef<HTMLDivElement | null>(null);
-  const [titleBarHeight, setTitleBarHeight] = useState(120);
-
-  // The title bar element persists across articles now that the card is not
-  // remounted per article, so it only needs observing once. The observer keeps
-  // reporting height changes as the title reflows for each new article.
-  useEffect(() => {
-    if (!titleBarRef.current) return;
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setTitleBarHeight(entry.target.clientHeight);
-      }
-    });
-    observer.observe(titleBarRef.current);
-    return () => observer.disconnect();
-  }, []);
-
   const [state, setState] = useState<ArticleState>({
     showParsed: false,
     loading: false,
@@ -250,16 +232,6 @@ const ArticleCard: React.FC<ArticleProps> = ({
 
   return (
     <Stack className="GoliathArticleCardColumn">
-      <style>{`
-        .GoliathSplitViewArticleContainer::-webkit-scrollbar-track {
-          margin-top: ${titleBarHeight}px !important;
-        }
-        .GoliathArticleTitleBarSpacer {
-          height: ${titleBarHeight}px !important;
-          flex-shrink: 0;
-        }
-      `}</style>
-
       {/* Topmost bar (feed name, date, buttons) */}
       <Box className="GoliathArticleByline">
         <Box className="GoliathArticleBylineInfo">
@@ -364,21 +336,22 @@ const ArticleCard: React.FC<ArticleProps> = ({
         </Box>
       </Box>
 
-      {/* Article title bar (fixed directly below byline)
-          Frosted glass with a solid-edge occluder behind the text — see App.css */}
-      <Box className="GoliathArticleTitleBar" ref={titleBarRef}>
-        <Box className="GoliathArticleTitleBarOccluder" />
-        <h1 className="GoliathArticleTitle">
-          <a target="_blank" rel="noopener noreferrer" href={props.article.url}>
-            <span dangerouslySetInnerHTML={{ __html: props.article.title }} />
-          </a>
-        </h1>
-      </Box>
-
       {/* Article scroll area */}
       <Box className="GoliathSplitViewArticleContainer" ref={contentScrollRef}>
-        {/* Spacer inside the scroll container to push content below the title bar */}
-        <Box className="GoliathArticleTitleBarSpacer" />
+        {/* Frosted title bar. It lives inside the scroller and sticks to its
+            top, so content scrolls under it and is blurred by it while the
+            scrollbar, which is outside the content box, stays crisp. */}
+        <Box className="GoliathArticleTitleBar">
+          <h1 className="GoliathArticleTitle">
+            <a
+              target="_blank"
+              rel="noopener noreferrer"
+              href={props.article.url}
+            >
+              <span dangerouslySetInnerHTML={{ __html: props.article.title }} />
+            </a>
+          </h1>
+        </Box>
 
         {/* Article content */}
         <div className="GoliathSplitViewArticleContent GoliathArticleContentStyling">

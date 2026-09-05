@@ -762,7 +762,12 @@
   position: relative;
 }
 
-/* Scroll container — fills full viewport height */
+/* Scroll container — fills the card below the byline.
+
+   The title bar is a sticky child of this element rather than an overlay on
+   top of it. That puts the header inside the container's content box, which
+   excludes the scrollbar gutter, so article content scrolls under the frosted
+   header and is blurred by it while the scrollbar stays outside the blur. */
 .GoliathSplitViewArticleContainer {
   flex: 1;
   min-height: 0;
@@ -770,13 +775,14 @@
   overflow-x: hidden;
   background: var(--article-background-color);
   color: var(--article-font-color);
-  /* Thin scrollbar for Firefox */
   scrollbar-width: thin;
+  /* Reserve the scrollbar gutter whether or not the article scrolls, so the
+     title bar and text keep the same width — and so do not shift by the
+     gutter width — when moving between a short article and a long one. The
+     gutter is as wide as `scrollbar-width: thin` makes it, which is not
+     directly settable, so reserving it is the only way to keep it constant. */
+  scrollbar-gutter: stable;
   position: relative;
-  z-index: 1;
-  clip-path: inset(
-    -200px 0px 0px 0px
-  ); /* Allow content to scroll behind the title bar */
 }
 
 /* Thin scrollbar for Chromium browsers */
@@ -787,10 +793,6 @@
 
 .GoliathSplitViewArticleContainer::-webkit-scrollbar-track {
   background: transparent;
-  margin-top: var(
-    --title-bar-height,
-    120px
-  ); /* Restrict scrollbar track to start below the title bar */
 }
 
 .GoliathSplitViewArticleContainer::-webkit-scrollbar-thumb {
@@ -815,68 +817,23 @@
   color: var(--accent-color) !important;
 }
 
-/* Sticky header wrapper — frosted glass with gradient edge fades.
-   The title bar has a translucent background with backdrop-filter so
-   article content scrolls through it blurred. ::before/::after
-   pseudo-elements paint a gradient from fully opaque at the outer edge
-   to matching the translucent background color at the inner edge, for
-   a smooth transition. Pseudo-elements render on top of the parent's
-   background but below its content, so the title text stays readable.
+/* Sticky header — frosted glass over the scrolling article.
 
-   Edge gradients are 48px each (matching the content padding), so the
-   frosted center is calc(100% - 96px) wide. On narrow viewports where
-   the container is less than 96px + content width, the gradients overlap
-   in the middle — both fade to the same translucent color so it blends. */
+   As the first child of the scroll container it is laid out in that
+   container's content box, so it spans exactly the width the article text
+   occupies and never reaches over the scrollbar gutter: content passing
+   underneath is blurred, the scrollbar is not. Being in flow it also reserves
+   its own space, so no spacer element or measured height is needed, and this
+   holds at any width, including narrow viewports where the text fills the
+   container. */
 .GoliathArticleTitleBar {
-  position: absolute;
-  top: 50px; /* Directly below the 50px height byline bar */
-  left: 0;
-  right: 0;
-  z-index: 3; /* Render on top of the scroll container */
-  width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 3; /* Paint above the article content scrolling underneath */
   background: var(--card-header-background-color);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border-color);
   box-sizing: border-box;
-  overflow: hidden; /* Clip pseudo-element gradients */
-}
-
-/* Left edge: solid → translucent, fading rightward.
-   Gradient goes from opaque primary bg to the solid equivalent of the
-   translucent header color, so the transition blends seamlessly. */
-.GoliathArticleTitleBar::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 48px;
-  background: linear-gradient(
-    to right,
-    var(--primary-background-color) 0%,
-    var(--card-header-background-color-solid) 100%
-  );
-  pointer-events: none;
-}
-
-/* Right edge: solid → translucent, fading leftward */
-.GoliathArticleTitleBar::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 0;
-  width: 48px;
-  background: linear-gradient(
-    to left,
-    var(--primary-background-color) 0%,
-    var(--card-header-background-color-solid) 100%
-  );
-  pointer-events: none;
-}
-
-.GoliathArticleTitleBarSpacer {
-  flex-shrink: 0;
 }
 
 /* Byline row — display flex with opaque background */
@@ -962,8 +919,6 @@
 
 /* Article title — plain styled element replacing CardHeader */
 .GoliathArticleTitle {
-  position: relative; /* Stack above GoliathArticleTitleBarBackdrop, which is positioned */
-  z-index: 1;
   font-family: var(--primary-sans-serif-font), serif;
   font-size: 30px;
   font-weight: normal;

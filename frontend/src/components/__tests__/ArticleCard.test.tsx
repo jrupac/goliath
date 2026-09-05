@@ -200,28 +200,27 @@ describe('ArticleCard', () => {
     expect(mockOnNext).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the title inside the title bar and the byline bar at the root level', () => {
+  it('renders the byline at the root level and the title bar inside the scroller', () => {
     const props = makeProps();
     const { container } = render(<ArticleCard {...props} />);
 
-    // Check for byline bar and title bar outside the container
-    // (direct children of GoliathArticleCardColumn stack)
+    // The byline is a direct child of the GoliathArticleCardColumn stack,
+    // above the scroll container.
     const cardColumn = container.firstChild;
     expect(cardColumn).toHaveClass('GoliathArticleCardColumn');
 
-    const byline = cardColumn?.childNodes[1];
+    const byline = cardColumn?.childNodes[0];
     expect(byline).toHaveClass('GoliathArticleByline');
 
-    const titleBar = cardColumn?.childNodes[2];
-    expect(titleBar).toHaveClass('GoliathArticleTitleBar');
-
-    const containerEl = cardColumn?.childNodes[3];
+    const containerEl = cardColumn?.childNodes[1];
     expect(containerEl).toHaveClass('GoliathSplitViewArticleContainer');
 
-    const titleBarOccluder = titleBar?.childNodes[0];
-    expect(titleBarOccluder).toHaveClass('GoliathArticleTitleBarOccluder');
+    // The title bar sticks to the top of the scroll container, so it has to be
+    // inside it — that is what keeps its blur off the scrollbar.
+    const titleBar = containerEl?.childNodes[0];
+    expect(titleBar).toHaveClass('GoliathArticleTitleBar');
 
-    const title = titleBar?.childNodes[1];
+    const title = titleBar?.childNodes[0];
     expect(title).toHaveClass('GoliathArticleTitle');
   });
 });
