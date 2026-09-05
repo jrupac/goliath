@@ -119,6 +119,12 @@ services:
       - "backend-dev:goliath-dev"
     networks:
       - goliath-backend-nonprod
+    environment:
+      # Set to 1 to make Vite send the cross-origin isolation and js-profiling
+      # headers that tools/perf/keypress-bench.js needs. Off by default, since
+      # COEP changes how cross-origin subresources are fetched and an isolated
+      # context is not what users actually run.
+      - GOLIATH_PROFILE=${GOLIATH_PROFILE:-0}
     volumes:
       - ./frontend:/frontend
       # Dev-only profiling harnesses, served by Vite at /tools/... but never

@@ -84,11 +84,23 @@ docker restart frontend_dev
 
 ## Requirements
 
-`frontend/vite.config.js` sets, for the dev server and `vite preview` only:
+The harness needs two response headers, which `frontend/vite.config.js` sends
+for the dev server and `vite preview` **only when `GOLIATH_PROFILE=1`**:
 
 - `Document-Policy: js-profiling` — required to construct `Profiler`.
 - `Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy: credentialless` —
   cross-origin isolation, which takes `performance.now()` from 100us to 5us.
+
+They are opt-in because cross-origin isolation is not neutral: COEP changes how
+every cross-origin subresource is fetched, so leaving it on would mean routine
+development ran in a context users never see. Bring the stack up with it set:
+
+```bash
+GOLIATH_PROFILE=1 docker compose --profile dev up -d frontend-dev
+```
+
+Verify before trusting a run — `runBench` reports `env.crossOriginIsolated`, and
+a `profileError` of `NotAllowedError` means the headers are not being sent.
 
 `compose.yaml` mounts `./tools` into the frontend container and publishes 4173.
 None of this reaches a production build; the harness is never imported by the app.

@@ -5,6 +5,28 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 import { configDefaults } from 'vitest/config';
 
+// Profiling headers are opt-in via GOLIATH_PROFILE=1 rather than always on.
+// Cross-origin isolation is not a neutral setting: COEP changes how every
+// cross-origin subresource is fetched, and the isolated context differs from
+// what users actually run. Restricting it to measurement runs keeps ordinary
+// development on the same footing as production.
+const profilingEnabled = process.env.GOLIATH_PROFILE === '1';
+
+const profilingHeaders = profilingEnabled
+  ? {
+      // Required to construct `new Profiler(...)` (JS Self-Profiling API).
+      'Document-Policy': 'js-profiling',
+      // Cross-origin isolation, which takes performance.now() from 100us to
+      // 5us resolution — needed to resolve a ~20ms interaction. (It does not
+      // help Profiler, whose sample interval stays pinned at a ~10ms floor
+      // either way.) `credentialless` rather than `require-corp` so
+      // cross-origin article preview images still load, without credentials,
+      // and the measured workload stays realistic.
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+    }
+  : undefined;
+
 export default defineConfig(() => {
   return {
     base: '/',
@@ -36,21 +58,7 @@ export default defineConfig(() => {
     server: {
       port: 3000,
       allowedHosts: true,
-      headers: {
-        // Enables the JS Self-Profiling API (`new Profiler(...)`) so the
-        // dev-only profiling harness in tools/ can capture sampled stacks.
-        // Dev server only — never sent by the production backend.
-        'Document-Policy': 'js-profiling',
-        // Cross-origin isolation lifts Chrome's timer coarsening, taking
-        // performance.now() from 100us to 5us resolution — the keypress
-        // benchmark needs that to resolve a ~20ms interaction. (It does not
-        // help Profiler, whose sample interval stays pinned at a ~10ms floor
-        // either way.) `credentialless` rather than `require-corp` so
-        // cross-origin article preview images still load, without credentials,
-        // and the measured workload stays realistic.
-        'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'credentialless',
-      },
+      headers: profilingHeaders,
       proxy: {
         '^(/auth|/fever|/greader|/version)': {
           target: 'http://goliath-dev:9999',
@@ -65,11 +73,7 @@ export default defineConfig(() => {
     preview: {
       port: 4173,
       allowedHosts: true,
-      headers: {
-        'Document-Policy': 'js-profiling',
-        'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'credentialless',
-      },
+      headers: profilingHeaders,
       proxy: {
         '^(/auth|/fever|/greader|/version)': {
           target: 'http://goliath-dev:9999',
