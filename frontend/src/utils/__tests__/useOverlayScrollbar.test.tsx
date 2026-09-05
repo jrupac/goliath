@@ -200,6 +200,20 @@ describe('useOverlayScrollbar', () => {
     expect(thumb.style.transform).toBe('translateY(400px)');
   });
 
+  it('sets the scroll padding so anchors land below the header', () => {
+    const { scroller } = setup(undefined, 500, 100);
+
+    expect(scroller.style.scrollPaddingTop).toBe('100px');
+  });
+
+  it('follows the header when a new article reflows the title', () => {
+    const { scroller, sync } = setup(undefined, 500, 100);
+    stubGeometry(screen.getByTestId('header'), { offsetHeight: 160 });
+    sync();
+
+    expect(scroller.style.scrollPaddingTop).toBe('160px');
+  });
+
   it('keeps the thumb inside a track shorter than the minimum thumb', () => {
     const { thumb } = setup(undefined, 500, 480);
 

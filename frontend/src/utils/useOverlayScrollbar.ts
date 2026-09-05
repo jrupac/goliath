@@ -19,7 +19,14 @@ import React, { RefObject, useCallback, useEffect, useRef } from 'react';
    scroller. That keeps the thumb from being drawn over the frosted header,
    and it describes the article better besides: the scroller does extend up
    behind the header, but that part of it is occluded, so the region the thumb
-   spans is the region the reader can actually see. */
+   spans is the region the reader can actually see.
+
+   How far the header occludes the scroller is the one fact this hook has to
+   keep measuring, and the track is not its only consumer: the same distance
+   is the scroller's scroll-padding-top, without which scrollIntoView — what
+   an in-article anchor link ends up calling — parks its target underneath the
+   header. So this owns that too, rather than leaving a second observer
+   watching the same element to work it out again. */
 
 /** Shortest the thumb may get, so it stays grabbable on very long articles. */
 const MIN_THUMB_HEIGHT = 24;
@@ -41,6 +48,7 @@ export function useOverlayScrollbar(
   const railRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef(0);
+  const insetRef = useRef(-1);
 
   // Written straight to the DOM rather than through state: this runs on every
   // scroll event, and re-rendering the article on each one would be far more
@@ -60,6 +68,15 @@ export function useOverlayScrollbar(
     // again — but the track is only the part below the header.
     const inset = headerRef.current?.offsetHeight ?? 0;
     const trackHeight = rail.clientHeight - inset;
+
+    // Where the scrollport effectively begins, so that scrollIntoView lands
+    // its target below the header instead of behind it. Only written when it
+    // changes — which is per article, as the title reflows — because this runs
+    // on every frame of a scroll and the reads above must not be invalidated.
+    if (inset !== insetRef.current) {
+      insetRef.current = inset;
+      scroller.style.scrollPaddingTop = `${inset}px`;
+    }
 
     // Nothing to scroll, so there is nothing to indicate. Hiding the rail is
     // what keeps short articles from showing a full-height thumb.
