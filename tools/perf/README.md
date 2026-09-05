@@ -67,6 +67,21 @@ re-measure, and diff — rather than trusting the sampled trace.
 trace is for discovering unknown hotspots; use LoAF phase data and `microbench`
 for numbers you intend to quote.
 
+## Gotcha: restart the container after git operations on tools/
+
+`compose.yaml` bind-mounts `./tools` into the frontend container. A bind mount
+follows the inode, and git operations that recreate the directory (branch
+switches, `git checkout`, a `stash` that touches it) leave the mount pointing at
+the old unlinked inode, so `tools/` appears empty inside the container. Vite then
+serves `index.html` for the harness URL via its SPA fallback, and the dynamic
+import fails with a confusing "Failed to fetch dynamically imported module".
+
+Fix:
+
+```bash
+docker restart frontend_dev
+```
+
 ## Requirements
 
 `frontend/vite.config.js` sets, for the dev server and `vite preview` only:

@@ -24,6 +24,20 @@ export class ContentTreeCls {
   } | null;
   // Articles pinned to remain visible in filtered streams after a
   // single-article mark. Cleared when the selection changes.
+  //
+  // Ids are stored JSON.stringify'd, and every lookup has to stringify the same
+  // way to match. ArticleId is a plain string, so that only wraps it in quotes:
+  // the encoding is vestigial rather than load-bearing, but writes here and
+  // reads in GetArticleView must agree on it.
+  //
+  // On cost, since this looks worse than it measures: the lookups all sit
+  // behind `!v.isRead ||`, so an unread article short-circuits before
+  // stringifying and a fully unread stream pays nothing. The price is one
+  // throwaway string per *read* article per recompute, and since a mark
+  // invalidates the view cache, it scales with how far the user has read into
+  // the current stream rather than with the stream's size. Measured at ~4ms for
+  // a cold GetArticleView over 4928 articles — about 5% of a j-keypress, and
+  // not the reason that interaction is expensive.
   private pinnedArticleIds: Set<string>;
   private lastComputedKeyStr: string | null;
   private lastComputedType: SelectionType | null;
@@ -194,6 +208,8 @@ export class ContentTreeCls {
           articleViews.push(
             ...f
               .GetArticleView()
+              // Stringified to match how pins are stored, and only reached for
+              // articles already read. See pinnedArticleIds.
               .filter((v) => !v.isRead || pinned.has(JSON.stringify(v.id)))
           );
         });

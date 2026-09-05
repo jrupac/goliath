@@ -18,7 +18,7 @@ import FolderOpenTwoToneIcon from '@mui/icons-material/FolderOpenTwoTone';
 import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import { FolderView } from '../models/folder';
-import { FeedView } from '../models/feed';
+import { FeedId, FeedTitle, FeedView } from '../models/feed';
 import StarTwoToneIcon from '@mui/icons-material/StarTwoTone';
 import FeedIcon from './FeedIcon';
 
@@ -37,6 +37,86 @@ function precomputeIdToSelectionKey(
   });
   return cache;
 }
+
+interface FeedTreeItemProps {
+  feedId: FeedId;
+  plainTitle: string;
+  rawTitle: FeedTitle;
+  faviconSrc: string;
+  unreadCount: number;
+  isSelected: boolean;
+}
+
+/**
+ * A single feed row in the sidebar tree.
+ *
+ * Memoized, which matters more than it looks. Marking one article read calls
+ * setState on App, so the whole tree re-renders on every j/k keypress, and this
+ * list holds one row per feed. Without the bail-out, a keypress re-renders a
+ * TreeItem, a Tooltip and several Boxes for every feed the user subscribes to,
+ * when at most one row's unread count has actually changed.
+ *
+ * The props are deliberately primitive. FeedCls hands out a single FeedView
+ * object that it mutates in place, so memoizing on the view object would
+ * compare equal on every render and display stale unread counts.
+ */
+const FeedTreeItem = React.memo(function FeedTreeItem({
+  feedId,
+  plainTitle,
+  rawTitle,
+  faviconSrc,
+  unreadCount,
+  isSelected,
+}: FeedTreeItemProps) {
+  const hasUnread = unreadCount > 0;
+
+  const pillClass = hasUnread
+    ? isSelected
+      ? 'GoliathSidebarPill'
+      : 'GoliathSidebarPillPlain'
+    : 'GoliathSidebarPillPlaceholder';
+
+  // A fresh `slots` object would give TreeItem a new icon component type on
+  // every render, remounting the favicon, so keep its identity stable.
+  const slots = useMemo(
+    () => ({
+      icon: () => (
+        <FeedIcon
+          favicon={faviconSrc}
+          feedTitle={rawTitle}
+          feedId={feedId}
+          size={16}
+          alt={rawTitle}
+        />
+      ),
+    }),
+    [faviconSrc, rawTitle, feedId]
+  );
+
+  return (
+    <TreeItem
+      itemId={feedId}
+      label={
+        <span
+          className={
+            hasUnread
+              ? 'GoliathFeedRowHasUnread GoliathFeedTitle'
+              : 'GoliathFeedTitle'
+          }
+        >
+          <Box className="GoliathFeedTitleRow">
+            <Tooltip title={plainTitle}>
+              <Box className="GoliathFeedTitleText">{plainTitle}</Box>
+            </Tooltip>
+            <Box className={pillClass}>{hasUnread && unreadCount}</Box>
+          </Box>
+        </span>
+      }
+      className="GoliathFeedRow"
+      slots={slots}
+    />
+  );
+});
 
 export interface FolderFeedListProps {
   folderFeedView: Map<FolderView, FeedView[]>;
@@ -231,51 +311,15 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
       return null;
     }
 
-    const faviconSrc = feedView.favicon?.GetFavicon();
-    const img = (
-      <FeedIcon
-        favicon={faviconSrc || ''}
-        feedTitle={feedView.title}
-        feedId={feedView.id}
-        size={16}
-        alt={feedView.title}
-      />
-    );
-
-    const plainTitle = plainTitles.get(feedView.id) || feedView.title;
-    const isSelected = selectedKeyString === feedView.id;
-    const hasUnread = feedView.unread_count > 0;
-
-    const pillClass = hasUnread
-      ? isSelected
-        ? 'GoliathSidebarPill'
-        : 'GoliathSidebarPillPlain'
-      : 'GoliathSidebarPillPlaceholder';
-
     return (
-      <TreeItem
+      <FeedTreeItem
         key={feedView.id}
-        itemId={feedView.id}
-        label={
-          <span
-            className={
-              hasUnread
-                ? 'GoliathFeedRowHasUnread GoliathFeedTitle'
-                : 'GoliathFeedTitle'
-            }
-          >
-            <Box className="GoliathFeedTitleRow">
-              <Tooltip title={plainTitle}>
-                <Box className="GoliathFeedTitleText">{plainTitle}</Box>
-              </Tooltip>
-              <Box className={pillClass}>
-                {hasUnread && feedView.unread_count}
-              </Box>
-            </Box>
-          </span>
-        }
-        className="GoliathFeedRow"
-        slots={{ icon: () => img }}
+        feedId={feedView.id}
+        plainTitle={plainTitles.get(feedView.id) || feedView.title}
+        rawTitle={feedView.title}
+        faviconSrc={feedView.favicon?.GetFavicon() || ''}
+        unreadCount={feedView.unread_count}
+        isSelected={selectedKeyString === feedView.id}
       />
     );
   };
