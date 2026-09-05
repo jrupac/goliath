@@ -49,8 +49,16 @@ import { keybindRegistry } from './utils/keybindRegistry';
 
 export function getLayoutMetrics(width: number, height: number) {
   const isMobile = width < 600 || height < 500;
-  const isTabletPortrait = !isMobile && width >= 600 && (width < 900 || (width <= 1024 && height > width));
-  const isTabletLandscape = !isMobile && !isTabletPortrait && width >= 900 && width < 1200 && height >= 500;
+  const isTabletPortrait =
+    !isMobile &&
+    width >= 600 &&
+    (width < 900 || (width <= 1024 && height > width));
+  const isTabletLandscape =
+    !isMobile &&
+    !isTabletPortrait &&
+    width >= 900 &&
+    width < 1200 &&
+    height >= 500;
   return { isMobile, isTabletPortrait, isTabletLandscape };
 }
 
@@ -83,9 +91,14 @@ export default class App extends React.Component<AppProps, AppState> {
 
   constructor(props: AppProps) {
     super(props);
-    const metrics = typeof window !== 'undefined'
-      ? getLayoutMetrics(window.innerWidth, window.innerHeight)
-      : { isMobile: false, isTabletPortrait: false, isTabletLandscape: false };
+    const metrics =
+      typeof window !== 'undefined'
+        ? getLayoutMetrics(window.innerWidth, window.innerHeight)
+        : {
+            isMobile: false,
+            isTabletPortrait: false,
+            isTabletLandscape: false,
+          };
 
     this.state = {
       buildTimestamp: '',
@@ -378,7 +391,7 @@ export default class App extends React.Component<AppProps, AppState> {
       const [feedId, folderId] = selectionKey as FeedSelection;
       for (const [folder, feeds] of folderFeedView.entries()) {
         if (folder.id === folderId) {
-          const feed = feeds.find(f => f.id === feedId);
+          const feed = feeds.find((f) => f.id === feedId);
           if (feed) {
             return feed.title;
           }
@@ -431,14 +444,17 @@ export default class App extends React.Component<AppProps, AppState> {
           <Drawer
             variant={this.state.isMobile ? 'temporary' : 'permanent'}
             open={this.state.isMobile ? this.state.drawerOpen : undefined}
-            onClose={this.state.isMobile ? () => this.setState({ drawerOpen: false }) : undefined}
+            onClose={
+              this.state.isMobile
+                ? () => this.setState({ drawerOpen: false })
+                : undefined
+            }
             anchor="left"
             className="GoliathDrawer"
             sx={{
-              display:
-                this.state.isMobile
-                  ? 'flex'
-                  : this.state.isTabletPortrait
+              display: this.state.isMobile
+                ? 'flex'
+                : this.state.isTabletPortrait
                   ? this.state.tabletShowFeedList
                     ? 'flex'
                     : 'none'
@@ -523,7 +539,9 @@ export default class App extends React.Component<AppProps, AppState> {
               isTabletLandscape={this.state.isTabletLandscape}
               mobilePane={this.state.mobilePane}
               tabletShowFeedList={this.state.tabletShowFeedList}
-              onMobileNavigate={(pane: 'list' | 'card') => this.setState({ mobilePane: pane })}
+              onMobileNavigate={(pane: 'list' | 'card') =>
+                this.setState({ mobilePane: pane })
+              }
               onArticleSelect={() => {
                 if (this.state.isTabletPortrait) {
                   this.setState({ tabletShowFeedList: false });

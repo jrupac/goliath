@@ -90,10 +90,7 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
     }
 
     return (
-      <div
-        className={extraClasses.join(' ')}
-        onClick={handleSelect}
-      >
+      <div className={extraClasses.join(' ')} onClick={handleSelect}>
         {/* Row 1 — source */}
         <div className="GoliathArticleCardSource">
           <span className="GoliathArticleCardIconSlot">
@@ -124,9 +121,7 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
                 />
               )}
             </span>
-            <span
-              className="GoliathArticleCardFavicon"
-            >
+            <span className="GoliathArticleCardFavicon">
               <FeedIcon
                 favicon={favicon?.GetFavicon() || ''}
                 feedTitle={feedTitle}
@@ -147,9 +142,7 @@ const ArticleListEntry: React.FC<ArticleListEntryProps> = memo(
         <div className="GoliathArticleCardBody">
           <div className="GoliathArticleCardText">
             {/* Row 2 — title */}
-            <div className="GoliathArticleCardTitle">
-              {extractedTitle}
-            </div>
+            <div className="GoliathArticleCardTitle">{extractedTitle}</div>
 
             {/* Row 3 — content */}
             <div className="GoliathArticleCardContent">

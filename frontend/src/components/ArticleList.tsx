@@ -108,7 +108,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
   openDrawer,
   selectionTitle,
 }) => {
-  const showListMobileLayout = isMobile || (isTabletPortrait && !tabletShowFeedList);
+  const showListMobileLayout =
+    isMobile || (isTabletPortrait && !tabletShowFeedList);
   const listRef = useRef<ReactListType | null>(null);
   const selectionKeyRef = useRef<SelectionKey>(selectionKey);
 
@@ -136,13 +137,16 @@ const ArticleList: React.FC<ArticleListProps> = ({
     return index === -1 ? 0 : index;
   }, [selectedArticleId, articleEntriesCls]);
 
-  const handleClickArticle = useCallback((articleId: ArticleId) => {
-    setSelectedArticleId(articleId);
-    if (isMobile) {
-      onMobileNavigate('card');
-    }
-    onArticleSelect();
-  }, [isMobile, onMobileNavigate, onArticleSelect]);
+  const handleClickArticle = useCallback(
+    (articleId: ArticleId) => {
+      setSelectedArticleId(articleId);
+      if (isMobile) {
+        onMobileNavigate('card');
+      }
+      onArticleSelect();
+    },
+    [isMobile, onMobileNavigate, onArticleSelect]
+  );
 
   const handleMarkAllRead = useCallback(() => {
     handleMark(MarkState.Read, selectionKey, selectionType);
@@ -503,11 +507,17 @@ const ArticleList: React.FC<ArticleListProps> = ({
         maxWidth={false}
         className="GoliathSplitViewArticleListContainer"
       >
-        <Grid container wrap="nowrap" size="grow" sx={{ width: '100%', flexGrow: 1 }}>
+        <Grid
+          container
+          wrap="nowrap"
+          size="grow"
+          sx={{ width: '100%', flexGrow: 1 }}
+        >
           <Stack
             className="GoliathArticleListColumn"
             style={{
-              width: isTabletPortrait && tabletShowFeedList ? '100%' : undefined,
+              width:
+                isTabletPortrait && tabletShowFeedList ? '100%' : undefined,
               flexGrow: isTabletPortrait && tabletShowFeedList ? 1 : undefined,
             }}
             sx={{
@@ -515,8 +525,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
                 isMobile && mobilePane !== 'list'
                   ? 'none'
                   : isTabletPortrait && !tabletShowFeedList
-                  ? 'none'
-                  : 'flex',
+                    ? 'none'
+                    : 'flex',
             }}
           >
             <Box className="GoliathSplitViewArticleListActionBar">
@@ -614,7 +624,10 @@ const ArticleList: React.FC<ArticleListProps> = ({
               />
             </Box>
             {showListMobileLayout && (
-              <Box className="GoliathMobileBottomBar" style={{ position: 'relative', marginTop: 'auto' }}>
+              <Box
+                className="GoliathMobileBottomBar"
+                style={{ position: 'relative', marginTop: 'auto' }}
+              >
                 {selectionType !== SelectionType.Saved && (
                   <Tooltip title="Mark all as read">
                     <IconButton
@@ -658,8 +671,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
                 isMobile && mobilePane !== 'card'
                   ? 'none'
                   : isTabletPortrait && tabletShowFeedList
-                  ? 'none'
-                  : 'block',
+                    ? 'none'
+                    : 'block',
             }}
           >
             <Box sx={{ height: '100%' }}>
@@ -674,7 +687,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
                 favicon={faviconMap.get(articleView.feedId)}
                 feedId={articleView.feedId}
                 isSelected={true}
-                onMarkArticleRead={() => handleToggleArticleRead(articleView.id)}
+                onMarkArticleRead={() =>
+                  handleToggleArticleRead(articleView.id)
+                }
                 onToggleSave={() => handleToggleArticleSave(articleView.id)}
                 selectionType={selectionType}
                 showKeybindingsModal={showKeybindingsModal}
@@ -682,8 +697,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
                   isMobile
                     ? () => onMobileNavigate('list')
                     : isTabletPortrait && !tabletShowFeedList
-                    ? openDrawer
-                    : undefined
+                      ? openDrawer
+                      : undefined
                 }
                 onPrev={
                   isMobile || (isTabletPortrait && !tabletShowFeedList)
@@ -696,7 +711,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
                     : undefined
                 }
                 isMobile={isMobile}
-                showMobileLayout={isMobile || (isTabletPortrait && !tabletShowFeedList)}
+                showMobileLayout={
+                  isMobile || (isTabletPortrait && !tabletShowFeedList)
+                }
               />
             </Box>
           </Grid>

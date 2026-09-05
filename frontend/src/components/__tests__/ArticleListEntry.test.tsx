@@ -47,8 +47,12 @@ describe('ArticleListEntry', () => {
       />
     );
     expect(document.querySelector('.GoliathFeedIcon')).toBeInTheDocument();
-    expect(document.querySelector('.GoliathArticleCardDot')).toBeInTheDocument();
-    expect(document.querySelector('.GoliathArticleCardFavicon')).toBeInTheDocument();
+    expect(
+      document.querySelector('.GoliathArticleCardDot')
+    ).toBeInTheDocument();
+    expect(
+      document.querySelector('.GoliathArticleCardFavicon')
+    ).toBeInTheDocument();
   });
 
   it('renders unread dot icon for unread article', () => {
@@ -105,7 +109,9 @@ describe('ArticleListEntry', () => {
       />
     );
     expect(screen.getByText('Test Article')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Test Article' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: 'Test Article' })
+    ).not.toBeInTheDocument();
   });
 
   it('calls onSelect when clicked', () => {
