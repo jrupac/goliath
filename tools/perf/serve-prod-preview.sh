@@ -16,8 +16,13 @@ export DOCKER_HOST="${DOCKER_HOST:-unix:///run/user/1000/docker.sock}"
 echo "==> Stopping any previous preview server"
 docker exec "$CONTAINER" sh -c 'pkill -f "vite preview" || true'
 
+# NODE_ENV must be forced. The frontend-dev image sets NODE_ENV=development
+# (it exists to run the dev server), and `docker exec` inherits it, which makes
+# Vite resolve the development builds of React, MUI and emotion into the bundle.
+# That silently produces a ~50% larger bundle carrying prop-types validation and
+# dev-only warning paths, so benchmarks run against it overstate real latency.
 echo "==> Building production bundle (this takes a minute)"
-docker exec "$CONTAINER" bun run build
+docker exec -e NODE_ENV=production "$CONTAINER" bun run build
 
 # The build output directory is served as the web root, so the profiling
 # harness has to be copied in to remain importable at /tools/perf/...

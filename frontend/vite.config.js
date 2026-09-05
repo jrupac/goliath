@@ -49,6 +49,10 @@ export default defineConfig(() => {
 
       VitePWA({
         registerType: 'autoUpdate',
+        // src/index.tsx registers the worker itself via `virtual:pwa-register`,
+        // which is what installs the reload-on-update handler. Without this the
+        // plugin would also inject its own bare registration script.
+        injectRegister: null,
         manifest: false,
         devOptions: {
           enabled: true,

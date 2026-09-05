@@ -62,6 +62,15 @@ appears on its children's stacks. A component that owns 67% of the cost can look
 like 4%. To attribute cost to a component, *ablate it* — make it `return null`,
 re-measure, and diff — rather than trusting the sampled trace.
 
+**A "production" build is easy to get wrong here.** The `frontend-dev` image
+sets `NODE_ENV=development`, because its job is to run the dev server, and
+`docker exec` inherits it — so building inside that container resolves the
+*development* builds of React, MUI and emotion into the bundle. The result looks
+like a production build and is ~50% larger, carrying prop-types validation and
+dev-only warning paths, which inflates measured latency substantially.
+`serve-prod-preview.sh` forces `NODE_ENV=production`; if you build by hand, do
+the same and sanity-check the bundle size (~673 KB, not ~997 KB).
+
 **Chrome pins `Profiler` to a ~10ms sample interval** no matter what
 `sampleInterval` you request, and cross-origin isolation does not change it. The
 trace is for discovering unknown hotspots; use LoAF phase data and `microbench`
