@@ -63,6 +63,16 @@ export default defineConfig(() => {
       port: 3000,
       allowedHosts: true,
       headers: profilingHeaders,
+      // The dev server runs in a container against a bind-mounted source tree,
+      // and inotify events do not reliably cross that boundary. When one is
+      // missed the module stays in the transform cache, so the dev server goes
+      // on serving the old file — silently, and only for the modules that were
+      // missed, which looks far more like a bug in the app than a stale build.
+      // Polling costs a little idle CPU and buys back the guarantee that what
+      // is on disk is what is being served.
+      watch: {
+        usePolling: true,
+      },
       proxy: {
         '^(/auth|/fever|/greader|/version)': {
           target: 'http://goliath-dev:9999',
