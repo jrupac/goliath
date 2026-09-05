@@ -87,12 +87,9 @@ describe('ArticleList', () => {
     const articleEntry = expectTextInElement(articleListBox, title);
     const card = articleEntry.closest('.GoliathArticleCard');
     expect(card).not.toBeNull();
-    if (selected && card) {
-      const hasSelectedClass = card.classList.contains(
-        'GoliathArticleCardSelected'
-      );
-      expect(hasSelectedClass).toBe(true);
-    }
+    expect(card!.classList.contains('GoliathArticleCardSelected')).toBe(
+      selected
+    );
   };
 
   let originalOffsetHeight: PropertyDescriptor | undefined;
@@ -519,8 +516,14 @@ describe('ArticleList', () => {
   });
 
   it('maintains scroll position with stable sort', () => {
-    // Create 20 articles where groups of 10 have same creation time
-    const numArticles = 20;
+    // Articles are split into two groups that share a creation time, so that
+    // traversal crosses a boundary where only the tie-break distinguishes
+    // neighbours. Six articles in groups of three exercises that boundary, both
+    // list ends, and the round trip; the previous 20-in-groups-of-10 repeated
+    // the same three transitions and, because `threshold` below defeats
+    // virtualization, re-rendered every card on each of 38 keypresses.
+    const groupSize = 3;
+    const numArticles = groupSize * 2;
     const articles: ArticleView[] = Array.from(
       { length: numArticles },
       (_, i) => ({
@@ -532,7 +535,7 @@ describe('ArticleList', () => {
         author: '',
         html: `<p>Test content ${i}</p>`,
         url: `https://example.com/${i}`,
-        creationTime: 1678972810 - Math.floor(i / 10),
+        creationTime: 1678972810 - Math.floor(i / groupSize),
         isRead: false,
         isSaved: false,
       })
@@ -546,8 +549,8 @@ describe('ArticleList', () => {
     );
 
     // Scroll down and verify selection
+    expectArticleSelected(container, 'Test Article 0', true);
     for (let i = 0; i < numArticles - 1; i++) {
-      expectArticleSelected(container, `Test Article ${i}`, true);
       fireEvent.keyDown(window, { key: 'j' });
       expectArticleSelected(container, `Test Article ${i}`, false);
       expectArticleSelected(container, `Test Article ${i + 1}`, true);
@@ -555,7 +558,6 @@ describe('ArticleList', () => {
 
     // Scroll back up and verify selection
     for (let i = numArticles - 1; i > 0; i--) {
-      expectArticleSelected(container, `Test Article ${i}`, true);
       fireEvent.keyDown(window, { key: 'k' });
       expectArticleSelected(container, `Test Article ${i}`, false);
       expectArticleSelected(container, `Test Article ${i - 1}`, true);
