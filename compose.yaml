@@ -112,12 +112,18 @@ services:
     profiles: ["dev"]
     ports:
       - "3000:3000"
+      # `vite preview` port, for benchmarking a production build against the
+      # dev backend (see tools/perf/serve-prod-preview.sh).
+      - "4173:4173"
     links:
       - "backend-dev:goliath-dev"
     networks:
       - goliath-backend-nonprod
     volumes:
       - ./frontend:/frontend
+      # Dev-only profiling harnesses, served by Vite at /tools/... but never
+      # imported by the app and so never bundled into a production build.
+      - ./tools:/frontend/tools:ro
 
   backend-dev: &backend_template
     build:

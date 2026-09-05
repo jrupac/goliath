@@ -36,6 +36,40 @@ export default defineConfig(() => {
     server: {
       port: 3000,
       allowedHosts: true,
+      headers: {
+        // Enables the JS Self-Profiling API (`new Profiler(...)`) so the
+        // dev-only profiling harness in tools/ can capture sampled stacks.
+        // Dev server only — never sent by the production backend.
+        'Document-Policy': 'js-profiling',
+        // Cross-origin isolation lifts Chrome's timer coarsening, taking
+        // performance.now() from 100us to 5us resolution — the keypress
+        // benchmark needs that to resolve a ~20ms interaction. (It does not
+        // help Profiler, whose sample interval stays pinned at a ~10ms floor
+        // either way.) `credentialless` rather than `require-corp` so
+        // cross-origin article preview images still load, without credentials,
+        // and the measured workload stays realistic.
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'credentialless',
+      },
+      proxy: {
+        '^(/auth|/fever|/greader|/version)': {
+          target: 'http://goliath-dev:9999',
+          changeOrigin: true,
+          secure: false,
+        },
+      },
+    },
+    // `vite preview` serves the production build. Mirrors the dev server's
+    // proxy and profiling headers so the keypress benchmark can measure a
+    // realistic production bundle rather than the instrumented dev one.
+    preview: {
+      port: 4173,
+      allowedHosts: true,
+      headers: {
+        'Document-Policy': 'js-profiling',
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'credentialless',
+      },
       proxy: {
         '^(/auth|/fever|/greader|/version)': {
           target: 'http://goliath-dev:9999',
