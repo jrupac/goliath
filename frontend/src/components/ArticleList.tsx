@@ -32,7 +32,7 @@ import ArticleCard from './ArticleCard';
 import ArticleListEntry from './ArticleListEntry';
 import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
 import { keybindRegistry } from '../utils/keybindRegistry';
-import { DoneAllRounded } from '@mui/icons-material';
+import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
 import MenuTwoToneIcon from '@mui/icons-material/MenuTwoTone';
 
 import { ArticleId, ArticleView } from '../models/article';
