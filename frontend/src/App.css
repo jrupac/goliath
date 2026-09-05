@@ -756,9 +756,11 @@
 
 .GoliathArticleCardColumn {
   /* Width of the scrollbar rail. Unlike a native scrollbar's gutter this is
-     ours to choose, and it is reserved whether or not the article scrolls, so
-     nothing shifts when moving between a short article and a long one. */
-  --scrollbar-rail-width: 10px;
+     ours to choose — so it is a regular scrollbar width rather than whatever
+     `scrollbar-width: thin` happened to resolve to — and it is reserved
+     whether or not the article scrolls, so nothing shifts when moving between
+     a short article and a long one. */
+  --scrollbar-rail-width: 14px;
   --byline-height: 50px;
   height: 100vh;
   display: flex;
@@ -845,9 +847,9 @@
 .GoliathArticleScrollbarThumb {
   position: absolute;
   top: 0;
-  right: 2px;
-  width: 6px;
-  border-radius: 3px;
+  right: 3px;
+  width: 8px;
+  border-radius: 4px;
   background-color: color-mix(
     in srgb,
     var(--primary-font-color) 30%,

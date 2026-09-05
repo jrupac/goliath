@@ -93,13 +93,14 @@ const ArticleCard: React.FC<ArticleProps> = ({
   // title bar can span the full width of the card — see useOverlayScrollbar.
   const contentScrollRef = useRef<HTMLDivElement | null>(null);
   const articleContentRef = useRef<HTMLDivElement | null>(null);
+  const titleBarRef = useRef<HTMLDivElement | null>(null);
   const {
     railRef,
     thumbRef,
     sync: syncScrollbar,
     onRailPointerDown,
     onThumbPointerDown,
-  } = useOverlayScrollbar(contentScrollRef, articleContentRef);
+  } = useOverlayScrollbar(contentScrollRef, articleContentRef, titleBarRef);
 
   // Likewise, the scroll container is reused across articles, so a new article
   // would otherwise open at the previous one's scroll offset. Reset before
@@ -357,7 +358,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
         {/* Frosted title bar. It lives inside the scroller and sticks to its
             top, so content scrolls under it and is blurred by it while the
             scrollbar, which is outside the content box, stays crisp. */}
-        <Box className="GoliathArticleTitleBar">
+        <Box className="GoliathArticleTitleBar" ref={titleBarRef}>
           <h1 className="GoliathArticleTitle">
             <a
               target="_blank"
@@ -378,9 +379,9 @@ const ArticleCard: React.FC<ArticleProps> = ({
         </div>
       </Box>
 
-      {/* Scrollbar for the container above, drawn over the title bar rather
-          than under it. Hidden until the first sync finds something to
-          scroll. */}
+      {/* Scrollbar for the container above. The rail spans the whole scroller,
+          but its track starts below the title bar — see useOverlayScrollbar.
+          Hidden until the first sync finds something to scroll. */}
       <Box
         className="GoliathArticleScrollbar"
         ref={railRef}

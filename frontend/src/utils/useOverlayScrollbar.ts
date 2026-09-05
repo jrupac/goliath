@@ -13,7 +13,13 @@ import React, { RefObject, useCallback, useEffect, useRef } from 'react';
    Only the *painted* bar is replaced. The scroller stays a real scroller, so
    the wheel, keyboard, touch scrolling, find-in-page and scrollIntoView are
    all still handled natively; this just mirrors scrollTop and writes it back
-   when the thumb is dragged. */
+   when the thumb is dragged.
+
+   The track starts below the sticky header rather than at the top of the
+   scroller. That keeps the thumb from being drawn over the frosted header,
+   and it describes the article better besides: the scroller does extend up
+   behind the header, but that part of it is occluded, so the region the thumb
+   spans is the region the reader can actually see. */
 
 /** Shortest the thumb may get, so it stays grabbable on very long articles. */
 const MIN_THUMB_HEIGHT = 24;
@@ -29,7 +35,8 @@ export interface OverlayScrollbar {
 
 export function useOverlayScrollbar(
   scrollRef: RefObject<HTMLElement | null>,
-  contentRef: RefObject<HTMLElement | null>
+  contentRef: RefObject<HTMLElement | null>,
+  headerRef: RefObject<HTMLElement | null>
 ): OverlayScrollbar {
   const railRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
@@ -48,7 +55,11 @@ export function useOverlayScrollbar(
 
     const { scrollHeight, clientHeight, scrollTop } = scroller;
     const overflow = scrollHeight - clientHeight;
-    const trackHeight = rail.clientHeight;
+    // The rail spans the whole scroller — it has to, since its height is what
+    // is being measured here and a zero-height rail could never show itself
+    // again — but the track is only the part below the header.
+    const inset = headerRef.current?.offsetHeight ?? 0;
+    const trackHeight = rail.clientHeight - inset;
 
     // Nothing to scroll, so there is nothing to indicate. Hiding the rail is
     // what keeps short articles from showing a full-height thumb.
@@ -58,16 +69,19 @@ export function useOverlayScrollbar(
     }
     rail.hidden = false;
 
-    const height = Math.max(
-      MIN_THUMB_HEIGHT,
-      (clientHeight / scrollHeight) * trackHeight
+    // The minimum keeps the thumb grabbable on a long article; the maximum
+    // keeps it inside a track that a tall header has left shorter than that
+    // minimum.
+    const height = Math.min(
+      trackHeight,
+      Math.max(MIN_THUMB_HEIGHT, (clientHeight / scrollHeight) * trackHeight)
     );
     // Clamped because overscroll (rubber-banding, or a momentum fling) reports
     // a scrollTop outside [0, overflow].
     const progress = Math.min(1, Math.max(0, scrollTop / overflow));
     thumb.style.height = `${height}px`;
-    thumb.style.transform = `translateY(${(trackHeight - height) * progress}px)`;
-  }, [scrollRef]);
+    thumb.style.transform = `translateY(${inset + (trackHeight - height) * progress}px)`;
+  }, [scrollRef, headerRef]);
 
   // Coalesced to one update per frame: a fast scroll delivers events faster
   // than the page can paint them.
@@ -91,7 +105,8 @@ export function useOverlayScrollbar(
     scroller.addEventListener('scroll', schedule, { passive: true });
 
     // The scroller resizes with the window; the content resizes as images load
-    // and when reader mode is toggled. Both change where the thumb belongs.
+    // and when reader mode is toggled; the header resizes as each article's
+    // title reflows. All three change where the thumb belongs.
     const observer =
       typeof ResizeObserver === 'undefined'
         ? null
@@ -99,6 +114,9 @@ export function useOverlayScrollbar(
     observer?.observe(scroller);
     if (contentRef.current) {
       observer?.observe(contentRef.current);
+    }
+    if (headerRef.current) {
+      observer?.observe(headerRef.current);
     }
 
     return () => {
@@ -108,7 +126,7 @@ export function useOverlayScrollbar(
         cancelAnimationFrame(frameRef.current);
       }
     };
-  }, [scrollRef, contentRef, schedule, sync]);
+  }, [scrollRef, contentRef, headerRef, schedule, sync]);
 
   const onThumbPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -120,7 +138,8 @@ export function useOverlayScrollbar(
       }
 
       const overflow = scroller.scrollHeight - scroller.clientHeight;
-      const travel = rail.clientHeight - thumb.offsetHeight;
+      const inset = headerRef.current?.offsetHeight ?? 0;
+      const travel = rail.clientHeight - inset - thumb.offsetHeight;
       if (overflow <= 0 || travel <= 0) {
         return;
       }
@@ -151,15 +170,28 @@ export function useOverlayScrollbar(
       thumb.addEventListener('pointerup', onRelease);
       thumb.addEventListener('pointercancel', onRelease);
     },
-    [scrollRef]
+    [scrollRef, headerRef]
   );
 
   const onRailPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       const scroller = scrollRef.current;
+      const rail = railRef.current;
       const thumb = thumbRef.current;
       // A press that landed on the thumb is a drag, handled above.
-      if (!scroller || !thumb || event.target !== event.currentTarget) {
+      if (
+        !scroller ||
+        !rail ||
+        !thumb ||
+        event.target !== event.currentTarget
+      ) {
+        return;
+      }
+
+      // The strip of rail alongside the header is not part of the track, so a
+      // press there is not a press on anything.
+      const inset = headerRef.current?.offsetHeight ?? 0;
+      if (event.clientY < rail.getBoundingClientRect().top + inset) {
         return;
       }
 
@@ -169,7 +201,7 @@ export function useOverlayScrollbar(
         behavior: 'smooth',
       });
     },
-    [scrollRef]
+    [scrollRef, headerRef]
   );
 
   return { railRef, thumbRef, sync, onRailPointerDown, onThumbPointerDown };
