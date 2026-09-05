@@ -2,6 +2,7 @@ import React, {
   ReactNode,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react';
@@ -73,6 +74,9 @@ const ArticleCard: React.FC<ArticleProps> = ({
   const titleBarRef = useRef<HTMLDivElement | null>(null);
   const [titleBarHeight, setTitleBarHeight] = useState(120);
 
+  // The title bar element persists across articles now that the card is not
+  // remounted per article, so it only needs observing once. The observer keeps
+  // reporting height changes as the title reflows for each new article.
   useEffect(() => {
     if (!titleBarRef.current) return;
     if (typeof ResizeObserver === 'undefined') return;
@@ -83,12 +87,34 @@ const ArticleCard: React.FC<ArticleProps> = ({
     });
     observer.observe(titleBarRef.current);
     return () => observer.disconnect();
-  }, [article.id]);
+  }, []);
 
   const [state, setState] = useState<ArticleState>({
     showParsed: false,
     loading: false,
   });
+
+  // ArticleList used to give this component a key of the article id, which
+  // remounted the whole card — roughly forty MUI elements — on every j/k
+  // keypress just to reset the state below. Reconciling instead is much
+  // cheaper, but it means per-article state has to be reset explicitly.
+  // Adjusting state during render is React's documented pattern for this; it
+  // re-runs this component immediately, without committing the stale state.
+  const [renderedArticleId, setRenderedArticleId] = useState(article.id);
+  if (renderedArticleId !== article.id) {
+    setRenderedArticleId(article.id);
+    setState({ showParsed: false, loading: false });
+  }
+
+  // Likewise, the scroll container is reused across articles, so a new article
+  // would otherwise open at the previous one's scroll offset. Reset before
+  // paint so the jump is never visible.
+  const contentScrollRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    if (contentScrollRef.current) {
+      contentScrollRef.current.scrollTop = 0;
+    }
+  }, [article.id]);
 
   const toggleParseContent = useCallback(() => {
     setState((prevState) => {
@@ -347,7 +373,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
       </Box>
 
       {/* Article scroll area */}
-      <Box className="GoliathSplitViewArticleContainer">
+      <Box className="GoliathSplitViewArticleContainer" ref={contentScrollRef}>
         {/* Spacer inside the scroll container to push content below the title bar */}
         <Box className="GoliathArticleTitleBarSpacer" />
 

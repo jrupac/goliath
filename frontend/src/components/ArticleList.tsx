@@ -663,8 +663,10 @@ const ArticleList: React.FC<ArticleListProps> = ({
             }}
           >
             <Box sx={{ height: '100%' }}>
+              {/* Deliberately not keyed by article id: that remounted the
+                  entire card on every keypress. ArticleCard resets its own
+                  per-article state instead. */}
               <ArticleCard
-                key={articleView.id}
                 fetchApi={fetchApi}
                 handleUpdateArticleParsed={handleUpdateArticleParsed}
                 article={articleView}
