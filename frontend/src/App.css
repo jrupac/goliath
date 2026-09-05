@@ -114,7 +114,8 @@
   box-sizing: border-box;
   background-color: var(--primary-background-color);
   color: var(--primary-font-color);
-  border-right: 1px solid var(--action-bar-border-color);
+  border-right: 1px solid var(--nav-border-color);
+  scrollbar-color: var(--primary-font-darker-2-color) transparent;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -127,13 +128,30 @@
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  background-color: var(--primary-darker-2-color);
+  background-color: var(--bar-background-color);
   padding: 10px;
-  border-bottom: 1px solid var(--action-bar-border-color);
+  border-bottom: 1px solid var(--nav-border-color);
   position: relative;
   z-index: 1;
   height: 50px;
   box-sizing: border-box;
+}
+
+/* Icon buttons on the chrome. Left unset, MUI resolves these from its own
+   palette mode, which in light mode is near-black on a near-black bar. */
+.GoliathDrawerActionBar .MuiIconButton-root,
+.GoliathSplitViewArticleListActionBar .MuiIconButton-root {
+  color: var(--primary-font-darker-1-color);
+}
+
+.GoliathDrawerActionBar .MuiIconButton-root:hover,
+.GoliathSplitViewArticleListActionBar .MuiIconButton-root:hover {
+  color: var(--primary-font-color);
+  background-color: color-mix(
+    in srgb,
+    var(--primary-font-color) 10%,
+    transparent
+  );
 }
 
 .GoliathLogo {
@@ -226,7 +244,7 @@
 .GoliathSidebarPillPlain {
   margin-left: auto;
   padding: 4px 6px;
-  color: var(--primary-font-darker-2-color);
+  color: var(--primary-font-darker-1-color);
   font-size: 11px;
   font-weight: 600;
   line-height: 1;
@@ -291,6 +309,7 @@
 }
 
 .GoliathHideEmptyButtonUnselected.MuiIconButton-root {
+  color: var(--primary-font-darker-1-color);
   margin-right: 10px;
 }
 
@@ -314,6 +333,12 @@
 .GoliathFolderFeedList .MuiTreeItem-root {
   padding-top: 0;
   padding-bottom: 0;
+}
+
+/* Expand/collapse chevrons — as with the action bars, MUI's own palette
+   colour is unreadable on the chrome in light mode. */
+.GoliathFolderFeedList .MuiTreeItem-iconContainer {
+  color: var(--primary-font-darker-1-color);
 }
 
 .GoliathFolderFeedList .MuiTreeItem-content {
@@ -433,8 +458,9 @@
 .GoliathArticleCard {
   position: relative;
   height: 182px;
-  border-bottom: 1px solid var(--border-color);
-  background-color: var(--article-list-background-color);
+  border-bottom: 1px solid var(--content-border-color);
+  background-color: var(--content-list-background-color);
+  color: var(--content-font-color);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -464,8 +490,8 @@
 
 /* Card state: bright (unread/saved), unselected */
 .GoliathArticleCardBright {
-  color: var(--primary-font-color);
-  background-color: var(--primary-darker-1-color);
+  color: var(--content-font-color);
+  background-color: var(--content-card-background-color);
 }
 
 /* Card state: dimmed (read/unsaved), unselected */
@@ -476,17 +502,26 @@
 /* Card state: selected */
 .GoliathArticleCardSelected {
   background-color: var(--accent-color-subtle);
-  color: var(--primary-font-color);
+  color: var(--content-font-color);
 }
 
 /* Subtle card hover state with shadow and warm accent tint */
 .GoliathArticleCard:hover {
   background-color: color-mix(
     in srgb,
-    var(--article-list-background-color) 92%,
+    var(--content-list-background-color) 92%,
     var(--accent-color) 8%
   );
   box-shadow: 0 4px 12px var(--goliath-box-shadow-color);
+}
+
+/* Bright cards hover off their own background, not the list's. */
+.GoliathArticleCardBright:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--content-card-background-color) 92%,
+    var(--accent-color) 8%
+  );
 }
 
 /* Retain correct select-background colors during hover */
@@ -494,7 +529,7 @@
   background-color: color-mix(
     in srgb,
     var(--accent-color-subtle) 90%,
-    var(--primary-font-color) 10%
+    var(--content-font-color) 10%
   );
 }
 
@@ -579,7 +614,7 @@
 .GoliathArticleCardTime {
   font-size: 13px;
   font-family: var(--primary-sans-serif-font), sans-serif;
-  color: var(--primary-font-darker-2-color);
+  color: var(--content-font-muted-2-color);
   white-space: nowrap;
   flex-shrink: 0;
   text-box-trim: trim-both;
@@ -644,7 +679,7 @@
   font-family: var(--primary-sans-serif-font), sans-serif;
   font-size: 15px;
   line-height: 1.35;
-  color: var(--primary-font-darker-1-color);
+  color: var(--content-font-muted-1-color);
   display: -webkit-box;
   -webkit-line-clamp: 2; /* At most 2 lines before ellipsizing */
   -webkit-box-orient: vertical;
@@ -663,7 +698,7 @@
   display: flex;
   flex-direction: column;
   text-align: center;
-  color: var(--article-list-empty-primary-font-color);
+  color: var(--content-font-muted-2-color);
   font-size: 24px;
   height: 100vh;
   justify-content: space-between;
@@ -678,8 +713,8 @@
 .GoliathFooter {
   text-align: center;
   font-family: var(--primary-sans-serif-font), sans-serif;
-  color: var(--article-font-color);
-  background-color: var(--article-list-empty-background-color);
+  color: var(--content-font-color);
+  background-color: var(--content-list-background-color);
   padding: 20px;
   font-size: 10px;
 }
@@ -687,7 +722,7 @@
 /** Combined article list */
 
 .GoliathSplitViewArticleListActionBar {
-  background-color: var(--action-bar-background-color);
+  background-color: var(--bar-background-color);
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -695,7 +730,7 @@
   width: 100%;
   gap: 10px;
   padding: 10px;
-  border-bottom: 1px solid var(--action-bar-border-color);
+  border-bottom: 1px solid var(--nav-border-color);
   height: 50px;
   box-sizing: border-box;
 }
@@ -725,7 +760,8 @@
   height: 100vh;
   width: 30vw;
   flex-shrink: 0;
-  background-color: var(--article-list-background-color);
+  background-color: var(--content-list-background-color);
+  scrollbar-color: var(--content-font-muted-2-color) transparent;
 }
 
 .GoliathSplitViewArticleListBox {
@@ -782,8 +818,9 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: var(--scrollbar-rail-width);
-  background: var(--article-background-color);
-  color: var(--article-font-color);
+  border-left: 1px solid var(--content-border-color);
+  background: var(--content-background-color);
+  color: var(--content-font-color);
   scrollbar-width: none;
   position: relative;
 }
@@ -793,7 +830,8 @@
   display: none;
 }
 
-/* Reader mode button — accent color when active */
+/* Reader mode button — accent color when active. Lives on the byline, so it
+   takes the chrome accent rather than the one darkened for light content. */
 .GoliathReaderModeActive {
   color: var(--accent-color) !important;
 }
@@ -815,9 +853,9 @@
   top: 0;
   z-index: 3; /* Paint above the article content scrolling underneath */
   margin-right: calc(-1 * var(--scrollbar-rail-width));
-  background: var(--card-header-background-color);
+  background: var(--content-scrim-color);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--content-border-color);
   box-sizing: border-box;
 }
 
@@ -852,7 +890,7 @@
   border-radius: 4px;
   background-color: color-mix(
     in srgb,
-    var(--primary-font-color) 30%,
+    var(--content-font-color) 30%,
     transparent
   );
   will-change: transform;
@@ -862,7 +900,7 @@
 .GoliathArticleScrollbarThumbDragging {
   background-color: color-mix(
     in srgb,
-    var(--primary-font-color) 50%,
+    var(--content-font-color) 50%,
     transparent
   );
 }
@@ -878,12 +916,10 @@
   color: var(--primary-font-darker-1-color);
   font-family: var(--primary-sans-serif-font), sans-serif;
   white-space: nowrap;
-  background-color: color-mix(
-    in srgb,
-    var(--article-list-background-color) 85%,
-    var(--accent-color) 15%
-  ); /* Opaque background matching selected, unread card background */
-  border-bottom: 1px solid var(--border-color); /* Distinct separator */
+  /* Accent tint is what sets the reading pane's bar apart from the other two */
+  background-color: var(--bar-accent-background-color);
+  border-left: 1px solid var(--nav-border-color);
+  border-bottom: 1px solid var(--nav-border-color); /* Distinct separator */
   box-sizing: border-box;
   height: var(--byline-height);
   position: relative;
@@ -932,14 +968,14 @@
 /* Make action buttons look beautiful and small inside byline */
 .GoliathArticleBylineActions .MuiIconButton-root {
   padding: 4px;
-  color: var(--primary-font-darker-2-color);
+  color: var(--primary-font-darker-1-color);
 }
 
 .GoliathArticleBylineActions .MuiIconButton-root:hover {
   color: var(--primary-font-color);
   background-color: color-mix(
     in srgb,
-    var(--primary-font-color) 8%,
+    var(--primary-font-color) 10%,
     transparent
   );
 }
@@ -958,13 +994,12 @@
 }
 
 .GoliathArticleTitle a {
-  color: var(--article-font-color);
+  color: var(--content-font-color);
   text-decoration: none;
   overflow-wrap: break-word;
 }
 
 .GoliathSplitViewArticleOuter {
-  border-left: 1px solid var(--action-bar-border-color);
   flex-grow: 1;
   min-width: 0;
 }
@@ -972,7 +1007,7 @@
 .GoliathSplitViewArticleContent {
   font-size: 18px;
   font-family: var(--primary-sans-serif-font), serif;
-  color: var(--article-font-color);
+  color: var(--content-font-color);
   padding: 24px;
   max-width: 75ch;
   margin: 0 auto;
@@ -991,7 +1026,7 @@
 .GoliathArticleContent {
   font-size: 18px;
   font-family: var(--primary-sans-serif-font), serif;
-  color: var(--article-font-color);
+  color: var(--content-font-color);
   padding: 24px;
   max-width: 75ch;
   margin: 0 auto;
@@ -1011,15 +1046,15 @@
 }
 
 .GoliathArticleContentStyling a {
-  color: var(--accent-color);
+  color: var(--accent-color-strong);
   font-weight: 500;
   text-decoration: none;
-  border-bottom: 1px dotted var(--accent-color);
+  border-bottom: 1px dotted var(--accent-color-strong);
 }
 
 .GoliathArticleContentStyling a:hover {
   text-decoration: none;
-  border-bottom: 1px solid var(--accent-color);
+  border-bottom: 1px solid var(--accent-color-strong);
 }
 
 .GoliathArticleContentStyling h1,
@@ -1028,7 +1063,7 @@
 .GoliathArticleContentStyling h4,
 .GoliathArticleContentStyling h5,
 .GoliathArticleContentStyling h6 {
-  color: var(--article-font-color);
+  color: var(--content-font-color);
   font-family: var(--primary-sans-serif-font), sans-serif;
   font-weight: 600;
   line-height: 1.3;
@@ -1064,8 +1099,8 @@
   margin: 1.5rem 0;
   padding: 0.5rem 0 0.5rem 1.5rem;
   font-style: italic;
-  color: var(--primary-font-darker-1-color);
-  border-left: 4px solid var(--accent-color);
+  color: var(--content-font-muted-1-color);
+  border-left: 4px solid var(--accent-color-strong);
   background-color: color-mix(in srgb, var(--accent-color) 4%, transparent);
 }
 
@@ -1074,8 +1109,8 @@
 }
 
 .GoliathArticleContentStyling pre {
-  color: var(--primary-font-color);
-  background: var(--pre-background-color);
+  color: var(--content-pre-font-color);
+  background: var(--content-pre-background-color);
   box-shadow: 0px 4px 12px var(--pre-box-shadow);
   font-size: 0.9rem;
   font-family: monospace;
@@ -1088,8 +1123,8 @@
 }
 
 .GoliathArticleContentStyling :not(pre) > code {
-  color: var(--primary-font-code-color);
-  background: var(--code-background-color);
+  color: var(--content-code-font-color);
+  background: var(--content-code-background-color);
   font-family: monospace;
   font-size: 0.85em;
   padding: 2px 6px;
@@ -1148,8 +1183,8 @@
 
 /* Modal paper */
 .GoliathKeybindingsModalPaper.MuiDialog-paper {
-  background-color: var(--primary-darker-4-color);
-  color: var(--primary-font-color);
+  background-color: var(--modal-background-color);
+  color: var(--content-font-color);
 }
 
 /* Dialog title */
@@ -1172,11 +1207,11 @@
 
 /* Section title */
 .GoliathKeybindingSectionTitle.MuiTypography-root {
-  color: var(--primary-font-darker-1-color);
+  color: var(--content-font-muted-1-color);
   font-family: var(--primary-sans-serif-font), sans-serif;
   margin-bottom: 8px;
   padding-bottom: 4px;
-  border-bottom: 1px solid var(--action-bar-border-color);
+  border-bottom: 1px solid var(--modal-border-color);
 }
 
 /* Keybinding row */
@@ -1200,6 +1235,7 @@
   font-size: 13px;
   margin: 0 2px;
   font-weight: 600;
+  color: var(--content-font-muted-2-color);
 }
 
 /* Individual key chip — monospace for legibility */
@@ -1214,16 +1250,16 @@
   font-size: 13px;
   font-weight: 600;
   line-height: 1;
-  color: var(--primary-font-color);
-  background-color: var(--primary-darker-2-color);
-  border: 1px solid var(--action-bar-border-color);
+  color: var(--content-font-color);
+  background-color: var(--modal-key-background-color);
+  border: 1px solid var(--modal-border-color);
   border-radius: 4px;
   white-space: nowrap;
 }
 
 /* Action label next to key chip */
 .GoliathKeybindingLabel {
-  color: var(--primary-font-color);
+  color: var(--content-font-color);
   flex: 1;
 }
 
@@ -1238,7 +1274,7 @@
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
-    background-color: var(--primary-darker-4-color);
+    background-color: var(--content-background-color);
     padding: 0;
   }
 
@@ -1262,7 +1298,7 @@
     justify-content: center;
     align-items: flex-start;
     padding: 40px 24px;
-    background-color: var(--primary-darker-4-color);
+    background-color: var(--content-background-color);
     box-sizing: border-box;
   }
 
@@ -1279,6 +1315,11 @@
 
   .GoliathSplitViewArticleOuter {
     width: 100vw;
+  }
+
+  /* Single column on phones — there is nothing to the left to divide from. */
+  .GoliathArticleByline,
+  .GoliathSplitViewArticleContainer {
     border-left: none;
   }
 
@@ -1348,8 +1389,8 @@
   left: 0;
   right: 0;
   height: auto;
-  background-color: var(--primary-darker-2-color);
-  border-top: 1px solid var(--action-bar-border-color);
+  background-color: var(--bar-background-color);
+  border-top: 1px solid var(--nav-border-color);
   display: flex;
   align-items: center;
   justify-content: space-around;

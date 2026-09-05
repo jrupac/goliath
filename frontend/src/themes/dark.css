@@ -1,12 +1,29 @@
+/*
+ * Dark theme.
+ *
+ * Both themes declare the same token set in the same order; only the values
+ * differ. The tokens are organised into two surfaces:
+ *
+ *   Nav surface     — sidebar, login splash, mobile bottom bar. Dark in both
+ *                     themes (in light mode it is the one large block of
+ *                     colour, a neutral dark grey).
+ *   Content surface — article list column and reading pane. This is where the
+ *                     two themes actually diverge, which is why it has its own
+ *                     base rather than being derived from the nav colour.
+ *
+ * In this theme the content surface is simply another step down the nav ramp,
+ * so its tokens are aliases.
+ */
 .dark-theme {
-  /* Theme background colors */
+  /* Fonts */
   --primary-sans-serif-font: 'Google Sans Flex';
-  --primary-serif-font: 'Vollkorn';
   --primary-logo-font: 'Pacifico';
 
-  /* Theme background colors */
+  /****************************************************************************
+   * Nav surface
+   ***************************************************************************/
+
   --primary-background-color: #2b303b;
-  --primary-img-background-color: white;
 
   --primary-selected-color: color-mix(
     in srgb,
@@ -19,6 +36,7 @@
     #fff
   );
 
+  /* Shade ramp. Higher number = less of the base colour left, so darker. */
   --primary-darker-1-color: color-mix(
     in srgb,
     var(--primary-background-color) 50%,
@@ -40,34 +58,7 @@
     #000
   );
 
-  --primary-lighter-1-color: color-mix(
-    in srgb,
-    var(--primary-background-color) 99%,
-    #fff
-  );
-  --primary-lighter-2-color: color-mix(
-    in srgb,
-    var(--primary-background-color) 70%,
-    #fff
-  );
-  --primary-lighter-3-color: color-mix(
-    in srgb,
-    var(--primary-background-color) 50%,
-    #fff
-  );
-  --primary-lighter-4-color: color-mix(
-    in srgb,
-    var(--primary-background-color) 5%,
-    #fff
-  );
-
-  /* Theme font colors */
   --primary-font-color: #f7ece6;
-  --primary-warning-color: #f04134;
-  --primary-font-code-color: #f38a6a;
-
-  --primary-logo-font-color: var(--primary-font-color);
-
   --primary-font-darker-1-color: color-mix(
     in srgb,
     var(--primary-font-color) 70%,
@@ -78,87 +69,126 @@
     var(--primary-font-color) 50%,
     #000
   );
-
   --primary-font-lighter-1-color: color-mix(
     in srgb,
     var(--primary-font-color) 70%,
     #fff
   );
 
-  /* Component colors */
-  --action-bar-background-color: var(--primary-darker-2-color);
-  --action-bar-border-color: var(--border-color);
+  --primary-logo-font-color: var(--primary-font-color);
+  --goliath-login-page-logo-color: var(--primary-font-color);
 
-  --article-list-background-color: var(--primary-darker-2-color);
+  --nav-border-color: var(--primary-darker-4-color);
 
-  --article-list-empty-primary-font-color: var(--primary-lighter-2-color);
-  --article-list-empty-text-font-color: var(--primary-lighter-2-color);
+  /****************************************************************************
+   * Content surface
+   ***************************************************************************/
 
-  --card-normal-border-color: var(--primary-lighter-1-color);
-  --card-selected-background-color: var(--primary-lighter-1-color);
+  --content-background-color: var(--primary-darker-3-color);
+  --content-list-background-color: var(--primary-darker-2-color);
+  --content-card-background-color: var(--primary-darker-1-color);
 
-  --card-header-actions-background-color: var(--primary-darker-2-color);
-  --card-header-background-color: color-mix(
+  --content-font-color: var(--primary-font-lighter-1-color);
+  --content-font-muted-1-color: var(--primary-font-darker-1-color);
+  --content-font-muted-2-color: var(--primary-font-darker-2-color);
+
+  --content-border-color: var(--primary-darker-4-color);
+
+  /* Frosted article title bar — a translucent wash of the reading surface. */
+  --content-scrim-color: color-mix(
     in srgb,
     var(--primary-background-color) 60%,
     transparent
   );
 
-  --article-header-unread-font-color: var(--primary-font-lighter-1-color);
-  --article-header-read-font-color: var(--primary-font-darker-2-color);
-  --article-header-read-font-color-selected: var(--primary-font-darker-1-color);
-
-  --article-feed-title-font-color: var(--primary-font-lighter-1-color);
-
-  --article-background-color: var(--primary-darker-3-color);
-  --article-date-color: var(--primary-font-color);
-  --article-font-color: var(--primary-font-lighter-1-color);
-
-  --goliath-login-failed-message-color: var(--primary-warning-color);
-  --goliath-box-shadow-color: color-mix(
-    in srgb,
-    var(--primary-darker-3-color) 30%,
-    transparent
-  );
-
-  --pre-background-color: var(--primary-darker-1-color);
-  --pre-box-shadow: color-mix(
-    in srgb,
-    var(--primary-darker-4-color) 50%,
-    transparent
-  );
-
-  --code-background-color: var(--primary-darker-2-color);
+  --content-code-background-color: var(--primary-darker-2-color);
+  --content-code-font-color: #f38a6a;
+  --content-pre-background-color: var(--primary-darker-1-color);
+  --content-pre-font-color: var(--primary-font-color);
 
   --table-row-background-color: var(--primary-darker-2-color);
-  --table-border-color: var(--primary-lighter-2-color);
+  --table-border-color: color-mix(
+    in srgb,
+    var(--primary-background-color) 70%,
+    #fff
+  );
   --table-header-background-color: var(--primary-darker-1-color);
-  --table-header-border-color: var(--primary-lighter-2-color);
+  --table-header-border-color: var(--table-border-color);
   --table-header-font-color: var(--primary-font-lighter-1-color);
 
-  --img-border-color: var(--primary-lighter-1-color);
+  --img-border-color: color-mix(
+    in srgb,
+    var(--primary-background-color) 99%,
+    #fff
+  );
+  --primary-img-background-color: white;
 
-  /* --- Modernization variables (Phase 1) --- */
+  /* Favicon plate — a light neutral so transparent favicons stay legible. */
+  --favicon-background-color: #e8edf2;
+  /* Hairline ring drawn around favicons and initials, on either surface. */
+  --border-color-subtle: #4a5060;
 
-  /* Accent — unread dots, badge fills, selected tints */
+  /****************************************************************************
+   * Action bars
+   *
+   * All three panes' bars take the chrome colour, so the top of the window
+   * reads as one strip. The reading pane's byline is that same colour tinted
+   * with the accent, which is what sets it apart from the other two.
+   ***************************************************************************/
+
+  --bar-background-color: var(--primary-darker-2-color);
+  --bar-accent-background-color: color-mix(
+    in srgb,
+    var(--bar-background-color) 85%,
+    var(--accent-color) 15%
+  );
+
+  /****************************************************************************
+   * Modal surface
+   ***************************************************************************/
+
+  --modal-background-color: var(--primary-darker-4-color);
+  --modal-key-background-color: var(--primary-darker-2-color);
+  --modal-border-color: var(--primary-darker-2-color);
+
+  /****************************************************************************
+   * Accent
+   ***************************************************************************/
+
+  /* Unread dots, badge fills, selected tints. */
   --accent-color: #d4634a;
+  /* Accent for text and icons — must clear 4.5:1 on the content surface. */
+  --accent-color-strong: var(--accent-color);
   --accent-color-subtle: color-mix(
     in srgb,
     var(--accent-color) 15%,
     transparent
   );
 
-  /* Borders — panel edges, card separators */
-  --border-color: var(--primary-darker-4-color);
-  --border-color-subtle: #4a5060;
+  --primary-warning-color: #f04134;
+  --goliath-login-failed-message-color: var(--primary-warning-color);
 
-  /* Favicon background — light neutral so transparent favicons stay legible */
-  --favicon-background-color: #e8edf2;
+  /****************************************************************************
+   * Elevation and state
+   ***************************************************************************/
 
-  /* Card state opacities */
+  --goliath-box-shadow-color: color-mix(
+    in srgb,
+    var(--primary-darker-3-color) 30%,
+    transparent
+  );
+  --pre-box-shadow: color-mix(
+    in srgb,
+    var(--primary-darker-4-color) 50%,
+    transparent
+  );
+
   --card-read-text-opacity: 0.6;
 
-  /* Initials swatch palette (8 entries, hand-chosen) */
+  /****************************************************************************
+   * Initials swatch palette (8 entries, hand-chosen)
+   ***************************************************************************/
+
   --swatch-0: #d4634a;
   --swatch-1: #4a9ab5;
   --swatch-2: #8a6c8a;
