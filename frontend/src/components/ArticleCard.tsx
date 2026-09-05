@@ -221,7 +221,10 @@ const ArticleCard: React.FC<ArticleProps> = ({
         const container = event.currentTarget;
         const targetEl = container.querySelector(`[id="${targetId}"]`);
         if (targetEl) {
-          targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          // 'start' rather than 'nearest': a footnote below the fold should
+          // come to the top of the article, not to the bottom edge, which is
+          // where the minimal scroll would leave it.
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }
     },
