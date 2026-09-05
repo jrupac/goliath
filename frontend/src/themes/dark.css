@@ -66,7 +66,7 @@
   );
   --primary-font-darker-2-color: color-mix(
     in srgb,
-    var(--primary-font-color) 50%,
+    var(--primary-font-color) 55%,
     #000
   );
   --primary-font-lighter-1-color: color-mix(
@@ -79,6 +79,8 @@
   --goliath-login-page-logo-color: var(--primary-font-color);
 
   --nav-border-color: var(--primary-darker-4-color);
+  --nav-row-hover-color: var(--primary-darker-1-color);
+  --nav-row-selected-color: var(--primary-darker-2-color);
 
   /****************************************************************************
    * Content surface
@@ -143,6 +145,9 @@
     var(--accent-color) 15%
   );
 
+  --bar-font-color: var(--primary-font-color);
+  --bar-font-muted-color: var(--primary-font-darker-1-color);
+
   /****************************************************************************
    * Modal surface
    ***************************************************************************/
@@ -159,6 +164,7 @@
   --accent-color: #d4634a;
   /* Accent for text and icons — must clear 4.5:1 on the content surface. */
   --accent-color-strong: var(--accent-color);
+  --accent-font-color: #14171a;
   --accent-color-subtle: color-mix(
     in srgb,
     var(--accent-color) 15%,

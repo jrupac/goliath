@@ -23,13 +23,9 @@
    * Nav surface
    ***************************************************************************/
 
-  --primary-background-color: #33383e;
+  --primary-background-color: #212429;
 
-  --primary-selected-color: color-mix(
-    in srgb,
-    var(--primary-background-color) 70%,
-    #000
-  );
+  --primary-selected-color: var(--nav-row-selected-color);
   --primary-hover-color: color-mix(
     in srgb,
     var(--primary-background-color) 70%,
@@ -66,7 +62,7 @@
   );
   --primary-font-darker-2-color: color-mix(
     in srgb,
-    var(--primary-font-color) 50%,
+    var(--primary-font-color) 55%,
     #000
   );
   --primary-font-lighter-1-color: color-mix(
@@ -79,6 +75,16 @@
   --goliath-login-page-logo-color: var(--primary-font-color);
 
   --nav-border-color: var(--primary-darker-4-color);
+  --nav-row-hover-color: color-mix(
+    in srgb,
+    var(--primary-background-color) 90%,
+    #fff
+  );
+  --nav-row-selected-color: color-mix(
+    in srgb,
+    var(--primary-background-color) 80%,
+    #fff
+  );
 
   /****************************************************************************
    * Content surface
@@ -135,6 +141,9 @@
     var(--accent-color) 15%
   );
 
+  --bar-font-color: var(--primary-font-color);
+  --bar-font-muted-color: var(--primary-font-darker-1-color);
+
   /****************************************************************************
    * Modal surface
    ***************************************************************************/
@@ -151,6 +160,7 @@
   --accent-color: #d4634a;
   /* Accent for text and icons — must clear 4.5:1 on the content surface. */
   --accent-color-strong: #b0452b;
+  --accent-font-color: #14171a;
   --accent-color-subtle: color-mix(
     in srgb,
     var(--accent-color) 15%,

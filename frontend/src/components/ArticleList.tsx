@@ -530,7 +530,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
                     sx={{
                       fontWeight: 600,
                       fontFamily: 'var(--primary-sans-serif-font), sans-serif',
-                      color: 'var(--primary-font-color)',
+                      color: 'var(--bar-font-color)',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',

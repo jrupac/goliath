@@ -141,17 +141,13 @@
    palette mode, which in light mode is near-black on a near-black bar. */
 .GoliathDrawerActionBar .MuiIconButton-root,
 .GoliathSplitViewArticleListActionBar .MuiIconButton-root {
-  color: var(--primary-font-darker-1-color);
+  color: var(--bar-font-muted-color);
 }
 
 .GoliathDrawerActionBar .MuiIconButton-root:hover,
 .GoliathSplitViewArticleListActionBar .MuiIconButton-root:hover {
-  color: var(--primary-font-color);
-  background-color: color-mix(
-    in srgb,
-    var(--primary-font-color) 10%,
-    transparent
-  );
+  color: var(--bar-font-color);
+  background-color: color-mix(in srgb, var(--bar-font-color) 10%, transparent);
 }
 
 .GoliathLogo {
@@ -229,9 +225,9 @@
 .GoliathSidebarPill {
   margin-left: auto;
   background-color: var(--accent-color);
-  color: #fff;
+  color: var(--accent-font-color);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
   padding: 4px 6px;
   border-radius: 99px;
   white-space: nowrap;
@@ -350,12 +346,12 @@
 
 .GoliathFolderFeedList .MuiTreeItem-content:hover,
 .GoliathFolderFeedList .MuiTreeItem-content.Mui-selected:hover {
-  background-color: var(--primary-darker-1-color);
+  background-color: var(--nav-row-hover-color);
 }
 
 .GoliathFolderFeedList .MuiTreeItem-content.Mui-selected,
 .GoliathFolderFeedList .MuiTreeItem-content.Mui-selected.Mui-focused {
-  background-color: var(--primary-darker-2-color);
+  background-color: var(--nav-row-selected-color);
 }
 
 /* v7 uses groupTransition instead of group for children container */
@@ -913,7 +909,7 @@
   gap: 16px;
   padding: 10px 16px;
   font-size: 14px;
-  color: var(--primary-font-darker-1-color);
+  color: var(--bar-font-muted-color);
   font-family: var(--primary-sans-serif-font), sans-serif;
   white-space: nowrap;
   /* Accent tint is what sets the reading pane's bar apart from the other two */
@@ -940,12 +936,14 @@
   white-space: nowrap;
   min-width: 0;
   flex-shrink: 1;
-  color: var(--primary-font-color);
+  color: var(--bar-font-color);
 }
 
 .GoliathArticleBylineSep {
-  margin: 0 2px;
-  color: var(--primary-font-darker-2-color);
+  margin: 0 6px;
+  color: var(--bar-font-muted-color);
+  font-size: 16px;
+  line-height: 1;
   flex-shrink: 0;
 }
 
@@ -955,7 +953,7 @@
   white-space: nowrap;
   min-width: 0;
   flex-shrink: 0; /* Keep full date visible; only shrink title first */
-  color: var(--primary-font-color);
+  color: var(--bar-font-color);
 }
 
 .GoliathArticleBylineActions {
@@ -968,16 +966,12 @@
 /* Make action buttons look beautiful and small inside byline */
 .GoliathArticleBylineActions .MuiIconButton-root {
   padding: 4px;
-  color: var(--primary-font-darker-1-color);
+  color: var(--bar-font-muted-color);
 }
 
 .GoliathArticleBylineActions .MuiIconButton-root:hover {
-  color: var(--primary-font-color);
-  background-color: color-mix(
-    in srgb,
-    var(--primary-font-color) 10%,
-    transparent
-  );
+  color: var(--bar-font-color);
+  background-color: color-mix(in srgb, var(--bar-font-color) 10%, transparent);
 }
 
 .GoliathArticleBylineActions .MuiSvgIcon-root {
@@ -1399,5 +1393,5 @@
 }
 
 .GoliathMobileBottomBar .MuiIconButton-root {
-  color: var(--primary-font-color);
+  color: var(--bar-font-color);
 }
