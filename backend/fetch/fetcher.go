@@ -452,4 +452,3 @@ type firstFetchResult struct {
 	interval  time.Duration
 	err       error
 }
-

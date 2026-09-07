@@ -15,23 +15,23 @@ import (
 // persisted in the database, to adaptively schedule updates.
 //
 // Math & Logic:
-// 1. Identify any "new" items in the fetched feed: items with a valid publication
-//    timestamp strictly after the feed's previous latest timestamp.
-// 2. If new items exist, sort them chronologically (oldest to newest) to process gaps.
-// 3. Compute publication gaps:
-//    - Gap 0: oldest new item date minus prev feed latest date (if valid).
-//    - Gap i: date of new item i minus date of new item i-1.
-// 4. Update the estimated_refresh_interval in the DB step-by-step. Each gap is
-//    first clamped to maxGapEMAMultiple * currentEMA to prevent a single anomalous
-//    observation from inflating the estimate. Then an asymmetric alpha is applied:
-//    emaAlphaFaster when the gap is shorter than the current EMA (feed speeding up),
-//    emaAlphaSlower when longer (resist upward drift from silence or outlier gaps).
-// 5. If no new items are found, the estimated_refresh_interval remains unchanged.
-// 6. Schedule the next fetch at now + max(EMA, cappedSilence), clamped to [min, max].
-//    cappedSilence = min(timeSinceLatest, maxGapEMAMultiple * EMA). Capping bounds
-//    the feedback loop for bursty feeds while still backing off truly silent ones.
-//    Feeds with no publication history (Latest is zero) skip the silence penalty.
-//    Feeds with no stored EMA default to maxFetchInterval/2 as a conservative start.
+//  1. Identify any "new" items in the fetched feed: items with a valid publication
+//     timestamp strictly after the feed's previous latest timestamp.
+//  2. If new items exist, sort them chronologically (oldest to newest) to process gaps.
+//  3. Compute publication gaps:
+//     - Gap 0: oldest new item date minus prev feed latest date (if valid).
+//     - Gap i: date of new item i minus date of new item i-1.
+//  4. Update the estimated_refresh_interval in the DB step-by-step. Each gap is
+//     first clamped to maxGapEMAMultiple * currentEMA to prevent a single anomalous
+//     observation from inflating the estimate. Then an asymmetric alpha is applied:
+//     emaAlphaFaster when the gap is shorter than the current EMA (feed speeding up),
+//     emaAlphaSlower when longer (resist upward drift from silence or outlier gaps).
+//  5. If no new items are found, the estimated_refresh_interval remains unchanged.
+//  6. Schedule the next fetch at now + max(EMA, cappedSilence), clamped to [min, max].
+//     cappedSilence = min(timeSinceLatest, maxGapEMAMultiple * EMA). Capping bounds
+//     the feedback loop for bursty feeds while still backing off truly silent ones.
+//     Feeds with no publication history (Latest is zero) skip the silence penalty.
+//     Feeds with no stored EMA default to maxFetchInterval/2 as a conservative start.
 func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetch *rss.Feed, fetchTime time.Time) time.Time {
 	// First, check if the feed provided a custom non-default interval (like a TTL).
 	d := fetch.Refresh.Sub(fetchTime)

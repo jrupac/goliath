@@ -313,4 +313,3 @@ func SetClientForTesting(client *http.Client) {
 	})
 	extractor.client = client
 }
-

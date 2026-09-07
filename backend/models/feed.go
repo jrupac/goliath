@@ -13,11 +13,11 @@ type Feed struct {
 	ID       int64
 	FolderID int64
 	// Data fields
-	Title       string
-	Description string
-	URL         string
-	Link        string
-	Latest      time.Time
+	Title                    string
+	Description              string
+	URL                      string
+	Link                     string
+	Latest                   time.Time
 	EstimatedRefreshInterval int
 }
 
