@@ -602,6 +602,9 @@ func (a GReader) withAuth(w http.ResponseWriter, r *http.Request, handler func(h
 			a.returnError(w, http.StatusUnauthorized)
 			return
 		}
+		// Sent before the handler writes anything, so that a browser holds a
+		// cookie that lasts as long as the session it names.
+		auth.RefreshSessionCookie(w, r)
 		a.dispatchAuthenticated(w, r, token, handler)
 		return
 	}

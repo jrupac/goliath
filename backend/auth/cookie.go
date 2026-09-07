@@ -14,6 +14,15 @@ const (
 	// only send it is confined to the browser it is running in.
 	sessionCookie = "goliath_session"
 
+	// legacyClientCookie was written by the page itself, from JavaScript, to
+	// hold the token the GReader login returned. Nothing sets or reads it any
+	// more, but a browser that signed in under the older client still has one,
+	// and what it still has is a working credential that any script on the page
+	// can read -- the exposure the server-set cookie exists to remove. Cleared
+	// whenever a session begins or ends, so that upgrading is enough to be rid
+	// of it without anyone having to know it is there.
+	legacyClientCookie = "goliath_token"
+
 	// legacyAuthCookie carried the key derived from the username and password,
 	// which is the same value the Fever API accepts. It never expired and could
 	// not be revoked. Still read so that a browser holding one keeps working
@@ -44,6 +53,21 @@ func setSessionCookie(w http.ResponseWriter, r *http.Request, token models.Secre
 	})
 }
 
+// clearLegacyClientCookie removes the credential the page used to keep for
+// itself.
+//
+// It was written from JavaScript without attributes, so it is cleared the same
+// way it would have been set: at the root path, where a single-page client
+// running at "/" would have put it.
+func clearLegacyClientCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:   legacyClientCookie,
+		Value:  "",
+		Path:   "/",
+		MaxAge: -1,
+	})
+}
+
 // clearSessionCookie removes the session cookie from the browser. The
 // attributes have to match the ones it was set with or the browser keeps it.
 func clearSessionCookie(w http.ResponseWriter, r *http.Request) {
@@ -67,6 +91,22 @@ func clearSessionCookie(w http.ResponseWriter, r *http.Request) {
 // why this is detected rather than configured on.
 func isSecureRequest(r *http.Request) bool {
 	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
+}
+
+// RefreshSessionCookie extends the lifetime of the cookie a request arrived
+// with, if it arrived with one.
+//
+// A session's expiry is measured from when it was last used, so it moves every
+// time the session is presented. The cookie carrying it has to move with it:
+// set once at sign-in, it would be discarded by the browser exactly one idle
+// window after that, however recently the session had been used, and a client
+// that never stopped syncing would be signed out anyway.
+//
+// Must be called before anything is written to the response.
+func RefreshSessionCookie(w http.ResponseWriter, r *http.Request) {
+	if token, ok := sessionFromCookie(r); ok {
+		setSessionCookie(w, r, token)
+	}
 }
 
 // SessionFromRequest returns the session token a request carries in its

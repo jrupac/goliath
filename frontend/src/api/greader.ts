@@ -35,6 +35,10 @@ interface GReaderFetch {
 }
 
 export default class GReader implements FetchAPI {
+  // Set by the server when it refuses a post token, as opposed to refusing the
+  // session. It is what separates "ask for another token" from "sign in again".
+  private static badPostTokenHeader: string = 'X-Reader-Google-Bad-Token';
+
   private folderFeeds: Map<FolderId, FeedCls[]>;
   private folderMap: Map<FolderId, FolderCls>;
   private feedToArticles: Map<FeedId, ArticleCls[]>;
@@ -74,18 +78,7 @@ export default class GReader implements FetchAPI {
     // succeeding means the browser still has a usable session. The token it
     // returns is short-lived and scoped to that session, and is the one thing
     // this code does hold, since writes have to send it as a parameter.
-    const res: Response = await this.doFetch({
-      uri: GReaderURI.Token,
-      omitPostToken: true,
-    });
-
-    if (!res.ok) {
-      console.log('Could not create post token: ' + res.statusText);
-      return false;
-    }
-
-    this.postToken = await res.text();
-    return true;
+    return this.refreshPostToken();
   }
 
   public async InitializeContent(
@@ -425,17 +418,62 @@ export default class GReader implements FetchAPI {
     return treeCls;
   }
 
-  private doFetch(fetchParams: GReaderFetch): Promise<Response> {
-    if (!fetchParams.init) {
-      fetchParams.init = {};
+  private async doFetch(fetchParams: GReaderFetch): Promise<Response> {
+    const res = await this.sendOnce(fetchParams);
+
+    // Post tokens expire, so one obtained when the page loaded stops working
+    // while the page is still open. The server says so with this header
+    // specifically to distinguish it from the session itself having ended, and
+    // the fix is to ask for another and repeat the request. Only once: if the
+    // second attempt is refused too, the session is gone and retrying further
+    // would just be a loop.
+    if (!this.postTokenWasRejected(res, fetchParams)) {
+      return res;
     }
+    if (!(await this.refreshPostToken())) {
+      return res;
+    }
+    return this.sendOnce(fetchParams);
+  }
+
+  private postTokenWasRejected(
+    res: Response,
+    fetchParams: GReaderFetch
+  ): boolean {
+    return (
+      res.status === 401 &&
+      res.headers.get(GReader.badPostTokenHeader) === 'true' &&
+      !fetchParams.omitPostToken
+    );
+  }
+
+  // refreshPostToken obtains a new post token, returning false if the session
+  // can no longer produce one.
+  private async refreshPostToken(): Promise<boolean> {
+    const res: Response = await this.sendOnce({
+      uri: GReaderURI.Token,
+      omitPostToken: true,
+    });
+
+    if (!res.ok) {
+      console.log('Could not refresh post token: ' + res.statusText);
+      return false;
+    }
+
+    this.postToken = await res.text();
+    return true;
+  }
+
+  private sendOnce(fetchParams: GReaderFetch): Promise<Response> {
+    const init: RequestInit = { ...fetchParams.init };
 
     // The session travels as a cookie, so every request has to carry
     // credentials; there is no token here to put in a header.
-    fetchParams.init.credentials = 'include';
+    init.credentials = 'include';
 
     // Unless explicitly specified otherwise, set the "T" value to the post
-    // token in each request.
+    // token in each request. Set on every attempt rather than once, so that a
+    // repeated request carries the token obtained in between.
     if (!fetchParams.omitPostToken) {
       if (!fetchParams.formData) {
         fetchParams.formData = new FormData();
@@ -446,11 +484,11 @@ export default class GReader implements FetchAPI {
     // If the request has form data, override the method to 'POST' since it
     // will be encoded as a multipart form.
     if (fetchParams.formData) {
-      fetchParams.init.method = 'POST';
-      fetchParams.init.body = fetchParams.formData;
+      init.method = 'POST';
+      init.body = fetchParams.formData;
     }
 
-    return fetch(fetchParams.uri, fetchParams.init);
+    return fetch(fetchParams.uri, init);
   }
 
   private parseArticleID(uri: string): string {

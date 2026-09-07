@@ -73,6 +73,7 @@ func HandleLogin(d storage.Database) func(http.ResponseWriter, *http.Request) {
 		}
 
 		setSessionCookie(w, r, token)
+		clearLegacyClientCookie(w)
 		returnSuccess(w, r)
 	}
 }
@@ -87,6 +88,7 @@ func HandleLogout(d storage.Database) func(http.ResponseWriter, *http.Request) {
 		// Cleared first and unconditionally: a browser asking to sign out ends
 		// up signed out whatever the server manages to do about the session.
 		clearSessionCookie(w, r)
+		clearLegacyClientCookie(w)
 
 		token, ok := sessionFromCookie(r)
 		if !ok {

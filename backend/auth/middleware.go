@@ -39,6 +39,7 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if m.verifyCookie {
 		if _, err := VerifyCookie(m.d, r); err == nil {
+			RefreshSessionCookie(w, r)
 			m.wrapped.ServeHTTP(w, r)
 			return
 		}
