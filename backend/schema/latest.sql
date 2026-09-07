@@ -52,6 +52,10 @@ CREATE INDEX session_userid_idx ON Session (userid);
 -- Sweeping sessions that have gone idle past the expiry window.
 CREATE INDEX session_lastseen_idx ON Session (lastseen);
 
+-- The application connects as `goliath`, and a table created here is owned by
+-- whoever ran the migration, so privileges have to be granted explicitly.
+GRANT ALL ON TABLE Session to goliath;
+
 CREATE TABLE IF NOT EXISTS UserPrefs
 (
     -- Key columns
