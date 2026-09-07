@@ -27,7 +27,7 @@ func TestMain(m *testing.M) {
 
 // postTokenFor issues a post token for a user authenticating without a session,
 // which is how the handler tests call in.
-func postTokenFor(user models.User) string {
+func postTokenFor(user models.User) models.Secret {
 	return createPostToken(postTokenBinding(user, models.Session{}))
 }
 
@@ -88,7 +88,7 @@ func TestHandleParseFullArticle(t *testing.T) {
 
 	// Prepare request
 	form := url.Values{}
-	form.Add("T", postTokenFor(models.User{UserId: "test-user"}))
+	form.Add("T", postTokenFor(models.User{UserId: "test-user"}).Reveal())
 	form.Add("i", "3039") // hex representation of 12345 is 3039 (12345 = 0x3039)
 	req := httptest.NewRequest("POST", "/greader/ext/parse-full-article", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -127,7 +127,7 @@ func TestHandleParseFullArticle(t *testing.T) {
 // editTagRequest builds an edit-tag request carrying the given hex article IDs.
 func editTagRequest(user models.User, tag string, addTag bool, hexIds ...string) *http.Request {
 	form := url.Values{}
-	form.Add("T", postTokenFor(user))
+	form.Add("T", postTokenFor(user).Reveal())
 	if addTag {
 		form.Add("a", tag)
 	} else {
@@ -224,7 +224,7 @@ func TestMarkAllAsReadRejectsUnparseableIdAsBadRequest(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			form := url.Values{}
-			form.Add("T", postTokenFor(models.User{UserId: "u"}))
+			form.Add("T", postTokenFor(models.User{UserId: "u"}).Reveal())
 			form.Add(tc.key, "not-a-number")
 			req := httptest.NewRequest("POST", "/greader/reader/api/0/mark-all-as-read", strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -320,9 +320,9 @@ func TestWithAuthResolvesSessionToken(t *testing.T) {
 	const token = "gol1_" + "abcdefghijklmnopqrstuvwxyz012345"
 	want := models.User{UserId: "user-1", Username: "someone", Key: "k"}
 
-	var gotToken string
+	var gotToken models.Secret
 	mockDB := &storage.MockDB{
-		OnLookupSession: func(tok string) (models.User, models.Session, error) {
+		OnLookupSession: func(tok models.Secret) (models.User, models.Session, error) {
 			gotToken = tok
 			return want, models.Session{SessionId: "s1", UserId: want.UserId, Scheme: models.AuthSchemeGReader}, nil
 		},
@@ -336,8 +336,8 @@ func TestWithAuthResolvesSessionToken(t *testing.T) {
 		got = u
 	})
 
-	if gotToken != token {
-		t.Errorf("looked up %q, want %q", gotToken, token)
+	if gotToken.Reveal() != token {
+		t.Errorf("looked up %q, want %q", gotToken.Reveal(), token)
 	}
 	if got.UserId != want.UserId {
 		t.Errorf("handler ran as %v, want %v", got.UserId, want.UserId)
@@ -349,7 +349,7 @@ func TestWithAuthResolvesSessionToken(t *testing.T) {
 // different status.
 func TestWithAuthRejectsUnknownSessionToken(t *testing.T) {
 	mockDB := &storage.MockDB{
-		OnLookupSession: func(string) (models.User, models.Session, error) {
+		OnLookupSession: func(models.Secret) (models.User, models.Session, error) {
 			return models.User{}, models.Session{}, errors.New("no such session")
 		},
 	}
@@ -389,10 +389,10 @@ func TestWithAuthAcceptsLegacyToken(t *testing.T) {
 	}
 	token := base64.URLEncoding.EncodeToString(inner)
 
-	want := models.User{UserId: "user-1", Username: username, Key: "k", HashPass: hashPass}
+	want := models.User{UserId: "user-1", Username: username, Key: "k", HashPass: models.Secret(hashPass)}
 	mockDB := &storage.MockDB{
 		OnGetUserByUsername: func(string) (models.User, error) { return want, nil },
-		OnLookupSession: func(string) (models.User, models.Session, error) {
+		OnLookupSession: func(models.Secret) (models.User, models.Session, error) {
 			t.Error("legacy token was looked up as a session")
 			return models.User{}, models.Session{}, errors.New("unexpected")
 		},
@@ -424,9 +424,9 @@ func TestValidateLoginFormCreatesSession(t *testing.T) {
 	var gotUserAgent string
 	mockDB := &storage.MockDB{
 		OnGetUserByUsername: func(string) (models.User, error) {
-			return models.User{UserId: "user-1", Username: "someone", Key: "k", HashPass: string(hashed)}, nil
+			return models.User{UserId: "user-1", Username: "someone", Key: "k", HashPass: models.Secret(hashed)}, nil
 		},
-		OnCreateSession: func(_ models.User, scheme models.AuthScheme, userAgent string) (string, error) {
+		OnCreateSession: func(_ models.User, scheme models.AuthScheme, userAgent string) (models.Secret, error) {
 			gotScheme = scheme
 			gotUserAgent = userAgent
 			return "gol1_issued", nil
@@ -467,9 +467,9 @@ func TestValidateLoginFormRejectsBadPassword(t *testing.T) {
 
 	mockDB := &storage.MockDB{
 		OnGetUserByUsername: func(string) (models.User, error) {
-			return models.User{UserId: "user-1", Username: "someone", Key: "k", HashPass: string(hashed)}, nil
+			return models.User{UserId: "user-1", Username: "someone", Key: "k", HashPass: models.Secret(hashed)}, nil
 		},
-		OnCreateSession: func(models.User, models.AuthScheme, string) (string, error) {
+		OnCreateSession: func(models.User, models.AuthScheme, string) (models.Secret, error) {
 			t.Error("session created despite a bad password")
 			return "", nil
 		},
@@ -495,7 +495,7 @@ func TestPostTokenIssuedUnderASessionIsBoundToIt(t *testing.T) {
 	session := models.Session{SessionId: "session-1", UserId: user.UserId, Scheme: models.AuthSchemeGReader}
 
 	mockDB := &storage.MockDB{
-		OnLookupSession: func(string) (models.User, models.Session, error) {
+		OnLookupSession: func(models.Secret) (models.User, models.Session, error) {
 			return user, session, nil
 		},
 	}
@@ -504,8 +504,8 @@ func TestPostTokenIssuedUnderASessionIsBoundToIt(t *testing.T) {
 	w := httptest.NewRecorder()
 	greader.withAuth(w, authorizedRequest("gol1_token"), greader.handlePostToken)
 
-	token := w.Body.String()
-	if token == "" {
+	token := models.Secret(w.Body.String())
+	if token.Empty() {
 		t.Fatal("no post token was issued")
 	}
 	if !validatePostToken(postTokenBinding(user, session), token) {
@@ -530,7 +530,7 @@ func TestEditTagRejectsPostTokenFromAnotherSession(t *testing.T) {
 	}}
 
 	form := url.Values{}
-	form.Add("T", createPostToken(postTokenBinding(user, other)))
+	form.Add("T", createPostToken(postTokenBinding(user, other)).Reveal())
 	form.Add("a", readStreamId)
 	form.Add("i", "3039")
 	req := httptest.NewRequest("POST", "/greader/reader/api/0/edit-tag", strings.NewReader(form.Encode()))

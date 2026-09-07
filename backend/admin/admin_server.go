@@ -131,14 +131,18 @@ func (s *server) ChangePassword(_ context.Context, req *ChangePasswordRequest) (
 		return nil, status.Errorf(codes.NotFound, "could not find user")
 	}
 
-	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	// Taken out of the request into a type that will not print itself, since
+	// past this point it is only ever a credential.
+	password := models.Secret(req.Password)
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password.Reveal()), bcrypt.DefaultCost)
 	if err != nil {
 		log.Warningf("while hashing new password: %+v", err)
 		return nil, status.Errorf(codes.Internal, "could not hash password")
 	}
 
 	if err = s.db.UpdateUserCredentials(
-		user, string(hashed), models.DeriveUserKey(user.Username, req.Password)); err != nil {
+		user, models.Secret(hashed), models.DeriveUserKey(user.Username, password)); err != nil {
 		log.Warningf("while updating credentials for user: %+v", err)
 		return nil, status.Errorf(codes.Internal, "could not update credentials for user")
 	}

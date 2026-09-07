@@ -71,7 +71,7 @@ func TestPostTokenWorksWithoutASession(t *testing.T) {
 func TestPostTokenRejectsMalformedInput(t *testing.T) {
 	binding := postTokenBinding(testUser, testSession)
 
-	for _, token := range []string{
+	for _, token := range []models.Secret{
 		"",
 		"post_token", // what this replaced
 		"nodot",
@@ -93,14 +93,14 @@ func TestPostTokenIssueTimeIsCoveredBySignature(t *testing.T) {
 	binding := postTokenBinding(testUser, testSession)
 	token := createPostToken(binding)
 
-	issuedStr, mac, _ := strings.Cut(token, ".")
+	issuedStr, mac, _ := strings.Cut(token.Reveal(), ".")
 	issued, err := strconv.ParseInt(issuedStr, 10, 64)
 	if err != nil {
 		t.Fatalf("parsing the issue time: %v", err)
 	}
 
 	// Move it forward, which would otherwise buy the holder more time.
-	forged := fmt.Sprintf("%d.%s", issued+3600, mac)
+	forged := models.Secret(fmt.Sprintf("%d.%s", issued+3600, mac))
 	if validatePostToken(binding, forged) {
 		t.Error("a token with an edited issue time validated")
 	}
@@ -138,10 +138,10 @@ func TestPostTokenRejectsImplausibleFutureIssueTimes(t *testing.T) {
 
 // forgeTokenIssuedAt builds a correctly signed token bearing an arbitrary issue
 // time, which is the only way to reach the expiry logic without waiting.
-func forgeTokenIssuedAt(binding string, at time.Time) string {
+func forgeTokenIssuedAt(binding string, at time.Time) models.Secret {
 	issued := at.Unix()
-	return fmt.Sprintf("%d.%s", issued,
-		base64.RawURLEncoding.EncodeToString(postTokenMAC(binding, issued)))
+	return models.Secret(fmt.Sprintf("%d.%s", issued,
+		base64.RawURLEncoding.EncodeToString(postTokenMAC(binding, issued))))
 }
 
 // Requests are logged in full to make client behavior legible, which means the

@@ -223,7 +223,7 @@ func (a Fever) handleAuth(d storage.Database, r *http.Request) (models.User, int
 	if user, err := auth.VerifyCookie(d, r); err == nil {
 		log.V(2).Infof("Verified cookie: %+v", r)
 		return user, 1
-	} else if user, err := d.GetUserByKey(r.FormValue("api_key")); err != nil {
+	} else if user, err := d.GetUserByKey(models.Secret(r.FormValue("api_key"))); err != nil {
 		utils.HttpRequestPrint("Received unauthenticated request", r)
 		log.Warningf("Failed because: %s", err)
 		return user, 0

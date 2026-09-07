@@ -3,6 +3,8 @@ package storage
 import (
 	"testing"
 	"time"
+
+	"github.com/jrupac/goliath/models"
 )
 
 // The token is the entire credential, so two of them must never coincide and
@@ -10,7 +12,7 @@ import (
 func TestNewSessionTokenIsUnpredictable(t *testing.T) {
 	const iterations = 1000
 
-	seen := make(map[string]bool, iterations)
+	seen := make(map[models.Secret]bool, iterations)
 	for i := 0; i < iterations; i++ {
 		token, err := newSessionToken()
 		if err != nil {
@@ -30,7 +32,7 @@ func TestNewSessionTokenIsUnpredictable(t *testing.T) {
 // Credentials predating sessions must not be mistaken for session tokens; the
 // authentication path picks which one to try on this alone.
 func TestIsSessionTokenRejectsOtherCredentials(t *testing.T) {
-	for _, token := range []string{
+	for _, token := range []models.Secret{
 		"",
 		"eyJ1c2VybmFtZSI6ImEifQ==",
 		"d41d8cd98f00b204e9800998ecf8427e",

@@ -37,9 +37,9 @@ type MockDB struct {
 	OnGetActiveFeedKeys                            func() (map[UserFeedKey]bool, error)
 	OnUpdateEstimatedRefreshIntervalForFeedForUser func(u models.User, folderId, id int64, interval int) error
 	OnGetUserByUsername                            func(username string) (models.User, error)
-	OnUpdateUserCredentials                        func(u models.User, hashPass, key string) error
-	OnCreateSession                                func(u models.User, scheme models.AuthScheme, userAgent string) (string, error)
-	OnLookupSession                                func(token string) (models.User, models.Session, error)
+	OnUpdateUserCredentials                        func(u models.User, hashPass, key models.Secret) error
+	OnCreateSession                                func(u models.User, scheme models.AuthScheme, userAgent string) (models.Secret, error)
+	OnLookupSession                                func(token models.Secret) (models.User, models.Session, error)
 	OnDeleteSessionForUser                         func(u models.User, id models.SessionId) (int64, error)
 }
 
@@ -58,7 +58,7 @@ func (m *MockDB) GetAllUsers() ([]models.User, error) {
 	return nil, nil
 }
 
-func (m *MockDB) GetUserByKey(string) (models.User, error) { return models.User{}, nil }
+func (m *MockDB) GetUserByKey(models.Secret) (models.User, error) { return models.User{}, nil }
 func (m *MockDB) GetUserByUsername(username string) (models.User, error) {
 	if m.OnGetUserByUsername != nil {
 		return m.OnGetUserByUsername(username)
@@ -66,21 +66,21 @@ func (m *MockDB) GetUserByUsername(username string) (models.User, error) {
 	return models.User{}, nil
 }
 
-func (m *MockDB) UpdateUserCredentials(u models.User, hashPass string, key string) error {
+func (m *MockDB) UpdateUserCredentials(u models.User, hashPass models.Secret, key models.Secret) error {
 	if m.OnUpdateUserCredentials != nil {
 		return m.OnUpdateUserCredentials(u, hashPass, key)
 	}
 	return nil
 }
 
-func (m *MockDB) CreateSession(u models.User, scheme models.AuthScheme, userAgent string) (string, error) {
+func (m *MockDB) CreateSession(u models.User, scheme models.AuthScheme, userAgent string) (models.Secret, error) {
 	if m.OnCreateSession != nil {
 		return m.OnCreateSession(u, scheme, userAgent)
 	}
 	return "", nil
 }
 
-func (m *MockDB) LookupSession(token string) (models.User, models.Session, error) {
+func (m *MockDB) LookupSession(token models.Secret) (models.User, models.Session, error) {
 	if m.OnLookupSession != nil {
 		return m.OnLookupSession(token)
 	}

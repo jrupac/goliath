@@ -83,16 +83,16 @@ func postTokenMAC(binding string, issued int64) []byte {
 }
 
 // createPostToken issues a post token for the given credential.
-func createPostToken(binding string) string {
+func createPostToken(binding string) models.Secret {
 	issued := time.Now().Unix()
-	return fmt.Sprintf("%d.%s", issued,
-		base64.RawURLEncoding.EncodeToString(postTokenMAC(binding, issued)))
+	return models.Secret(fmt.Sprintf("%d.%s", issued,
+		base64.RawURLEncoding.EncodeToString(postTokenMAC(binding, issued))))
 }
 
 // validatePostToken reports whether a post token was issued for this credential
 // and has not expired.
-func validatePostToken(binding, token string) bool {
-	issuedStr, macStr, found := strings.Cut(token, ".")
+func validatePostToken(binding string, token models.Secret) bool {
+	issuedStr, macStr, found := strings.Cut(token.Reveal(), ".")
 	if !found {
 		return false
 	}
@@ -165,11 +165,11 @@ func extractLegacyAuthToken(token string) (string, []byte, error) {
 // validateLegacyAuthToken reports whether a legacy token matches the given
 // user. The token is derived from the password hash, so it is equivalent to it
 // in blast radius and stays valid until the password changes.
-func validateLegacyAuthToken(token []byte, username string, hashPass string) bool {
+func validateLegacyAuthToken(token []byte, username string, hashPass models.Secret) bool {
 	h := sha256.New()
 	h.Write([]byte(legacyTokenSalt))
 	h.Write([]byte(username))
-	h.Write([]byte(hashPass))
+	h.Write([]byte(hashPass.Reveal()))
 
 	return bytes.Equal(token, h.Sum(nil))
 }

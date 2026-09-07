@@ -128,7 +128,7 @@ func (crdb *Crdb) GetAllUsers() ([]models.User, error) {
 }
 
 // GetUserByKey returns a user identified by the given key.
-func (crdb *Crdb) GetUserByKey(key string) (models.User, error) {
+func (crdb *Crdb) GetUserByKey(key models.Secret) (models.User, error) {
 	defer logElapsedTime(time.Now(), "GetUserByKey")
 
 	var u models.User
@@ -164,7 +164,7 @@ func (crdb *Crdb) GetUserByUsername(username string) (models.User, error) {
 // Both move together on purpose. The key is derived from the password, so
 // leaving it behind would mean the old password still opened the Fever API and
 // the web cookie, and the change would not be the revocation it looks like.
-func (crdb *Crdb) UpdateUserCredentials(u models.User, hashPass string, key string) error {
+func (crdb *Crdb) UpdateUserCredentials(u models.User, hashPass models.Secret, key models.Secret) error {
 	defer logElapsedTime(time.Now(), "UpdateUserCredentials")
 
 	query := `UPDATE UserTable SET hashpass = $1, key = $2 WHERE id = $3`
@@ -190,7 +190,7 @@ func (crdb *Crdb) UpdateUserCredentials(u models.User, hashPass string, key stri
 // CreateSession establishes a new session for the given user and returns its
 // bearer token. The token is returned here and nowhere else: only its digest is
 // stored, so it cannot be recovered afterwards.
-func (crdb *Crdb) CreateSession(u models.User, scheme models.AuthScheme, userAgent string) (string, error) {
+func (crdb *Crdb) CreateSession(u models.User, scheme models.AuthScheme, userAgent string) (models.Secret, error) {
 	defer logElapsedTime(time.Now(), "CreateSession")
 
 	token, err := newSessionToken()
@@ -215,7 +215,7 @@ func (crdb *Crdb) CreateSession(u models.User, scheme models.AuthScheme, userAge
 // This also advances the session's last-seen time, which is what makes expiry
 // slide. That write is rate-limited: authenticating is a read on the hot path
 // and every request would otherwise turn it into a write.
-func (crdb *Crdb) LookupSession(token string) (models.User, models.Session, error) {
+func (crdb *Crdb) LookupSession(token models.Secret) (models.User, models.Session, error) {
 	defer logElapsedTime(time.Now(), "LookupSession")
 
 	var (

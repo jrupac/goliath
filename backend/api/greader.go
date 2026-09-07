@@ -187,7 +187,9 @@ func (a GReader) handleLogin(w http.ResponseWriter, r *http.Request) {
 		a.returnError(w, status)
 		return
 	}
-	a.returnSuccess(w, greaderHandlelogin{Auth: token})
+	// Revealed at the boundary: handing the token to the client is the point
+	// of this response, and it is the only time the value is recoverable.
+	a.returnSuccess(w, greaderHandlelogin{Auth: token.Reveal()})
 }
 
 func (a GReader) handleUserInfo(w http.ResponseWriter, _ *http.Request, user models.User) {
@@ -356,13 +358,17 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 }
 
 func (a GReader) handlePostToken(w http.ResponseWriter, r *http.Request, user models.User) {
-	_, _ = fmt.Fprint(w, createPostToken(postTokenBinding(user, sessionFrom(r.Context()))))
+	token := createPostToken(postTokenBinding(user, sessionFrom(r.Context())))
+	// Revealed at the boundary: handing the token to the client is what this
+	// endpoint is for. Printing it without this writes the redaction placeholder
+	// into the response body instead.
+	_, _ = fmt.Fprint(w, token.Reveal())
 }
 
 // checkPostToken validates the post token on a mutating request, writing the
 // error response and reporting false if it does not hold up.
 func (a GReader) checkPostToken(w http.ResponseWriter, r *http.Request, user models.User) bool {
-	token := r.Form.Get(postTokenParam)
+	token := models.Secret(r.Form.Get(postTokenParam))
 	if !validatePostToken(postTokenBinding(user, sessionFrom(r.Context())), token) {
 		a.returnInvalidPostToken(w, token)
 		return false
@@ -610,7 +616,7 @@ func (a GReader) withAuth(w http.ResponseWriter, r *http.Request, handler func(h
 		return
 	}
 
-	user, session, ok := a.resolveCredential(w, tokenStr)
+	user, session, ok := a.resolveCredential(w, models.Secret(tokenStr))
 	if !ok {
 		return
 	}
@@ -623,7 +629,7 @@ func (a GReader) withAuth(w http.ResponseWriter, r *http.Request, handler func(h
 // resolveCredential identifies the user behind a bearer token, along with the
 // session it belongs to where there is one, writing the error response and
 // reporting false if it cannot.
-func (a GReader) resolveCredential(w http.ResponseWriter, token string) (models.User, models.Session, bool) {
+func (a GReader) resolveCredential(w http.ResponseWriter, token models.Secret) (models.User, models.Session, bool) {
 	if storage.IsSessionToken(token) {
 		user, session, err := a.d.LookupSession(token)
 		if err != nil {
@@ -636,7 +642,7 @@ func (a GReader) resolveCredential(w http.ResponseWriter, token string) (models.
 		return user, session, true
 	}
 
-	username, digest, err := extractLegacyAuthToken(token)
+	username, digest, err := extractLegacyAuthToken(token.Reveal())
 	if err != nil {
 		log.Warningf("Unparseable authorization token")
 		a.returnError(w, http.StatusBadRequest)
@@ -675,8 +681,8 @@ func greaderFolderId(folderId int64) string {
 	return fmt.Sprintf("user/-/label/%d", folderId)
 }
 
-func (a GReader) validateLoginForm(r *http.Request) (string, int) {
-	token := ""
+func (a GReader) validateLoginForm(r *http.Request) (models.Secret, int) {
+	token := models.Secret("")
 
 	formUser := r.Form.Get("Email")
 	formPass := r.Form.Get("Passwd")
@@ -709,8 +715,10 @@ func (a GReader) returnError(w http.ResponseWriter, status int) {
 	w.WriteHeader(status)
 }
 
-func (a GReader) returnInvalidPostToken(w http.ResponseWriter, token string) {
-	log.Warningf("Invalid post token: %s", redactPostToken(token))
+func (a GReader) returnInvalidPostToken(w http.ResponseWriter, token models.Secret) {
+	// Redacted explicitly rather than left to the type, so that the issue time
+	// survives: it is what makes a rejection legible.
+	log.Warningf("Invalid post token: %s", redactPostToken(token.Reveal()))
 	// Set before WriteHeader: headers written afterwards are discarded, and
 	// this one is how clients know to refetch a token rather than treat the
 	// 401 as an auth failure.

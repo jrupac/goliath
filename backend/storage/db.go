@@ -42,14 +42,14 @@ type Database interface {
 
 	InsertUser(models.User) error
 	GetAllUsers() ([]models.User, error)
-	GetUserByKey(string) (models.User, error)
+	GetUserByKey(models.Secret) (models.User, error)
 	GetUserByUsername(string) (models.User, error)
-	UpdateUserCredentials(models.User, string, string) error
+	UpdateUserCredentials(models.User, models.Secret, models.Secret) error
 
 	// Sessions
 
-	CreateSession(models.User, models.AuthScheme, string) (string, error)
-	LookupSession(string) (models.User, models.Session, error)
+	CreateSession(models.User, models.AuthScheme, string) (models.Secret, error)
+	LookupSession(models.Secret) (models.User, models.Session, error)
 	GetSessionsForUser(models.User) ([]models.Session, error)
 	DeleteSessionForUser(models.User, models.SessionId) (int64, error)
 	DeleteSessionsForUser(models.User) (int64, error)

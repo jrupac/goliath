@@ -11,12 +11,12 @@ import (
 )
 
 type auth struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username string        `json:"username"`
+	Password models.Secret `json:"password"`
 }
 
-func (a *auth) getAPIKey() (string, error) {
-	if a.Username == "" || a.Password == "" {
+func (a *auth) getAPIKey() (models.Secret, error) {
+	if a.Username == "" || a.Password.Empty() {
 		return "", errors.New("incomplete auth type")
 	}
 	return models.DeriveUserKey(a.Username, a.Password), nil
@@ -50,8 +50,10 @@ func HandleLogin(d storage.Database) func(http.ResponseWriter, *http.Request) {
 		}
 
 		c := http.Cookie{
-			Name:  authCookie,
-			Value: u.Key,
+			Name: authCookie,
+			// Revealed at the boundary: the cookie is how this credential
+			// reaches the client, so it is a deliberate handoff.
+			Value: u.Key.Reveal(),
 		}
 		http.SetCookie(w, &c)
 		returnSuccess(w, r)

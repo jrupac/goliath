@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/jrupac/goliath/models"
 )
 
 var (
@@ -32,23 +34,23 @@ const (
 
 // newSessionToken returns a fresh bearer token. The caller is responsible for
 // handing it to the client, which is the only time it can be recovered.
-func newSessionToken() (string, error) {
+func newSessionToken() (models.Secret, error) {
 	b := make([]byte, sessionTokenBytes)
 	if _, err := rand.Read(b); err != nil {
 		return "", fmt.Errorf("could not generate session token: %w", err)
 	}
-	return sessionTokenPrefix + base64.RawURLEncoding.EncodeToString(b), nil
+	return models.Secret(sessionTokenPrefix + base64.RawURLEncoding.EncodeToString(b)), nil
 }
 
 // IsSessionToken reports whether a credential was issued as a session token.
 // It says nothing about whether that session exists or is still valid.
-func IsSessionToken(token string) bool {
-	return strings.HasPrefix(token, sessionTokenPrefix)
+func IsSessionToken(token models.Secret) bool {
+	return strings.HasPrefix(token.Reveal(), sessionTokenPrefix)
 }
 
 // hashSessionToken maps a bearer token to what is stored for it.
-func hashSessionToken(token string) []byte {
-	sum := sha256.Sum256([]byte(token))
+func hashSessionToken(token models.Secret) []byte {
+	sum := sha256.Sum256([]byte(token.Reveal()))
 	return sum[:]
 }
 

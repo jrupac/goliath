@@ -67,7 +67,7 @@ func VerifyCookie(d storage.Database, r *http.Request) (models.User, error) {
 		return models.User{}, err
 	}
 
-	return d.GetUserByKey(cookie.Value)
+	return d.GetUserByKey(models.Secret(cookie.Value))
 }
 
 func returnRedirect(w http.ResponseWriter, r *http.Request) {
