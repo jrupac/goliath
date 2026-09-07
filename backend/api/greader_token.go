@@ -2,19 +2,119 @@ package api
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"flag"
+	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
+	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/models"
 )
 
-func createPostToken() string {
-	// TODO: Support short-lived POST tokens
-	return "post_token"
+var (
+	postTokenKey = flag.String("postTokenKey", "",
+		"Secret used to sign GReader post tokens. If unset, a random key is generated at "+
+			"startup, which invalidates outstanding post tokens on every restart.")
+	postTokenTTL = flag.Duration("postTokenTTL", 1*time.Hour,
+		"Duration a GReader post token remains valid after being issued.")
+)
+
+// postTokenClockSkew is how far in the future a token's issue time may sit and
+// still be accepted, so that a client is not locked out by a small disagreement
+// about the current time.
+const postTokenClockSkew = 5 * time.Minute
+
+// postTokenSigningKey is resolved once, at startup.
+var postTokenSigningKey []byte
+
+// InitPostTokenKey establishes the key post tokens are signed with. It must be
+// called after flags are parsed and before any request is served.
+//
+// There is deliberately no compiled-in default. A shared constant would be
+// public knowledge and so no protection at all, which is the flaw that makes
+// the legacy auth token below worth replacing. Generating a key instead costs
+// only that tokens do not survive a restart, and clients already know how to
+// fetch a new one.
+func InitPostTokenKey() {
+	if *postTokenKey != "" {
+		postTokenSigningKey = []byte(*postTokenKey)
+		return
+	}
+
+	postTokenSigningKey = make([]byte, 32)
+	if _, err := rand.Read(postTokenSigningKey); err != nil {
+		// Not an expected path: the reader either fills the buffer or takes
+		// the process down itself, so this never returns an error in practice.
+		// Handled anyway rather than ignored, because the alternative to
+		// stopping here is signing with a key that is partly or wholly zero,
+		// which would look like it was working.
+		log.Fatalf("Could not generate a post token signing key: %s", err)
+	}
+	log.Warningf("No postTokenKey configured; generated one. Post tokens will not " +
+		"survive a restart.")
 }
 
-func validatePostToken(token string) bool {
-	// TODO: Support short-lived POST tokens
-	return token == "post_token"
+// postTokenBinding returns what a post token issued for this credential is tied
+// to.
+//
+// Binding to the session means the token stops working the moment the session
+// does, with nothing to expire separately. A credential that predates sessions
+// has none, so those bind to the user instead and last as long as that way of
+// authenticating does.
+func postTokenBinding(user models.User, session models.Session) string {
+	if session.SessionId != "" {
+		return "session:" + string(session.SessionId)
+	}
+	return "user:" + string(user.UserId)
+}
+
+func postTokenMAC(binding string, issued int64) []byte {
+	mac := hmac.New(sha256.New, postTokenSigningKey)
+	// The issue time is inside the MAC, so a client cannot extend its own
+	// token's life by editing the part it can read.
+	fmt.Fprintf(mac, "%s.%d", binding, issued)
+	return mac.Sum(nil)
+}
+
+// createPostToken issues a post token for the given credential.
+func createPostToken(binding string) string {
+	issued := time.Now().Unix()
+	return fmt.Sprintf("%d.%s", issued,
+		base64.RawURLEncoding.EncodeToString(postTokenMAC(binding, issued)))
+}
+
+// validatePostToken reports whether a post token was issued for this credential
+// and has not expired.
+func validatePostToken(binding, token string) bool {
+	issuedStr, macStr, found := strings.Cut(token, ".")
+	if !found {
+		return false
+	}
+
+	issued, err := strconv.ParseInt(issuedStr, 10, 64)
+	if err != nil {
+		return false
+	}
+
+	mac, err := base64.RawURLEncoding.DecodeString(macStr)
+	if err != nil {
+		return false
+	}
+
+	// Checked before the issue time is trusted for anything, since it is only
+	// authentic once it has been covered by a signature that verifies.
+	if !hmac.Equal(mac, postTokenMAC(binding, issued)) {
+		return false
+	}
+
+	age := time.Since(time.Unix(issued, 0))
+	return age <= *postTokenTTL && age >= -postTokenClockSkew
 }
 
 /*******************************************************************************

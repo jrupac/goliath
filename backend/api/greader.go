@@ -102,7 +102,7 @@ func (a GReader) preprocessRequest(w http.ResponseWriter, r *http.Request) bool 
 		}
 	}
 
-	log.Infof("GReader request form: %+v", r.PostForm.Encode())
+	log.Infof("GReader request form: %+v", redactFormValues(r.PostForm))
 	return true
 }
 
@@ -146,7 +146,7 @@ func (a GReader) route(w http.ResponseWriter, r *http.Request) {
 		// The dump above carries no body: ParseForm has already consumed it.
 		// Log the parsed form separately, since for an unimplemented endpoint
 		// this payload is the only record of what the client was asking for.
-		log.Warningf("Unexpected route form: %+v", r.PostForm.Encode())
+		log.Warningf("Unexpected route form: %+v", redactFormValues(r.PostForm))
 		a.returnError(w, http.StatusBadRequest)
 	}
 }
@@ -171,7 +171,7 @@ func dumpRequestRedacted(r *http.Request) ([]byte, error) {
 	}
 	for _, h := range redactedHeaders {
 		if len(safe.Values(h)) > 0 {
-			safe.Set(h, "[REDACTED]")
+			safe.Set(h, redactedValue)
 		}
 	}
 
@@ -355,8 +355,19 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 	a.returnSuccess(w, streamItemIds)
 }
 
-func (a GReader) handlePostToken(w http.ResponseWriter, _ *http.Request, _ models.User) {
-	_, _ = fmt.Fprint(w, createPostToken())
+func (a GReader) handlePostToken(w http.ResponseWriter, r *http.Request, user models.User) {
+	_, _ = fmt.Fprint(w, createPostToken(postTokenBinding(user, sessionFrom(r.Context()))))
+}
+
+// checkPostToken validates the post token on a mutating request, writing the
+// error response and reporting false if it does not hold up.
+func (a GReader) checkPostToken(w http.ResponseWriter, r *http.Request, user models.User) bool {
+	token := r.Form.Get(postTokenParam)
+	if !validatePostToken(postTokenBinding(user, sessionFrom(r.Context())), token) {
+		a.returnInvalidPostToken(w, token)
+		return false
+	}
+	return true
 }
 
 func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Request, user models.User) {
@@ -366,9 +377,7 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	postToken := r.Form.Get("T")
-	if !validatePostToken(postToken) {
-		a.returnInvalidPostToken(w, postToken)
+	if !a.checkPostToken(w, r, user) {
 		return
 	}
 
@@ -434,9 +443,7 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 		return
 	}
 
-	postToken := r.Form.Get("T")
-	if !validatePostToken(postToken) {
-		a.returnInvalidPostToken(w, postToken)
+	if !a.checkPostToken(w, r, user) {
 		return
 	}
 
@@ -526,9 +533,7 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 		return
 	}
 
-	postToken := r.Form.Get("T")
-	if !validatePostToken(postToken) {
-		a.returnInvalidPostToken(w, postToken)
+	if !a.checkPostToken(w, r, user) {
 		return
 	}
 
@@ -605,55 +610,56 @@ func (a GReader) withAuth(w http.ResponseWriter, r *http.Request, handler func(h
 		return
 	}
 
-	user, ok := a.resolveCredential(w, tokenStr)
+	user, session, ok := a.resolveCredential(w, tokenStr)
 	if !ok {
 		return
 	}
 
 	InitUserMetrics(user.Username)
 
-	handler(w, r, user)
+	handler(w, r.WithContext(withSession(r.Context(), session)), user)
 }
 
-// resolveCredential identifies the user behind a bearer token, writing the
-// error response and reporting false if it cannot.
-func (a GReader) resolveCredential(w http.ResponseWriter, token string) (models.User, bool) {
+// resolveCredential identifies the user behind a bearer token, along with the
+// session it belongs to where there is one, writing the error response and
+// reporting false if it cannot.
+func (a GReader) resolveCredential(w http.ResponseWriter, token string) (models.User, models.Session, bool) {
 	if storage.IsSessionToken(token) {
-		user, _, err := a.d.LookupSession(token)
+		user, session, err := a.d.LookupSession(token)
 		if err != nil {
 			// Expired, revoked and never-issued are deliberately one case, so
 			// that a caller cannot probe for which.
 			log.Warningf("Rejected unknown or expired session")
 			a.returnError(w, http.StatusUnauthorized)
-			return models.User{}, false
+			return models.User{}, models.Session{}, false
 		}
-		return user, true
+		return user, session, true
 	}
 
 	username, digest, err := extractLegacyAuthToken(token)
 	if err != nil {
 		log.Warningf("Unparseable authorization token")
 		a.returnError(w, http.StatusBadRequest)
-		return models.User{}, false
+		return models.User{}, models.Session{}, false
 	}
 
 	user, err := a.d.GetUserByUsername(username)
 	if err != nil {
 		log.Warningf("Failed to find user: %s", username)
 		a.returnError(w, http.StatusUnauthorized)
-		return models.User{}, false
+		return models.User{}, models.Session{}, false
 	}
 
 	if !validateLegacyAuthToken(digest, username, user.HashPass) {
 		log.Warningf("Invalid token for user: %s", username)
 		a.returnError(w, http.StatusUnauthorized)
-		return models.User{}, false
+		return models.User{}, models.Session{}, false
 	}
 
 	// Surfaced so that the deprecation window can be closed on evidence that
 	// nothing is still presenting the old format.
 	log.Warningf("Accepted legacy auth token for user: %s", username)
-	return user, true
+	return user, models.Session{}, true
 }
 
 func greaderArticleId(articleId int64) string {
@@ -704,7 +710,7 @@ func (a GReader) returnError(w http.ResponseWriter, status int) {
 }
 
 func (a GReader) returnInvalidPostToken(w http.ResponseWriter, token string) {
-	log.Warningf("Invalid post token: %s", token)
+	log.Warningf("Invalid post token: %s", redactPostToken(token))
 	// Set before WriteHeader: headers written afterwards are discarded, and
 	// this one is how clients know to refetch a token rather than treat the
 	// 401 as an auth failure.
@@ -738,9 +744,7 @@ func (a GReader) handleParseFullArticle(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	postToken := r.Form.Get("T")
-	if !validatePostToken(postToken) {
-		a.returnInvalidPostToken(w, postToken)
+	if !a.checkPostToken(w, r, user) {
 		return
 	}
 

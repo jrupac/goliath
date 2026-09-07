@@ -112,7 +112,7 @@ func (a Fever) handle(d storage.Database, w http.ResponseWriter, r *http.Request
 	}
 
 	log.Infof("Fever request URL: %s", r.URL.String())
-	log.Infof("Fever request body: %s", r.PostForm.Encode())
+	log.Infof("Fever request body: %s", redactFormValues(r.PostForm))
 
 	switch r.Form.Get("api") {
 	case "":

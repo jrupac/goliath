@@ -98,6 +98,8 @@ func main() {
 	go admin.Start(ctx, d)
 	go serveMetrics(ctx)
 
+	api.InitPostTokenKey()
+
 	if err = serve(ctx, d); err != nil {
 		log.Infof("%s", err)
 	}

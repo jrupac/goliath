@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -16,6 +17,19 @@ import (
 	"github.com/jrupac/goliath/storage"
 	"golang.org/x/crypto/bcrypt"
 )
+
+// Post tokens are signed, so the key has to exist before any handler that
+// issues or checks one runs.
+func TestMain(m *testing.M) {
+	InitPostTokenKey()
+	os.Exit(m.Run())
+}
+
+// postTokenFor issues a post token for a user authenticating without a session,
+// which is how the handler tests call in.
+func postTokenFor(user models.User) string {
+	return createPostToken(postTokenBinding(user, models.Session{}))
+}
 
 func TestHandleParseFullArticle(t *testing.T) {
 	// Enable serveParsedArticles flag for testing
@@ -74,7 +88,7 @@ func TestHandleParseFullArticle(t *testing.T) {
 
 	// Prepare request
 	form := url.Values{}
-	form.Add("T", "post_token")
+	form.Add("T", postTokenFor(models.User{UserId: "test-user"}))
 	form.Add("i", "3039") // hex representation of 12345 is 3039 (12345 = 0x3039)
 	req := httptest.NewRequest("POST", "/greader/ext/parse-full-article", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -111,9 +125,9 @@ func TestHandleParseFullArticle(t *testing.T) {
 }
 
 // editTagRequest builds an edit-tag request carrying the given hex article IDs.
-func editTagRequest(tag string, addTag bool, hexIds ...string) *http.Request {
+func editTagRequest(user models.User, tag string, addTag bool, hexIds ...string) *http.Request {
 	form := url.Values{}
-	form.Add("T", "post_token")
+	form.Add("T", postTokenFor(user))
 	if addTag {
 		form.Add("a", tag)
 	} else {
@@ -145,8 +159,9 @@ func TestHandleEditTagMarksAllIdsInOneCall(t *testing.T) {
 
 	greader := GReader{d: mockDB}
 	w := httptest.NewRecorder()
-	req := editTagRequest(readStreamId, true, "3039", "1", "10c2b4a0bbed8001")
-	greader.handleEditTag(w, req, models.User{UserId: "test-user"})
+	user := models.User{UserId: "test-user"}
+	req := editTagRequest(user, readStreamId, true, "3039", "1", "10c2b4a0bbed8001")
+	greader.handleEditTag(w, req, user)
 
 	if got := w.Result().StatusCode; got != http.StatusOK {
 		t.Fatalf("status = %d, want %d", got, http.StatusOK)
@@ -182,7 +197,8 @@ func TestHandleEditTagRemoveReadMarksUnread(t *testing.T) {
 
 	greader := GReader{d: mockDB}
 	w := httptest.NewRecorder()
-	greader.handleEditTag(w, editTagRequest(readStreamId, false, "3039"), models.User{UserId: "u"})
+	user := models.User{UserId: "u"}
+	greader.handleEditTag(w, editTagRequest(user, readStreamId, false, "3039"), user)
 
 	if gotMark != models.MarkActionUnread {
 		t.Errorf("mark = %v, want MarkActionUnread", gotMark)
@@ -193,7 +209,8 @@ func TestHandleEditTagRemoveReadMarksUnread(t *testing.T) {
 func TestHandleEditTagRejectsUnparseableIdAsBadRequest(t *testing.T) {
 	greader := GReader{d: &storage.MockDB{}}
 	w := httptest.NewRecorder()
-	greader.handleEditTag(w, editTagRequest(readStreamId, true, "nothex"), models.User{UserId: "u"})
+	user := models.User{UserId: "u"}
+	greader.handleEditTag(w, editTagRequest(user, readStreamId, true, "nothex"), user)
 
 	if got := w.Result().StatusCode; got != http.StatusBadRequest {
 		t.Errorf("status = %d, want %d", got, http.StatusBadRequest)
@@ -207,7 +224,7 @@ func TestMarkAllAsReadRejectsUnparseableIdAsBadRequest(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			form := url.Values{}
-			form.Add("T", "post_token")
+			form.Add("T", postTokenFor(models.User{UserId: "u"}))
 			form.Add(tc.key, "not-a-number")
 			req := httptest.NewRequest("POST", "/greader/reader/api/0/mark-all-as-read", strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -468,5 +485,65 @@ func TestValidateLoginFormRejectsBadPassword(t *testing.T) {
 	greader := GReader{d: mockDB}
 	if _, status := greader.validateLoginForm(req); status != http.StatusUnauthorized {
 		t.Errorf("status = %d, want %d", status, http.StatusUnauthorized)
+	}
+}
+
+// The session has to reach the handlers that issue and check post tokens, or
+// binding to it would silently degrade to binding to the user.
+func TestPostTokenIssuedUnderASessionIsBoundToIt(t *testing.T) {
+	user := models.User{UserId: "user-1", Username: "someone", Key: "k"}
+	session := models.Session{SessionId: "session-1", UserId: user.UserId, Scheme: models.AuthSchemeGReader}
+
+	mockDB := &storage.MockDB{
+		OnLookupSession: func(string) (models.User, models.Session, error) {
+			return user, session, nil
+		},
+	}
+
+	greader := GReader{d: mockDB}
+	w := httptest.NewRecorder()
+	greader.withAuth(w, authorizedRequest("gol1_token"), greader.handlePostToken)
+
+	token := w.Body.String()
+	if token == "" {
+		t.Fatal("no post token was issued")
+	}
+	if !validatePostToken(postTokenBinding(user, session), token) {
+		t.Error("the issued token is not bound to the session it was issued under")
+	}
+	if validatePostToken(postTokenBinding(user, models.Session{}), token) {
+		t.Error("the issued token is bound to the user, so the session did not reach the handler")
+	}
+}
+
+// A mutating request presenting a token from a different session must be
+// refused, with the header that tells the client to fetch a new one.
+func TestEditTagRejectsPostTokenFromAnotherSession(t *testing.T) {
+	user := models.User{UserId: "user-1", Username: "someone", Key: "k"}
+	other := models.Session{SessionId: "session-2", UserId: user.UserId}
+
+	greader := GReader{d: &storage.MockDB{
+		OnMarkArticlesForUser: func(models.User, []int64, models.MarkAction) (int64, error) {
+			t.Error("articles were marked despite a post token from another session")
+			return 0, nil
+		},
+	}}
+
+	form := url.Values{}
+	form.Add("T", createPostToken(postTokenBinding(user, other)))
+	form.Add("a", readStreamId)
+	form.Add("i", "3039")
+	req := httptest.NewRequest("POST", "/greader/reader/api/0/edit-tag", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	w := httptest.NewRecorder()
+	greader.handleEditTag(w, req, user)
+
+	resp := w.Result()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusUnauthorized)
+	}
+	if got := resp.Header.Get(invalidPostTokenHeader); got != "true" {
+		t.Errorf("%s = %q, want %q", invalidPostTokenHeader, got, "true")
 	}
 }
