@@ -16,7 +16,7 @@ describe('App', () => {
     });
     vi.mock('./api/greader', () => {
       class MockGReader {
-        VerifyAuth = vi.fn().mockResolvedValue(true);
+        ResumeSession = vi.fn().mockResolvedValue(true);
         InitializeContent = vi.fn().mockResolvedValue(
           (() => {
             const mockContentTree = ContentTreeCls.new();

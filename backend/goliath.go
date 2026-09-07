@@ -204,7 +204,7 @@ func serve(ctx context.Context, d storage.Database) error {
 	}(srv)
 
 	mux.HandleFunc("/auth", auth.HandleLogin(d))
-	mux.HandleFunc("/logout", auth.HandleLogout)
+	mux.HandleFunc("/logout", auth.HandleLogout(d))
 	mux.HandleFunc("/fever/", api.FeverHandler(d))
 	mux.HandleFunc("/greader/", api.GReaderHandler(d))
 	mux.HandleFunc("/version", handleVersion)

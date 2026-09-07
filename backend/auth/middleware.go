@@ -9,10 +9,7 @@ import (
 	"github.com/jrupac/goliath/storage"
 )
 
-const (
-	authCookie = "goliath"
-	loginPath  = "/login"
-)
+const loginPath = "/login"
 
 // Redirector is an HTTP handler to be called upon failed cookie verification.
 type Redirector = func(http.ResponseWriter, *http.Request)
@@ -58,15 +55,23 @@ func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// VerifyCookie checks a request for an auth cookie and authenticates it against the database.
+// VerifyCookie identifies the user behind a request's cookies.
 func VerifyCookie(d storage.Database, r *http.Request) (models.User, error) {
-	cookie, err := r.Cookie(authCookie)
-	// Only ErrNoCookie can be returned here, which just means that the specified
-	// cookie doesn't exist.
-	if err != nil {
-		return models.User{}, err
+	if token, ok := sessionFromCookie(r); ok {
+		user, _, err := d.LookupSession(token)
+		return user, err
 	}
 
+	// A browser that signed in before sessions existed still holds the old
+	// cookie, and nothing prompts it to sign in again until this stops being
+	// accepted. Removed once the deprecation window closes.
+	cookie, err := r.Cookie(legacyAuthCookie)
+	if err != nil {
+		// Only ErrNoCookie can be returned here, which just means the cookie
+		// is not present.
+		return models.User{}, err
+	}
+	log.Warningf("Accepted legacy auth cookie")
 	return d.GetUserByKey(models.Secret(cookie.Value))
 }
 

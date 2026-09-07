@@ -171,11 +171,11 @@ export default class App extends React.Component<AppProps, AppState> {
     };
     window.addEventListener('resize', this.resizeListener);
 
-    // This is defense-in-depth to redirect to the login page if the
-    // appropriate cookie is not present. This check is also done on the
-    // server side and returns an HTTP redirect.
-    this.fetchApi.VerifyAuth().then(async (ok: boolean): Promise<void> => {
-      console.log('Fetched login verification.');
+    // This is defense-in-depth to redirect to the login page if the session
+    // cookie is not present or no longer valid. The same check is done on the
+    // server side, which returns an HTTP redirect.
+    this.fetchApi.ResumeSession().then(async (ok: boolean): Promise<void> => {
+      console.log('Resumed session.');
       this.setState({ loginVerified: ok });
       this.updateState(Status.LoginVerification);
       // Only try to initialize data if login verification succeeded. Otherwise,

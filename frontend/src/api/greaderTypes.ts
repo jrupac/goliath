@@ -1,5 +1,17 @@
+// GoliathURI are endpoints served by Goliath itself rather than by its
+// GReader-compatible surface.
+//
+// Signing in is Goliath's own, not GReader's: it establishes a session that
+// also authorizes non-GReader routes such as the image proxy, and it hands the
+// credential over as a cookie rather than in a response body. GReader has no
+// sign-out of its own to conform to either, since a client there simply
+// discards its token.
+export const enum GoliathURI {
+  Login = '/auth',
+  Logout = '/logout',
+}
+
 export const enum GReaderURI {
-  Login = '/greader/accounts/ClientLogin',
   Token = '/greader/reader/api/0/token',
   EditTag = '/greader/reader/api/0/edit-tag',
   SubscriptionList = '/greader/reader/api/0/subscription/list',

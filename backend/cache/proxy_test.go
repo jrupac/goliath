@@ -83,7 +83,10 @@ func TestAuthErrorRedirect(t *testing.T) {
 		}
 	})
 
-	t.Run("redirects successfully", func(t *testing.T) {
+	// Temporary, not permanent: a browser caches a permanent redirect, so one
+	// unauthenticated load would keep it going straight to the origin
+	// afterwards, outlasting whatever made that load unauthenticated.
+	t.Run("redirects temporarily", func(t *testing.T) {
 		targetUrl := "http://example.com/image.jpg"
 		reqUrl := fmt.Sprintf("/auth-error?url=%s", url.QueryEscape(targetUrl))
 		req := httptest.NewRequest("GET", reqUrl, nil)
@@ -91,8 +94,8 @@ func TestAuthErrorRedirect(t *testing.T) {
 
 		AuthErrorRedirect(rr, req)
 
-		if rr.Code != http.StatusMovedPermanently {
-			t.Errorf("expected status %d, got %d", http.StatusMovedPermanently, rr.Code)
+		if rr.Code != http.StatusFound {
+			t.Errorf("expected status %d, got %d", http.StatusFound, rr.Code)
 		}
 
 		location := rr.Header().Get("Location")

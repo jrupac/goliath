@@ -25,8 +25,11 @@ func NewImageProxy() http.Handler {
 	}
 }
 
-// AuthErrorRedirect redirects the user to the original proxied URL with a HTTP
-// status of 301 ("Moved Permanently").
+// AuthErrorRedirect redirects the user to the original proxied URL.
+//
+// The redirect is temporary. A permanent one is cached by the browser, so a
+// single unauthenticated load would keep it going straight to the origin
+// afterwards, outlasting whatever made the request unauthenticated.
 func AuthErrorRedirect(w http.ResponseWriter, r *http.Request) {
 	utils.HttpRequestPrint("Received unauthenticated request", r)
 
@@ -36,7 +39,7 @@ func AuthErrorRedirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, html.UnescapeString(val), http.StatusMovedPermanently)
+	http.Redirect(w, r, html.UnescapeString(val), http.StatusFound)
 }
 
 func (p *imageProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {

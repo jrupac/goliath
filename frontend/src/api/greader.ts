@@ -15,7 +15,6 @@ import { FolderCls, FolderId } from '../models/folder';
 import { FaviconCls, FeedCls, FeedId } from '../models/feed';
 import { ArticleCls, ReadStatus, SavedStatus } from '../models/article';
 import {
-  GReaderHandleLogin,
   GReaderItemContent,
   GReaderItemRef,
   GReaderStream,
@@ -25,91 +24,56 @@ import {
   GReaderSubscriptionList,
   GReaderTag,
   GReaderURI,
+  GoliathURI,
 } from './greaderTypes';
 
 interface GReaderFetch {
   uri: string;
   init?: RequestInit;
   formData?: FormData;
-  omitSessionToken?: boolean;
   omitPostToken?: boolean;
 }
 
 export default class GReader implements FetchAPI {
-  private static golaithSessionCookie: string = 'goliath_token';
-
   private folderFeeds: Map<FolderId, FeedCls[]>;
   private folderMap: Map<FolderId, FolderCls>;
   private feedToArticles: Map<FeedId, ArticleCls[]>;
-  private sessionToken: string;
   private postToken: string;
 
   constructor() {
     this.folderFeeds = new Map<FolderId, FeedCls[]>();
     this.folderMap = new Map<FolderId, FolderCls>();
     this.feedToArticles = new Map<FeedId, ArticleCls[]>();
-    this.sessionToken = '';
     this.postToken = '';
   }
 
   public async HandleAuth(loginInfo: LoginInfo): Promise<boolean> {
-    const formData = new FormData();
-    formData.append('Email', loginInfo.username);
-    formData.append('Passwd', loginInfo.password);
-
-    const res: Response = await this.doFetch({
-      uri: GReaderURI.Login,
-      formData: formData,
-      omitSessionToken: true,
-      omitPostToken: true,
+    // The session is established server-side and returned as a cookie the
+    // page cannot read. Nothing long-lived is held in JavaScript, so a script
+    // that gets into the page cannot walk away with a durable credential.
+    const res: Response = await fetch(GoliathURI.Login, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: loginInfo.username,
+        password: loginInfo.password,
+      }),
     });
 
     if (!res.ok) {
-      console.log('Login failed: ' + res);
+      console.log('Login failed: ' + res.statusText);
       return false;
     }
-
-    const result: string = await res.text();
-    let loginResult: GReaderHandleLogin;
-
-    try {
-      loginResult = parseJson(result);
-    } catch (e) {
-      console.log('Failed to parse login result:' + e);
-      return false;
-    }
-
-    this.sessionToken = loginResult.Auth;
-
-    // Set the session ID as a cookie to support session persistence. The
-    // session token also needs to be parsed out and set as a header on calls.
-    document.cookie = GReader.golaithSessionCookie + '=' + this.sessionToken;
 
     return true;
   }
 
-  public async VerifyAuth(): Promise<boolean> {
-    // First, look for session token in cookies. If not set, return false to
-    // force re-authentication.
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      if (cookie.startsWith(GReader.golaithSessionCookie + '=')) {
-        this.sessionToken = cookie.substring(
-          GReader.golaithSessionCookie.length + 1
-        );
-        break;
-      }
-    }
-
-    if (this.sessionToken === '') {
-      console.log('Could not find session token in cookies.');
-      return false;
-    }
-
-    // Second, if a session token exists, generate a post token. It is both
-    // necessary for future operations and serves as verification of the session
-    // token.
+  public async ResumeSession(): Promise<boolean> {
+    // Asking for a post token is the check: it requires the session cookie, so
+    // succeeding means the browser still has a usable session. The token it
+    // returns is short-lived and scoped to that session, and is the one thing
+    // this code does hold, since writes have to send it as a parameter.
     const res: Response = await this.doFetch({
       uri: GReaderURI.Token,
       omitPostToken: true,
@@ -118,10 +82,10 @@ export default class GReader implements FetchAPI {
     if (!res.ok) {
       console.log('Could not create post token: ' + res.statusText);
       return false;
-    } else {
-      this.postToken = await res.text();
-      return true;
     }
+
+    this.postToken = await res.text();
+    return true;
   }
 
   public async InitializeContent(
@@ -466,15 +430,9 @@ export default class GReader implements FetchAPI {
       fetchParams.init = {};
     }
 
-    // Unless explicitly specified otherwise, add the authorization header
-    if (!fetchParams.omitSessionToken) {
-      const headers = new Headers(fetchParams.init.headers);
-      headers.append('Authorization', 'GoogleLogin auth=' + this.sessionToken);
-      fetchParams.init.headers = headers;
-
-      // Send credentials whenever we have a session token defined
-      fetchParams.init.credentials = 'include';
-    }
+    // The session travels as a cookie, so every request has to carry
+    // credentials; there is no token here to put in a header.
+    fetchParams.init.credentials = 'include';
 
     // Unless explicitly specified otherwise, set the "T" value to the post
     // token in each request.

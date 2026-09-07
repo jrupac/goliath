@@ -10,6 +10,7 @@ import (
 	"time"
 
 	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/auth"
 	"github.com/jrupac/goliath/fetch"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
@@ -591,8 +592,17 @@ func (a GReader) withAuth(w http.ResponseWriter, r *http.Request, handler func(h
 	//   Authorization: GoogleLogin auth=<token>
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		log.Warningf("Missing authorization header")
-		a.returnError(w, http.StatusUnauthorized)
+		// A browser presents its session as a cookie instead, which is what
+		// lets the page keep the credential out of reach of its own scripts.
+		// Endpoints that change data still require a post token, so accepting
+		// a cookie here does not make them reachable from another site.
+		token, ok := auth.SessionFromRequest(r)
+		if !ok {
+			log.Warningf("Missing authorization header")
+			a.returnError(w, http.StatusUnauthorized)
+			return
+		}
+		a.dispatchAuthenticated(w, r, token, handler)
 		return
 	}
 
@@ -616,7 +626,13 @@ func (a GReader) withAuth(w http.ResponseWriter, r *http.Request, handler func(h
 		return
 	}
 
-	user, session, ok := a.resolveCredential(w, models.Secret(tokenStr))
+	a.dispatchAuthenticated(w, r, models.Secret(tokenStr), handler)
+}
+
+// dispatchAuthenticated resolves a credential and runs the handler as its
+// owner, whichever way the credential was presented.
+func (a GReader) dispatchAuthenticated(w http.ResponseWriter, r *http.Request, token models.Secret, handler func(http.ResponseWriter, *http.Request, models.User)) {
+	user, session, ok := a.resolveCredential(w, token)
 	if !ok {
 		return
 	}

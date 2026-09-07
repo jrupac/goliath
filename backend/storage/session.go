@@ -54,6 +54,13 @@ func hashSessionToken(token models.Secret) []byte {
 	return sum[:]
 }
 
+// SessionIdleWindow returns how long a session may go unused before it
+// expires. Callers that hand a session to a client use it to say how long the
+// client should hold on to it.
+func SessionIdleWindow() time.Duration {
+	return *sessionIdleWindow
+}
+
 // SessionExpiryCutoff returns the instant before which a session is considered
 // expired. A session last used after this is still valid.
 func SessionExpiryCutoff() time.Time {

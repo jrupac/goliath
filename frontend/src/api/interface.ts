@@ -13,9 +13,14 @@ export interface FetchAPI {
   // indicating success or failure of the login attempt.
   HandleAuth(loginInfo: LoginInfo): Promise<boolean>;
 
-  // VerifyAuth returns true if a previous login attempt has been successful
-  // based on the presence of some side effect (e.g., a cookie being present).
-  VerifyAuth(): Promise<boolean>;
+  // ResumeSession picks up a session the browser already holds and prepares
+  // the API for use, returning false if there is no usable session.
+  //
+  // The credential itself is a cookie this code cannot read, so whether one
+  // exists is only answerable by asking the server. Doing so also yields the
+  // short-lived token that writes must carry, which is why resuming is a step
+  // rather than a question.
+  ResumeSession(): Promise<boolean>;
 
   // InitializeContent will return a promise that when resolved returns the
   // number of unread items and a fully populated map of folder IDs to folders,
