@@ -1,7 +1,7 @@
 version: v2
 lint:
   use:
-    - DEFAULT
+    - STANDARD
   except:
     - FIELD_LOWER_SNAKE_CASE
     - PACKAGE_DIRECTORY_MATCH
