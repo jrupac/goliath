@@ -1,6 +1,10 @@
 package api
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -10,6 +14,7 @@ import (
 	"github.com/jrupac/goliath/fetch"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestHandleParseFullArticle(t *testing.T) {
@@ -283,5 +288,185 @@ func TestRouteDoesNotDispatchWhenFormParsingFails(t *testing.T) {
 	// dispatch was skipped rather than merely erroring later.
 	if got := resp.Header.Get("Content-Type"); got == "application/json" {
 		t.Error("route continued past a failed form parse")
+	}
+}
+
+func authorizedRequest(token string) *http.Request {
+	req := httptest.NewRequest("GET", "/greader/reader/api/0/user-info", nil)
+	req.Header.Set("Authorization", "GoogleLogin auth="+token)
+	return req
+}
+
+// A session token identifies its holder on its own: nothing in the credential
+// names a user, so the only way to resolve one is to look the session up.
+func TestWithAuthResolvesSessionToken(t *testing.T) {
+	const token = "gol1_" + "abcdefghijklmnopqrstuvwxyz012345"
+	want := models.User{UserId: "user-1", Username: "someone", Key: "k"}
+
+	var gotToken string
+	mockDB := &storage.MockDB{
+		OnLookupSession: func(tok string) (models.User, models.Session, error) {
+			gotToken = tok
+			return want, models.Session{SessionId: "s1", UserId: want.UserId, Scheme: models.AuthSchemeGReader}, nil
+		},
+	}
+
+	greader := GReader{d: mockDB}
+	w := httptest.NewRecorder()
+
+	var got models.User
+	greader.withAuth(w, authorizedRequest(token), func(_ http.ResponseWriter, _ *http.Request, u models.User) {
+		got = u
+	})
+
+	if gotToken != token {
+		t.Errorf("looked up %q, want %q", gotToken, token)
+	}
+	if got.UserId != want.UserId {
+		t.Errorf("handler ran as %v, want %v", got.UserId, want.UserId)
+	}
+}
+
+// An unknown session must not fall through to the legacy path, which would
+// otherwise try to parse an opaque token as a username-bearing one and report a
+// different status.
+func TestWithAuthRejectsUnknownSessionToken(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnLookupSession: func(string) (models.User, models.Session, error) {
+			return models.User{}, models.Session{}, errors.New("no such session")
+		},
+	}
+
+	greader := GReader{d: mockDB}
+	w := httptest.NewRecorder()
+
+	called := false
+	greader.withAuth(w, authorizedRequest("gol1_deadbeef"), func(http.ResponseWriter, *http.Request, models.User) {
+		called = true
+	})
+
+	if called {
+		t.Error("handler ran for an unknown session")
+	}
+	if got := w.Result().StatusCode; got != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", got, http.StatusUnauthorized)
+	}
+}
+
+// Clients store their token indefinitely and cannot refresh it, so credentials
+// predating sessions have to keep working.
+func TestWithAuthAcceptsLegacyToken(t *testing.T) {
+	const username = "someone"
+	const hashPass = "$2a$10$notarealbcrypthashbutfine"
+
+	sum := sha256.New()
+	sum.Write([]byte(legacyTokenSalt))
+	sum.Write([]byte(username))
+	sum.Write([]byte(hashPass))
+	inner, err := json.Marshal(greaderTokenType{
+		Username: username,
+		Token:    base64.URLEncoding.EncodeToString(sum.Sum(nil)),
+	})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	token := base64.URLEncoding.EncodeToString(inner)
+
+	want := models.User{UserId: "user-1", Username: username, Key: "k", HashPass: hashPass}
+	mockDB := &storage.MockDB{
+		OnGetUserByUsername: func(string) (models.User, error) { return want, nil },
+		OnLookupSession: func(string) (models.User, models.Session, error) {
+			t.Error("legacy token was looked up as a session")
+			return models.User{}, models.Session{}, errors.New("unexpected")
+		},
+	}
+
+	greader := GReader{d: mockDB}
+	w := httptest.NewRecorder()
+
+	var got models.User
+	greader.withAuth(w, authorizedRequest(token), func(_ http.ResponseWriter, _ *http.Request, u models.User) {
+		got = u
+	})
+
+	if got.UserId != want.UserId {
+		t.Errorf("handler ran as %v, want %v (status %d)", got.UserId, want.UserId, w.Result().StatusCode)
+	}
+}
+
+// Logging in establishes a session rather than deriving a credential from the
+// password hash, and records what the client called itself.
+func TestValidateLoginFormCreatesSession(t *testing.T) {
+	const password = "correct horse"
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("bcrypt: %v", err)
+	}
+
+	var gotScheme models.AuthScheme
+	var gotUserAgent string
+	mockDB := &storage.MockDB{
+		OnGetUserByUsername: func(string) (models.User, error) {
+			return models.User{UserId: "user-1", Username: "someone", Key: "k", HashPass: string(hashed)}, nil
+		},
+		OnCreateSession: func(_ models.User, scheme models.AuthScheme, userAgent string) (string, error) {
+			gotScheme = scheme
+			gotUserAgent = userAgent
+			return "gol1_issued", nil
+		},
+	}
+
+	form := url.Values{"Email": {"someone"}, "Passwd": {password}}
+	req := httptest.NewRequest("POST", "/greader/accounts/ClientLogin", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", "TestClient/1.0")
+	if err = req.ParseForm(); err != nil {
+		t.Fatalf("ParseForm: %v", err)
+	}
+
+	greader := GReader{d: mockDB}
+	token, status := greader.validateLoginForm(req)
+
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want %d", status, http.StatusOK)
+	}
+	if token != "gol1_issued" {
+		t.Errorf("token = %q, want the created session's token", token)
+	}
+	if gotScheme != models.AuthSchemeGReader {
+		t.Errorf("scheme = %q, want %q", gotScheme, models.AuthSchemeGReader)
+	}
+	if gotUserAgent != "TestClient/1.0" {
+		t.Errorf("user agent = %q, want %q", gotUserAgent, "TestClient/1.0")
+	}
+}
+
+// A wrong password must not establish a session.
+func TestValidateLoginFormRejectsBadPassword(t *testing.T) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte("correct horse"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("bcrypt: %v", err)
+	}
+
+	mockDB := &storage.MockDB{
+		OnGetUserByUsername: func(string) (models.User, error) {
+			return models.User{UserId: "user-1", Username: "someone", Key: "k", HashPass: string(hashed)}, nil
+		},
+		OnCreateSession: func(models.User, models.AuthScheme, string) (string, error) {
+			t.Error("session created despite a bad password")
+			return "", nil
+		},
+	}
+
+	form := url.Values{"Email": {"someone"}, "Passwd": {"wrong"}}
+	req := httptest.NewRequest("POST", "/greader/accounts/ClientLogin", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if err = req.ParseForm(); err != nil {
+		t.Fatalf("ParseForm: %v", err)
+	}
+
+	greader := GReader{d: mockDB}
+	if _, status := greader.validateLoginForm(req); status != http.StatusUnauthorized {
+		t.Errorf("status = %d, want %d", status, http.StatusUnauthorized)
 	}
 }

@@ -33,6 +33,11 @@ func StartGC(ctx context.Context, d Database) {
 }
 
 func performGCRun(d Database) {
+	collectArticles(d)
+	collectSessions(d)
+}
+
+func collectArticles(d Database) {
 	users, err := d.GetAllUsers()
 	if err != nil {
 		log.Warningf("Failed to query all users: %s", err)
@@ -50,4 +55,20 @@ func performGCRun(d Database) {
 			log.Infof("GC complete for user %s; deleted %d articles.", user, count)
 		}
 	}
+}
+
+// collectSessions reclaims rows for sessions that have gone idle past the
+// expiry window. Expiry is enforced on every lookup, so an expired session is
+// already unusable well before this runs; deleting it only keeps the table from
+// accumulating rows nothing will ever match again.
+func collectSessions(d Database) {
+	cutoff := SessionExpiryCutoff()
+	log.Infof("GC'ing all sessions unused since: %s", cutoff)
+
+	count, err := d.DeleteExpiredSessions(cutoff)
+	if err != nil {
+		log.Warningf("Session GC run failed: %s", err)
+		return
+	}
+	log.Infof("Session GC complete; deleted %d sessions.", count)
 }

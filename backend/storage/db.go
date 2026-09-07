@@ -45,6 +45,15 @@ type Database interface {
 	GetUserByKey(string) (models.User, error)
 	GetUserByUsername(string) (models.User, error)
 
+	// Sessions
+
+	CreateSession(models.User, models.AuthScheme, string) (string, error)
+	LookupSession(string) (models.User, models.Session, error)
+	GetSessionsForUser(models.User) ([]models.Session, error)
+	DeleteSessionForUser(models.User, models.SessionId) (int64, error)
+	DeleteSessionsForUser(models.User) (int64, error)
+	DeleteExpiredSessions(time.Time) (int64, error)
+
 	// User preferences
 
 	GetMuteWordsForUser(models.User) ([]string, error)

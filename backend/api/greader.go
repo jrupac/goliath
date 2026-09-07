@@ -605,29 +605,55 @@ func (a GReader) withAuth(w http.ResponseWriter, r *http.Request, handler func(h
 		return
 	}
 
-	username, token, err := extractAuthToken(tokenStr)
-	if err != nil {
-		log.Warningf("Invalid authorization header: %s", authHeader)
-		a.returnError(w, http.StatusBadRequest)
-		return
-	}
-
-	user, err := a.d.GetUserByUsername(username)
-	if err != nil {
-		log.Warningf("Failed to find user: %s", username)
-		a.returnError(w, http.StatusUnauthorized)
-		return
-	}
-
-	if !validateAuthToken(token, username, user.HashPass) {
-		log.Warningf("Invalid token for user: %s", username)
-		a.returnError(w, http.StatusUnauthorized)
+	user, ok := a.resolveCredential(w, tokenStr)
+	if !ok {
 		return
 	}
 
 	InitUserMetrics(user.Username)
 
 	handler(w, r, user)
+}
+
+// resolveCredential identifies the user behind a bearer token, writing the
+// error response and reporting false if it cannot.
+func (a GReader) resolveCredential(w http.ResponseWriter, token string) (models.User, bool) {
+	if storage.IsSessionToken(token) {
+		user, _, err := a.d.LookupSession(token)
+		if err != nil {
+			// Expired, revoked and never-issued are deliberately one case, so
+			// that a caller cannot probe for which.
+			log.Warningf("Rejected unknown or expired session")
+			a.returnError(w, http.StatusUnauthorized)
+			return models.User{}, false
+		}
+		return user, true
+	}
+
+	username, digest, err := extractLegacyAuthToken(token)
+	if err != nil {
+		log.Warningf("Unparseable authorization token")
+		a.returnError(w, http.StatusBadRequest)
+		return models.User{}, false
+	}
+
+	user, err := a.d.GetUserByUsername(username)
+	if err != nil {
+		log.Warningf("Failed to find user: %s", username)
+		a.returnError(w, http.StatusUnauthorized)
+		return models.User{}, false
+	}
+
+	if !validateLegacyAuthToken(digest, username, user.HashPass) {
+		log.Warningf("Invalid token for user: %s", username)
+		a.returnError(w, http.StatusUnauthorized)
+		return models.User{}, false
+	}
+
+	// Surfaced so that the deprecation window can be closed on evidence that
+	// nothing is still presenting the old format.
+	log.Warningf("Accepted legacy auth token for user: %s", username)
+	return user, true
 }
 
 func greaderArticleId(articleId int64) string {
@@ -661,9 +687,12 @@ func (a GReader) validateLoginForm(r *http.Request) (string, int) {
 		return token, http.StatusUnauthorized
 	}
 
-	token, err = createAuthToken(user.HashPass, formUser)
+	// Recorded so that a session listing can identify the device holding it.
+	// This is the only point at which the client describes itself as part of
+	// establishing a credential.
+	token, err = a.d.CreateSession(user, models.AuthSchemeGReader, r.Header.Get("User-Agent"))
 	if err != nil {
-		log.Warningf("Failed to create auth token: %v", err)
+		log.Warningf("Failed to create session: %v", err)
 		return token, http.StatusInternalServerError
 	}
 

@@ -159,6 +159,149 @@ func (crdb *Crdb) GetUserByUsername(username string) (models.User, error) {
 }
 
 /*******************************************************************************
+ * Sessions
+ ******************************************************************************/
+
+// CreateSession establishes a new session for the given user and returns its
+// bearer token. The token is returned here and nowhere else: only its digest is
+// stored, so it cannot be recovered afterwards.
+func (crdb *Crdb) CreateSession(u models.User, scheme models.AuthScheme, userAgent string) (string, error) {
+	defer logElapsedTime(time.Now(), "CreateSession")
+
+	token, err := newSessionToken()
+	if err != nil {
+		return "", err
+	}
+
+	query := `
+		INSERT INTO Session (tokenhash, userid, scheme, useragent)
+		VALUES ($1, $2, $3, $4)`
+	if _, err = crdb.db.Exec(query, hashSessionToken(token), u.UserId, string(scheme), userAgent); err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+// LookupSession resolves a bearer token to its session and the user it belongs
+// to. Tokens that do not exist and sessions that have gone idle past the expiry
+// window are both reported as an error, so a caller cannot distinguish them.
+//
+// This also advances the session's last-seen time, which is what makes expiry
+// slide. That write is rate-limited: authenticating is a read on the hot path
+// and every request would otherwise turn it into a write.
+func (crdb *Crdb) LookupSession(token string) (models.User, models.Session, error) {
+	defer logElapsedTime(time.Now(), "LookupSession")
+
+	var (
+		s models.Session
+		u models.User
+	)
+
+	hash := hashSessionToken(token)
+	query := `
+		SELECT s.id, s.userid, s.scheme, s.created, s.lastseen, s.useragent,
+		       u.username, u.key, u.hashpass
+		FROM Session s JOIN UserTable u ON u.id = s.userid
+		WHERE s.tokenhash = $1 AND s.lastseen > $2`
+	err := crdb.db.QueryRow(query, hash, SessionExpiryCutoff()).Scan(
+		&s.SessionId, &s.UserId, &s.Scheme, &s.Created, &s.LastSeen, &s.UserAgent,
+		&u.Username, &u.Key, &u.HashPass)
+	if err != nil {
+		return models.User{}, models.Session{}, errors.New("no such session")
+	}
+	u.UserId = s.UserId
+
+	if !s.Valid() || !u.Valid() {
+		return models.User{}, models.Session{}, errors.New("no such session")
+	}
+
+	if time.Since(s.LastSeen) > *sessionTouchInterval {
+		if err = crdb.touchSession(hash); err != nil {
+			// The session is still good; only the expiry slide was lost, and
+			// the next request will try again.
+			log.Warningf("Failed to record use of session %s: %s", s.SessionId, err)
+		}
+	}
+
+	return u, s, nil
+}
+
+func (crdb *Crdb) touchSession(hash []byte) error {
+	query := `UPDATE Session SET lastseen = now() WHERE tokenhash = $1`
+	_, err := crdb.db.Exec(query, hash)
+	return err
+}
+
+// GetSessionsForUser returns all unexpired sessions belonging to the given
+// user, most recently used first.
+func (crdb *Crdb) GetSessionsForUser(u models.User) ([]models.Session, error) {
+	defer logElapsedTime(time.Now(), "GetSessionsForUser")
+
+	var sessions []models.Session
+
+	query := `
+		SELECT id, userid, scheme, created, lastseen, useragent
+		FROM Session
+		WHERE userid = $1 AND lastseen > $2
+		ORDER BY lastseen DESC`
+	rows, err := crdb.db.Query(query, u.UserId, SessionExpiryCutoff())
+	defer closeSilent(rows)
+
+	if err != nil {
+		return sessions, err
+	}
+
+	for rows.Next() {
+		s := models.Session{}
+		if err = rows.Scan(&s.SessionId, &s.UserId, &s.Scheme, &s.Created, &s.LastSeen, &s.UserAgent); err != nil {
+			return sessions, err
+		}
+		sessions = append(sessions, s)
+	}
+
+	return sessions, rows.Err()
+}
+
+// DeleteSessionForUser revokes a single session. The user is part of the
+// predicate so that knowing a session ID is not by itself enough to revoke it.
+func (crdb *Crdb) DeleteSessionForUser(u models.User, id models.SessionId) (int64, error) {
+	defer logElapsedTime(time.Now(), "DeleteSessionForUser")
+
+	query := `DELETE FROM Session WHERE id = $1 AND userid = $2`
+	res, err := crdb.db.Exec(query, id, u.UserId)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// DeleteSessionsForUser revokes every session belonging to the given user.
+func (crdb *Crdb) DeleteSessionsForUser(u models.User) (int64, error) {
+	defer logElapsedTime(time.Now(), "DeleteSessionsForUser")
+
+	query := `DELETE FROM Session WHERE userid = $1`
+	res, err := crdb.db.Exec(query, u.UserId)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// DeleteExpiredSessions removes sessions last used before the given time.
+// Expiry is already enforced on lookup, so this only reclaims rows.
+func (crdb *Crdb) DeleteExpiredSessions(before time.Time) (int64, error) {
+	defer logElapsedTime(time.Now(), "DeleteExpiredSessions")
+
+	query := `DELETE FROM Session WHERE lastseen <= $1`
+	res, err := crdb.db.Exec(query, before)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+/*******************************************************************************
  * User preferences
  ******************************************************************************/
 
