@@ -1,3 +1,7 @@
+-- The current schema, in full. Tables appear in dependency order: a table's
+-- foreign keys must name tables the file has already created, so a new table
+-- goes after everything it references, not next to whatever it is related to.
+
 CREATE DATABASE IF NOT EXISTS Goliath;
 
 -- User "goliath" must already exist.
@@ -68,40 +72,6 @@ CREATE TABLE IF NOT EXISTS UserPrefs
             ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS UserUnmuteFeeds
-(
-    -- Key columns
-    userid UUID NOT NULL,
-    feedid INT  NOT NULL,
-    PRIMARY KEY (userid, feedid),
-    CONSTRAINT fk_user
-        FOREIGN KEY (userid)
-            REFERENCES UserTable (id)
-            ON DELETE CASCADE,
-    CONSTRAINT fk_feed
-        FOREIGN KEY (feedid)
-            REFERENCES Feed (id)
-            ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS RetrievalCache
-(
-    -- Key columns
-    userid UUID NOT NULL,
-    feedid INT  NOT NULL,
-    -- Data columns
-    cache  STRING,
-    PRIMARY KEY (userid, feedid),
-    CONSTRAINT fk_user
-        FOREIGN KEY (userid)
-            REFERENCES UserTable (id)
-            ON DELETE CASCADE,
-    CONSTRAINT fk_feed
-        FOREIGN KEY (feedid)
-            REFERENCES Feed (id)
-            ON DELETE CASCADE
-);
-
 CREATE TABLE IF NOT EXISTS Folder
 (
     -- Key columns
@@ -156,6 +126,40 @@ CREATE TABLE IF NOT EXISTS Feed
 CREATE
     INDEX ON Feed (userid)
     STORING (title, description, url, link, latest);
+
+CREATE TABLE IF NOT EXISTS UserUnmuteFeeds
+(
+    -- Key columns
+    userid UUID NOT NULL,
+    feedid INT  NOT NULL,
+    PRIMARY KEY (userid, feedid),
+    CONSTRAINT fk_user
+        FOREIGN KEY (userid)
+            REFERENCES UserTable (id)
+            ON DELETE CASCADE,
+    CONSTRAINT fk_feed
+        FOREIGN KEY (feedid)
+            REFERENCES Feed (id)
+            ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS RetrievalCache
+(
+    -- Key columns
+    userid UUID NOT NULL,
+    feedid INT  NOT NULL,
+    -- Data columns
+    cache  STRING,
+    PRIMARY KEY (userid, feedid),
+    CONSTRAINT fk_user
+        FOREIGN KEY (userid)
+            REFERENCES UserTable (id)
+            ON DELETE CASCADE,
+    CONSTRAINT fk_feed
+        FOREIGN KEY (feedid)
+            REFERENCES Feed (id)
+            ON DELETE CASCADE
+);
 
 CREATE TABLE IF NOT EXISTS Article
 (
