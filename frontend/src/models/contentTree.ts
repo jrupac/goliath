@@ -35,9 +35,7 @@ export class ContentTreeCls {
   // stringifying and a fully unread stream pays nothing. The price is one
   // throwaway string per *read* article per recompute, and since a mark
   // invalidates the view cache, it scales with how far the user has read into
-  // the current stream rather than with the stream's size. Measured at ~4ms for
-  // a cold GetArticleView over 4928 articles — about 5% of a j-keypress, and
-  // not the reason that interaction is expensive.
+  // the current stream rather than with the stream's size.
   private pinnedArticleIds: Set<string>;
   private lastComputedKeyStr: string | null;
   private lastComputedType: SelectionType | null;

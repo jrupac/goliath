@@ -36,9 +36,9 @@ interface GReaderCategory {
 
 export interface GReaderSubscription {
   title: string;
-  // These two are all-lowercase on the wire: that is both what the server
-  // sends and the canonical GReader spelling. Declaring them camelCase made
-  // them silently undefined.
+  // These two are all-lowercase on the wire, which is both what the server
+  // sends and the canonical GReader spelling, so they break the camelCase
+  // convention the rest of this interface follows.
   firstitemmsec: string;
   htmlUrl: string;
   iconUrl: string;

@@ -4,6 +4,26 @@
 
 Goliath is a self-hosted RSS aggregator with a Go backend and React/TypeScript frontend. It exposes two feed reader–compatible APIs (Fever and Google Reader) alongside a gRPC admin interface, and continuously fetches feeds in the background.
 
+## Conventions
+
+### Code comments
+
+Comments must be freestanding and timeless. A comment outlives whatever
+motivated it, so it should describe why the code is the way it is in general
+terms, not what was found or changed.
+
+Do not put in a comment:
+
+- dates, or anything anchored to "recently" / "now" / "as of";
+- references to external resources, including files in this repo (`docs/`,
+  `plans/`, "see the spec");
+- named third-party clients that merely happen to be what was tested — say
+  "clients" and describe the behavior;
+- benchmark numbers, latencies, percentiles, or counts from a specific run;
+- history of the code ("X used to do Y", "this was broken because...").
+
+That detail belongs in the commit message.
+
 ## Repository Structure
 
 ```

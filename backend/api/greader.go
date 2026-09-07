@@ -80,10 +80,9 @@ func (a GReader) preprocessRequest(w http.ResponseWriter, r *http.Request) bool 
 
 	log.Infof("GReader request URL: %s", r.URL.String())
 	log.Infof("Greader request method: %s", r.Method)
-	// Logged so that captured traffic can be attributed to a specific client.
 	// The GReader API is implemented against observed client behavior rather
-	// than a published spec, so knowing which client sent a given request is
-	// what makes a capture reproducible.
+	// than a published specification, so which client sent a request is part
+	// of interpreting it.
 	log.Infof("GReader request user agent: %s", r.Header.Get("User-Agent"))
 
 	contentType := r.Header.Get("Content-Type")
@@ -497,11 +496,10 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 		return
 	}
 
-	// Marked in a single statement rather than one per ID: clients batch
-	// heavily here (Reeder sends up to 500 IDs per request), and the per-ID
-	// loop this replaces both took ~4s for such a request and could fail
-	// halfway, leaving the batch partly applied with no way for the client to
-	// learn which IDs landed.
+	// Marked in a single statement rather than one per ID. Clients batch
+	// hundreds of IDs into one request here, so a per-ID loop costs that many
+	// sequential round trips and can fail halfway, leaving the batch partly
+	// applied with no way for the client to learn which IDs landed.
 	n, err := a.d.MarkArticlesForUser(user, articleIds, mark)
 	if err != nil {
 		log.Warningf("Failed to mark %d articles: %s", len(articleIds), err)

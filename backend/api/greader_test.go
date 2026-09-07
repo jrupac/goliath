@@ -122,8 +122,8 @@ func editTagRequest(tag string, addTag bool, hexIds ...string) *http.Request {
 	return req
 }
 
-// Clients batch heavily here (Reeder sends up to 500 IDs per request), so the
-// handler must issue a single bulk mark rather than one call per ID.
+// Clients batch hundreds of IDs into one request here, so the handler must
+// issue a single bulk mark rather than one call per ID.
 func TestHandleEditTagMarksAllIdsInOneCall(t *testing.T) {
 	var calls int
 	var gotIds []int64
@@ -149,7 +149,7 @@ func TestHandleEditTagMarksAllIdsInOneCall(t *testing.T) {
 	if calls != 1 {
 		t.Errorf("MarkArticlesForUser called %d times, want exactly 1", calls)
 	}
-	// IDs are parsed as hex on the wire; see the ID vocabulary in the spec.
+	// Article IDs are hex on the wire.
 	want := []int64{12345, 1, 1207726252529385473}
 	if len(gotIds) != len(want) {
 		t.Fatalf("marked %v, want %v", gotIds, want)
@@ -164,8 +164,8 @@ func TestHandleEditTagMarksAllIdsInOneCall(t *testing.T) {
 	}
 }
 
-// Removing the read tag marks unread; this is the path Reeder actually uses,
-// rather than adding kept-unread.
+// Removing the read tag is how clients mark unread, rather than adding the
+// kept-unread tag.
 func TestHandleEditTagRemoveReadMarksUnread(t *testing.T) {
 	var gotMark models.MarkAction
 	mockDB := &storage.MockDB{
@@ -240,7 +240,7 @@ func TestDumpRequestRedactedMasksCredentials(t *testing.T) {
 	req := httptest.NewRequest("POST", "/greader/reader/api/0/subscription/edit", nil)
 	req.Header.Set("Authorization", secret)
 	req.Header.Set("Cookie", "goliath_token=also-secret")
-	req.Header.Set("User-Agent", "Reeder/5050102")
+	req.Header.Set("User-Agent", "TestClient/1.0")
 
 	dump, err := dumpRequestRedacted(req)
 	if err != nil {
@@ -257,7 +257,7 @@ func TestDumpRequestRedactedMasksCredentials(t *testing.T) {
 		t.Errorf("dump missing redaction marker:\n%s", got)
 	}
 	// Diagnostics that are not credentials must survive.
-	if !strings.Contains(got, "Reeder/5050102") {
+	if !strings.Contains(got, "TestClient/1.0") {
 		t.Errorf("dump dropped User-Agent:\n%s", got)
 	}
 	// The caller's request must be left exactly as it was found.

@@ -17,11 +17,11 @@ const profilingHeaders = profilingEnabled
       // Required to construct `new Profiler(...)` (JS Self-Profiling API).
       'Document-Policy': 'js-profiling',
       // Cross-origin isolation, which takes performance.now() from 100us to
-      // 5us resolution — needed to resolve a ~20ms interaction. (It does not
-      // help Profiler, whose sample interval stays pinned at a ~10ms floor
-      // either way.) `credentialless` rather than `require-corp` so
-      // cross-origin article preview images still load, without credentials,
-      // and the measured workload stays realistic.
+      // 5us resolution — without it, individual interactions are too coarse
+      // to measure. (It does not help Profiler, whose sample interval stays
+      // pinned at a ~10ms floor either way.) `credentialless` rather than
+      // `require-corp` so cross-origin article preview images still load,
+      // without credentials, and the measured workload stays realistic.
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'credentialless',
     }
@@ -82,7 +82,7 @@ export default defineConfig(() => {
       },
     },
     // `vite preview` serves the production build. Mirrors the dev server's
-    // proxy and profiling headers so the keypress benchmark can measure a
+    // proxy and profiling headers so that measurement runs can target a
     // realistic production bundle rather than the instrumented dev one.
     preview: {
       port: 4173,

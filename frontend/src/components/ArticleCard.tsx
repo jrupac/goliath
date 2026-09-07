@@ -77,12 +77,12 @@ const ArticleCard: React.FC<ArticleProps> = ({
     loading: false,
   });
 
-  // ArticleList used to give this component a key of the article id, which
-  // remounted the whole card — roughly forty MUI elements — on every j/k
-  // keypress just to reset the state below. Reconciling instead is much
-  // cheaper, but it means per-article state has to be reset explicitly.
-  // Adjusting state during render is React's documented pattern for this; it
-  // re-runs this component immediately, without committing the stale state.
+  // This component is deliberately not keyed on the article id: keying it
+  // would remount the whole card — roughly forty MUI elements — on every
+  // article change, where reconciling is far cheaper. The cost of reconciling
+  // is that per-article state has to be reset explicitly. Adjusting state
+  // during render is React's documented pattern for this; it re-runs this
+  // component immediately, without committing the stale state.
   const [renderedArticleId, setRenderedArticleId] = useState(article.id);
   if (renderedArticleId !== article.id) {
     setRenderedArticleId(article.id);

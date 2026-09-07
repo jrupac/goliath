@@ -19,7 +19,7 @@
 # segment of `dbPath` in config.ini:
 #   dbPath = postgresql://goliath@crdb:26257/goliath_test?sslmode=disable
 # then `goliath-cli reload --env dev`. Credentials come from the restored
-# usertable, so existing client auth tokens (including Reeder's) keep working.
+# usertable, so existing client auth tokens keep working.
 
 set -euo pipefail
 

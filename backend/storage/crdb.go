@@ -690,8 +690,8 @@ func (crdb *Crdb) MarkArticleForUser(u models.User, articleId int64, mark models
 // `mark` in a single statement. Returns the number of articles whose state was
 // changed.
 //
-// Clients mark in bulk: Reeder sends up to 500 IDs in one edit-tag request, so
-// marking per ID meant 500 sequential round trips (~4s) and left a failure
+// Clients mark in bulk, batching hundreds of IDs into a single request, so
+// marking per ID costs that many sequential round trips and leaves a failure
 // partway through half-applied.
 func (crdb *Crdb) MarkArticlesForUser(u models.User, articleIds []int64, mark models.MarkAction) (int64, error) {
 	defer logElapsedTime(time.Now(), "MarkArticlesForUser")
