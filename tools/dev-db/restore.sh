@@ -50,9 +50,18 @@ if [[ "$exists" != "0" ]]; then
   crdb -e "DROP DATABASE $DB CASCADE;" >/dev/null
 fi
 
-echo "Restoring '$NAME' -> '$DB'" >&2
+# The database inside the backup is read from the backup rather than assumed to
+# be `goliath`. snapshot.sh can be pointed at another database, and hardcoding
+# the name here made those snapshots impossible to restore.
+SRC_DB="$(csv1 "SELECT database_name FROM [SHOW BACKUP FROM LATEST IN 'nodelocal://1/$NAME'] WHERE database_name IS NOT NULL LIMIT 1")"
+if [[ -z "$SRC_DB" ]]; then
+  echo "ERROR: could not determine which database snapshot '$NAME' holds." >&2
+  exit 1
+fi
+
+echo "Restoring '$NAME' ($SRC_DB) -> '$DB'" >&2
 crdb --format=table -e \
-  "RESTORE DATABASE goliath FROM LATEST IN 'nodelocal://1/$NAME' WITH new_db_name = $DB;" >&2
+  "RESTORE DATABASE $SRC_DB FROM LATEST IN 'nodelocal://1/$NAME' WITH new_db_name = $DB;" >&2
 
 # RESTORE creates the database owned by root and does NOT carry over the
 # original database's grants, so the application user has no access to the
