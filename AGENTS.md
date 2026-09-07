@@ -49,10 +49,10 @@ goliath/
 │   ├── vite.config.js    # Vite config with PWA plugin
 │   └── package.json
 ├── cli/                  # goliath-cli admin CLI (Go)
-├── schema/               # SQL schema files
+├── backend/schema/       # SQL schema files
 │   ├── base.sql          # Base schema
 │   ├── latest.sql        # Current schema
-│   └── migrations/       # Numbered migration files (v1–v19)
+│   └── vNN_*.sql         # Numbered migration files
 ├── proto/                # Protobuf definitions for admin gRPC service
 ├── config-dist.ini       # Configuration template
 ├── compose.yaml          # Docker Compose (prod/dev/debug profiles)
@@ -146,7 +146,8 @@ The backend serves the built static files from `/` and `/static/`.
 | `UserPrefs` | Per-user mute words, unmuted feed list |
 | `RetrievalCache` | Persisted fetch-state cache |
 
-Schema migrations live in `schema/migrations/` (v1–v19). Apply via `goliath-cli migrate-schema`.
+Schema migrations live in `backend/schema/` as `vNN_<description>.sql`. Apply
+via `goliath-cli migrate-schema`.
 
 ## Configuration
 
