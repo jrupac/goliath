@@ -15,7 +15,7 @@ frontend/build/
 **/*.pb.go
 
 # User configuration
-config.ini
+config.ini*
 .env
 
 # Go Vendor directories
@@ -27,3 +27,6 @@ vendor/
 # Other generated files
 plans/
 screenshots/
+
+# Local dev database snapshots (see tools/dev-db/)
+tools/dev-db/snapshots/

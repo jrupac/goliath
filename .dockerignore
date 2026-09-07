@@ -1,1 +1,24 @@
-frontend/node_modules
+# The image must be reproducible from source alone, so host build artifacts
+# must never enter the build context. `backend/vendor/` in particular is a
+# gitignored local artifact that Go picks up automatically: once it drifts from
+# backend/go.mod (Dependabot bumps the module, nothing regenerates the vendor
+# dir) the Docker build fails while local `go build` still passes, because the
+# go.work workspace resolves against the root vendor/ instead.
+vendor
+**/vendor
+node_modules
+**/node_modules
+
+# Build outputs.
+dist
+out
+build
+**/build
+
+# Host-only state: runtime config is bind-mounted by compose, and dev database
+# snapshots are large and irrelevant to the image.
+config.ini
+tools/dev-db/snapshots
+
+# Not read during the build; BUILD_HASH/BUILD_TIMESTAMP come in as build args.
+.git
