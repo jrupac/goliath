@@ -303,6 +303,25 @@ message ChangePasswordResponse {
   int64 RevokedSessionCount = 1;
 }
 
+message ResignProxiedImagesRequest {
+  // Required. Username whose stored articles should be updated.
+  string Username = 1;
+
+  // If set, report what would change without writing anything.
+  bool DryRun = 2;
+}
+
+message ResignProxiedImagesResponse {
+  // Articles examined.
+  int64 ArticlesScanned = 1;
+
+  // Articles that carried at least one URL needing a signature.
+  int64 ArticlesUpdated = 2;
+
+  // Individual image URLs signed.
+  int64 UrlsSigned = 3;
+}
+
 service AdminService {
   // Add a new user into the system.
   rpc AddUser (AddUserRequest) returns (AddUserResponse);
@@ -312,6 +331,15 @@ service AdminService {
 
   // Revoke one session, or every session, belonging to a user.
   rpc RevokeSessions (RevokeSessionsRequest) returns (RevokeSessionsResponse);
+
+
+  // Re-sign image proxy URLs in stored article content.
+  //
+  // Content stored before proxy URLs carried signatures names targets the proxy
+  // now refuses, which shows up as broken images in articles that used to
+  // render. Signing depends only on the target and the configured key, so those
+  // URLs can be brought up to date in place. Safe to run more than once.
+  rpc ResignProxiedImages (ResignProxiedImagesRequest) returns (ResignProxiedImagesResponse);
 
   // Change a user's password.
   //

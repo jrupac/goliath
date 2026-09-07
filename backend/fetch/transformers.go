@@ -3,7 +3,6 @@ package fetch
 import (
 	"bytes"
 	"flag"
-	"fmt"
 	"image"
 	"image/png"
 	"net/url"
@@ -14,6 +13,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"github.com/arbovm/levenshtein"
 	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/rss"
 	"github.com/kljensen/snowball"
@@ -32,6 +32,12 @@ var (
 	proxySecureImages   = flag.Bool("proxySecureImages", false, "If true, also rewritten images served over HTTPS to a proxy server.")
 	proxyUrlBase        = flag.String("proxyUrlBase", "", "Base URL to reverse image proxy server.")
 )
+
+// ImageProxyingEnabled reports whether image URLs are being rewritten to point
+// at the proxy.
+func ImageProxyingEnabled() bool {
+	return *proxyInsecureImages || *proxySecureImages
+}
 
 func processItem(feed *models.Feed, item *rss.Item) models.Article {
 	title := item.Title
@@ -188,18 +194,16 @@ func processImageUrl(feedLink, imageUrl string) string {
 		return absUrlStr
 	}
 
-	newUrl, err := url.Parse(fmt.Sprintf("%s/%s", *proxyUrlBase, cacheEndpoint))
-	if err != nil {
-		log.Warningf("invalid proxy base URL %s: %s", *proxyUrlBase, err)
+	// Signed so that the proxy will fetch it. A URL that cannot be signed is
+	// left pointing at the origin rather than rewritten into one the proxy
+	// would refuse, which would break the image either way but hide why.
+	proxied := cache.SignedImageURL(*proxyUrlBase, cacheEndpoint, absUrlStr)
+	if proxied == "" {
 		return absUrlStr
 	}
 
-	q := newUrl.Query()
-	q.Add("url", absUrlStr)
-	newUrl.RawQuery = q.Encode()
-
-	log.V(2).Infof("Rewritten URL: %s", newUrl.String())
-	return newUrl.String()
+	log.V(2).Infof("Rewritten URL: %s", proxied)
+	return proxied
 }
 
 // ProcessHTMLContent parses the given string as HTML, searches for
@@ -410,4 +414,80 @@ func getSimilarExistingArticles(articles []models.Article, a models.Article) ([]
 	}
 
 	return unreadIds, readIds
+}
+
+// ResignProxiedImageUrls re-signs image proxy URLs already present in stored
+// content, returning the rewritten content and how many URLs it signed.
+//
+// Content stored before proxy URLs were signed names targets the proxy will now
+// refuse, which shows up as a broken image in an article that used to render.
+// Signing is a pure function of the target and the key, so those URLs can be
+// brought up to date in place rather than waiting for the articles to age out.
+//
+// The proxy base is taken from the current configuration rather than from the
+// stored URL, so content written while pointing somewhere else is corrected at
+// the same time.
+func ResignProxiedImageUrls(content string) (string, int) {
+	if content == "" {
+		return content, 0
+	}
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(content))
+	if err != nil {
+		log.Warningf("while parsing stored content for re-signing: %s", err)
+		return content, 0
+	}
+
+	signed := 0
+	doc.Find("img").Each(func(_ int, s *goquery.Selection) {
+		src, ok := s.Attr("src")
+		if !ok {
+			return
+		}
+
+		target, ok := proxiedTarget(src)
+		if !ok {
+			return
+		}
+
+		rewritten := cache.SignedImageURL(*proxyUrlBase, cacheEndpoint, target)
+		if rewritten == "" || rewritten == src {
+			return
+		}
+
+		s.SetAttr("src", rewritten)
+		signed++
+	})
+
+	if signed == 0 {
+		return content, 0
+	}
+
+	out, err := doc.Html()
+	if err != nil {
+		log.Warningf("while rendering re-signed content: %s", err)
+		return content, 0
+	}
+	return out, signed
+}
+
+// proxiedTarget reports the URL a proxy link points at, and whether the link is
+// one at all.
+func proxiedTarget(src string) (string, bool) {
+	parsed, err := url.Parse(src)
+	if err != nil {
+		return "", false
+	}
+
+	// Matched on the path alone so that a link written while the proxy was
+	// served from a different address is still recognized as one.
+	if strings.TrimPrefix(parsed.Path, "/") != cacheEndpoint {
+		return "", false
+	}
+
+	target := parsed.Query().Get("url")
+	if target == "" {
+		return "", false
+	}
+	return target, true
 }

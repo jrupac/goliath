@@ -38,6 +38,8 @@ type MockDB struct {
 	OnUpdateEstimatedRefreshIntervalForFeedForUser func(u models.User, folderId, id int64, interval int) error
 	OnGetUserByUsername                            func(username string) (models.User, error)
 	OnUpdateUserCredentials                        func(u models.User, hashPass, key models.Secret) error
+	OnGetArticleContentsForUser                    func(u models.User, afterID int64, limit int) ([]models.Article, error)
+	OnUpdateArticleContentForUser                  func(u models.User, id int64, summary, content string) error
 	OnCreateSession                                func(u models.User, scheme models.AuthScheme, userAgent string) (models.Secret, error)
 	OnLookupSession                                func(token models.Secret) (models.User, models.Session, error)
 	OnDeleteSessionForUser                         func(u models.User, id models.SessionId) (int64, error)
@@ -85,6 +87,20 @@ func (m *MockDB) LookupSession(token models.Secret) (models.User, models.Session
 		return m.OnLookupSession(token)
 	}
 	return models.User{}, models.Session{}, errors.New("no such session")
+}
+
+func (m *MockDB) GetArticleContentsForUser(u models.User, afterID int64, limit int) ([]models.Article, error) {
+	if m.OnGetArticleContentsForUser != nil {
+		return m.OnGetArticleContentsForUser(u, afterID, limit)
+	}
+	return nil, nil
+}
+
+func (m *MockDB) UpdateArticleContentForUser(u models.User, id int64, summary, content string) error {
+	if m.OnUpdateArticleContentForUser != nil {
+		return m.OnUpdateArticleContentForUser(u, id, summary, content)
+	}
+	return nil
 }
 
 func (m *MockDB) GetSessionsForUser(models.User) ([]models.Session, error) { return nil, nil }

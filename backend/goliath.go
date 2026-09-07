@@ -100,6 +100,13 @@ func main() {
 
 	api.InitPostTokenKey()
 
+	if err = cache.CheckImageProxyKey(fetch.ImageProxyingEnabled()); err != nil {
+		// Fatal rather than disabling proxying: silently serving unproxied
+		// images looks like the feature working badly, whereas refusing to
+		// start names the thing that needs fixing.
+		log.Fatalf("Invalid image proxy configuration: %s", err)
+	}
+
 	if err = serve(ctx, d); err != nil {
 		log.Infof("%s", err)
 	}
@@ -208,7 +215,7 @@ func serve(ctx context.Context, d storage.Database) error {
 	mux.HandleFunc("/fever/", api.FeverHandler(d))
 	mux.HandleFunc("/greader/", api.GReaderHandler(d))
 	mux.HandleFunc("/version", handleVersion)
-	mux.Handle("/cache", auth.WithAuth(cache.NewImageProxy(), d, *publicFolder, cache.AuthErrorRedirect, true))
+	mux.Handle("/cache", auth.WithAuth(cache.NewImageProxy(), d, *publicFolder, cache.DenyUnauthenticated, true))
 	mux.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))
 	mux.Handle("/", auth.WithAuth(http.FileServer(http.Dir(*publicFolder)), d, *publicFolder, nil, false))
 	log.Infof("Starting HTTP server on %s", srv.Addr)

@@ -1362,6 +1362,49 @@ func (crdb *Crdb) GetArticleMetaWithFilterForUser(u models.User, filter models.S
 	return articles, err
 }
 
+// GetArticleContentsForUser returns the text of articles owned by the user,
+// in ID order starting after the given ID, with only the fields that can carry
+// rewritten URLs populated.
+//
+// Paged rather than returned whole because the content of every article at once
+// is far more than needs to be held to rewrite one.
+func (crdb *Crdb) GetArticleContentsForUser(u models.User, afterID int64, limit int) ([]models.Article, error) {
+	defer logElapsedTime(time.Now(), "GetArticleContentsForUser")
+
+	var articles []models.Article
+
+	query := `
+		SELECT id, summary, content FROM Article
+		WHERE userid = $1 AND id > $2
+		ORDER BY id
+		LIMIT $3`
+	rows, err := crdb.db.Query(query, u.UserId, afterID, limit)
+	defer closeSilent(rows)
+
+	if err != nil {
+		return articles, err
+	}
+
+	for rows.Next() {
+		a := models.Article{}
+		if err = rows.Scan(&a.ID, &a.Summary, &a.Content); err != nil {
+			return articles, err
+		}
+		articles = append(articles, a)
+	}
+
+	return articles, rows.Err()
+}
+
+// UpdateArticleContentForUser replaces the text of a single article.
+func (crdb *Crdb) UpdateArticleContentForUser(u models.User, id int64, summary string, content string) error {
+	defer logElapsedTime(time.Now(), "UpdateArticleContentForUser")
+
+	query := `UPDATE Article SET summary = $1, content = $2 WHERE userid = $3 AND id = $4`
+	_, err := crdb.db.Exec(query, summary, content, u.UserId, id)
+	return err
+}
+
 // GetArticlesForUser returns articles from the specified list.
 func (crdb *Crdb) GetArticlesForUser(u models.User, ids []int64) ([]models.Article, error) {
 	defer logElapsedTime(time.Now(), "GetArticlesForUser")

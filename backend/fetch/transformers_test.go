@@ -1,11 +1,16 @@
 package fetch
 
 import (
+	"flag"
+	"fmt"
+	"html"
+	"net/url"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/rss"
 )
@@ -315,13 +320,35 @@ func TestProcessImageUrl(t *testing.T) {
 		*proxyUrlBase = "https://proxy.example.com"
 		defer func() { *proxyUrlBase = oldProxyUrlBase }()
 
+		withImageProxyKey(t)
+
 		imageUrl := "http://insecure.com/foo.jpg"
-		expected := "https://proxy.example.com/cache?url=http%3A%2F%2Finsecure.com%2Ffoo.jpg"
+		expected := signedProxyURL("https://proxy.example.com", "http://insecure.com/foo.jpg")
 		result := processImageUrl(feedLink, imageUrl)
 		if result != expected {
 			t.Errorf("expected %s, got %s", expected, result)
 		}
 	})
+}
+
+// withImageProxyKey installs a signing key, without which nothing is rewritten
+// at all: an unsignable URL is left pointing at its origin rather than turned
+// into one the proxy would refuse.
+func withImageProxyKey(t *testing.T) {
+	t.Helper()
+	if err := flag.Set("imageProxyKey", "test-image-proxy-key"); err != nil {
+		t.Fatalf("setting imageProxyKey: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := flag.Set("imageProxyKey", ""); err != nil {
+			t.Fatalf("clearing imageProxyKey: %v", err)
+		}
+	})
+}
+
+// signedProxyURL builds the URL a rewrite is expected to produce.
+func signedProxyURL(base, target string) string {
+	return cache.SignedImageURL(base, "cache", target)
 }
 
 func TestMaybeRewriteUrls(t *testing.T) {
@@ -346,8 +373,12 @@ func TestMaybeRewriteUrls(t *testing.T) {
 		*proxyInsecureImages = true
 		defer func() { *proxyInsecureImages = oldProxyInsecure }()
 
+		withImageProxyKey(t)
+
 		content := "Hello world <img src='http://insecure.com/foo.jpg'>"
-		expected := "<html><head></head><body>Hello world <img src=\"/cache?url=http%3A%2F%2Finsecure.com%2Ffoo.jpg\"/></body></html>"
+		expected := fmt.Sprintf(
+			"<html><head></head><body>Hello world <img src=\"%s\"/></body></html>",
+			html.EscapeString(signedProxyURL("", "http://insecure.com/foo.jpg")))
 		result := ProcessHTMLContent(feed.Link, content)
 		if result != expected {
 			t.Errorf("expected %s, got %s", expected, result)
@@ -359,8 +390,12 @@ func TestMaybeRewriteUrls(t *testing.T) {
 		*proxyInsecureImages = true
 		defer func() { *proxyInsecureImages = oldProxyInsecure }()
 
+		withImageProxyKey(t)
+
 		content := "Hello world <img src='/foo.jpg'>"
-		expected := "<html><head></head><body>Hello world <img src=\"/cache?url=http%3A%2F%2Fexample.com%2Ffoo.jpg\"/></body></html>"
+		expected := fmt.Sprintf(
+			"<html><head></head><body>Hello world <img src=\"%s\"/></body></html>",
+			html.EscapeString(signedProxyURL("", "http://example.com/foo.jpg")))
 		result := ProcessHTMLContent(feed.Link, content)
 		if result != expected {
 			t.Errorf("expected %s, got %s", expected, result)
@@ -555,6 +590,82 @@ func TestGetSimilarExistingArticles(t *testing.T) {
 
 		if len(readIDs) != 1 || readIDs[0] != 3 {
 			t.Errorf("expected readIDs [3] with strict dedup, got %v", readIDs)
+		}
+	})
+}
+
+func TestResignProxiedImageUrls(t *testing.T) {
+	oldBase := *proxyUrlBase
+	*proxyUrlBase = "https://proxy.example.com"
+	defer func() { *proxyUrlBase = oldBase }()
+
+	target := "http://insecure.com/foo.jpg"
+
+	t.Run("signs a URL stored before signing existed", func(t *testing.T) {
+		withImageProxyKey(t)
+
+		content := `<html><head></head><body><img src="https://proxy.example.com/cache?url=http%3A%2F%2Finsecure.com%2Ffoo.jpg"/></body></html>`
+		got, signed := ResignProxiedImageUrls(content)
+
+		if signed != 1 {
+			t.Fatalf("signed %d URLs, want 1", signed)
+		}
+		if !strings.Contains(got, html.EscapeString(signedProxyURL("https://proxy.example.com", target))) {
+			t.Errorf("content was not re-signed:\n%s", got)
+		}
+	})
+
+	// Running it twice must not keep rewriting, or an operator cannot tell a
+	// finished migration from an unfinished one.
+	t.Run("is idempotent", func(t *testing.T) {
+		withImageProxyKey(t)
+
+		content := fmt.Sprintf(`<html><head></head><body><img src="%s"/></body></html>`,
+			html.EscapeString(signedProxyURL("https://proxy.example.com", target)))
+		got, signed := ResignProxiedImageUrls(content)
+
+		if signed != 0 {
+			t.Errorf("signed %d URLs on already-signed content, want 0", signed)
+		}
+		if got != content {
+			t.Errorf("already-signed content was rewritten:\n%s", got)
+		}
+	})
+
+	// A stale signature is as unusable as a missing one, so it is replaced.
+	t.Run("replaces a signature made with another key", func(t *testing.T) {
+		withImageProxyKey(t)
+		stale := fmt.Sprintf(`<html><head></head><body><img src="%s"/></body></html>`,
+			html.EscapeString("https://proxy.example.com/cache?sig=c3RhbGU&url="+url.QueryEscape(target)))
+
+		got, signed := ResignProxiedImageUrls(stale)
+		if signed != 1 {
+			t.Fatalf("signed %d URLs, want 1", signed)
+		}
+		if strings.Contains(got, "c3RhbGU") {
+			t.Errorf("stale signature survived:\n%s", got)
+		}
+	})
+
+	t.Run("leaves other images alone", func(t *testing.T) {
+		withImageProxyKey(t)
+
+		content := `<html><head></head><body><img src="https://cdn.example.com/direct.png"/></body></html>`
+		got, signed := ResignProxiedImageUrls(content)
+
+		if signed != 0 || got != content {
+			t.Errorf("rewrote %d unrelated images:\n%s", signed, got)
+		}
+	})
+
+	// Without a key nothing can be signed, and rewriting content into URLs the
+	// proxy would still refuse would only obscure that.
+	t.Run("does nothing without a key", func(t *testing.T) {
+		content := `<html><head></head><body><img src="https://proxy.example.com/cache?url=http%3A%2F%2Finsecure.com%2Ffoo.jpg"/></body></html>`
+		got, signed := ResignProxiedImageUrls(content)
+
+		if signed != 0 || got != content {
+			t.Errorf("rewrote content with no key configured:\n%s", got)
 		}
 	})
 }

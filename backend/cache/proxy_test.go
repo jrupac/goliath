@@ -3,104 +3,289 @@ package cache
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 )
 
-func TestImageProxy_ServeHTTP(t *testing.T) {
-	t.Run("no url parameter", func(t *testing.T) {
-		proxy := NewImageProxy()
-		req := httptest.NewRequest("GET", "/cache", nil)
-		rr := httptest.NewRecorder()
-
-		proxy.ServeHTTP(rr, req)
-
-		if rr.Code != http.StatusBadRequest {
-			t.Errorf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
-		}
-	})
-
-	t.Run("proxy success", func(t *testing.T) {
-		// Create a mock backend server
-		backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprint(w, "proxied content")
-		}))
-		defer backend.Close()
-
-		proxy := NewImageProxy().(*imageProxy)
-		proxy.Client = backend.Client()
-
-		reqUrl := fmt.Sprintf("/cache?url=%s", url.QueryEscape(backend.URL))
-		req := httptest.NewRequest("GET", reqUrl, nil)
-		rr := httptest.NewRecorder()
-
-		proxy.ServeHTTP(rr, req)
-
-		if rr.Code != http.StatusOK {
-			t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
-		}
-
-		body, _ := io.ReadAll(rr.Body)
-		if string(body) != "proxied content" {
-			t.Errorf("expected body %q, got %q", "proxied content", string(body))
-		}
-	})
-
-	t.Run("proxy backend fails", func(t *testing.T) {
-		// Create a mock backend server that always fails
-		backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
-		}))
-		defer backend.Close()
-
-		proxy := NewImageProxy().(*imageProxy)
-		proxy.Client = backend.Client()
-
-		reqUrl := fmt.Sprintf("/cache?url=%s", url.QueryEscape(backend.URL))
-		req := httptest.NewRequest("GET", reqUrl, nil)
-		rr := httptest.NewRecorder()
-
-		proxy.ServeHTTP(rr, req)
-
-		if rr.Code != http.StatusBadGateway {
-			t.Errorf("expected status %d, got %d", http.StatusBadGateway, rr.Code)
-		}
-	})
+// withKey installs a signing key for the duration of a test. Without one
+// nothing can be signed, and every request is refused.
+func withKey(t *testing.T) {
+	t.Helper()
+	original := *imageProxyKey
+	*imageProxyKey = "test-image-proxy-key"
+	t.Cleanup(func() { *imageProxyKey = original })
 }
 
-func TestAuthErrorRedirect(t *testing.T) {
-	t.Run("no url parameter", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/auth-error", nil)
-		rr := httptest.NewRecorder()
+// proxyRequest builds a correctly signed request for a target.
+func proxyRequest(target string) *http.Request {
+	return httptest.NewRequest("GET", fmt.Sprintf("/cache?url=%s&%s=%s",
+		url.QueryEscape(target), SignatureParam, url.QueryEscape(SignImageTarget(target))), nil)
+}
 
-		AuthErrorRedirect(rr, req)
+// imageBackend serves one image, recording what the proxy asked it for.
+func imageBackend(t *testing.T, handler http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	return server
+}
 
-		if rr.Code != http.StatusBadRequest {
-			t.Errorf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+// The proxy is reachable from anywhere, so what stops it being an open proxy is
+// that it will only fetch a URL this server signed.
+func TestImageProxyRefusesUnsignedRequests(t *testing.T) {
+	withKey(t)
+
+	backend := imageBackend(t, func(w http.ResponseWriter, _ *http.Request) {
+		t.Error("an unsigned request reached the target")
+	})
+
+	for _, tc := range []struct {
+		name string
+		uri  string
+	}{
+		{"no signature", "/cache?url=" + url.QueryEscape(backend.URL)},
+		{"wrong signature", "/cache?url=" + url.QueryEscape(backend.URL) + "&sig=bm90LWEtc2ln"},
+		{
+			"signature for a different target",
+			"/cache?url=" + url.QueryEscape(backend.URL) + "&sig=" + url.QueryEscape(SignImageTarget("http://example.com/other.png")),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			proxy := NewImageProxy()
+			rr := httptest.NewRecorder()
+			proxy.ServeHTTP(rr, httptest.NewRequest("GET", tc.uri, nil))
+
+			if rr.Code != http.StatusForbidden {
+				t.Errorf("status = %d, want %d", rr.Code, http.StatusForbidden)
+			}
+		})
+	}
+}
+
+func TestImageProxyRequiresAUrl(t *testing.T) {
+	withKey(t)
+
+	rr := httptest.NewRecorder()
+	NewImageProxy().ServeHTTP(rr, httptest.NewRequest("GET", "/cache", nil))
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusBadRequest)
+	}
+}
+
+// Targets come from feed publishers, so a feed must not be able to make this
+// server reach something only it can reach.
+func TestIsPublicAddressRefusesInternalRanges(t *testing.T) {
+	for _, addr := range []string{
+		"127.0.0.1", "::1", // loopback
+		"10.0.0.1", "192.168.1.1", "172.16.0.1", // private
+		"fd00::1",         // unique local
+		"169.254.169.254", // link-local, where cloud metadata lives
+		"fe80::1",
+		"0.0.0.0", "::",
+		"224.0.0.1", "ff02::1", // multicast
+	} {
+		if isPublicAddress(net.ParseIP(addr)) {
+			t.Errorf("isPublicAddress(%s) = true, want false", addr)
+		}
+	}
+
+	for _, addr := range []string{"8.8.8.8", "1.1.1.1", "2606:4700:4700::1111"} {
+		if !isPublicAddress(net.ParseIP(addr)) {
+			t.Errorf("isPublicAddress(%s) = false, want true", addr)
+		}
+	}
+}
+
+// An image proxy that relays anything is a way of reading arbitrary documents
+// through this server.
+func TestImageProxyRefusesNonImageContent(t *testing.T) {
+	withKey(t)
+
+	backend := imageBackend(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		_, _ = fmt.Fprint(w, "not an image")
+	})
+
+	proxy := NewImageProxy().(*imageProxy)
+	proxy.Client = backend.Client()
+
+	rr := httptest.NewRecorder()
+	proxy.ServeHTTP(rr, proxyRequest(backend.URL))
+
+	if rr.Code != http.StatusBadGateway {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusBadGateway)
+	}
+}
+
+// Nothing is cached here, so the browser is the only cache, and it can only
+// decide well if it is told what the origin said.
+func TestImageProxyForwardsCachingHeaders(t *testing.T) {
+	withKey(t)
+
+	backend := imageBackend(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "max-age=99999, public")
+		w.Header().Set("ETag", `"abc123"`)
+		w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
+		_, _ = fmt.Fprint(w, "png-bytes")
+	})
+
+	proxy := NewImageProxy().(*imageProxy)
+	proxy.Client = backend.Client()
+
+	rr := httptest.NewRecorder()
+	proxy.ServeHTTP(rr, proxyRequest(backend.URL))
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rr.Code, http.StatusOK)
+	}
+	for header, want := range map[string]string{
+		"Content-Type":  "image/png",
+		"Cache-Control": "max-age=99999, public",
+		"ETag":          `"abc123"`,
+		"Last-Modified": "Wed, 21 Oct 2015 07:28:00 GMT",
+	} {
+		if got := rr.Header().Get(header); got != want {
+			t.Errorf("%s = %q, want %q", header, got, want)
+		}
+	}
+
+	if body, _ := io.ReadAll(rr.Body); string(body) != "png-bytes" {
+		t.Errorf("body = %q, want %q", body, "png-bytes")
+	}
+}
+
+// A browser holding a cached copy should be able to revalidate rather than
+// refetch, which only works if its conditional request reaches the origin.
+func TestImageProxyRelaysRevalidation(t *testing.T) {
+	withKey(t)
+
+	var gotConditional string
+	backend := imageBackend(t, func(w http.ResponseWriter, r *http.Request) {
+		gotConditional = r.Header.Get("If-None-Match")
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("ETag", `"abc123"`)
+		w.WriteHeader(http.StatusNotModified)
+	})
+
+	proxy := NewImageProxy().(*imageProxy)
+	proxy.Client = backend.Client()
+
+	req := proxyRequest(backend.URL)
+	req.Header.Set("If-None-Match", `"abc123"`)
+	rr := httptest.NewRecorder()
+	proxy.ServeHTTP(rr, req)
+
+	if gotConditional != `"abc123"` {
+		t.Errorf("origin saw If-None-Match %q, want %q", gotConditional, `"abc123"`)
+	}
+	if rr.Code != http.StatusNotModified {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusNotModified)
+	}
+}
+
+// The target is named by feed content, so the amount relayed has to be bounded
+// by something other than the publisher's good intentions.
+func TestImageProxyBoundsResponseSize(t *testing.T) {
+	withKey(t)
+
+	backend := imageBackend(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		// Longer than the bound, written in chunks so the test does not hold
+		// the whole thing at once.
+		chunk := strings.Repeat("x", 1<<20)
+		for i := 0; i < (maxImageBytes>>20)+2; i++ {
+			if _, err := io.WriteString(w, chunk); err != nil {
+				return
+			}
 		}
 	})
 
-	// Temporary, not permanent: a browser caches a permanent redirect, so one
-	// unauthenticated load would keep it going straight to the origin
-	// afterwards, outlasting whatever made that load unauthenticated.
-	t.Run("redirects temporarily", func(t *testing.T) {
-		targetUrl := "http://example.com/image.jpg"
-		reqUrl := fmt.Sprintf("/auth-error?url=%s", url.QueryEscape(targetUrl))
-		req := httptest.NewRequest("GET", reqUrl, nil)
-		rr := httptest.NewRecorder()
+	proxy := NewImageProxy().(*imageProxy)
+	proxy.Client = backend.Client()
 
-		AuthErrorRedirect(rr, req)
+	rr := httptest.NewRecorder()
+	proxy.ServeHTTP(rr, proxyRequest(backend.URL))
 
-		if rr.Code != http.StatusFound {
-			t.Errorf("expected status %d, got %d", http.StatusFound, rr.Code)
-		}
+	if got := rr.Body.Len(); got > maxImageBytes {
+		t.Errorf("relayed %d bytes, want at most %d", got, maxImageBytes)
+	}
+}
 
-		location := rr.Header().Get("Location")
-		if location != targetUrl {
-			t.Errorf("expected redirect location %q, got %q", targetUrl, location)
-		}
+func TestImageProxyReportsBadOriginStatus(t *testing.T) {
+	withKey(t)
+
+	backend := imageBackend(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
 	})
+
+	proxy := NewImageProxy().(*imageProxy)
+	proxy.Client = backend.Client()
+
+	rr := httptest.NewRecorder()
+	proxy.ServeHTTP(rr, proxyRequest(backend.URL))
+
+	if rr.Code != http.StatusBadGateway {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusBadGateway)
+	}
+}
+
+// Failing outright rather than redirecting: the redirect this replaces sent the
+// browser to the image's insecure origin, which is what proxying exists to
+// avoid, and did it without anything looking wrong.
+func TestDenyUnauthenticatedDoesNotRedirect(t *testing.T) {
+	rr := httptest.NewRecorder()
+	DenyUnauthenticated(rr, httptest.NewRequest("GET", "/cache?url=http://example.com/a.png", nil))
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("status = %d, want %d", rr.Code, http.StatusForbidden)
+	}
+	if location := rr.Header().Get("Location"); location != "" {
+		t.Errorf("sent the browser to %q instead of refusing", location)
+	}
+}
+
+// The guard is installed on the transport rather than applied to the URL, so it
+// runs for every connection the client makes. That is what covers redirects and
+// a name that resolves differently the second time it is looked up: both go
+// through a fresh dial, and each one is checked.
+func TestGuardedTransportRefusesInternalDials(t *testing.T) {
+	client := &http.Client{Transport: guardedTransport()}
+
+	for _, target := range []string{
+		"http://127.0.0.1:80/",
+		"http://10.0.0.1:80/",
+		"http://169.254.169.254:80/latest/meta-data/",
+		"http://[::1]:80/",
+	} {
+		resp, err := client.Get(target)
+		if err == nil {
+			_ = resp.Body.Close()
+			t.Errorf("dialed %s, which should have been refused", target)
+			continue
+		}
+		if !strings.Contains(err.Error(), errBlockedAddress.Error()) {
+			t.Errorf("%s failed with %v, want it refused by the address guard", target, err)
+		}
+	}
+}
+
+// Images are served over the ordinary web ports. Anything else is a service
+// that happens to speak HTTP, which is not what this is for.
+func TestGuardedTransportRefusesOtherPorts(t *testing.T) {
+	client := &http.Client{Transport: guardedTransport()}
+
+	resp, err := client.Get("http://8.8.8.8:8080/")
+	if err == nil {
+		_ = resp.Body.Close()
+		t.Fatal("dialed a non-web port, which should have been refused")
+	}
+	if !strings.Contains(err.Error(), errBlockedAddress.Error()) {
+		t.Errorf("failed with %v, want it refused by the address guard", err)
+	}
 }

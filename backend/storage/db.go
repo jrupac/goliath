@@ -103,6 +103,7 @@ type Database interface {
 	UpdateEstimatedRefreshIntervalForFeedForUser(models.User, int64, int64, int) error
 	UpdateFolderForFeedForUser(models.User, int64, int64) error
 	UpdateArticleParsedContentForUser(models.User, int64, string) error
+	UpdateArticleContentForUser(models.User, int64, string, string) error
 
 	// Content retrieval
 
@@ -115,6 +116,7 @@ type Database interface {
 	GetAllFaviconsForUser(models.User) (map[int64]string, error)
 
 	GetArticleMetaWithFilterForUser(models.User, models.StreamFilter, int, int64) ([]models.ArticleMeta, error)
+	GetArticleContentsForUser(models.User, int64, int) ([]models.Article, error)
 	GetArticlesForUser(models.User, []int64) ([]models.Article, error)
 	GetArticlesWithFilterForUser(models.User, models.StreamFilter, int, int64) ([]models.Article, error)
 	GetArticlesForFeedForUser(models.User, int64) ([]models.Article, error)

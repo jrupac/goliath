@@ -162,6 +162,64 @@ func (s *server) ChangePassword(_ context.Context, req *ChangePasswordRequest) (
 	return &ChangePasswordResponse{RevokedSessionCount: revoked}, nil
 }
 
+// resignBatchSize bounds how much article text is held at once while
+// re-signing.
+const resignBatchSize = 200
+
+// ResignProxiedImages re-signs image proxy URLs in the user's stored articles.
+func (s *server) ResignProxiedImages(_ context.Context, req *ResignProxiedImagesRequest) (*ResignProxiedImagesResponse, error) {
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	resp := &ResignProxiedImagesResponse{}
+
+	// Walked in ID order rather than selected by pattern, so that the decision
+	// about what needs signing is made by the same code that does the signing.
+	var afterID int64
+	for {
+		articles, err := s.db.GetArticleContentsForUser(user, afterID, resignBatchSize)
+		if err != nil {
+			log.Warningf("while reading articles to re-sign: %+v", err)
+			return nil, status.Errorf(codes.Internal, "could not read articles for user")
+		}
+		if len(articles) == 0 {
+			break
+		}
+
+		for _, a := range articles {
+			afterID = a.ID
+			resp.ArticlesScanned++
+
+			summary, summarySigned := fetch.ResignProxiedImageUrls(a.Summary)
+			content, contentSigned := fetch.ResignProxiedImageUrls(a.Content)
+			if summarySigned+contentSigned == 0 {
+				continue
+			}
+
+			resp.ArticlesUpdated++
+			resp.UrlsSigned += int64(summarySigned + contentSigned)
+
+			if req.DryRun {
+				continue
+			}
+			if err = s.db.UpdateArticleContentForUser(user, a.ID, summary, content); err != nil {
+				log.Warningf("while re-signing article %d: %+v", a.ID, err)
+				return nil, status.Errorf(codes.Internal, "could not update article %d", a.ID)
+			}
+		}
+	}
+
+	log.Infof("Re-signed %d image URLs across %d of %d articles for %s (dry run: %t).",
+		resp.UrlsSigned, resp.ArticlesUpdated, resp.ArticlesScanned, user.Username, req.DryRun)
+	return resp, nil
+}
+
 // GetMuteWords retrieves the current muted words for the user.
 func (s *server) GetMuteWords(_ context.Context, req *GetMuteWordsRequest) (*GetMuteWordsResponse, error) {
 	resp := &GetMuteWordsResponse{}
