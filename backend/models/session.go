@@ -18,13 +18,39 @@ type SessionId string
 type AuthScheme string
 
 const (
-	// AuthSchemeGReader is a session established through the Google Reader
+	// AuthSchemeGReader is a session established through the GReader
 	// ClientLogin endpoint and presented as a bearer token.
 	AuthSchemeGReader AuthScheme = "greader"
 	// AuthSchemeWeb is a session established through the web login form and
 	// presented as a cookie.
 	AuthSchemeWeb AuthScheme = "web"
 )
+
+// authSchemes is every scheme the server knows how to issue, keyed by the form
+// it is stored in.
+var authSchemes = map[string]AuthScheme{
+	string(AuthSchemeGReader): AuthSchemeGReader,
+	string(AuthSchemeWeb):     AuthSchemeWeb,
+}
+
+// ParseAuthScheme converts a stored scheme back into one of the known values.
+//
+// An unrecognized scheme is an error rather than a new one. The set is closed
+// by what the server can issue, so a value outside it means a row was written
+// by something other than this code, and treating it as valid would let that
+// decide how a session is described.
+func ParseAuthScheme(scheme string) (AuthScheme, error) {
+	if known, ok := authSchemes[scheme]; ok {
+		return known, nil
+	}
+	return "", fmt.Errorf("unknown auth scheme: %q", scheme)
+}
+
+// Valid returns true if this is a scheme the server issues.
+func (s AuthScheme) Valid() bool {
+	_, ok := authSchemes[string(s)]
+	return ok
+}
 
 // Session is a single authenticated login, held by one client.
 //
@@ -50,7 +76,7 @@ type Session struct {
 
 // Valid returns true if this object is well-formed.
 func (s Session) Valid() bool {
-	return s.SessionId != "" && s.UserId != "" && s.Scheme != ""
+	return s.SessionId != "" && s.UserId != "" && s.Scheme.Valid()
 }
 
 func (s Session) String() string {

@@ -215,9 +215,111 @@ message DeleteFeedMuteRegexRequest {
 message DeleteFeedMuteRegexResponse {
 }
 
+// The authentication surface that established a session.
+//
+// The set is closed: a scheme exists here only where the server issues the
+// credential itself. Fever is absent by construction, since its key is derived
+// by the client from the username and password.
+enum AuthScheme {
+  // Unset, or a scheme this server does not recognize.
+  AUTH_SCHEME_UNSPECIFIED = 0;
+
+  // Established through the GReader ClientLogin endpoint and presented as a
+  // bearer token.
+  AUTH_SCHEME_GREADER = 1;
+
+  // Established through the web login form and presented as a cookie.
+  AUTH_SCHEME_WEB = 2;
+}
+
+// A single authenticated login held by one client.
+message Session {
+  // Identifier for this session, as accepted by RevokeSessions.
+  string SessionId = 1;
+
+  // Which authentication surface established this session.
+  AuthScheme Scheme = 2;
+
+  // When the session was established, in seconds since the Unix epoch.
+  int64 CreatedUnixSec = 3;
+
+  // When the session was last used, in seconds since the Unix epoch. Expiry is
+  // measured from this, so an actively used session does not age.
+  int64 LastSeenUnixSec = 4;
+
+  // What the client called itself when the session was established. This is
+  // client-supplied and may be absent or untrue.
+  string UserAgent = 5;
+}
+
+message ListSessionsRequest {
+  // Required. Username whose sessions should be listed.
+  string Username = 1;
+}
+
+message ListSessionsResponse {
+  // Unexpired sessions, most recently used first.
+  repeated Session Session = 1;
+}
+
+// Selects every session belonging to the user.
+message AllSessions {
+}
+
+message RevokeSessionsRequest {
+  // Required. Username whose sessions should be revoked.
+  string Username = 1;
+
+  // Required. Which sessions to revoke.
+  oneof target {
+    // A single session, identified as ListSessions returns it.
+    string SessionId = 2;
+
+    // Every session the user has.
+    AllSessions All = 3;
+  }
+}
+
+message RevokeSessionsResponse {
+  // Number of sessions revoked. Zero means nothing matched, which for a single
+  // session means it was already gone.
+  int64 RevokedCount = 1;
+}
+
+message ChangePasswordRequest {
+  // Required. Username whose password should be changed.
+  string Username = 1;
+
+  // Required. The new password, in the clear. The admin service listens on
+  // loopback only, and the server needs the password itself to derive both the
+  // stored hash and the Fever key.
+  string Password = 2;
+}
+
+message ChangePasswordResponse {
+  // Number of sessions revoked as part of the change. Every session is
+  // revoked, since a password change is meant to end access from wherever the
+  // old one reached.
+  int64 RevokedSessionCount = 1;
+}
+
 service AdminService {
   // Add a new user into the system.
   rpc AddUser (AddUserRequest) returns (AddUserResponse);
+
+  // List the unexpired sessions belonging to a user.
+  rpc ListSessions (ListSessionsRequest) returns (ListSessionsResponse);
+
+  // Revoke one session, or every session, belonging to a user.
+  rpc RevokeSessions (RevokeSessionsRequest) returns (RevokeSessionsResponse);
+
+  // Change a user's password.
+  //
+  // This resets every credential derived from the password: the Fever API key
+  // changes, so Fever clients must be reconfigured, and tokens issued before
+  // sessions existed stop working. Every session is revoked as well, so all
+  // clients must sign in again.
+  rpc ChangePassword (ChangePasswordRequest) returns (ChangePasswordResponse);
 
   // Get current muted words for a user.
   rpc GetMuteWords (GetMuteWordsRequest) returns (GetMuteWordsResponse);

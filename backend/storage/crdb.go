@@ -158,6 +158,31 @@ func (crdb *Crdb) GetUserByUsername(username string) (models.User, error) {
 	return u, err
 }
 
+// UpdateUserCredentials replaces the stored password hash and derived key for a
+// user.
+//
+// Both move together on purpose. The key is derived from the password, so
+// leaving it behind would mean the old password still opened the Fever API and
+// the web cookie, and the change would not be the revocation it looks like.
+func (crdb *Crdb) UpdateUserCredentials(u models.User, hashPass string, key string) error {
+	defer logElapsedTime(time.Now(), "UpdateUserCredentials")
+
+	query := `UPDATE UserTable SET hashpass = $1, key = $2 WHERE id = $3`
+	res, err := crdb.db.Exec(query, hashPass, key, u.UserId)
+	if err != nil {
+		return err
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return errors.New("could not find user")
+	}
+	return nil
+}
+
 /*******************************************************************************
  * Sessions
  ******************************************************************************/
@@ -199,18 +224,26 @@ func (crdb *Crdb) LookupSession(token string) (models.User, models.Session, erro
 	)
 
 	hash := hashSessionToken(token)
+	var scheme string
 	query := `
 		SELECT s.id, s.userid, s.scheme, s.created, s.lastseen, s.useragent,
 		       u.username, u.key, u.hashpass
 		FROM Session s JOIN UserTable u ON u.id = s.userid
 		WHERE s.tokenhash = $1 AND s.lastseen > $2`
 	err := crdb.db.QueryRow(query, hash, SessionExpiryCutoff()).Scan(
-		&s.SessionId, &s.UserId, &s.Scheme, &s.Created, &s.LastSeen, &s.UserAgent,
+		&s.SessionId, &s.UserId, &scheme, &s.Created, &s.LastSeen, &s.UserAgent,
 		&u.Username, &u.Key, &u.HashPass)
 	if err != nil {
 		return models.User{}, models.Session{}, errors.New("no such session")
 	}
 	u.UserId = s.UserId
+
+	// Parsed rather than converted, so that a scheme this build does not know
+	// how to issue does not authenticate anyone.
+	if s.Scheme, err = models.ParseAuthScheme(scheme); err != nil {
+		log.Warningf("Session %s carries an unusable scheme: %s", s.SessionId, err)
+		return models.User{}, models.Session{}, errors.New("no such session")
+	}
 
 	if !s.Valid() || !u.Valid() {
 		return models.User{}, models.Session{}, errors.New("no such session")
@@ -254,8 +287,15 @@ func (crdb *Crdb) GetSessionsForUser(u models.User) ([]models.Session, error) {
 
 	for rows.Next() {
 		s := models.Session{}
-		if err = rows.Scan(&s.SessionId, &s.UserId, &s.Scheme, &s.Created, &s.LastSeen, &s.UserAgent); err != nil {
+		var scheme string
+		if err = rows.Scan(&s.SessionId, &s.UserId, &scheme, &s.Created, &s.LastSeen, &s.UserAgent); err != nil {
 			return sessions, err
+		}
+		// A listing exists to be acted on, so an unrecognized scheme is shown
+		// rather than hidden: it is still a session someone may want revoked.
+		if s.Scheme, err = models.ParseAuthScheme(scheme); err != nil {
+			log.Warningf("Session %s carries an unusable scheme: %s", s.SessionId, err)
+			s.Scheme = ""
 		}
 		sessions = append(sessions, s)
 	}

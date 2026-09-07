@@ -1,13 +1,12 @@
 package auth
 
 import (
-	"crypto/md5"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 
 	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 )
 
@@ -20,8 +19,7 @@ func (a *auth) getAPIKey() (string, error) {
 	if a.Username == "" || a.Password == "" {
 		return "", errors.New("incomplete auth type")
 	}
-	key := md5.Sum([]byte(fmt.Sprintf("%s:%s", a.Username, a.Password)))
-	return fmt.Sprintf("%x", string(key[:])), nil
+	return models.DeriveUserKey(a.Username, a.Password), nil
 }
 
 // HandleLogin returns a handler that implements logging into the application.

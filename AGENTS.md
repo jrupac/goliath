@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Goliath is a self-hosted RSS aggregator with a Go backend and React/TypeScript frontend. It exposes two feed reader–compatible APIs (Fever and Google Reader) alongside a gRPC admin interface, and continuously fetches feeds in the background.
+Goliath is a self-hosted RSS aggregator with a Go backend and React/TypeScript frontend. It exposes two feed reader–compatible APIs (Fever and GReader) alongside a gRPC admin interface, and continuously fetches feeds in the background.
 
 ## Conventions
 
@@ -30,7 +30,7 @@ That detail belongs in the commit message.
 goliath/
 ├── backend/              # Go backend
 │   ├── goliath.go        # Main binary entry point
-│   ├── api/              # REST API handlers (Fever, Google Reader)
+│   ├── api/              # REST API handlers (Fever, GReader)
 │   ├── auth/             # Auth middleware and login/logout
 │   ├── cache/            # Retrieval cache layer
 │   ├── fetch/            # Feed fetching, parsing, deduplication
@@ -76,7 +76,7 @@ goliath/
 | `backend/storage/crdb.go` | CockroachDB implementation (no ORM, raw SQL) |
 | `backend/storage/gc.go` | Background garbage collection of old articles |
 | `backend/api/fever.go` | Fever API v3 handler |
-| `backend/api/greader.go` | Google Reader API subset handler |
+| `backend/api/greader.go` | GReader API subset handler |
 | `backend/auth/` | Cookie-based session auth; MD5 API key (`md5(user:pass)`) |
 | `backend/fetch/` | Feed fetching loop, HTML sanitisation (bluemonday), favicon extraction, cuckoo-filter deduplication |
 | `backend/cache/` | In-process retrieval cache persisted to DB on shutdown |
@@ -214,6 +214,6 @@ GitHub Actions (`.github/workflows/ci.yml`) runs on push to `master`:
 | API | Mount path | Protocol |
 |-----|-----------|----------|
 | Fever v3 | `/fever/` | HTTP JSON |
-| Google Reader | `/greader/` | HTTP JSON |
+| GReader | `/greader/` | HTTP JSON |
 | Admin | port 9997 | gRPC/Protobuf |
 | Image proxy | `/cache` | HTTP reverse proxy |

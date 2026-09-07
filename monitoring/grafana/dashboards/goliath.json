@@ -624,7 +624,7 @@
           "refId": "A"
         }
       ],
-      "title": "Google Reader API Server Latency",
+      "title": "GReader API Server Latency",
       "type": "timeseries"
     }
   ],

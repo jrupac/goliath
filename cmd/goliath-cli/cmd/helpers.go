@@ -380,10 +380,17 @@ type textInputModel struct {
 }
 
 func initialTextInputModel(prompt string) textInputModel {
+	return newTextInputModel(prompt, false)
+}
+
+func newTextInputModel(prompt string, masked bool) textInputModel {
 	ti := textinput.New()
 	ti.Focus()
 	ti.CharLimit = 256
 	ti.Width = 50
+	if masked {
+		ti.EchoMode = textinput.EchoPassword
+	}
 
 	return textInputModel{
 		prompt:    prompt,
@@ -433,8 +440,19 @@ func (m textInputModel) View() string {
 }
 
 // Public function to run the bubbletea prompt
+// promptForPassword reads a value without echoing it, so that it does not end
+// up on screen. Taking a password as a flag would be worse still, since it
+// would reach the shell history and the process list.
+func promptForPassword(prompt string) string {
+	return runTextInputPrompt(newTextInputModel(prompt, true))
+}
+
 func promptForInput(prompt string) string {
-	p := tea.NewProgram(initialTextInputModel(prompt))
+	return runTextInputPrompt(initialTextInputModel(prompt))
+}
+
+func runTextInputPrompt(model textInputModel) string {
+	p := tea.NewProgram(model)
 
 	m, err := p.Run()
 	if err != nil {

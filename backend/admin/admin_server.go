@@ -4,18 +4,20 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	log "github.com/golang/glog"
-	"github.com/jrupac/goliath/fetch"
-	"github.com/jrupac/goliath/models"
-	"github.com/jrupac/goliath/storage"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/reflection"
-	"google.golang.org/grpc/status"
 	"net"
 	"regexp"
 	"sort"
 	"strings"
+
+	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/fetch"
+	"github.com/jrupac/goliath/models"
+	"github.com/jrupac/goliath/storage"
+	"golang.org/x/crypto/bcrypt"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -31,6 +33,129 @@ type server struct {
 // NOTE: This method is currently unimplemented.
 func (s *server) AddUser(_ context.Context, _ *AddUserRequest) (*AddUserResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "not yet implemented")
+}
+
+// authSchemeToProto maps a stored scheme onto the wire enum. A scheme with no
+// counterpart is reported as unspecified rather than guessed at, which is what
+// the unspecified value is for.
+func authSchemeToProto(scheme models.AuthScheme) AuthScheme {
+	switch scheme {
+	case models.AuthSchemeGReader:
+		return AuthScheme_AUTH_SCHEME_GREADER
+	case models.AuthSchemeWeb:
+		return AuthScheme_AUTH_SCHEME_WEB
+	default:
+		return AuthScheme_AUTH_SCHEME_UNSPECIFIED
+	}
+}
+
+// ListSessions returns the unexpired sessions belonging to the user.
+func (s *server) ListSessions(_ context.Context, req *ListSessionsRequest) (*ListSessionsResponse, error) {
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	sessions, err := s.db.GetSessionsForUser(user)
+	if err != nil {
+		log.Warningf("while listing sessions for user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not list sessions for user")
+	}
+
+	resp := &ListSessionsResponse{}
+	for _, sess := range sessions {
+		resp.Session = append(resp.Session, &Session{
+			SessionId:       string(sess.SessionId),
+			Scheme:          authSchemeToProto(sess.Scheme),
+			CreatedUnixSec:  sess.Created.Unix(),
+			LastSeenUnixSec: sess.LastSeen.Unix(),
+			UserAgent:       sess.UserAgent,
+		})
+	}
+	return resp, nil
+}
+
+// RevokeSessions revokes one session, or every session, belonging to the user.
+func (s *server) RevokeSessions(_ context.Context, req *RevokeSessionsRequest) (*RevokeSessionsResponse, error) {
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+	if req.GetTarget() == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify SessionId or All")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	var revoked int64
+	switch target := req.GetTarget().(type) {
+	case *RevokeSessionsRequest_All:
+		revoked, err = s.db.DeleteSessionsForUser(user)
+	case *RevokeSessionsRequest_SessionId:
+		if target.SessionId == "" {
+			return nil, status.Errorf(codes.InvalidArgument, "must specify a non-empty SessionId")
+		}
+		revoked, err = s.db.DeleteSessionForUser(user, models.SessionId(target.SessionId))
+	default:
+		return nil, status.Errorf(codes.InvalidArgument, "unrecognized revocation target")
+	}
+	if err != nil {
+		log.Warningf("while revoking sessions for user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not revoke sessions for user")
+	}
+
+	return &RevokeSessionsResponse{RevokedCount: revoked}, nil
+}
+
+// ChangePassword sets a new password for the user and revokes every session.
+//
+// Revocation is not optional. The point of changing a password is to end access
+// from wherever the old one reached, and a session established under it would
+// otherwise outlive it.
+func (s *server) ChangePassword(_ context.Context, req *ChangePasswordRequest) (*ChangePasswordResponse, error) {
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+	if req.Password == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Password")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Warningf("while hashing new password: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not hash password")
+	}
+
+	if err = s.db.UpdateUserCredentials(
+		user, string(hashed), models.DeriveUserKey(user.Username, req.Password)); err != nil {
+		log.Warningf("while updating credentials for user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not update credentials for user")
+	}
+
+	// After the credentials, so that a failure above leaves the user's sessions
+	// alone rather than logging them out for a change that did not happen.
+	revoked, err := s.db.DeleteSessionsForUser(user)
+	if err != nil {
+		// The password did change, so this cannot be reported as a failure;
+		// saying so would invite a retry that changes it again.
+		log.Warningf("password changed but sessions were not revoked: %+v", err)
+		return nil, status.Errorf(codes.DataLoss,
+			"password was changed but existing sessions could not be revoked; revoke them explicitly")
+	}
+
+	log.Infof("Changed password for user %s and revoked %d sessions.", user.Username, revoked)
+	return &ChangePasswordResponse{RevokedSessionCount: revoked}, nil
 }
 
 // GetMuteWords retrieves the current muted words for the user.

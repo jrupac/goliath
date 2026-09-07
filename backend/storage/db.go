@@ -44,6 +44,7 @@ type Database interface {
 	GetAllUsers() ([]models.User, error)
 	GetUserByKey(string) (models.User, error)
 	GetUserByUsername(string) (models.User, error)
+	UpdateUserCredentials(models.User, string, string) error
 
 	// Sessions
 
