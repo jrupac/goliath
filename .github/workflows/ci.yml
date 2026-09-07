@@ -42,6 +42,10 @@ jobs:
       - name: Run backend tests
         run: go test ./backend/...
 
+      - name: Run CLI tests
+        run: go test ./...
+        working-directory: cmd/goliath-cli
+
       - name: Run frontend tests
         run: bun run test
         working-directory: frontend

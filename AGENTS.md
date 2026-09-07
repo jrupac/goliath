@@ -146,8 +146,11 @@ The backend serves the built static files from `/` and `/static/`.
 | `UserPrefs` | Per-user mute words, unmuted feed list |
 | `RetrievalCache` | Persisted fetch-state cache |
 
-Schema migrations live in `backend/schema/` as `vNN_<description>.sql`. Apply
-via `goliath-cli migrate-schema`.
+Schema migrations live in `backend/schema/` as `vNN_<description>.sql`, applied
+via `goliath-cli migrate-schema`. That stops the application, checkpoints the
+database, applies the migration, and restarts, printing the
+`goliath-cli rollback-schema` command that undoes it. Checkpoints are CockroachDB
+backups; list them with `goliath-cli list-checkpoints`.
 
 ## Configuration
 
@@ -177,7 +180,8 @@ make build    # Docker build → ./dist/goliath-cli
 make install  # installs to /usr/local/bin/goliath-cli
 ```
 
-CLI commands: feed CRUD, mute-word management, schema migration, compose operations, SQL shell.
+CLI commands: feed CRUD, mute-word management, schema migration and rollback,
+compose operations, SQL shell.
 
 ### Admin gRPC
 
