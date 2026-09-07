@@ -338,6 +338,7 @@ func (crdb *Crdb) DeleteMuteRegexForFeedForUser(u models.User, feedId int64, reg
 
 	return err
 }
+
 /*******************************************************************************
  * Retrieval cache
  ******************************************************************************/
@@ -683,6 +684,43 @@ func (crdb *Crdb) MarkArticleForUser(u models.User, articleId int64, mark models
 
 	_, err = crdb.db.Exec(query, value, u.UserId, articleId)
 	return err
+}
+
+// MarkArticlesForUser sets the mark status of every article in `articleIds` to
+// `mark` in a single statement. Returns the number of articles whose state was
+// changed.
+//
+// Clients mark in bulk: Reeder sends up to 500 IDs in one edit-tag request, so
+// marking per ID meant 500 sequential round trips (~4s) and left a failure
+// partway through half-applied.
+func (crdb *Crdb) MarkArticlesForUser(u models.User, articleIds []int64, mark models.MarkAction) (int64, error) {
+	defer logElapsedTime(time.Now(), "MarkArticlesForUser")
+
+	if len(articleIds) == 0 {
+		return 0, nil
+	}
+
+	markType, value, err := mark.Parse()
+	if err != nil {
+		return 0, fmt.Errorf("invalid mark action: %+v", mark)
+	}
+
+	var query string
+	switch markType {
+	case models.MarkTypeRead:
+		query = `UPDATE Article SET read = $1 WHERE userid = $2 AND id = ANY($3)`
+	case models.MarkTypeSaved:
+		query = `UPDATE Article SET saved = $1 WHERE userid = $2 AND id = ANY($3)`
+	default:
+		return 0, fmt.Errorf("invalid mark type: %+v", mark)
+	}
+
+	result, err := crdb.db.Exec(query, value, u.UserId, pq.Array(articleIds))
+	if err != nil {
+		return 0, err
+	}
+	n, _ := result.RowsAffected()
+	return n, nil
 }
 
 // MarkFeedForUser sets the mark status of all articles in `feedId` to `mark`.

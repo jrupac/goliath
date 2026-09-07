@@ -66,16 +66,25 @@ func (a GReader) recordLatency(t time.Time, label string) {
 	})
 }
 
-func (a GReader) preprocessRequest(w http.ResponseWriter, r *http.Request) {
+// preprocessRequest parses the request form and logs the request. It reports
+// whether the request is well-formed enough to dispatch; the caller must not
+// route a request for which this returns false, since the response status has
+// already been written.
+func (a GReader) preprocessRequest(w http.ResponseWriter, r *http.Request) bool {
 	err := r.ParseForm()
 	if err != nil {
 		log.Warningf("Failed to parse request form: %s", err)
 		a.returnError(w, http.StatusBadRequest)
-		return
+		return false
 	}
 
 	log.Infof("GReader request URL: %s", r.URL.String())
 	log.Infof("Greader request method: %s", r.Method)
+	// Logged so that captured traffic can be attributed to a specific client.
+	// The GReader API is implemented against observed client behavior rather
+	// than a published spec, so knowing which client sent a given request is
+	// what makes a capture reproducible.
+	log.Infof("GReader request user agent: %s", r.Header.Get("User-Agent"))
 
 	contentType := r.Header.Get("Content-Type")
 
@@ -83,25 +92,28 @@ func (a GReader) preprocessRequest(w http.ResponseWriter, r *http.Request) {
 		err := r.ParseForm()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			return false
 		}
 	} else if strings.HasPrefix(contentType, "multipart/form-data") {
 		err := r.ParseMultipartForm(10 << 20) // 10 MB limit
 		if err != nil {
 			log.Warningf("Failed to parse multipart form: %s", err)
 			a.returnError(w, http.StatusBadRequest)
-			return
+			return false
 		}
 	}
 
 	log.Infof("GReader request form: %+v", r.PostForm.Encode())
+	return true
 }
 
 func (a GReader) route(w http.ResponseWriter, r *http.Request) {
 	// Record the total server latency of each call.
 	defer a.recordLatency(time.Now(), "server")
 
-	a.preprocessRequest(w, r)
+	if !a.preprocessRequest(w, r) {
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 
@@ -126,13 +138,48 @@ func (a GReader) route(w http.ResponseWriter, r *http.Request) {
 		a.withAuth(w, r, a.handleParseFullArticle)
 	default:
 		log.Warningf("Got unexpected route: %s", r.URL.String())
-		dump, err := httputil.DumpRequest(r, true)
+		dump, err := dumpRequestRedacted(r)
 		if err != nil {
 			log.Warningf("Failed to dump request: %s", err)
+		} else {
+			log.Warningf("%q", dump)
 		}
-		log.Warningf("%q", dump)
+		// The dump above carries no body: ParseForm has already consumed it.
+		// Log the parsed form separately, since for an unimplemented endpoint
+		// this payload is the only record of what the client was asking for.
+		log.Warningf("Unexpected route form: %+v", r.PostForm.Encode())
 		a.returnError(w, http.StatusBadRequest)
 	}
+}
+
+// redactedHeaders are masked before a request is written to the log. The
+// GReader auth token neither expires nor can be revoked short of a password
+// change, so logging it in the clear grants indefinite account access to
+// anyone who can read the logs.
+var redactedHeaders = []string{"Authorization", "Cookie"}
+
+// dumpRequestRedacted renders a request for logging with credential-bearing
+// headers masked.
+//
+// The body is deliberately not included: callers reach this after ParseForm has
+// already drained it, so DumpRequest would record an empty body and imply the
+// request had none.
+func dumpRequestRedacted(r *http.Request) ([]byte, error) {
+	original := r.Header
+	safe := original.Clone()
+	if safe == nil {
+		safe = http.Header{}
+	}
+	for _, h := range redactedHeaders {
+		if len(safe.Values(h)) > 0 {
+			safe.Set(h, "[REDACTED]")
+		}
+	}
+
+	r.Header = safe
+	defer func() { r.Header = original }()
+
+	return httputil.DumpRequest(r, false)
 }
 
 func (a GReader) handleLogin(w http.ResponseWriter, r *http.Request) {
@@ -311,7 +358,6 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 
 func (a GReader) handlePostToken(w http.ResponseWriter, _ *http.Request, _ models.User) {
 	_, _ = fmt.Fprint(w, createPostToken())
-	a.returnSuccess(w, nil)
 }
 
 func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Request, user models.User) {
@@ -334,7 +380,7 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 		id, err := strconv.ParseInt(articleIdStr, 16, 64)
 		if err != nil {
 			log.Warningf("Invalid article ID: %s", err)
-			a.returnError(w, http.StatusInternalServerError)
+			a.returnError(w, http.StatusBadRequest)
 			return
 		}
 		articleIds = append(articleIds, id)
@@ -451,25 +497,27 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 		return
 	}
 
-	for _, articleId := range articleIds {
-		err = a.d.MarkArticleForUser(user, articleId, mark)
-		if err != nil {
-			log.Warningf("Failed to mark article %d: %s", articleId, err)
-			a.returnError(w, http.StatusInternalServerError)
-			return
-		}
+	// Marked in a single statement rather than one per ID: clients batch
+	// heavily here (Reeder sends up to 500 IDs per request), and the per-ID
+	// loop this replaces both took ~4s for such a request and could fail
+	// halfway, leaving the batch partly applied with no way for the client to
+	// learn which IDs landed.
+	n, err := a.d.MarkArticlesForUser(user, articleIds, mark)
+	if err != nil {
+		log.Warningf("Failed to mark %d articles: %s", len(articleIds), err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
 	}
 
 	switch mark {
 	case models.MarkActionRead:
 		hour, day := readActivityLabels()
-		articlesMarkedReadMetric.WithLabelValues(user.Username, "individual", hour, day).Add(float64(len(articleIds)))
+		articlesMarkedReadMetric.WithLabelValues(user.Username, "individual", hour, day).Add(float64(n))
 	case models.MarkActionSaved:
-		articlesSavedMetric.WithLabelValues(user.Username).Add(float64(len(articleIds)))
+		articlesSavedMetric.WithLabelValues(user.Username).Add(float64(n))
 	}
 
 	_, _ = w.Write([]byte("OK"))
-	a.returnSuccess(w, nil)
 }
 
 func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user models.User) {
@@ -492,7 +540,7 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 		folderId, err := strconv.ParseInt(folderStr, 10, 64)
 		if err != nil {
 			log.Warningf("Invalid folder ID: %s", folderStr)
-			a.returnError(w, http.StatusInternalServerError)
+			a.returnError(w, http.StatusBadRequest)
 			return
 		}
 
@@ -508,7 +556,7 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 		feedId, err := strconv.ParseInt(feedStr, 10, 64)
 		if err != nil {
 			log.Warningf("Invalid feed ID: %s", feedStr)
-			a.returnError(w, http.StatusInternalServerError)
+			a.returnError(w, http.StatusBadRequest)
 			return
 		}
 
@@ -527,7 +575,6 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 	}
 
 	_, _ = w.Write([]byte("OK"))
-	a.returnSuccess(w, nil)
 }
 
 func (a GReader) withAuth(w http.ResponseWriter, r *http.Request, handler func(http.ResponseWriter, *http.Request, models.User)) {
@@ -631,8 +678,11 @@ func (a GReader) returnError(w http.ResponseWriter, status int) {
 
 func (a GReader) returnInvalidPostToken(w http.ResponseWriter, token string) {
 	log.Warningf("Invalid post token: %s", token)
-	w.WriteHeader(http.StatusUnauthorized)
+	// Set before WriteHeader: headers written afterwards are discarded, and
+	// this one is how clients know to refetch a token rather than treat the
+	// 401 as an auth failure.
 	w.Header().Set(invalidPostTokenHeader, "true")
+	w.WriteHeader(http.StatusUnauthorized)
 }
 
 func (a GReader) returnSuccess(w http.ResponseWriter, resp any) {

@@ -36,10 +36,13 @@ interface GReaderCategory {
 
 export interface GReaderSubscription {
   title: string;
-  firstItemMsec: string;
+  // These two are all-lowercase on the wire: that is both what the server
+  // sends and the canonical GReader spelling. Declaring them camelCase made
+  // them silently undefined.
+  firstitemmsec: string;
   htmlUrl: string;
   iconUrl: string;
-  sortId: string;
+  sortid: string;
   id: string;
   categories: GReaderCategory[];
 }

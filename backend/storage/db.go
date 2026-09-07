@@ -82,6 +82,7 @@ type Database interface {
 	// Marking
 
 	MarkArticleForUser(models.User, int64, models.MarkAction) error
+	MarkArticlesForUser(models.User, []int64, models.MarkAction) (int64, error)
 	MarkFeedForUser(models.User, int64, models.MarkAction) (int64, error)
 	MarkFolderForUser(models.User, int64, models.MarkAction) (int64, error)
 

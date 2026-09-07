@@ -19,19 +19,21 @@ type MockDB struct {
 	InsertFaviconForUserCalled      bool
 	UpdateFeedMetadataForUserCalled bool
 	InsertedArticles                []models.Article
+	MarkedArticleIds                []int64
 
 	// Sync channels
 	GetAllUsersCalled  chan bool
 	ProcessItemsCalled chan bool
 
 	// Function overrides
-	OnGetArticlesForFeedForUser func(u models.User, feedID int64) ([]models.Article, error)
-	OnGetArticlesForUser        func(u models.User, ids []int64) ([]models.Article, error)
-	OnUpdateArticleParsedContentForUser func(u models.User, articleID int64, parsed string) error
-	OnGetAllUsers               func() ([]models.User, error)
-	OnGetAllFeedsForUser        func(u models.User) ([]models.Feed, error)
-	OnGetAllRetrievalCaches     func() (map[UserFeedKey]string, error)
-	OnGetActiveFeedKeys         func() (map[UserFeedKey]bool, error)
+	OnGetArticlesForFeedForUser                    func(u models.User, feedID int64) ([]models.Article, error)
+	OnGetArticlesForUser                           func(u models.User, ids []int64) ([]models.Article, error)
+	OnMarkArticlesForUser                          func(u models.User, ids []int64, mark models.MarkAction) (int64, error)
+	OnUpdateArticleParsedContentForUser            func(u models.User, articleID int64, parsed string) error
+	OnGetAllUsers                                  func() ([]models.User, error)
+	OnGetAllFeedsForUser                           func(u models.User) ([]models.Feed, error)
+	OnGetAllRetrievalCaches                        func() (map[UserFeedKey]string, error)
+	OnGetActiveFeedKeys                            func() (map[UserFeedKey]bool, error)
 	OnUpdateEstimatedRefreshIntervalForFeedForUser func(u models.User, folderId, id int64, interval int) error
 }
 
@@ -60,9 +62,9 @@ func (m *MockDB) UpdateUnmuteFeedsForUser(models.User, []int64) error { return n
 func (m *MockDB) DeleteUnmuteFeedsForUser(models.User, []int64) error { return nil }
 
 func (m *MockDB) GetFeedMuteRegexesForUser(models.User) (map[int64][]string, error) { return nil, nil }
-func (m *MockDB) GetMuteRegexesForFeedForUser(models.User, int64) ([]string, error)   { return nil, nil }
-func (m *MockDB) AddMuteRegexForFeedForUser(models.User, int64, string) error         { return nil }
-func (m *MockDB) DeleteMuteRegexForFeedForUser(models.User, int64, string) error      { return nil }
+func (m *MockDB) GetMuteRegexesForFeedForUser(models.User, int64) ([]string, error) { return nil, nil }
+func (m *MockDB) AddMuteRegexForFeedForUser(models.User, int64, string) error       { return nil }
+func (m *MockDB) DeleteMuteRegexForFeedForUser(models.User, int64, string) error    { return nil }
 
 func (m *MockDB) GetActiveFeedKeys() (map[UserFeedKey]bool, error) {
 	if m.OnGetActiveFeedKeys != nil {
@@ -88,6 +90,13 @@ func (m *MockDB) DeleteArticlesByIdForUser(models.User, []int64) error        { 
 func (m *MockDB) DeleteFeedForUser(models.User, int64, int64) error           { return nil }
 func (m *MockDB) MarkArticleForUser(models.User, int64, models.MarkAction) error {
 	return nil
+}
+func (m *MockDB) MarkArticlesForUser(u models.User, ids []int64, mark models.MarkAction) (int64, error) {
+	if m.OnMarkArticlesForUser != nil {
+		return m.OnMarkArticlesForUser(u, ids, mark)
+	}
+	m.MarkedArticleIds = append(m.MarkedArticleIds, ids...)
+	return int64(len(ids)), nil
 }
 func (m *MockDB) MarkFeedForUser(models.User, int64, models.MarkAction) (int64, error) {
 	return 0, nil
