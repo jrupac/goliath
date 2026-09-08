@@ -115,15 +115,23 @@ func SanitizeBody(html string) string {
 	return bluemondayBodyPolicy.Sanitize(html)
 }
 
+// feedClient fetches feeds already stored as subscriptions.
+//
+// It is deliberately not address-guarded, unlike the client that checks a URL
+// a subscription is being created from. A stored feed URL was accepted by the
+// operator, and self-hosted feed bridges that run alongside this process are a
+// normal thing to subscribe to; refusing them would break working feeds to
+// defend against a URL that cannot reach here in the first place.
+var feedClient = &http.Client{Timeout: 10 * time.Second}
+
 func fetchFuncWithAcceptHeader(url string) (*http.Response, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/rss+xml,application/atom+xml;q=0.9,application/xml;q=0.8,*/*;q=0.7")
 	req.Header.Set("User-Agent", "Goliath/1.0 (+http://github.com/jrupac/goliath)")
-	return client.Do(req)
+	return feedClient.Do(req)
 }
 
 // Pause stops all continuous feed fetching in a way that is resume-able.

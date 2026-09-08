@@ -1,15 +1,11 @@
 package cache
 
 import (
-	"context"
-	"errors"
 	"html"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
-	"syscall"
 	"time"
 
 	log "github.com/golang/glog"
@@ -46,8 +42,6 @@ var forwardedRequestHeaders = []string{
 	"Accept",
 }
 
-var errBlockedAddress = errors.New("address is not permitted")
-
 type imageProxy struct {
 	Client *http.Client
 }
@@ -62,65 +56,12 @@ func NewImageProxy() http.Handler {
 	return &imageProxy{
 		Client: &http.Client{
 			Timeout:   proxyTimeout,
-			Transport: guardedTransport(),
+			Transport: utils.GuardedTransport("Image proxy", proxyTimeout),
 			// Redirects are followed, since image hosts and CDNs use them
 			// routinely, but each hop is dialed through the same guard, so a
 			// redirect cannot reach anywhere the original URL could not.
 		},
 	}
-}
-
-// guardedTransport returns a transport that refuses to connect to addresses
-// outside the public internet.
-//
-// The check runs in Control, which is called after the name has been resolved
-// and with the address actually about to be dialed. Validating the hostname
-// instead would miss a name that resolves to a private address, and would miss
-// it again if a second lookup returned something different.
-func guardedTransport() *http.Transport {
-	dialer := &net.Dialer{
-		Timeout:   proxyTimeout,
-		KeepAlive: 30 * time.Second,
-		Control: func(_, address string, _ syscall.RawConn) error {
-			host, port, err := net.SplitHostPort(address)
-			if err != nil {
-				return err
-			}
-			if port != "80" && port != "443" {
-				log.Warningf("Image proxy refused port %s", port)
-				return errBlockedAddress
-			}
-			ip := net.ParseIP(host)
-			if ip == nil || !isPublicAddress(ip) {
-				log.Warningf("Image proxy refused address %s", host)
-				return errBlockedAddress
-			}
-			return nil
-		},
-	}
-
-	transport := http.DefaultTransport.(*http.Transport).Clone()
-	transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		return dialer.DialContext(ctx, network, addr)
-	}
-	return transport
-}
-
-// isPublicAddress reports whether an address is one the proxy may connect to.
-//
-// Everything that is not routable on the public internet is refused, because
-// the value of reaching it is that the server can and the requester cannot:
-// loopback and private ranges are the internal services this process sits
-// alongside, and link-local covers the address cloud providers answer instance
-// credentials on.
-func isPublicAddress(ip net.IP) bool {
-	return !ip.IsLoopback() &&
-		!ip.IsPrivate() &&
-		!ip.IsUnspecified() &&
-		!ip.IsLinkLocalUnicast() &&
-		!ip.IsLinkLocalMulticast() &&
-		!ip.IsInterfaceLocalMulticast() &&
-		!ip.IsMulticast()
 }
 
 // DenyUnauthenticated refuses a request that arrives without a session.
