@@ -202,10 +202,6 @@ CREATE TABLE IF NOT EXISTS Article
 );
 
 CREATE
-    UNIQUE INDEX IF NOT EXISTS article_idx_read_key
-    ON Article (id) STORING (read);
-
-CREATE
     INDEX IF NOT EXISTS article_userid_id_read_idx
     ON Article (userid, id, read)
     STORING (title, summary, content, parsed, link, date);
