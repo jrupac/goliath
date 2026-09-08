@@ -43,6 +43,7 @@ type MockDB struct {
 	OnCreateSession                                func(u models.User, scheme models.AuthScheme, userAgent string) (models.Secret, error)
 	OnLookupSession                                func(token models.Secret) (models.User, models.Session, error)
 	OnDeleteSessionForUser                         func(u models.User, id models.SessionId) (int64, error)
+	OnGetArticleMetaWithFilterForUser              func(u models.User, filter models.StreamFilter, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error)
 }
 
 func (m *MockDB) Open(string) error            { return nil }
@@ -198,7 +199,10 @@ func (m *MockDB) GetFolderFeedTreeForUser(models.User) (*models.Folder, error) {
 func (m *MockDB) GetAllFaviconsForUser(models.User) (map[int64]string, error) {
 	return nil, nil
 }
-func (m *MockDB) GetArticleMetaWithFilterForUser(models.User, models.StreamFilter, int, int64) ([]models.ArticleMeta, error) {
+func (m *MockDB) GetArticleMetaWithFilterForUser(u models.User, filter models.StreamFilter, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
+	if m.OnGetArticleMetaWithFilterForUser != nil {
+		return m.OnGetArticleMetaWithFilterForUser(u, filter, limit, cursor)
+	}
 	return nil, nil
 }
 func (m *MockDB) GetArticlesForUser(u models.User, ids []int64) ([]models.Article, error) {

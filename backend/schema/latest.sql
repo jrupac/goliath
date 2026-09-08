@@ -187,6 +187,8 @@ CREATE TABLE IF NOT EXISTS Article
     date      TIMESTAMPTZ,
     -- Retrieval timestamp
     retrieved TIMESTAMPTZ,
+    -- Timestamp at which the article was marked read; NULL while unread
+    readat    TIMESTAMPTZ,
     CONSTRAINT unique_userid_feed_hash
         UNIQUE (userid, feed, hash)
 );
@@ -198,6 +200,10 @@ CREATE
 CREATE
     INDEX ON Article (userid, id, read)
     STORING (title, summary, content, parsed, link, date);
+
+CREATE
+    INDEX IF NOT EXISTS article_idx_readat
+    ON Article (userid, readat) STORING (read, date);
 
 CREATE TABLE IF NOT EXISTS UserFeedMuteRegexes
 (

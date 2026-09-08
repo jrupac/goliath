@@ -115,7 +115,7 @@ type Database interface {
 	GetFolderFeedTreeForUser(models.User) (*models.Folder, error)
 	GetAllFaviconsForUser(models.User) (map[int64]string, error)
 
-	GetArticleMetaWithFilterForUser(models.User, models.StreamFilter, int, int64) ([]models.ArticleMeta, error)
+	GetArticleMetaWithFilterForUser(models.User, models.StreamFilter, int, models.StreamCursor) ([]models.ArticleMeta, error)
 	GetArticleContentsForUser(models.User, int64, int) ([]models.Article, error)
 	GetArticlesForUser(models.User, []int64) ([]models.Article, error)
 	GetArticlesWithFilterForUser(models.User, models.StreamFilter, int, int64) ([]models.Article, error)

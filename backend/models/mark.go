@@ -1,6 +1,9 @@
 package models
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 type MarkType int
 
@@ -45,3 +48,17 @@ const (
 	StreamFilterSaved
 	StreamFilterUnsaved
 )
+
+// StreamCursor bounds a query over a stream of articles.
+//
+// The two bounds answer different questions and compose: SinceID pages through
+// a result set in ID order, while Since narrows that set to articles that
+// entered the stream recently. Zero values leave the corresponding bound off.
+type StreamCursor struct {
+	// SinceID is an exclusive lower bound on article ID.
+	SinceID int64
+	// Since is an exclusive lower bound on the time an article entered the
+	// stream: when it was marked read for a read-filtered stream, and when it
+	// was published otherwise.
+	Since time.Time
+}

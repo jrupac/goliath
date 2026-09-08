@@ -258,17 +258,25 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 
-	limit, err := strconv.Atoi(r.Form.Get("n"))
-	if err != nil {
-		log.Warningf(
-			"Saw unexpected 'n' parameter, defaulting to 10,000: %s", r.PostForm.Get("n"))
-		limit = 10000
+	// "n" is what the client would like, not what it gets: it is clamped to the
+	// ceiling a single read returns, so that asking for an arbitrarily large
+	// page cannot turn into asking the database for one.
+	limit := storage.MaxFetchedRows
+	if n := r.Form.Get("n"); n != "" {
+		requested, err := strconv.Atoi(n)
+		if err != nil || requested <= 0 {
+			log.Warningf("Saw unusable 'n' parameter, defaulting to %d: %s", limit, n)
+		} else {
+			limit = min(requested, limit)
+		}
 	}
 
-	sinceId := int64(-1)
+	// "c" pages through a result set and "ot" narrows it to recent items. They
+	// are independent bounds and clients send them together.
+	cursor := models.StreamCursor{}
 	if c := r.Form.Get("c"); c != "" {
 		// Note: This is parsing the continuation token as hex.
-		sinceId, err = strconv.ParseInt(c, 16, 64)
+		cursor.SinceID, err = strconv.ParseInt(c, 16, 64)
 		if err != nil {
 			log.Warningf("Invalid continuation token: %s", c)
 			a.returnError(w, http.StatusBadRequest)
@@ -285,17 +293,15 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 	}
 
 	if ot := r.Form.Get("ot"); ot != "" {
-		if sinceId != -1 {
-			log.Warningf("Saw unexpected 'ot' parameter with 'c' parameter already set: %s", ot)
-		}
-
-		// Note: This is parsing the "ot" token as decimal.
-		sinceId, err = strconv.ParseInt(ot, 10, 64)
+		// "ot" is a Unix timestamp in seconds, bounding how far back the
+		// client wants to look, not an item ID.
+		seconds, err := strconv.ParseInt(ot, 10, 64)
 		if err != nil {
-			log.Warningf("Invalid continuation token: %s", ot)
+			log.Warningf("Invalid 'ot' timestamp: %s", ot)
 			a.returnError(w, http.StatusBadRequest)
 			return
 		}
+		cursor.Since = time.Unix(seconds, 0)
 	}
 	if nt := r.Form.Get("nt"); nt != "" {
 		log.Warningf("Saw unexpected 'nt' parameter: %s", nt)
@@ -308,22 +314,26 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 	s := r.Form.Get("s")
 	switch s {
 	case starredStreamId:
-		articles, err = a.d.GetArticleMetaWithFilterForUser(user, models.StreamFilterSaved, limit, sinceId)
+		articles, err = a.d.GetArticleMetaWithFilterForUser(user, models.StreamFilterSaved, limit, cursor)
 		if err != nil {
 			a.returnError(w, http.StatusInternalServerError)
 			return
 		}
 	case readingListStreamId:
-		articles, err = a.d.GetArticleMetaWithFilterForUser(user, models.StreamFilterUnread, limit, sinceId)
+		articles, err = a.d.GetArticleMetaWithFilterForUser(user, models.StreamFilterUnread, limit, cursor)
 		if err != nil {
 			a.returnError(w, http.StatusInternalServerError)
 			return
 		}
 	case readStreamId:
-		// Never return read items to the client, it's just simpler
-		// Only support excluding read items
-		a.returnSuccess(w, greaderStreamItemIds{})
-		return
+		// Clients poll this stream to reconcile read state set elsewhere,
+		// bounding it with "ot" so that the answer stays proportional to how
+		// long they have been away.
+		articles, err = a.d.GetArticleMetaWithFilterForUser(user, models.StreamFilterRead, limit, cursor)
+		if err != nil {
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
 	default:
 		log.Warningf("Saw unexpected 's' parameter: %s", s)
 		a.returnError(w, http.StatusNotImplemented)

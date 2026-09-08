@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
+	"text/template"
 	"time"
 
 	log "github.com/golang/glog"
@@ -14,9 +16,13 @@ import (
 	"github.com/lib/pq"
 )
 
+// MaxFetchedRows is the most rows a single content read returns. A handler
+// taking a page size from a client must clamp to it rather than pass the
+// client's number through, since nothing on the wire bounds what is asked for.
+const MaxFetchedRows = 10000
+
 const (
 	dialect            = "postgres"
-	maxFetchedRows     = 10000
 	slowOpLogThreshold = 50 * time.Millisecond
 	retryBackoff       = 1 * time.Second
 	maxOperationTime   = 30 * time.Second
@@ -846,6 +852,13 @@ func (crdb *Crdb) DeleteFeedForUser(u models.User, feedId int64, folderId int64)
  * Marking
  ******************************************************************************/
 
+// Every statement that changes an article's read flag also maintains readat, so
+// that "what became read since <time>" is answerable. Marking read records the
+// current time unless one is already recorded, since re-marking a read article
+// — which marking a whole feed or folder does to every article in it — is not a
+// new read event. Marking unread clears it, leaving NULL to mean "not read",
+// with the one exception of an article read before the column existed.
+
 // MarkArticleForUser sets the mark status of `articleId` to `mark`.
 func (crdb *Crdb) MarkArticleForUser(u models.User, articleId int64, mark models.MarkAction) error {
 	defer logElapsedTime(time.Now(), "MarkArticleForUser")
@@ -858,7 +871,7 @@ func (crdb *Crdb) MarkArticleForUser(u models.User, articleId int64, mark models
 	var query string
 	switch markType {
 	case models.MarkTypeRead:
-		query = `UPDATE Article SET read = $1 WHERE userid = $2 AND id = $3`
+		query = `UPDATE Article SET read = $1, readat = CASE WHEN $1 THEN COALESCE(readat, now()) END WHERE userid = $2 AND id = $3`
 	case models.MarkTypeSaved:
 		query = `UPDATE Article SET saved = $1 WHERE userid = $2 AND id = $3`
 	default:
@@ -891,7 +904,7 @@ func (crdb *Crdb) MarkArticlesForUser(u models.User, articleIds []int64, mark mo
 	var query string
 	switch markType {
 	case models.MarkTypeRead:
-		query = `UPDATE Article SET read = $1 WHERE userid = $2 AND id = ANY($3)`
+		query = `UPDATE Article SET read = $1, readat = CASE WHEN $1 THEN COALESCE(readat, now()) END WHERE userid = $2 AND id = ANY($3)`
 	case models.MarkTypeSaved:
 		query = `UPDATE Article SET saved = $1 WHERE userid = $2 AND id = ANY($3)`
 	default:
@@ -920,7 +933,7 @@ func (crdb *Crdb) MarkFeedForUser(u models.User, feedId int64, mark models.MarkA
 		return 0, fmt.Errorf("invalid mark action: %+v", mark)
 	}
 
-	query := `UPDATE Article SET read = $1 WHERE userid = $2 AND feed = $3`
+	query := `UPDATE Article SET read = $1, readat = CASE WHEN $1 THEN COALESCE(readat, now()) END WHERE userid = $2 AND feed = $3`
 	result, err := crdb.db.Exec(query, value, u.UserId, feedId)
 	if err != nil {
 		return 0, err
@@ -946,7 +959,7 @@ func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, mark models.M
 
 	// With folderID = 0, mark everything as read.
 	if folderId == 0 {
-		query := `UPDATE Article SET read = $1 WHERE userid = $2`
+		query := `UPDATE Article SET read = $1, readat = CASE WHEN $1 THEN COALESCE(readat, now()) END WHERE userid = $2`
 		result, err := crdb.db.Exec(query, value, u.UserId)
 		if err != nil {
 			return 0, fmt.Errorf("failed to update articles for all folders: %w", err)
@@ -970,7 +983,7 @@ func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, mark models.M
 			WHERE fc.userid = $1
 		)
 		UPDATE Article AS a
-		SET read = $3
+		SET read = $3, readat = CASE WHEN $3 THEN COALESCE(readat, now()) END
 		WHERE a.userid = $1
 		  AND (
 			a.folder IN (SELECT child FROM RecursiveFolders)
@@ -1293,58 +1306,84 @@ func (crdb *Crdb) GetAllFaviconsForUser(u models.User) (map[int64]string, error)
 	return favicons, err
 }
 
+// articleMetaQuery is the one shape behind every filtered metadata read. The
+// substituted fragments are constants chosen from the stream filter, never
+// caller input; every value travels as a bound parameter.
+var articleMetaQuery = template.Must(template.New("articleMeta").Parse(`
+		SELECT id, feed, folder, date
+		FROM Article
+		WHERE userid = $1 AND id > $2 AND {{.Filter}}
+		{{- with .SinceColumn}}
+		  AND {{.}} > $4
+		{{- end}}
+		ORDER BY id LIMIT $3
+	`))
+
+// articleMetaQueryFragments names what articleMetaQuery substitutes.
+type articleMetaQueryFragments struct {
+	// Filter is the predicate selecting the stream's articles.
+	Filter string
+	// SinceColumn is the timestamp column a time bound applies to, or empty
+	// for an unbounded query.
+	SinceColumn string
+}
+
+// articleMetaFragments returns the query fragments for a stream filter.
+//
+// A time bound applies to whichever column records when an article entered the
+// stream. For the read stream that is readat, which is NULL for an article read
+// before the column existed; such an article is left out rather than dated by a
+// guess, and the garbage collector retires the population within its keep
+// window.
+func articleMetaFragments(filter models.StreamFilter) (articleMetaQueryFragments, error) {
+	switch filter {
+	case models.StreamFilterRead:
+		return articleMetaQueryFragments{Filter: "read", SinceColumn: "readat"}, nil
+	case models.StreamFilterUnread:
+		return articleMetaQueryFragments{Filter: "NOT read", SinceColumn: "date"}, nil
+	case models.StreamFilterSaved:
+		return articleMetaQueryFragments{Filter: "saved", SinceColumn: "date"}, nil
+	case models.StreamFilterUnsaved:
+		return articleMetaQueryFragments{Filter: "NOT saved", SinceColumn: "date"}, nil
+	default:
+		return articleMetaQueryFragments{}, fmt.Errorf("invalid filter: %+v", filter)
+	}
+}
+
 // GetArticleMetaWithFilterForUser returns a list of <=`limit` articles with
-// `filter` after `sinceID`. Only metadata fields are returned, not content.
-func (crdb *Crdb) GetArticleMetaWithFilterForUser(u models.User, filter models.StreamFilter, limit int, sinceID int64) ([]models.ArticleMeta, error) {
+// `filter` within `cursor`. Only metadata fields are returned, not content.
+func (crdb *Crdb) GetArticleMetaWithFilterForUser(u models.User, filter models.StreamFilter, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
 	defer logElapsedTime(time.Now(), "GetUnreadArticleMetaForUser")
 
 	var articles []models.ArticleMeta
 	var rows *sql.Rows
-	var err error
 
 	if limit == -1 {
-		limit = maxFetchedRows
+		limit = MaxFetchedRows
 	}
+	sinceID := cursor.SinceID
 	if sinceID == -1 {
 		sinceID = 0
 	}
 
-	var query string
-
-	switch filter {
-	case models.StreamFilterRead:
-		query = `
-		SELECT id, feed, folder, date
-		FROM Article
-		WHERE userid = $1 AND id > $2 AND read
-		ORDER BY id LIMIT $3
-	`
-	case models.StreamFilterUnread:
-		query = `
-		SELECT id, feed, folder, date
-		FROM Article
-		WHERE userid = $1 AND id > $2 AND NOT read
-		ORDER BY id LIMIT $3
-	`
-	case models.StreamFilterSaved:
-		query = `
-		SELECT id, feed, folder, date
-		FROM Article
-		WHERE userid = $1 AND id > $2 AND saved
-		ORDER BY id LIMIT $3
-	`
-	case models.StreamFilterUnsaved:
-		query = `
-		SELECT id, feed, folder, date
-		FROM Article
-		WHERE userid = $1 AND id > $2 AND NOT saved
-		ORDER BY id LIMIT $3
-	`
-	default:
-		return articles, fmt.Errorf("invalid filter: %+v", filter)
+	fragments, err := articleMetaFragments(filter)
+	if err != nil {
+		return articles, err
 	}
 
-	rows, err = crdb.db.Query(query, u.UserId, sinceID, limit)
+	args := []any{u.UserId, sinceID, limit}
+	if cursor.Since.IsZero() {
+		fragments.SinceColumn = ""
+	} else {
+		args = append(args, cursor.Since)
+	}
+
+	var query strings.Builder
+	if err = articleMetaQuery.Execute(&query, fragments); err != nil {
+		return articles, fmt.Errorf("failed to build article metadata query: %w", err)
+	}
+
+	rows, err = crdb.db.Query(query.String(), args...)
 	defer closeSilent(rows)
 
 	if err != nil {
@@ -1446,7 +1485,7 @@ func (crdb *Crdb) GetArticlesWithFilterForUser(u models.User, filter models.Stre
 	var err error
 
 	if limit == -1 {
-		limit = maxFetchedRows
+		limit = MaxFetchedRows
 	}
 	if sinceID == -1 {
 		sinceID = 0

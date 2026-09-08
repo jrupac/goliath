@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jrupac/goliath/fetch"
 	"github.com/jrupac/goliath/models"
@@ -545,5 +546,180 @@ func TestEditTagRejectsPostTokenFromAnotherSession(t *testing.T) {
 	}
 	if got := resp.Header.Get(invalidPostTokenHeader); got != "true" {
 		t.Errorf("%s = %q, want %q", invalidPostTokenHeader, got, "true")
+	}
+}
+
+// streamItemIdsRequest builds a stream/items/ids request from raw query
+// parameters, so that a test can send exactly what a client sends.
+func streamItemIdsRequest(params url.Values) *http.Request {
+	req := httptest.NewRequest("GET", "/greader/reader/api/0/stream/items/ids?"+params.Encode(), nil)
+	_ = req.ParseForm()
+	return req
+}
+
+// Clients reconcile read state by polling the read stream, so it has to answer
+// with the items that are actually read.
+func TestStreamItemIdsReadStreamReturnsReadItems(t *testing.T) {
+	var gotFilter models.StreamFilter
+	mockDB := &storage.MockDB{
+		OnGetArticleMetaWithFilterForUser: func(_ models.User, filter models.StreamFilter, _ int, _ models.StreamCursor) ([]models.ArticleMeta, error) {
+			gotFilter = filter
+			return []models.ArticleMeta{{ID: 12345, FeedID: 7, FolderID: 3}}, nil
+		},
+	}
+
+	w := httptest.NewRecorder()
+	user := models.User{UserId: "u"}
+	GReader{d: mockDB}.handleStreamItemIds(w, streamItemIdsRequest(url.Values{
+		"s": {readStreamId},
+		"n": {"10000"},
+	}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusOK {
+		t.Fatalf("status = %d, want %d", got, http.StatusOK)
+	}
+	if gotFilter != models.StreamFilterRead {
+		t.Errorf("filter = %v, want StreamFilterRead", gotFilter)
+	}
+
+	var res greaderStreamItemIds
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if len(res.ItemRefs) != 1 || res.ItemRefs[0].Id != "12345" {
+		t.Errorf("itemRefs = %+v, want the one read article", res.ItemRefs)
+	}
+}
+
+// "ot" is a Unix timestamp in seconds, nine orders of magnitude away from a
+// real article ID. Reading it as an ID cursor turns it into a predicate that
+// matches everything the user owns.
+func TestStreamItemIdsOtIsATimestampNotAnId(t *testing.T) {
+	var got models.StreamCursor
+	mockDB := &storage.MockDB{
+		OnGetArticleMetaWithFilterForUser: func(_ models.User, _ models.StreamFilter, _ int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
+			got = cursor
+			return nil, nil
+		},
+	}
+
+	w := httptest.NewRecorder()
+	user := models.User{UserId: "u"}
+	GReader{d: mockDB}.handleStreamItemIds(w, streamItemIdsRequest(url.Values{
+		"s":  {readStreamId},
+		"ot": {"1786146087"},
+	}), user)
+
+	if want := time.Unix(1786146087, 0); !got.Since.Equal(want) {
+		t.Errorf("cursor.Since = %v, want %v", got.Since, want)
+	}
+	if got.SinceID != 0 {
+		t.Errorf("cursor.SinceID = %d, want 0; 'ot' must not be read as an ID", got.SinceID)
+	}
+}
+
+// "c" pages and "ot" narrows; a client sends both and neither may clobber the
+// other.
+func TestStreamItemIdsContinuationAndOtCompose(t *testing.T) {
+	var got models.StreamCursor
+	mockDB := &storage.MockDB{
+		OnGetArticleMetaWithFilterForUser: func(_ models.User, _ models.StreamFilter, _ int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
+			got = cursor
+			return nil, nil
+		},
+	}
+
+	w := httptest.NewRecorder()
+	user := models.User{UserId: "u"}
+	GReader{d: mockDB}.handleStreamItemIds(w, streamItemIdsRequest(url.Values{
+		"s":  {readStreamId},
+		"c":  {"10c2b4a0bbed8001"},
+		"ot": {"1786146087"},
+	}), user)
+
+	// The continuation token is hex.
+	if got.SinceID != 1207726252529385473 {
+		t.Errorf("cursor.SinceID = %d, want 1207726252529385473", got.SinceID)
+	}
+	if want := time.Unix(1786146087, 0); !got.Since.Equal(want) {
+		t.Errorf("cursor.Since = %v, want %v", got.Since, want)
+	}
+}
+
+func TestStreamItemIdsRejectsUnparseableOt(t *testing.T) {
+	w := httptest.NewRecorder()
+	user := models.User{UserId: "u"}
+	GReader{d: &storage.MockDB{}}.handleStreamItemIds(w, streamItemIdsRequest(url.Values{
+		"s":  {readStreamId},
+		"ot": {"not-a-timestamp"},
+	}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", got, http.StatusBadRequest)
+	}
+}
+
+// Clients send the canonical reading-list pairing on every sync, and it still
+// means unread.
+func TestStreamItemIdsReadingListStillMeansUnread(t *testing.T) {
+	var gotFilter models.StreamFilter
+	mockDB := &storage.MockDB{
+		OnGetArticleMetaWithFilterForUser: func(_ models.User, filter models.StreamFilter, _ int, _ models.StreamCursor) ([]models.ArticleMeta, error) {
+			gotFilter = filter
+			return nil, nil
+		},
+	}
+
+	w := httptest.NewRecorder()
+	user := models.User{UserId: "u"}
+	GReader{d: mockDB}.handleStreamItemIds(w, streamItemIdsRequest(url.Values{
+		"s":  {readingListStreamId},
+		"xt": {readStreamId},
+	}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusOK {
+		t.Fatalf("status = %d, want %d", got, http.StatusOK)
+	}
+	if gotFilter != models.StreamFilterUnread {
+		t.Errorf("filter = %v, want StreamFilterUnread", gotFilter)
+	}
+}
+
+// "n" is a client's request for a page size, and nothing on the wire stops it
+// asking for more than the server should produce at once.
+func TestStreamItemIdsClampsLimit(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		n    string
+		want int
+	}{
+		{"within the ceiling", "500", 500},
+		{"above the ceiling", "1000000", storage.MaxFetchedRows},
+		{"absent", "", storage.MaxFetchedRows},
+		{"unparseable", "lots", storage.MaxFetchedRows},
+		{"zero", "0", storage.MaxFetchedRows},
+		{"negative", "-1", storage.MaxFetchedRows},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var got int
+			mockDB := &storage.MockDB{
+				OnGetArticleMetaWithFilterForUser: func(_ models.User, _ models.StreamFilter, limit int, _ models.StreamCursor) ([]models.ArticleMeta, error) {
+					got = limit
+					return nil, nil
+				},
+			}
+
+			params := url.Values{"s": {readingListStreamId}}
+			if tc.n != "" {
+				params.Set("n", tc.n)
+			}
+			w := httptest.NewRecorder()
+			user := models.User{UserId: "u"}
+			GReader{d: mockDB}.handleStreamItemIds(w, streamItemIdsRequest(params), user)
+
+			if got != tc.want {
+				t.Errorf("limit = %d, want %d", got, tc.want)
+			}
+		})
 	}
 }
