@@ -55,8 +55,11 @@ type imageProxy struct {
 func NewImageProxy() http.Handler {
 	return &imageProxy{
 		Client: &http.Client{
-			Timeout:   proxyTimeout,
-			Transport: utils.GuardedTransport("Image proxy", proxyTimeout),
+			Timeout: proxyTimeout,
+			// No allowlist: the targets are named by feed publishers, so
+			// there is no address this process should reach on their behalf
+			// that is not on the public internet.
+			Transport: utils.GuardedTransport("Image proxy", proxyTimeout, nil),
 			// Redirects are followed, since image hosts and CDNs use them
 			// routinely, but each hop is dialed through the same guard, so a
 			// redirect cannot reach anywhere the original URL could not.

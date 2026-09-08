@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +29,13 @@ var (
 	strictDedup       = flag.Bool("strictDedup", true, "If true, only the link name is used to de-duplicate unread articles.")
 	maxEditDedup      = flag.Float64("maxEditDedup", 0.1,
 		"The max edit distance between articles to be de-duplicated, expressed as percent of content. If `strictDedup` is set, this is ignored.")
+	feedAllowedAddresses = flag.String("feedAllowedAddresses", "",
+		"Comma-separated host:port addresses off the public internet that feed fetching may reach anyway, "+
+			"for a feed bridge run alongside this server.")
+
+	userAgentFlag = flag.String("userAgent", "Goliath/1.0 (+http://github.com/jrupac/goliath)",
+		"User-Agent header sent on every request this server makes to a site it does not own.")
+
 	minFetchInterval = flag.Duration("minFetchInterval", 10*time.Minute, "Minimum interval between feed fetches.")
 	maxFetchInterval = flag.Duration("maxFetchInterval", 24*time.Hour, "Maximum interval between feed fetches.")
 	emaAlphaFaster   = flag.Float64("emaAlphaFaster", 0.5,
@@ -115,23 +123,53 @@ func SanitizeBody(html string) string {
 	return bluemondayBodyPolicy.Sanitize(html)
 }
 
-// feedClient fetches feeds already stored as subscriptions.
-//
-// It is deliberately not address-guarded, unlike the client that checks a URL
-// a subscription is being created from. A stored feed URL was accepted by the
-// operator, and self-hosted feed bridges that run alongside this process are a
-// normal thing to subscribe to; refusing them would break working feeds to
-// defend against a URL that cannot reach here in the first place.
-var feedClient = &http.Client{Timeout: 10 * time.Second}
+// feedFetchTimeout bounds a single feed fetch.
+const feedFetchTimeout = 10 * time.Second
 
-func fetchFuncWithAcceptHeader(url string) (*http.Response, error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
+// UserAgent returns how this server identifies itself when fetching from a
+// site it does not own.
+//
+// One value for every outbound request, so that a publisher deciding whether
+// to serve, block or rate limit Goliath is deciding about one client rather
+// than about several that happen to be the same program.
+func UserAgent() string {
+	return *userAgentFlag
+}
+
+// NewFeedAllowlist builds the set of otherwise-refused addresses feed fetching
+// may reach, from the configured flag.
+//
+// Separate from the fetcher so that a malformed allowlist is reported where
+// the rest of the configuration is checked, rather than by a fetch failing
+// later for a reason that looks like the feed's fault.
+func NewFeedAllowlist() (utils.AddressAllowlist, error) {
+	return utils.NewAddressAllowlist(strings.Split(*feedAllowedAddresses, ","))
+}
+
+// newFeedClient returns the client feeds are fetched with.
+//
+// Guarded like any other fetch of a URL this process did not choose: a
+// subscription's URL comes from whoever added it, and unlike a one-off request
+// it is fetched again on every cycle. A feed bridge run alongside this server
+// is the legitimate case for reaching a private address, and it is configured
+// rather than inferred.
+func newFeedClient(allowed utils.AddressAllowlist) *http.Client {
+	return &http.Client{
+		Timeout:   feedFetchTimeout,
+		Transport: utils.GuardedTransport("Feed fetch", feedFetchTimeout, allowed),
 	}
-	req.Header.Set("Accept", "application/rss+xml,application/atom+xml;q=0.9,application/xml;q=0.8,*/*;q=0.7")
-	req.Header.Set("User-Agent", "Goliath/1.0 (+http://github.com/jrupac/goliath)")
-	return feedClient.Do(req)
+}
+
+func fetchFuncWithClient(client *http.Client) rss.FetchFunc {
+	return func(url string) (*http.Response, error) {
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Accept", "application/rss+xml,application/atom+xml;q=0.9,application/xml;q=0.8,*/*;q=0.7")
+		req.Header.Set("User-Agent", UserAgent())
+		return client.Do(req)
+	}
 }
 
 // Pause stops all continuous feed fetching in a way that is resume-able.
@@ -155,7 +193,7 @@ type Fetcher struct {
 	fetchFunc rss.FetchFunc
 }
 
-func New(d storage.Database, retCache cache.RetrievalCache) *Fetcher {
+func New(d storage.Database, retCache cache.RetrievalCache, allowed utils.AddressAllowlist) *Fetcher {
 	// Turn off logging of HTTP icon requests.
 	b := besticon.New(besticon.WithLogger(besticon.NewDefaultLogger(io.Discard)))
 
@@ -163,7 +201,7 @@ func New(d storage.Database, retCache cache.RetrievalCache) *Fetcher {
 		d:         d,
 		retCache:  retCache,
 		finder:    b.NewIconFinder(),
-		fetchFunc: fetchFuncWithAcceptHeader,
+		fetchFunc: fetchFuncWithClient(newFeedClient(allowed)),
 	}
 }
 

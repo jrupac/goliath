@@ -91,7 +91,15 @@ func main() {
 		log.Fatalf("Fatal error while starting retrieval cache: %s", err)
 	}
 
-	fetcher := fetch.New(d, retrievalCache)
+	feedAllowlist, err := fetch.NewFeedAllowlist()
+	if err != nil {
+		// Fatal rather than fetching with an empty allowlist: starting anyway
+		// would refuse the very feeds the allowlist was written to permit, and
+		// report it as those feeds failing.
+		log.Fatalf("Invalid feed address allowlist: %s", err)
+	}
+
+	fetcher := fetch.New(d, retrievalCache, feedAllowlist)
 
 	go fetcher.Start(ctx)
 	go storage.StartGC(ctx, d)

@@ -23,7 +23,8 @@ import (
 
 var (
 	fullTextTimeout   = flag.Duration("fullTextTimeout", 10*time.Second, "Timeout for full-text extraction requests.")
-	fullTextUserAgent = flag.String("fullTextUserAgent", "Goliath/1.0 (+http://github.com/jrupac/goliath)", "User-Agent header sent during full-text extraction.")
+	fullTextUserAgent = flag.String("fullTextUserAgent", "",
+		"Overrides userAgent for full-text extraction only, for a site that serves different content by client. Empty means use userAgent.")
 )
 
 var (
@@ -160,8 +161,8 @@ func ExtractFullText(ctx context.Context, url string) (string, error) {
 		if fullTextTimeout != nil && *fullTextTimeout > 0 {
 			timeout = *fullTextTimeout
 		}
-		userAgent := "Goliath/1.0 (+http://github.com/jrupac/goliath)"
-		if fullTextUserAgent != nil && *fullTextUserAgent != "" {
+		userAgent := UserAgent()
+		if *fullTextUserAgent != "" {
 			userAgent = *fullTextUserAgent
 		}
 		log.Infof("Initializing full-text article extractor (timeout=%s, userAgent=%s)", timeout, userAgent)

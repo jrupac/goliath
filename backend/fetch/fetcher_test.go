@@ -11,7 +11,10 @@ import (
 	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
+	"github.com/jrupac/goliath/utils"
 	"github.com/jrupac/rss"
+	"net/http/httptest"
+	"strings"
 )
 
 // mockFetchFunc is a mock implementation of rss.FetchFunc for testing.
@@ -162,7 +165,7 @@ func TestFetcher_PauseResume(t *testing.T) {
 	}
 
 	retCache := cache.NewMockRetrievalCache()
-	fetcher := New(db, retCache)
+	fetcher := New(db, retCache, nil)
 	fetcher.fetchFunc = mockFetchFunc
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -202,5 +205,44 @@ func TestFetcher_PauseResume(t *testing.T) {
 		// This is good, means the fetch loop has resumed
 	case <-time.After(1 * time.Second):
 		t.Fatal("timed out waiting for fetcher to resume")
+	}
+}
+
+// Every outbound request carries the same identity, so that a publisher
+// deciding how to treat Goliath is deciding about one client. A second
+// hardcoded string somewhere would quietly split that in two.
+func TestUserAgentIsSentOnFeedFetches(t *testing.T) {
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("User-Agent")
+		_, _ = w.Write([]byte(`<rss version="2.0"><channel><title>t</title></channel></rss>`))
+	}))
+	defer server.Close()
+
+	allowed, err := utils.NewAddressAllowlist([]string{strings.TrimPrefix(server.URL, "http://")})
+	if err != nil {
+		t.Fatalf("NewAddressAllowlist: %v", err)
+	}
+
+	resp, err := fetchFuncWithClient(newFeedClient(allowed))(server.URL)
+	if err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if got != UserAgent() {
+		t.Errorf("User-Agent = %q, want %q", got, UserAgent())
+	}
+	if !strings.Contains(got, "Goliath") {
+		t.Errorf("User-Agent %q does not identify this server", got)
+	}
+}
+
+// Full-text extraction may need a different identity for sites that vary
+// content by client, but says so explicitly rather than by carrying its own
+// copy of the default.
+func TestFullTextUserAgentDefaultsToTheSharedOne(t *testing.T) {
+	if *fullTextUserAgent != "" {
+		t.Errorf("fullTextUserAgent defaults to %q, want empty so it falls back to userAgent", *fullTextUserAgent)
 	}
 }
