@@ -1,6 +1,12 @@
--- The current schema, in full. Tables appear in dependency order: a table's
+-- The current schema, in full, and safe to apply to a database in any state.
+--
+-- Two rules keep it that way. Tables appear in dependency order: a table's
 -- foreign keys must name tables the file has already created, so a new table
 -- goes after everything it references, not next to whatever it is related to.
+-- And every statement is conditional, indexes included — an index created
+-- without a name is named after its columns with a numeric suffix if that name
+-- is taken, so an anonymous CREATE INDEX does not fail on a second run, it
+-- silently builds a duplicate.
 
 CREATE DATABASE IF NOT EXISTS Goliath;
 
@@ -13,14 +19,19 @@ CREATE TABLE IF NOT EXISTS UserTable
 (
     -- Key columns
     id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    username STRING NOT NULL UNIQUE,
+    username STRING NOT NULL,
     -- Data columns
-    key      STRING NOT NULL UNIQUE,
+    key      STRING NOT NULL,
     hashpass STRING
 );
 
-CREATE UNIQUE INDEX ON UserTable (username) STORING (key);
-CREATE UNIQUE INDEX ON UserTable (key) STORING (username);
+-- A user is looked up by either credential, and both lookups read both
+-- columns, so each index carries the other. These also carry the uniqueness of
+-- username and key, which is why neither column declares it inline.
+CREATE UNIQUE INDEX IF NOT EXISTS usertable_username_key
+    ON UserTable (username) STORING (key);
+CREATE UNIQUE INDEX IF NOT EXISTS usertable_key_key
+    ON UserTable (key) STORING (username);
 
 CREATE TABLE IF NOT EXISTS Session
 (
@@ -47,18 +58,14 @@ CREATE TABLE IF NOT EXISTS Session
 
 -- The authentication path looks a session up by digest on every request and
 -- reads only these columns, so serve it entirely from the index.
-CREATE UNIQUE INDEX session_tokenhash_idx ON Session (tokenhash)
+CREATE UNIQUE INDEX IF NOT EXISTS session_tokenhash_idx ON Session (tokenhash)
     STORING (userid, scheme, created, lastseen, useragent);
 
 -- Listing a user's sessions, and revoking all of them at once.
-CREATE INDEX session_userid_idx ON Session (userid);
+CREATE INDEX IF NOT EXISTS session_userid_idx ON Session (userid);
 
 -- Sweeping sessions that have gone idle past the expiry window.
-CREATE INDEX session_lastseen_idx ON Session (lastseen);
-
--- The application connects as `goliath`, and a table created here is owned by
--- whoever ran the migration, so privileges have to be granted explicitly.
-GRANT ALL ON TABLE Session to goliath;
+CREATE INDEX IF NOT EXISTS session_lastseen_idx ON Session (lastseen);
 
 CREATE TABLE IF NOT EXISTS UserPrefs
 (
@@ -124,7 +131,8 @@ CREATE TABLE IF NOT EXISTS Feed
 );
 
 CREATE
-    INDEX ON Feed (userid)
+    INDEX IF NOT EXISTS feed_userid_idx
+    ON Feed (userid)
     STORING (title, description, url, link, latest);
 
 CREATE TABLE IF NOT EXISTS UserUnmuteFeeds
@@ -198,7 +206,8 @@ CREATE
     ON Article (id) STORING (read);
 
 CREATE
-    INDEX ON Article (userid, id, read)
+    INDEX IF NOT EXISTS article_userid_id_read_idx
+    ON Article (userid, id, read)
     STORING (title, summary, content, parsed, link, date);
 
 CREATE
@@ -220,3 +229,15 @@ CREATE TABLE IF NOT EXISTS UserFeedMuteRegexes
             REFERENCES Feed (id)
             ON DELETE CASCADE
 );
+
+-- The application connects as `goliath`, but a table is owned by whoever ran
+-- this file, and a grant on the database does not reach the tables in it. So
+-- every table needs a grant, and this has to be the last statement here: it
+-- covers what exists when it runs, not what a later statement creates.
+--
+-- A migration that adds a table carries its own GRANT for the same reason.
+-- Development hides the omission, because restoring a database grants on
+-- everything afterwards; the first environment to run such a migration on its
+-- own is the one that breaks.
+GRANT ALL ON SCHEMA Goliath.public TO goliath;
+GRANT ALL ON ALL TABLES IN SCHEMA Goliath.public TO goliath;
