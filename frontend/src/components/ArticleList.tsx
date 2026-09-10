@@ -33,7 +33,7 @@ import ArticleListEntry from './ArticleListEntry';
 import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
 import { keybindRegistry } from '../utils/keybindRegistry';
 import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
-import MenuTwoToneIcon from '@mui/icons-material/MenuTwoTone';
+import ViewSidebarTwoToneIcon from '@mui/icons-material/ViewSidebarTwoTone';
 
 import { ArticleId, ArticleView } from '../models/article';
 import { FolderId } from '../models/folder';
@@ -110,6 +110,28 @@ const ArticleList: React.FC<ArticleListProps> = ({
 }) => {
   const showListMobileLayout =
     isMobile || (isTabletPortrait && !tabletShowFeedList);
+
+  // Which of the two panes this layout shows. A phone shows one at a time;
+  // tablet portrait swaps the whole width between them; anything wider shows
+  // both. Tablet portrait also widens the list, since it is then the only
+  // pane rather than a column beside a reading pane.
+  const hideArticleList =
+    (isMobile && mobilePane !== 'list') ||
+    (isTabletPortrait && !tabletShowFeedList);
+  const hideArticleCard =
+    (isMobile && mobilePane !== 'card') ||
+    (isTabletPortrait && tabletShowFeedList);
+  const articleListColumnClasses = [
+    'GoliathArticleListColumn',
+    isTabletPortrait && tabletShowFeedList && 'GoliathArticleListColumnWide',
+    hideArticleList && 'GoliathPaneHidden',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const articleOuterClasses = hideArticleCard
+    ? 'GoliathSplitViewArticleOuter GoliathPaneHidden'
+    : 'GoliathSplitViewArticleOuter';
+
   const listRef = useRef<ReactListType | null>(null);
 
   const [selectedArticleId, setSelectedArticleId] = useState<ArticleId | null>(
@@ -453,8 +475,33 @@ const ArticleList: React.FC<ArticleListProps> = ({
     }
   }, [scrollIndex, smoothScroll, articleEntriesCls.length, selectionType]);
 
+  // Where the feed list lives on a narrow layout: the drawer is unmounted
+  // while closed, so this button is the only way back to it. Both the
+  // populated list and the empty state need it, and neither has anywhere else
+  // to put it.
+  const renderMobileListBar = () => (
+    <>
+      <IconButton
+        aria-label="Show feed list"
+        onClick={openDrawer}
+        className="GoliathButton GoliathActionBarLeadIcon"
+        size="small"
+      >
+        <ViewSidebarTwoToneIcon />
+      </IconButton>
+      <Typography variant="subtitle1" className="GoliathArticleListTitleText">
+        {selectionTitle}
+      </Typography>
+    </>
+  );
+
   const renderEmpty = () => (
     <Container fixed className="GoliathArticleListContainer">
+      {showListMobileLayout && (
+        <Box className="GoliathSplitViewArticleListActionBar">
+          {renderMobileListBar()}
+        </Box>
+      )}
       <Box className="GoliathArticleListEmpty">
         {selectionType === SelectionType.Saved ? (
           <HotelClassRounded className="GoliathArticleListEmptyIcon" />
@@ -490,56 +537,11 @@ const ArticleList: React.FC<ArticleListProps> = ({
         maxWidth={false}
         className="GoliathSplitViewArticleListContainer"
       >
-        <Grid
-          container
-          wrap="nowrap"
-          size="grow"
-          sx={{ width: '100%', flexGrow: 1 }}
-        >
-          <Stack
-            className="GoliathArticleListColumn"
-            style={{
-              width:
-                isTabletPortrait && tabletShowFeedList ? '100%' : undefined,
-              flexGrow: isTabletPortrait && tabletShowFeedList ? 1 : undefined,
-            }}
-            sx={{
-              display:
-                isMobile && mobilePane !== 'list'
-                  ? 'none'
-                  : isTabletPortrait && !tabletShowFeedList
-                    ? 'none'
-                    : 'flex',
-            }}
-          >
+        <Grid container wrap="nowrap" size="grow">
+          <Stack className={articleListColumnClasses}>
             <Box className="GoliathSplitViewArticleListActionBar">
               {showListMobileLayout ? (
-                <>
-                  <IconButton
-                    aria-label="open navigation menu"
-                    onClick={openDrawer}
-                    className="GoliathButton"
-                    size="small"
-                    sx={{ mr: 1 }}
-                  >
-                    <MenuTwoToneIcon />
-                  </IconButton>
-                  <Typography
-                    variant="subtitle1"
-                    className="GoliathArticleListTitleText"
-                    sx={{
-                      fontWeight: 600,
-                      fontFamily: 'var(--primary-sans-serif-font), sans-serif',
-                      color: 'var(--bar-font-color)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      flexGrow: 1,
-                    }}
-                  >
-                    {selectionTitle}
-                  </Typography>
-                </>
+                renderMobileListBar()
               ) : (
                 <>
                   {selectionType === SelectionType.Saved ? (
@@ -607,10 +609,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
               />
             </Box>
             {showListMobileLayout && (
-              <Box
-                className="GoliathMobileBottomBar"
-                style={{ position: 'relative', marginTop: 'auto' }}
-              >
+              <Box className="GoliathMobileBottomBar">
                 {selectionType !== SelectionType.Saved && (
                   <Tooltip title="Mark all as read">
                     <IconButton
@@ -646,19 +645,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
               </Box>
             )}
           </Stack>
-          <Grid
-            className="GoliathSplitViewArticleOuter"
-            size="grow"
-            sx={{
-              display:
-                isMobile && mobilePane !== 'card'
-                  ? 'none'
-                  : isTabletPortrait && tabletShowFeedList
-                    ? 'none'
-                    : 'block',
-            }}
-          >
-            <Box sx={{ height: '100%' }}>
+          <Grid className={articleOuterClasses} size="grow">
+            <Box className="GoliathSplitViewArticleInner">
               {/* Deliberately not keyed by article id: that remounted the
                   entire card on every keypress. ArticleCard resets its own
                   per-article state instead. */}

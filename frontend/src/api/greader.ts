@@ -74,6 +74,23 @@ export default class GReader implements FetchAPI {
     return true;
   }
 
+  public async Logout(): Promise<void> {
+    // No post token: this is Goliath's own route rather than a GReader one,
+    // and it authorizes itself from the session cookie.
+    const res: Response = await fetch(GoliathURI.Logout, {
+      method: 'POST',
+      credentials: 'include',
+    });
+
+    // Dropped either way, since a caller signing out is done with it whatever
+    // the server made of the request.
+    this.postToken = '';
+
+    if (!res.ok) {
+      throw new Error('Logout failed: ' + res.statusText);
+    }
+  }
+
   public async ResumeSession(): Promise<boolean> {
     // Asking for a post token is the check: it requires the session cookie, so
     // succeeding means the browser still has a usable session. The token it

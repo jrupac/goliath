@@ -279,15 +279,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
           }
         >
           <Tooltip title={folderView.title}>
-            <Box
-              component="span"
-              className="GoliathFolderTitleText"
-              sx={{
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
+            <Box component="span" className="GoliathFolderTitleText">
               {folderView.title}
             </Box>
           </Tooltip>

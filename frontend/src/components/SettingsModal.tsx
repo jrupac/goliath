@@ -43,6 +43,8 @@ export interface SettingsModalProps {
   hideEmpty: boolean;
   onToggleHideEmpty: () => void;
   onShowKeybindings: () => void;
+  buildTimestamp: string;
+  buildHash: string;
 
   folderFeedView: Map<FolderView, FeedView[]>;
   onAddFeed: () => void;
@@ -73,6 +75,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   hideEmpty,
   onToggleHideEmpty,
   onShowKeybindings,
+  buildTimestamp,
+  buildHash,
   folderFeedView,
   onAddFeed,
   renameFeed,
@@ -145,6 +149,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               hideEmpty={hideEmpty}
               onToggleHideEmpty={onToggleHideEmpty}
               onShowKeybindings={onShowKeybindings}
+              buildTimestamp={buildTimestamp}
+              buildHash={buildHash}
             />
           ) : (
             <FeedSettings
@@ -216,6 +222,8 @@ interface GeneralSettingsProps {
   hideEmpty: boolean;
   onToggleHideEmpty: () => void;
   onShowKeybindings: () => void;
+  buildTimestamp: string;
+  buildHash: string;
 }
 
 const GeneralSettings: React.FC<GeneralSettingsProps> = ({
@@ -224,6 +232,8 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
   hideEmpty,
   onToggleHideEmpty,
   onShowKeybindings,
+  buildTimestamp,
+  buildHash,
 }) => (
   <>
     <SettingsGroup title="Appearance">
@@ -263,6 +273,14 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
         control={<ChevronRightTwoToneIcon className="GoliathSettingsChevron" />}
       />
     </SettingsGroup>
+
+    <Box className="GoliathSettingsAbout">
+      <span>Goliath RSS</span>
+      <span>
+        Built at {buildTimestamp} &middot;{' '}
+        <span className="GoliathSettingsBuildHash">{buildHash}</span>
+      </span>
+    </Box>
   </>
 );
 

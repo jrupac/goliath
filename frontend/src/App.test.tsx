@@ -1,8 +1,16 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import App from './App';
 import { ContentTreeCls } from './models/contentTree';
+
+// Opens the chrome menu and picks one of its items. Settings and the
+// shortcuts sheet have no button of their own on the action bar.
+const openMenuItem = async (label: string) => {
+  fireEvent.click(screen.getByLabelText('Menu'));
+  fireEvent.click(await screen.findByText(label));
+};
 
 describe('App', () => {
   beforeEach(() => {
@@ -17,6 +25,7 @@ describe('App', () => {
     vi.mock('./api/greader', () => {
       class MockGReader {
         ResumeSession = vi.fn().mockResolvedValue(true);
+        Logout = vi.fn().mockResolvedValue(undefined);
         InitializeContent = vi.fn().mockResolvedValue(
           (() => {
             const mockContentTree = ContentTreeCls.new();
@@ -63,7 +72,7 @@ describe('App', () => {
     await screen.findByText('Goliath');
 
     // The setting is only visible in the settings dialog.
-    fireEvent.click(screen.getByLabelText('Settings'));
+    await openMenuItem('Settings');
     const toggle = (await screen.findByLabelText(
       'Hide feeds with no unread items'
     )) as HTMLInputElement;
@@ -80,7 +89,7 @@ describe('App', () => {
     // Trigger 'f'
     fireEvent.keyDown(window, { key: 'f' });
 
-    fireEvent.click(screen.getByLabelText('Settings'));
+    await openMenuItem('Settings');
     const updated = (await screen.findByLabelText(
       'Hide feeds with no unread items'
     )) as HTMLInputElement;
@@ -118,6 +127,69 @@ describe('App', () => {
     await waitFor(() => {
       expect(screen.queryByText('Keyboard Shortcuts')).toBeNull();
     });
+  });
+
+  it('opens the settings dialog from the menu', async () => {
+    render(<App />);
+    await screen.findByText('Goliath');
+
+    expect(screen.queryByText('Dark theme')).toBeNull();
+    await openMenuItem('Settings');
+    expect(await screen.findByText('Dark theme')).toBeInTheDocument();
+  });
+
+  it('opens the shortcuts sheet from the menu', async () => {
+    render(<App />);
+    await screen.findByText('Goliath');
+
+    expect(screen.queryByText('Keyboard Shortcuts')).toBeNull();
+    await openMenuItem('Keyboard shortcuts');
+    expect(await screen.findByText('Keyboard Shortcuts')).toBeInTheDocument();
+  });
+
+  it('confirms before logging out, and cancelling keeps the session', async () => {
+    render(<App />);
+    await screen.findByText('Goliath');
+
+    await openMenuItem('Log out');
+    fireEvent.click(await screen.findByText('Cancel'));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Cancel')).toBeNull();
+    });
+    // Still on the reader rather than redirected to the login page.
+    expect(screen.getByText('Goliath')).toBeInTheDocument();
+  });
+
+  it('logs out and leaves the reader once confirmed', async () => {
+    // The one test that needs a router: logging out renders a redirect.
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
+    await screen.findByText('Goliath');
+
+    await openMenuItem('Log out');
+    // Two controls read "Log out" once the dialog is up: the heading and the
+    // button that acts.
+    const confirm = await screen.findByRole('button', { name: 'Log out' });
+    fireEvent.click(confirm);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Goliath')).toBeNull();
+    });
+  });
+
+  it('shows the build stamp in settings', async () => {
+    render(<App />);
+    await screen.findByText('Goliath');
+
+    await openMenuItem('Settings');
+    // The stamp is split across nodes so the hash can be monospaced.
+    const about = await screen.findByText('Goliath RSS');
+    expect(about.parentElement?.textContent).toContain('Built at test');
+    expect(about.parentElement?.textContent).toContain('test');
   });
 
   it('updates isMobile, isTabletPortrait, and isTabletLandscape state on window resize', async () => {

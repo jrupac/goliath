@@ -259,9 +259,8 @@ const ArticleCard: React.FC<ArticleProps> = ({
             <IconButton
               aria-label="back to list"
               onClick={onBack}
-              className="GoliathButton"
+              className="GoliathButton GoliathActionBarLeadIcon"
               size="small"
-              sx={{ mr: 1 }}
             >
               <ArrowBackTwoToneIcon />
             </IconButton>

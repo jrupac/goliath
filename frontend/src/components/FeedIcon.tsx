@@ -32,10 +32,7 @@ const FeedIcon: React.FC<FeedIconProps> = ({
   const swatchIndex = hashToSwatchIndex(feedId);
 
   return (
-    <div
-      className="GoliathFeedIcon"
-      style={{ background: `var(--swatch-${swatchIndex})` }}
-    >
+    <div className={`GoliathFeedIcon GoliathFeedIconSwatch${swatchIndex}`}>
       <span>{initials}</span>
     </div>
   );

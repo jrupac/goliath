@@ -10,6 +10,27 @@
   padding: 3px;
 }
 
+/* The window: a row of sidebar and main pane, neither of which scrolls the
+   page itself. */
+.GoliathAppShell {
+  display: flex;
+  overflow: hidden;
+  height: 100vh;
+}
+
+/* Spacing for an icon that leads a bar, ahead of the bar's own gap. */
+.GoliathActionBarLeadIcon.MuiIconButton-root {
+  margin-right: 8px;
+}
+
+/* A pane the current layout does not show. Paired with the pane's own class
+   so it beats the display MUI's Stack and Grid set on themselves. */
+.GoliathArticleListColumn.GoliathPaneHidden,
+.GoliathSplitViewArticleOuter.GoliathPaneHidden,
+.GoliathDrawer.GoliathPaneHidden {
+  display: none;
+}
+
 /******************************************************************************
  * Loading Page
  ******************************************************************************/
@@ -104,15 +125,22 @@
  ******************************************************************************/
 
 .GoliathDrawer {
+  display: flex;
   width: clamp(250px, 25vw, 350px);
   flex-shrink: 0;
   font-family: var(--primary-sans-serif-font), sans-serif;
 }
 
+/* background-image is cleared, not just the colour: a raised paper in MUI's
+   dark mode carries an elevation overlay as a white gradient, which washes
+   out whatever colour is set under it. The drawer is raised only when it is
+   temporary, so without this the sidebar is a different colour on a phone
+   than on a desktop, and only in the dark theme. */
 .GoliathDrawer .MuiDrawer-paper {
   width: inherit;
   box-sizing: border-box;
   background-color: var(--primary-background-color);
+  background-image: none;
   color: var(--primary-font-color);
   border-right: 1px solid var(--nav-border-color);
   scrollbar-color: var(--primary-font-darker-2-color) transparent;
@@ -402,6 +430,41 @@
   color: white;
 }
 
+/* A feed with no favicon is drawn as its initials on one of the palette's
+   swatches, picked by hashing the feed ID. One class each, so the choice is
+   a class name rather than a colour built in the component. */
+.GoliathFeedIconSwatch0 {
+  background: var(--swatch-0);
+}
+
+.GoliathFeedIconSwatch1 {
+  background: var(--swatch-1);
+}
+
+.GoliathFeedIconSwatch2 {
+  background: var(--swatch-2);
+}
+
+.GoliathFeedIconSwatch3 {
+  background: var(--swatch-3);
+}
+
+.GoliathFeedIconSwatch4 {
+  background: var(--swatch-4);
+}
+
+.GoliathFeedIconSwatch5 {
+  background: var(--swatch-5);
+}
+
+.GoliathFeedIconSwatch6 {
+  background: var(--swatch-6);
+}
+
+.GoliathFeedIconSwatch7 {
+  background: var(--swatch-7);
+}
+
 .GoliathFeedIcon span {
   line-height: 1;
   display: block;
@@ -438,6 +501,7 @@
  ******************************************************************************/
 
 .GoliathMainContainer {
+  display: flex;
   flex-grow: 1;
   flex-wrap: nowrap;
   min-width: 0;
@@ -688,13 +752,30 @@
 
 /** Common styling */
 
+/* With nothing to read, the list and reading panes are replaced by this one
+   surface, which therefore has to paint the reading background itself. Left
+   transparent it shows through to the document, which is whatever MUI's own
+   palette resolves to rather than a theme colour. The width cap a Container
+   comes with is dropped for the same reason: capped, it leaves a margin of
+   that same unthemed colour down either side. */
+.GoliathArticleListContainer.MuiContainer-root {
+  max-width: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--content-background-color);
+}
+
 .GoliathArticleListEmpty {
   display: flex;
   flex-direction: column;
   text-align: center;
+  background-color: var(--content-background-color);
   color: var(--content-font-muted-2-color);
   font-size: 24px;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   justify-content: space-between;
 }
 
@@ -704,16 +785,30 @@
   margin-top: 40vh;
 }
 
+/* Build stamp under the empty state. It sits on the reading surface, so it
+   takes no background of its own -- one of the list column's would draw a
+   band of the wrong colour across a pane that is not the list. */
 .GoliathFooter {
   text-align: center;
   font-family: var(--primary-sans-serif-font), sans-serif;
-  color: var(--content-font-color);
-  background-color: var(--content-list-background-color);
+  color: var(--content-font-muted-2-color);
   padding: 20px;
   font-size: 10px;
 }
 
 /** Combined article list */
+
+/* The stream's name, shown in place of the wide layout's controls. Wins over
+   the Typography variant's own font, hence the doubled selector. */
+.GoliathArticleListTitleText.MuiTypography-root {
+  flex-grow: 1;
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  font-weight: 600;
+  color: var(--bar-font-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .GoliathSplitViewArticleListActionBar {
   background-color: var(--bar-background-color);
@@ -751,6 +846,7 @@
 }
 
 .GoliathArticleListColumn {
+  display: flex;
   height: 100vh;
   width: 30vw;
   flex-shrink: 0;
@@ -758,10 +854,26 @@
   scrollbar-color: var(--content-font-muted-2-color) transparent;
 }
 
+/* Tablet portrait showing the feed list: the column is the whole pane, so it
+   drops the fixed width it has beside a reading pane. */
+.GoliathArticleListColumn.GoliathArticleListColumnWide {
+  width: 100%;
+  flex-grow: 1;
+}
+
 .GoliathSplitViewArticleListBox {
   overflow-y: auto;
   width: 100%;
   flex-grow: 1;
+}
+
+.GoliathArticleListImagePreviewBox {
+  width: 110px;
+  height: 110px;
+}
+
+.GoliathImagePreviewSkeleton.MuiSkeleton-root {
+  border-radius: 10px;
 }
 
 .GoliathArticleListImagePreviewFigure {
@@ -992,8 +1104,13 @@
 }
 
 .GoliathSplitViewArticleOuter {
+  display: block;
   flex-grow: 1;
   min-width: 0;
+}
+
+.GoliathSplitViewArticleInner {
+  height: 100%;
 }
 
 .GoliathSplitViewArticleContent {
@@ -1362,6 +1479,56 @@
   color: var(--accent-color-strong);
 }
 
+/* The chrome's own menu, anchored to the sidebar action bar rather than
+   opened from a dialog. Wider than a value picker, since its items are
+   labelled commands with icons.
+
+   It takes the action bar's colour rather than a dialog's, so that it reads
+   as belonging to the bar it drops out of and stands against the sidebar body
+   it covers -- which is the colour a dialog surface would have given it. */
+.GoliathAppMenuPaper.MuiPaper-root {
+  min-width: 208px;
+  margin-top: 4px;
+  background-color: var(--bar-background-color);
+  color: var(--bar-font-color);
+  box-shadow: 0 8px 24px var(--goliath-box-shadow-color);
+}
+
+.GoliathAppMenuPaper .MuiMenuItem-root {
+  gap: 4px;
+  padding: 8px 14px;
+  font-size: 14px;
+}
+
+.GoliathAppMenuPaper .MuiMenuItem-root:hover {
+  background-color: color-mix(in srgb, var(--bar-font-color) 10%, transparent);
+}
+
+.GoliathAppMenuPaper .MuiListItemIcon-root {
+  color: var(--bar-font-muted-color);
+  min-width: 30px;
+}
+
+.GoliathAppMenuDivider.MuiDivider-root {
+  border-color: color-mix(in srgb, var(--bar-font-color) 12%, transparent);
+  margin: 4px 0;
+}
+
+/* Signing out revokes the session, so it is coloured as the one item here
+   that costs something to undo. */
+.GoliathAppMenuDangerItem.MuiMenuItem-root:hover,
+.GoliathAppMenuDangerItem.MuiMenuItem-root:hover .MuiListItemIcon-root {
+  color: var(--primary-warning-color);
+}
+
+.GoliathAppMenuDangerItem.MuiMenuItem-root:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--primary-warning-color) 12%,
+    transparent
+  );
+}
+
 /******************************************************************************
  * Accent-coloured controls
  *
@@ -1634,6 +1801,26 @@
 
 .GoliathSettingsChevron.MuiSvgIcon-root {
   color: var(--content-font-muted-2-color);
+}
+
+/* Which build is running. Nothing here is a setting, so it takes none of the
+   card treatment the rows above it have -- it is a note at the foot of the
+   section rather than another thing to change. */
+.GoliathSettingsAbout {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--modal-hairline-color);
+  font-size: 12px;
+  color: var(--content-font-muted-2-color);
+}
+
+/* Build identifier. Monospaced so it can be read off a character at a time
+   and compared against a commit. */
+.GoliathSettingsBuildHash {
+  font-family: monospace;
 }
 
 /* Feeds section */
@@ -1928,16 +2115,16 @@
     width: 280px !important;
   }
 
+  /* Beside a reading pane. Showing alone the column is wider than this, which
+     GoliathArticleListColumnWide sets from a more specific selector. */
   .GoliathArticleListColumn {
-    width: 320px; /* Removed !important to allow dynamic inline width overrides on portrait mode */
+    width: 320px;
   }
 }
 
 .GoliathMobileBottomBar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: relative;
+  margin-top: auto;
   height: auto;
   background-color: var(--bar-background-color);
   border-top: 1px solid var(--nav-border-color);

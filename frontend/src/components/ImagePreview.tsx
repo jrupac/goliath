@@ -89,7 +89,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ article }) => {
   // The outer div is what the IntersectionObserver will watch.
   // It needs a fixed size and margin to prevent layout shifts.
   return (
-    <div ref={ref} style={{ width: '110px', height: '110px' }}>
+    <div ref={ref} className="GoliathArticleListImagePreviewBox">
       {onScreen && imgSrc === undefined && (
         // On screen and still loading
         <Skeleton
@@ -98,7 +98,7 @@ const ImagePreview: React.FC<ImagePreviewProps> = ({ article }) => {
           width={110}
           height={110}
           animation="wave"
-          sx={{ borderRadius: '10px' }}
+          className="GoliathImagePreviewSkeleton"
         />
       )}
 

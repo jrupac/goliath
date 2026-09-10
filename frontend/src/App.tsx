@@ -23,11 +23,19 @@ import './themes/default.css';
 import './themes/dark.css';
 import {
   Box,
+  Button,
   CssBaseline,
+  Dialog,
+  Divider,
   Drawer,
   IconButton,
   LinearProgress,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   ThemeProvider,
+  Typography,
 } from '@mui/material';
 import { FetchAPI, FetchAPIFactory } from './api/interface';
 import { GetVersion, VersionData } from './api/goliath';
@@ -42,6 +50,8 @@ import {
   populateThemeInfo,
 } from './utils/helpers';
 import AccountCircleTwoToneIcon from '@mui/icons-material/AccountCircleTwoTone';
+import ChevronLeftTwoToneIcon from '@mui/icons-material/ChevronLeftTwoTone';
+import KeyboardTwoToneIcon from '@mui/icons-material/KeyboardTwoTone';
 import LogoutTwoToneIcon from '@mui/icons-material/LogoutTwoTone';
 import MenuTwoToneIcon from '@mui/icons-material/MenuTwoTone';
 import SettingsTwoToneIcon from '@mui/icons-material/SettingsTwoTone';
@@ -82,6 +92,8 @@ export interface AppState {
   showKeybindingsModal: boolean;
   showSettingsModal: boolean;
   showQuickAdd: boolean;
+  showLogoutConfirm: boolean;
+  menuAnchor: HTMLElement | null;
   reloading: boolean;
   isMobile: boolean;
   isTabletPortrait: boolean;
@@ -121,6 +133,8 @@ export default class App extends React.Component<AppProps, AppState> {
       showKeybindingsModal: false,
       showSettingsModal: false,
       showQuickAdd: false,
+      showLogoutConfirm: false,
+      menuAnchor: null,
       reloading: false,
       isMobile: metrics.isMobile,
       isTabletPortrait: metrics.isTabletPortrait,
@@ -171,16 +185,41 @@ export default class App extends React.Component<AppProps, AppState> {
     };
   }
 
-  // Whether any dialog is open. Key handlers are suspended while one is: the
-  // dialogs hold text fields, and a letter typed into one must not also
-  // scroll the article list or switch the theme.
+  // Whether anything is layered over the page. Key handlers are suspended
+  // while something is: the dialogs hold text fields, and a letter typed into
+  // one must not also scroll the article list or switch the theme. The menu
+  // has no field, but it does take the arrow keys for its own navigation.
   private isModalOpen(state: Readonly<AppState>): boolean {
     return (
       state.showKeybindingsModal ||
       state.showSettingsModal ||
-      state.showQuickAdd
+      state.showQuickAdd ||
+      state.showLogoutConfirm ||
+      state.menuAnchor !== null
     );
   }
+
+  // Ends the session and returns to the login page.
+  //
+  // The redirect happens whether or not the server answered. A browser asking
+  // to sign out ends up signed out, and leaving it on a page whose credential
+  // may or may not still work is the worse of the two failures.
+  private handleLogout = async (): Promise<void> => {
+    try {
+      await this.fetchApi.Logout();
+    } catch (e) {
+      console.log('Logout failed: ' + e);
+    }
+    // Back to the state startup leaves behind when verification says no,
+    // which is what the redirect below reads. Becoming ready overwrites the
+    // status rather than adding to it, so the verification bit has to be put
+    // back for the two to agree.
+    this.setState({
+      showLogoutConfirm: false,
+      loginVerified: false,
+      status: Status.LoginVerification,
+    });
+  };
 
   componentWillUnmount() {
     keybindRegistry.unregister('global');
@@ -503,10 +542,7 @@ export default class App extends React.Component<AppProps, AppState> {
       <ThemeProvider theme={this.state.themeInfo.theme}>
         {/* TODO: Is there a better way to inject overrides than this? */}
         <CssBaseline />
-        <Box
-          sx={{ display: 'flex', overflow: 'hidden', height: '100vh' }}
-          className={`${this.state.themeInfo.themeClasses}`}
-        >
+        <Box className={`GoliathAppShell ${this.state.themeInfo.themeClasses}`}>
           <Drawer
             variant={this.state.isMobile ? 'temporary' : 'permanent'}
             open={this.state.isMobile ? this.state.drawerOpen : undefined}
@@ -516,26 +552,21 @@ export default class App extends React.Component<AppProps, AppState> {
                 : undefined
             }
             anchor="left"
-            className="GoliathDrawer"
-            sx={{
-              display: this.state.isMobile
-                ? 'flex'
-                : this.state.isTabletPortrait
-                  ? this.state.tabletShowFeedList
-                    ? 'flex'
-                    : 'none'
-                  : 'flex',
-            }}
+            className={
+              this.state.isTabletPortrait && !this.state.tabletShowFeedList
+                ? 'GoliathDrawer GoliathPaneHidden'
+                : 'GoliathDrawer'
+            }
           >
             <Box className="GoliathDrawerActionBar">
               {this.state.isMobile && (
                 <IconButton
-                  aria-label="Close drawer"
+                  aria-label="Hide feed list"
                   className="GoliathButton"
                   size="small"
                   onClick={() => this.setState({ drawerOpen: false })}
                 >
-                  <MenuTwoToneIcon />
+                  <ChevronLeftTwoToneIcon />
                 </IconButton>
               )}
               <IconButton
@@ -545,21 +576,16 @@ export default class App extends React.Component<AppProps, AppState> {
               >
                 <AccountCircleTwoToneIcon />
               </IconButton>
-              <IconButton
-                aria-label="Logout"
-                className="GoliathButton"
-                size="small"
-              >
-                <LogoutTwoToneIcon />
-              </IconButton>
               <div className="GoliathActionBarSpacer"></div>
               <IconButton
-                aria-label="Settings"
+                aria-label="Menu"
                 className="GoliathButton"
                 size="small"
-                onClick={() => this.setState({ showSettingsModal: true })}
+                aria-haspopup="true"
+                aria-expanded={this.state.menuAnchor !== null}
+                onClick={(e) => this.setState({ menuAnchor: e.currentTarget })}
               >
-                <SettingsTwoToneIcon />
+                <MenuTwoToneIcon />
               </IconButton>
             </Box>
             {this.state.reloading && (
@@ -579,11 +605,7 @@ export default class App extends React.Component<AppProps, AppState> {
               onAddFeed={() => this.setState({ showQuickAdd: true })}
             />
           </Drawer>
-          <Box
-            component="main"
-            className="GoliathMainContainer"
-            sx={{ display: 'flex', flexGrow: 1 }}
-          >
+          <Box component="main" className="GoliathMainContainer">
             <ArticleList
               fetchApi={this.fetchApi}
               handleUpdateArticleParsed={this.handleUpdateArticleParsed}
@@ -638,6 +660,87 @@ export default class App extends React.Component<AppProps, AppState> {
             />
           </Box>
         </Box>
+        <Menu
+          open={this.state.menuAnchor !== null}
+          anchorEl={this.state.menuAnchor}
+          onClose={() => this.setState({ menuAnchor: null })}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          slotProps={{
+            paper: { className: 'GoliathMenuPaper GoliathAppMenuPaper' },
+            list: { 'aria-label': 'Menu', dense: true },
+          }}
+        >
+          <MenuItem
+            onClick={() =>
+              this.setState({ menuAnchor: null, showSettingsModal: true })
+            }
+          >
+            <ListItemIcon>
+              <SettingsTwoToneIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Settings</ListItemText>
+          </MenuItem>
+          <MenuItem
+            onClick={() =>
+              this.setState({ menuAnchor: null, showKeybindingsModal: true })
+            }
+          >
+            <ListItemIcon>
+              <KeyboardTwoToneIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Keyboard shortcuts</ListItemText>
+          </MenuItem>
+          <Divider className="GoliathAppMenuDivider" />
+          <MenuItem
+            className="GoliathAppMenuDangerItem"
+            onClick={() =>
+              this.setState({ menuAnchor: null, showLogoutConfirm: true })
+            }
+          >
+            <ListItemIcon>
+              <LogoutTwoToneIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Log out</ListItemText>
+          </MenuItem>
+        </Menu>
+        <Dialog
+          open={this.state.showLogoutConfirm}
+          onClose={() => this.setState({ showLogoutConfirm: false })}
+          maxWidth="xs"
+          fullWidth
+          slotProps={{
+            backdrop: { className: 'GoliathModalOverlay' },
+            paper: { className: 'GoliathModalPaper' },
+          }}
+        >
+          <Box className="GoliathDialogHeader">
+            <Typography component="h2" className="GoliathDialogHeading">
+              Log out
+            </Typography>
+          </Box>
+          <Box className="GoliathDialogContent">
+            <Typography className="GoliathDialogText">
+              Are you sure you want to log out?
+            </Typography>
+          </Box>
+          <Box className="GoliathDialogFooter">
+            <Button
+              className="GoliathQuietButton"
+              onClick={() => this.setState({ showLogoutConfirm: false })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              className="GoliathDangerButton"
+              onClick={this.handleLogout}
+              startIcon={<LogoutTwoToneIcon />}
+            >
+              Log out
+            </Button>
+          </Box>
+        </Dialog>
         <KeybindingsModal
           open={this.state.showKeybindingsModal}
           onClose={() => this.setState({ showKeybindingsModal: false })}
@@ -657,6 +760,8 @@ export default class App extends React.Component<AppProps, AppState> {
               showKeybindingsModal: true,
             })
           }
+          buildTimestamp={this.state.buildTimestamp}
+          buildHash={this.state.buildHash}
           folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
           onAddFeed={() => this.setState({ showQuickAdd: true })}
           renameFeed={(feedId, title) =>

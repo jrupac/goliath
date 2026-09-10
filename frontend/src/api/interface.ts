@@ -24,6 +24,11 @@ export interface FetchAPI {
   // indicating success or failure of the login attempt.
   HandleAuth(loginInfo: LoginInfo): Promise<boolean>;
 
+  // Logout ends the session the browser holds. The server revokes it rather
+  // than only clearing the cookie, so the credential is withdrawn instead of
+  // being left behind for whoever recovers it.
+  Logout(): Promise<void>;
+
   // ResumeSession picks up a session the browser already holds and prepares
   // the API for use, returning false if there is no usable session.
   //

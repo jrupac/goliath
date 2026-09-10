@@ -885,7 +885,7 @@ describe('ArticleList', () => {
       />
     );
 
-    const menuButton = screen.getByLabelText('open navigation menu');
+    const menuButton = screen.getByLabelText('Show feed list');
     expect(menuButton).toBeInTheDocument();
     fireEvent.click(menuButton);
     expect(mockOpenDrawer).toHaveBeenCalledTimes(1);
@@ -903,10 +903,56 @@ describe('ArticleList', () => {
         })}
       />
     );
-    expect(screen.getByLabelText('open navigation menu')).toBeInTheDocument();
+    expect(screen.getByLabelText('Show feed list')).toBeInTheDocument();
   });
 
-  it('applies display: none to columns on mobile based on mobilePane', () => {
+  it('keeps the way back to the feed list when the stream is empty', () => {
+    const mockOpenDrawer = vi.fn();
+
+    // A narrow layout unmounts the drawer while it is closed, so without this
+    // button an empty stream has no navigation at all.
+    const { rerender } = render(
+      <ArticleList
+        {...getMockProps({
+          articleEntriesCls: [],
+          isMobile: true,
+          isTabletPortrait: false,
+          mobilePane: 'list',
+          openDrawer: mockOpenDrawer,
+        })}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText('Show feed list'));
+    expect(mockOpenDrawer).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('Unread items')).toBeInTheDocument();
+
+    // Tablet portrait with the feed list hidden reaches the same button.
+    rerender(
+      <ArticleList
+        {...getMockProps({
+          articleEntriesCls: [],
+          isMobile: false,
+          isTabletPortrait: true,
+          tabletShowFeedList: false,
+          mobilePane: 'list',
+          openDrawer: mockOpenDrawer,
+        })}
+      />
+    );
+    expect(screen.getByLabelText('Show feed list')).toBeInTheDocument();
+
+    // On a wide layout the sidebar is always on show, so the bar would be a
+    // button that duplicates it.
+    rerender(
+      <ArticleList
+        {...getMockProps({ articleEntriesCls: [], isMobile: false })}
+      />
+    );
+    expect(screen.queryByLabelText('Show feed list')).toBeNull();
+  });
+
+  it('hides the pane the mobile layout is not showing', () => {
     const { container, rerender } = render(
       <ArticleList
         {...getMockProps({
@@ -922,8 +968,8 @@ describe('ArticleList', () => {
     const listCol = container.querySelector('.GoliathArticleListColumn');
     const cardCol = container.querySelector('.GoliathSplitViewArticleOuter');
 
-    expect(listCol).not.toHaveStyle('display: none');
-    expect(cardCol).toHaveStyle('display: none');
+    expect(listCol).not.toHaveClass('GoliathPaneHidden');
+    expect(cardCol).toHaveClass('GoliathPaneHidden');
 
     // Rerender with mobilePane = 'card'
     rerender(
@@ -938,8 +984,8 @@ describe('ArticleList', () => {
       />
     );
 
-    expect(listCol).toHaveStyle('display: none');
-    expect(cardCol).not.toHaveStyle('display: none');
+    expect(listCol).toHaveClass('GoliathPaneHidden');
+    expect(cardCol).not.toHaveClass('GoliathPaneHidden');
   });
 
   it('navigates to card view and calls onArticleSelect on article selection when in mobile mode', () => {
@@ -969,7 +1015,7 @@ describe('ArticleList', () => {
     expect(mockOnArticleSelect).toHaveBeenCalledTimes(1);
   });
 
-  it('applies display: none to Card column on tablet portrait based on tabletShowFeedList', () => {
+  it('swaps panes on tablet portrait as the feed list is shown and hidden', () => {
     const { container, rerender } = render(
       <ArticleList
         {...getMockProps({
@@ -980,8 +1026,11 @@ describe('ArticleList', () => {
       />
     );
 
+    const listCol = container.querySelector('.GoliathArticleListColumn');
     const cardCol = container.querySelector('.GoliathSplitViewArticleOuter');
-    expect(cardCol).toHaveStyle('display: none');
+    expect(cardCol).toHaveClass('GoliathPaneHidden');
+    // Showing alone, the list takes the width it would otherwise share.
+    expect(listCol).toHaveClass('GoliathArticleListColumnWide');
 
     // Rerender with tabletShowFeedList = false
     rerender(
@@ -994,6 +1043,8 @@ describe('ArticleList', () => {
       />
     );
 
-    expect(cardCol).not.toHaveStyle('display: none');
+    expect(cardCol).not.toHaveClass('GoliathPaneHidden');
+    expect(listCol).not.toHaveClass('GoliathArticleListColumnWide');
+    expect(listCol).toHaveClass('GoliathPaneHidden');
   });
 });
