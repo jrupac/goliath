@@ -43,7 +43,7 @@ export interface ArticleProps {
   onMarkArticleRead: () => void;
   onToggleSave: () => void;
   selectionType: SelectionType;
-  showKeybindingsModal?: boolean;
+  modalOpen?: boolean;
   onBack?: () => void;
   onPrev?: () => void;
   onNext?: () => void;
@@ -57,7 +57,7 @@ interface ArticleState {
 }
 
 const ArticleCard: React.FC<ArticleProps> = ({
-  showKeybindingsModal = false,
+  modalOpen = false,
   ...props
 }: ArticleProps) => {
   const {
@@ -173,7 +173,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
   });
 
   useEffect(() => {
-    if (showKeybindingsModal || !props.isSelected) {
+    if (modalOpen || !props.isSelected) {
       keybindRegistry.unregister('articleCard');
       return;
     }
@@ -195,7 +195,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
     return () => {
       keybindRegistry.unregister('articleCard');
     };
-  }, [showKeybindingsModal, props.isSelected]);
+  }, [modalOpen, props.isSelected]);
 
   const date = new Date(props.article.creationTime * 1000);
   const feedTitle = props.title;

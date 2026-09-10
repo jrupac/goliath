@@ -1,4 +1,4 @@
-import { FetchAPI, LoginInfo } from './interface';
+import { AddedFeed, FetchAPI, LoginInfo } from './interface';
 import {
   ArticleSelection,
   FeedSelection,
@@ -17,6 +17,7 @@ import { ArticleCls, ReadStatus, SavedStatus } from '../models/article';
 import {
   GReaderItemContent,
   GReaderItemRef,
+  GReaderQuickAddResponse,
   GReaderStream,
   GReaderStreamContents,
   GReaderStreamIds,
@@ -84,6 +85,13 @@ export default class GReader implements FetchAPI {
   public async InitializeContent(
     cb: (s: Status) => void
   ): Promise<ContentTreeCls> {
+    // Reset so that this can be called again to pick up a changed feed list.
+    // Otherwise a second call would layer the new subscriptions and articles
+    // over the old ones, and every feed would appear twice.
+    this.folderFeeds = new Map<FolderId, FeedCls[]>();
+    this.folderMap = new Map<FolderId, FolderCls>();
+    this.feedToArticles = new Map<FeedId, ArticleCls[]>();
+
     await Promise.all([this.fetchSubscriptions(cb), this.fetchArticles(cb)]);
 
     return this.buildTree();
@@ -180,6 +188,87 @@ export default class GReader implements FetchAPI {
     const result = await res.text();
     const responseJson = parseJson(result);
     return responseJson.content;
+  }
+
+  public async AddFeed(url: string): Promise<AddedFeed> {
+    const formData = new FormData();
+    formData.set('quickadd', url);
+
+    const res: Response = await this.doFetch({
+      uri: GReaderURI.SubscriptionQuickAdd,
+      formData: formData,
+    });
+
+    if (!res.ok) {
+      // The server refuses with a client error when the address itself is
+      // the problem: it is not a feed, or nothing answered there. Anything
+      // else is the server's failure, not the user's.
+      if (res.status === 400) {
+        throw new Error(
+          'That address is not a feed, or it could not be fetched.'
+        );
+      }
+      throw new Error('Adding the feed failed: ' + res.statusText);
+    }
+
+    const result: string = await res.text();
+    const response: GReaderQuickAddResponse = parseJson(result);
+    if (response.numResults < 1 || !response.streamId) {
+      throw new Error('That address is not a feed.');
+    }
+
+    return {
+      id: this.parseFeedID(response.streamId),
+      title: response.streamName,
+    };
+  }
+
+  public async RenameFeed(feedId: FeedId, title: string): Promise<void> {
+    const formData = new FormData();
+    formData.set('ac', 'edit');
+    formData.set('s', this.feedStreamId(feedId));
+    formData.set('t', title);
+
+    await this.editSubscription(formData, 'Renaming the feed');
+  }
+
+  public async MoveFeed(
+    feedId: FeedId,
+    toFolderId: FolderId,
+    fromFolderId?: FolderId
+  ): Promise<void> {
+    const formData = new FormData();
+    formData.set('ac', 'edit');
+    formData.set('s', this.feedStreamId(feedId));
+    formData.set('a', this.folderStreamId(toFolderId));
+    if (fromFolderId !== undefined) {
+      formData.set('r', this.folderStreamId(fromFolderId));
+    }
+
+    await this.editSubscription(formData, 'Moving the feed');
+  }
+
+  public async UnsubscribeFeed(feedId: FeedId): Promise<void> {
+    const formData = new FormData();
+    formData.set('ac', 'unsubscribe');
+    formData.set('s', this.feedStreamId(feedId));
+
+    await this.editSubscription(formData, 'Unsubscribing');
+  }
+
+  private async editSubscription(
+    formData: FormData,
+    what: string
+  ): Promise<void> {
+    const res: Response = await this.doFetch({
+      uri: GReaderURI.SubscriptionEdit,
+      formData: formData,
+    });
+
+    if (!res.ok) {
+      console.log(what + ' failed: ' + res.statusText);
+      throw new Error(what + ' failed: ' + res.statusText);
+    }
   }
 
   private async fetchSubscriptions(
@@ -500,6 +589,14 @@ export default class GReader implements FetchAPI {
     } else {
       throw new Error('Invalid article ID: ' + uri);
     }
+  }
+
+  private feedStreamId(feedId: FeedId): string {
+    return 'feed/' + feedId;
+  }
+
+  private folderStreamId(folderId: FolderId): string {
+    return 'user/-/label/' + folderId;
   }
 
   private parseFeedID(uri: string): string {

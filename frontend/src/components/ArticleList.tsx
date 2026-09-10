@@ -68,7 +68,7 @@ export interface ArticleListProps {
   buildHash: string;
   threshold?: number;
   navigateToAdjacentEntry?: (direction: NavigationDirection) => void;
-  showKeybindingsModal?: boolean;
+  modalOpen?: boolean;
   clearReadCallback?: (selectedArticleId: ArticleId | null) => void;
   selectSavedCallback?: () => void;
   isMobile: boolean;
@@ -97,7 +97,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   buildHash,
   threshold = 500,
   navigateToAdjacentEntry,
-  showKeybindingsModal = false,
+  modalOpen = false,
   clearReadCallback,
   isMobile,
   isTabletPortrait,
@@ -319,7 +319,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   });
 
   useEffect(() => {
-    if (showKeybindingsModal) {
+    if (modalOpen) {
       keybindRegistry.unregister('articleList');
       return;
     }
@@ -341,7 +341,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
     return () => {
       keybindRegistry.unregister('articleList');
     };
-  }, [showKeybindingsModal]);
+  }, [modalOpen]);
 
   // When the selection changes, move to the first article of the new stream.
   //
@@ -675,7 +675,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
                 }
                 onToggleSave={() => handleToggleArticleSave(articleView.id)}
                 selectionType={selectionType}
-                showKeybindingsModal={showKeybindingsModal}
+                modalOpen={modalOpen}
                 onBack={
                   isMobile
                     ? () => onMobileNavigate('list')

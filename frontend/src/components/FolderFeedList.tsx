@@ -15,8 +15,7 @@ import ListTwoToneIcon from '@mui/icons-material/ListTwoTone';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import FolderOpenTwoToneIcon from '@mui/icons-material/FolderOpenTwoTone';
-import FilterAltOutlinedIcon from '@mui/icons-material/FilterAltOutlined';
-import FilterAltIcon from '@mui/icons-material/FilterAlt';
+import AddTwoToneIcon from '@mui/icons-material/AddTwoTone';
 import { FolderView } from '../models/folder';
 import { FeedId, FeedTitle, FeedView } from '../models/feed';
 import StarTwoToneIcon from '@mui/icons-material/StarTwoTone';
@@ -125,7 +124,7 @@ export interface FolderFeedListProps {
   selectionType: SelectionType;
   handleSelect: (type: SelectionType, key: SelectionKey) => void;
   hideEmpty?: boolean;
-  toggleHideEmpty?: () => void;
+  onAddFeed?: () => void;
 }
 
 const FolderFeedList: React.FC<FolderFeedListProps> = ({
@@ -135,7 +134,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   selectionType,
   handleSelect,
   hideEmpty = false,
-  toggleHideEmpty,
+  onAddFeed,
 }) => {
   // Derived from folderFeedView, so it is memoized rather than held in state
   // and synced by an effect. The effect version re-rendered the whole sidebar a
@@ -376,17 +375,14 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
 
       <Box className={`${scrolledClass} GoliathFolderFeedHeader `}>
         <p className="GoliathFolderFeedTitle">feeds</p>
-        <Tooltip title="Hide feeds with no unread items">
+        <Tooltip title="Add feed">
           <IconButton
-            className={
-              hideEmpty
-                ? 'GoliathHideEmptyButton'
-                : 'GoliathHideEmptyButtonUnselected'
-            }
-            onClick={toggleHideEmpty}
+            className="GoliathAddFeedButton"
+            aria-label="Add feed"
+            onClick={onAddFeed}
             size="small"
           >
-            {hideEmpty ? <FilterAltIcon /> : <FilterAltOutlinedIcon />}
+            <AddTwoToneIcon />
           </IconButton>
         </Tooltip>
       </Box>

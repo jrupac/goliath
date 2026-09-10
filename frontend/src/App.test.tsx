@@ -59,25 +59,41 @@ describe('App', () => {
   });
 
   it('toggles hideEmpty state on "f" shortcut', async () => {
-    const { container } = render(<App />);
+    render(<App />);
     await screen.findByText('Goliath');
 
-    const toggleButton =
-      container.querySelector('.GoliathHideEmptyButton') ||
-      container.querySelector('.GoliathHideEmptyButtonUnselected');
-    expect(toggleButton).not.toBeNull();
-    const initiallySelected = toggleButton?.classList.contains(
-      'GoliathHideEmptyButton'
-    );
+    // The setting is only visible in the settings dialog.
+    fireEvent.click(screen.getByLabelText('Settings'));
+    const toggle = (await screen.findByLabelText(
+      'Hide feeds with no unread items'
+    )) as HTMLInputElement;
+    const initiallyChecked = toggle.checked;
+
+    // Shortcuts are suspended while a dialog is open, so close it first.
+    fireEvent.keyDown(document.activeElement || window, { key: 'Escape' });
+    await waitFor(() => {
+      expect(
+        screen.queryByLabelText('Hide feeds with no unread items')
+      ).toBeNull();
+    });
 
     // Trigger 'f'
     fireEvent.keyDown(window, { key: 'f' });
 
-    // Classes should toggle
-    const updatedSelected = toggleButton?.classList.contains(
-      'GoliathHideEmptyButton'
-    );
-    expect(updatedSelected).toEqual(!initiallySelected);
+    fireEvent.click(screen.getByLabelText('Settings'));
+    const updated = (await screen.findByLabelText(
+      'Hide feeds with no unread items'
+    )) as HTMLInputElement;
+    expect(updated.checked).toEqual(!initiallyChecked);
+  });
+
+  it('opens the settings dialog on "," shortcut', async () => {
+    render(<App />);
+    await screen.findByText('Goliath');
+
+    expect(screen.queryByText('Subscriptions')).toBeNull();
+    fireEvent.keyDown(window, { key: ',' });
+    expect(await screen.findByText('Dark theme')).toBeInTheDocument();
   });
 
   it('toggles keybindings modal on "Shift+?" shortcut', async () => {

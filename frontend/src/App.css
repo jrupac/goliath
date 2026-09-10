@@ -298,15 +298,13 @@
   overflow-y: visible;
 }
 
-/* Hide-empty button — accent color when active */
-.GoliathHideEmptyButton.MuiIconButton-root {
-  color: var(--accent-color);
+.GoliathAddFeedButton.MuiIconButton-root {
+  color: var(--primary-font-darker-1-color);
   margin-right: 10px;
 }
 
-.GoliathHideEmptyButtonUnselected.MuiIconButton-root {
-  color: var(--primary-font-darker-1-color);
-  margin-right: 10px;
+.GoliathAddFeedButton.MuiIconButton-root:hover {
+  color: var(--accent-color);
 }
 
 .GoliathFolderFeedList {
@@ -1167,31 +1165,589 @@
 }
 
 /******************************************************************************
- * Keybindings Modal
+ * Modals
  ******************************************************************************/
 
 /* Frosted-glass backdrop overlay */
-.GoliathKeybindingsModalOverlay {
+.GoliathModalOverlay {
   backdrop-filter: blur(4px);
 }
 
-/* Modal paper */
-.GoliathKeybindingsModalPaper.MuiDialog-paper {
+/* Modal paper. The background image is MUI's elevation overlay, a wash of
+   translucent white it paints over every raised surface in dark mode, which
+   turns the navy into a warm grey. */
+.GoliathModalPaper.MuiDialog-paper {
   background-color: var(--modal-background-color);
+  background-image: none;
   color: var(--content-font-color);
+  border-radius: 12px;
+  border: 1px solid var(--modal-border-color);
+  font-family: var(--primary-sans-serif-font), sans-serif;
 }
 
-/* Dialog title */
-.GoliathKeybindingsDialogTitle.MuiTypography-root {
-  font-size: 20px;
+/* A thin overlay rather than a window: the shortcuts sheet is the same dark
+   translucent surface in both themes, over the blurred page. */
+.GoliathOverlayPaper.MuiDialog-paper {
+  background-color: var(--overlay-background-color);
+  background-image: none;
+  backdrop-filter: blur(16px);
+  color: var(--overlay-font-color);
+  border-radius: 12px;
+  border: 1px solid var(--overlay-border-color);
+  font-family: var(--primary-sans-serif-font), sans-serif;
+}
+
+.GoliathOverlayPaper.MuiDialog-paper:focus-visible {
+  outline: none;
+}
+
+.GoliathOverlayPaper .GoliathKeybindingSectionTitle.MuiTypography-root {
+  color: var(--overlay-font-muted-1-color);
+  border-bottom-color: var(--overlay-hairline-color);
+}
+
+.GoliathOverlayPaper .GoliathKeybindingKey {
+  color: var(--overlay-font-color);
+  background-color: var(--overlay-key-background-color);
+  border-color: var(--overlay-key-border-color);
+}
+
+.GoliathOverlayPaper .GoliathKeybindingCombo {
+  color: var(--overlay-font-muted-2-color);
+}
+
+.GoliathOverlayPaper .GoliathKeybindingLabel.MuiTypography-root {
+  color: var(--overlay-font-color);
+}
+
+/* The paper takes focus when a dialog opens from the keyboard, and the
+   browser then draws its own focus ring around it. Nothing on the surface
+   itself is operable, so the ring is only noise. */
+.GoliathModalPaper.MuiDialog-paper:focus-visible {
+  outline: none;
+}
+
+/* Header: a heading with a close button at the far end. */
+.GoliathDialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 16px 14px 24px;
+  border-bottom: 1px solid var(--modal-border-color);
+}
+
+.GoliathDialogHeading.MuiTypography-root {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-family: var(--primary-sans-serif-font), sans-serif;
+}
+
+.GoliathDialogClose.MuiIconButton-root {
+  color: var(--content-font-muted-2-color);
+}
+
+.GoliathDialogClose.MuiIconButton-root:hover {
+  color: var(--content-font-color);
+  background-color: color-mix(
+    in srgb,
+    var(--content-font-color) 8%,
+    transparent
+  );
+}
+
+/* Dialog title, for dialogs that keep the plain MUI title. */
+.GoliathDialogTitle.MuiTypography-root {
+  font-size: 18px;
   font-weight: 600;
   padding: 20px 24px 12px;
   font-family: var(--primary-sans-serif-font), sans-serif;
 }
 
-/* Dialog content */
-.GoliathKeybindingsDialogContent.MuiDialogContent-root {
-  padding: 0 24px 16px;
+/* Dialog content. Padded on top as well, so a floating field label that
+   rises above its input is not cut off at the edge. */
+.GoliathDialogContent.MuiDialogContent-root,
+.GoliathDialogContent.MuiBox-root {
+  padding: 20px 24px 16px;
+}
+
+.GoliathDialogFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 24px 16px;
+  border-top: 1px solid var(--modal-border-color);
+}
+
+.GoliathDialogText.MuiTypography-root,
+.GoliathDialogError.MuiTypography-root,
+.GoliathModalPaper .MuiInputBase-root,
+.GoliathModalPaper .MuiInputLabel-root,
+.GoliathModalPaper .MuiFormHelperText-root,
+.GoliathModalPaper .MuiButton-root,
+.GoliathMenuPaper .MuiMenuItem-root {
+  font-family: var(--primary-sans-serif-font), sans-serif;
+}
+
+.GoliathDialogText.MuiTypography-root {
+  margin-bottom: 20px;
+}
+
+.GoliathDialogText strong {
+  color: var(--accent-color-strong);
+  font-weight: 600;
+}
+
+.GoliathDialogField.MuiFormControl-root {
+  margin-top: 4px;
+}
+
+.GoliathDialogError.MuiTypography-root {
+  color: var(--goliath-login-failed-message-color);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+/* Menus (Select dropdowns) opened from a dialog take its raised surface. */
+.GoliathMenuPaper.MuiPaper-root {
+  background-color: var(--modal-surface-color);
+  background-image: none;
+  color: var(--content-font-color);
+  border: 1px solid var(--modal-hairline-color);
+  border-radius: 8px;
+}
+
+/* Text fields on the dialog: the raised surface with a hairline, so they
+   read as fields on both the dialog and on a card. */
+.GoliathModalPaper .MuiOutlinedInput-root {
+  background-color: var(--modal-background-color);
+  border-radius: 8px;
+}
+
+.GoliathModalPaper .MuiOutlinedInput-notchedOutline {
+  border-color: var(--modal-hairline-color);
+}
+
+.GoliathModalPaper
+  .MuiOutlinedInput-root:hover
+  .MuiOutlinedInput-notchedOutline {
+  border-color: var(--content-font-muted-2-color);
+}
+
+/* Progress shown while the subscription list is being re-read. */
+.GoliathReloadProgress.MuiLinearProgress-root {
+  height: 2px;
+  background-color: transparent;
+}
+
+.GoliathReloadProgress .MuiLinearProgress-bar {
+  background-color: var(--accent-color);
+}
+
+.GoliathDialogHeader + .GoliathReloadProgress {
+  margin-top: -1px;
+}
+
+.GoliathDrawerActionBar + .GoliathReloadProgress {
+  position: absolute;
+  top: 50px;
+  left: 0;
+  right: 0;
+  z-index: 2;
+}
+
+.GoliathMenuPaper .MuiMenuItem-root.Mui-selected,
+.GoliathMenuPaper .MuiMenuItem-root.Mui-selected:hover {
+  background-color: var(--accent-color-subtle);
+  color: var(--accent-color-strong);
+}
+
+/******************************************************************************
+ * Accent-coloured controls
+ *
+ * MUI's own primary colour is a blue the rest of the interface never uses.
+ * These take the accent instead, wherever they appear.
+ ******************************************************************************/
+
+.GoliathAccentButton.MuiButton-root {
+  background-color: var(--accent-color);
+  color: var(--accent-font-color);
+  text-transform: none;
+  font-weight: 600;
+  box-shadow: none;
+  border-radius: 8px;
+}
+
+.GoliathAccentButton.MuiButton-root:hover {
+  background-color: var(--accent-color-hover);
+  box-shadow: none;
+}
+
+.GoliathAccentButton.MuiButton-root.Mui-disabled {
+  background-color: color-mix(in srgb, var(--accent-color) 40%, transparent);
+  color: color-mix(in srgb, var(--accent-font-color) 60%, transparent);
+}
+
+.GoliathQuietButton.MuiButton-root {
+  color: var(--content-font-muted-1-color);
+  text-transform: none;
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+.GoliathQuietButton.MuiButton-root:hover {
+  color: var(--content-font-color);
+  background-color: color-mix(
+    in srgb,
+    var(--content-font-color) 8%,
+    transparent
+  );
+}
+
+.GoliathDangerButton.MuiButton-root {
+  background-color: var(--primary-warning-color);
+  color: var(--primary-warning-font-color);
+  text-transform: none;
+  font-weight: 600;
+  box-shadow: none;
+  border-radius: 8px;
+}
+
+.GoliathDangerButton.MuiButton-root:hover {
+  background-color: var(--primary-warning-hover-color);
+  box-shadow: none;
+}
+
+.GoliathDangerIconButton.MuiIconButton-root:hover {
+  color: var(--primary-warning-color);
+}
+
+.GoliathAccentSwitch .MuiSwitch-switchBase.Mui-checked {
+  color: var(--accent-color);
+}
+
+.GoliathAccentSwitch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background-color: var(--accent-color);
+  opacity: 0.55;
+}
+
+.GoliathAccentSwitch .MuiSwitch-switchBase.Mui-checked:hover {
+  background-color: var(--accent-color-subtle);
+}
+
+.GoliathAccentField
+  .MuiOutlinedInput-root.Mui-focused
+  .MuiOutlinedInput-notchedOutline {
+  border-color: var(--accent-color);
+}
+
+.GoliathAccentField .MuiInputLabel-root.Mui-focused {
+  color: var(--accent-color-strong);
+}
+
+.GoliathModalPaper .MuiCircularProgress-root {
+  color: var(--accent-color);
+}
+
+/******************************************************************************
+ * Quick Add Dialog
+ ******************************************************************************/
+
+.GoliathQuickAddForm {
+  display: contents;
+}
+
+/******************************************************************************
+ * Settings Modal
+ ******************************************************************************/
+
+/* A fixed height so switching sections does not resize the dialog. */
+.GoliathSettingsPaper.MuiDialog-paper:not(.MuiDialog-paperFullScreen) {
+  height: min(80vh, 680px);
+  max-width: 760px;
+}
+
+.GoliathSettingsBody {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Section rail, on the raised surface so it reads as the dialog's own
+   sidebar against the darker content area. */
+.GoliathSettingsNav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 180px;
+  flex-shrink: 0;
+  padding: 12px;
+  background-color: var(--modal-rail-color);
+  border-right: 1px solid var(--modal-hairline-color);
+}
+
+.GoliathSettingsNavItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--content-font-muted-1-color);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.1s ease,
+    color 0.1s ease;
+}
+
+.GoliathSettingsNavItem .MuiSvgIcon-root {
+  font-size: 20px;
+}
+
+.GoliathSettingsNavItem:hover {
+  color: var(--content-font-color);
+  background-color: color-mix(
+    in srgb,
+    var(--content-font-color) 6%,
+    transparent
+  );
+}
+
+.GoliathSettingsNavItem.GoliathSettingsNavItemSelected {
+  color: var(--accent-color-strong);
+  background-color: var(--accent-color-subtle);
+  font-weight: 600;
+}
+
+.GoliathSettingsNavItem:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+}
+
+.GoliathSettingsContent {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding: 20px 24px 24px;
+}
+
+/* Groups: a small-caps title over a card of rows. */
+.GoliathSettingsGroup {
+  margin-bottom: 24px;
+}
+
+.GoliathSettingsGroupTitle.MuiTypography-root {
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--content-font-muted-2-color);
+  margin: 0 4px 8px;
+}
+
+.GoliathSettingsCount {
+  margin-left: 8px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 11px;
+  letter-spacing: 0;
+  color: var(--accent-color-strong);
+  background-color: var(--accent-color-subtle);
+}
+
+.GoliathSettingsCard {
+  border: 1px solid var(--modal-border-color);
+  border-radius: 10px;
+  background-color: var(--modal-key-background-color);
+  overflow: hidden;
+}
+
+.GoliathSettingsCardRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.GoliathSettingsCardRow + .GoliathSettingsCardRow {
+  border-top: 1px solid
+    color-mix(in srgb, var(--content-font-color) 8%, transparent);
+}
+
+.GoliathSettingsCardRowClickable {
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.GoliathSettingsCardRowClickable:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--content-font-color) 5%,
+    transparent
+  );
+}
+
+.GoliathSettingsCardRowClickable:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+}
+
+.GoliathSettingsRowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.GoliathSettingsRowLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--content-font-color);
+}
+
+.GoliathSettingsRowDescription {
+  font-size: 12.5px;
+  color: var(--content-font-muted-2-color);
+}
+
+.GoliathSettingsRowControl {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.GoliathSettingsChevron.MuiSvgIcon-root {
+  color: var(--content-font-muted-2-color);
+}
+
+/* Feeds section */
+.GoliathSettingsFeedsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.GoliathSettingsFeedsHeader .GoliathSettingsGroupTitle.MuiTypography-root {
+  margin-bottom: 0;
+}
+
+.GoliathSettingsFeedRow {
+  min-height: 44px;
+  padding: 6px 10px 6px 14px;
+}
+
+.GoliathSettingsFeedTitle.MuiTypography-root {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  font-size: 14px;
+}
+
+/* Row actions are shown only when the row is pointed at, so that a long
+   list reads as a list rather than as a grid of buttons. Touch has no
+   hover, so there they are always shown. */
+.GoliathSettingsFeedActions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+
+.GoliathSettingsFeedActions .MuiIconButton-root {
+  color: var(--content-font-muted-2-color);
+}
+
+.GoliathSettingsFeedActions .MuiIconButton-root:hover {
+  color: var(--accent-color-strong);
+  background-color: var(--accent-color-subtle);
+}
+
+.GoliathSettingsFeedActions .GoliathDangerIconButton.MuiIconButton-root:hover {
+  color: var(--primary-warning-color);
+  background-color: color-mix(
+    in srgb,
+    var(--primary-warning-color) 12%,
+    transparent
+  );
+}
+
+.GoliathSettingsFeedRow:hover .GoliathSettingsFeedActions,
+.GoliathSettingsFeedRow:focus-within .GoliathSettingsFeedActions {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .GoliathSettingsFeedActions {
+    opacity: 1;
+  }
+}
+
+.GoliathSettingsFeedEditing {
+  flex: 1;
+  min-width: 0;
+}
+
+.GoliathSettingsFeedEditor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.GoliathSettingsFeedEditor .MuiButton-root {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.GoliathSettingsConfirmText.MuiTypography-root {
+  flex: 1;
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  font-size: 13px;
+}
+
+/* On a phone the dialog is the whole screen: the rail becomes a row of
+   tabs along the top and the content takes the rest. */
+@media (max-width: 599px) {
+  .GoliathSettingsBody {
+    flex-direction: column;
+  }
+
+  .GoliathSettingsNav {
+    flex-direction: row;
+    width: auto;
+    padding: 8px 12px;
+    border-right: none;
+    border-bottom: 1px solid var(--modal-border-color);
+  }
+
+  .GoliathSettingsNavItem {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .GoliathSettingsContent {
+    padding: 16px;
+  }
 }
 
 /* Section between groups */

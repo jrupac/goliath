@@ -152,9 +152,34 @@
    * Modal surface
    ***************************************************************************/
 
-  --modal-background-color: var(--primary-darker-4-color);
+  /* The dialog itself sits one step below the nav surface; cards and fields
+     on it take the nav colour, so they read as raised. */
+  --modal-background-color: var(--primary-darker-1-color);
+  --modal-surface-color: var(--primary-background-color);
+  --modal-rail-color: var(--modal-background-color);
   --modal-key-background-color: var(--primary-darker-2-color);
-  --modal-border-color: var(--primary-darker-2-color);
+  --modal-border-color: var(--primary-darker-3-color);
+  --modal-hairline-color: color-mix(
+    in srgb,
+    var(--primary-font-color) 10%,
+    transparent
+  );
+
+  /****************************************************************************
+   * Overlay surface
+   *
+   * Thin sheets such as the shortcuts list, drawn over the blurred page
+   * rather than as a window. Deliberately the same in both themes.
+   ***************************************************************************/
+
+  --overlay-background-color: rgba(14, 16, 20, 0.82);
+  --overlay-border-color: rgba(255, 255, 255, 0.08);
+  --overlay-hairline-color: rgba(255, 255, 255, 0.1);
+  --overlay-font-color: #f7ece6;
+  --overlay-font-muted-1-color: rgba(247, 236, 230, 0.6);
+  --overlay-font-muted-2-color: rgba(247, 236, 230, 0.5);
+  --overlay-key-background-color: rgba(255, 255, 255, 0.08);
+  --overlay-key-border-color: rgba(255, 255, 255, 0.16);
 
   /****************************************************************************
    * Accent
@@ -170,8 +195,16 @@
     var(--accent-color) 15%,
     transparent
   );
+  /* Filled accent controls, pointed at. */
+  --accent-color-hover: color-mix(in srgb, var(--accent-color) 88%, #fff);
 
   --primary-warning-color: #f04134;
+  --primary-warning-hover-color: color-mix(
+    in srgb,
+    var(--primary-warning-color) 85%,
+    #000
+  );
+  --primary-warning-font-color: #ffffff;
   --goliath-login-failed-message-color: var(--primary-warning-color);
 
   /****************************************************************************

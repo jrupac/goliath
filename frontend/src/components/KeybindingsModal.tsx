@@ -24,16 +24,14 @@ const KeybindingsModal: React.FC<KeybindingsModalProps> = ({
       maxWidth="sm"
       fullWidth
       slotProps={{
-        backdrop: { className: 'GoliathKeybindingsModalOverlay' },
-      }}
-      PaperProps={{
-        className: 'GoliathKeybindingsModalPaper',
+        backdrop: { className: 'GoliathModalOverlay' },
+        paper: { className: 'GoliathOverlayPaper' },
       }}
     >
-      <DialogTitle className="GoliathKeybindingsDialogTitle">
+      <DialogTitle className="GoliathDialogTitle">
         Keyboard Shortcuts
       </DialogTitle>
-      <DialogContent className="GoliathKeybindingsDialogContent">
+      <DialogContent className="GoliathDialogContent">
         <KeybindingSection title="Global" bindings={Keybindings.global} />
         <KeybindingSection
           title="Article List"

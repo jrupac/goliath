@@ -3,6 +3,7 @@ export type HandlerKey =
   | 'toggleTheme'
   | 'toggleHideEmpty'
   | 'toggleKeybindingsModal'
+  | 'toggleSettingsModal'
   | 'scrollDown'
   | 'scrollUp'
   | 'scrollDownNoRead'
@@ -41,6 +42,13 @@ export const Keybindings: {
       label: 'Show keyboard shortcuts',
       description: 'Open this help dialog',
       handlerKey: 'toggleKeybindingsModal',
+    },
+    {
+      key: ',',
+      display: [','],
+      label: 'Open settings',
+      description: 'Open the settings dialog',
+      handlerKey: 'toggleSettingsModal',
     },
     {
       key: 't',

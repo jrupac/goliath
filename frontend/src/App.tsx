@@ -26,6 +26,7 @@ import {
   CssBaseline,
   Drawer,
   IconButton,
+  LinearProgress,
   ThemeProvider,
 } from '@mui/material';
 import { FetchAPI, FetchAPIFactory } from './api/interface';
@@ -43,7 +44,10 @@ import {
 import AccountCircleTwoToneIcon from '@mui/icons-material/AccountCircleTwoTone';
 import LogoutTwoToneIcon from '@mui/icons-material/LogoutTwoTone';
 import MenuTwoToneIcon from '@mui/icons-material/MenuTwoTone';
+import SettingsTwoToneIcon from '@mui/icons-material/SettingsTwoTone';
 import KeybindingsModal from './components/KeybindingsModal';
+import SettingsModal from './components/SettingsModal';
+import QuickAddDialog from './components/QuickAddDialog';
 import { Keybindings, getTinykeysSequence } from './utils/keybindings';
 import { keybindRegistry } from './utils/keybindRegistry';
 
@@ -76,6 +80,9 @@ export interface AppState {
   loginVerified: boolean;
   hideEmpty: boolean;
   showKeybindingsModal: boolean;
+  showSettingsModal: boolean;
+  showQuickAdd: boolean;
+  reloading: boolean;
   isMobile: boolean;
   isTabletPortrait: boolean;
   isTabletLandscape: boolean;
@@ -112,6 +119,9 @@ export default class App extends React.Component<AppProps, AppState> {
       loginVerified: false,
       hideEmpty: true,
       showKeybindingsModal: false,
+      showSettingsModal: false,
+      showQuickAdd: false,
+      reloading: false,
       isMobile: metrics.isMobile,
       isTabletPortrait: metrics.isTabletPortrait,
       isTabletLandscape: metrics.isTabletLandscape,
@@ -150,7 +160,26 @@ export default class App extends React.Component<AppProps, AppState> {
           };
         });
       },
+      toggleSettingsModal: () => {
+        this.setState((prevState: AppState): AppState => {
+          return {
+            ...prevState,
+            showSettingsModal: !prevState.showSettingsModal,
+          };
+        });
+      },
     };
+  }
+
+  // Whether any dialog is open. Key handlers are suspended while one is: the
+  // dialogs hold text fields, and a letter typed into one must not also
+  // scroll the article list or switch the theme.
+  private isModalOpen(state: Readonly<AppState>): boolean {
+    return (
+      state.showKeybindingsModal ||
+      state.showSettingsModal ||
+      state.showQuickAdd
+    );
   }
 
   componentWillUnmount() {
@@ -191,11 +220,14 @@ export default class App extends React.Component<AppProps, AppState> {
     Keybindings.global.forEach((kb) => {
       const sequence = getTinykeysSequence(kb);
       keymap[sequence] = (event: KeyboardEvent) => {
-        if (
-          this.state.showKeybindingsModal &&
-          kb.handlerKey !== 'toggleKeybindingsModal'
-        ) {
-          return;
+        // The shortcuts dialog is the one a shortcut may still close.
+        if (this.isModalOpen(this.state)) {
+          if (
+            !this.state.showKeybindingsModal ||
+            kb.handlerKey !== 'toggleKeybindingsModal'
+          ) {
+            return;
+          }
         }
         const handler = this.globalHandlers[kb.handlerKey];
         if (handler) {
@@ -324,13 +356,47 @@ export default class App extends React.Component<AppProps, AppState> {
     });
   };
 
-  handleToggleHideEmpty = () => {
+  // Re-reads everything from the server and swaps the tree in place. Used
+  // after the subscription list changes, which nothing else here can reflect.
+  // Selection is kept where it still exists; a feed or folder that is now
+  // gone falls back to the unread stream, since the article view would
+  // otherwise ask for a folder the tree no longer has.
+  reloadContent = async (): Promise<void> => {
+    const treeCls: ContentTreeCls = await this.fetchApi.InitializeContent(
+      () => {}
+    );
     this.setState((prevState: AppState): AppState => {
-      return {
-        ...prevState,
-        hideEmpty: !prevState.hideEmpty,
-      };
+      const next: AppState = { ...prevState, contentTreeCls: treeCls };
+      const folderFeedView = treeCls.GetFolderFeedView();
+      let stillExists = true;
+      if (prevState.selectionType === SelectionType.Folder) {
+        const folderId = prevState.selectionKey as FolderSelection;
+        stillExists = Array.from(folderFeedView.keys()).some(
+          (f) => f.id === folderId
+        );
+      } else if (prevState.selectionType === SelectionType.Feed) {
+        const [feedId, folderId] = prevState.selectionKey as FeedSelection;
+        stillExists = Array.from(folderFeedView.entries()).some(
+          ([folder, feeds]) =>
+            folder.id === folderId && feeds.some((f) => f.id === feedId)
+        );
+      }
+      if (!stillExists) {
+        next.selectionKey = KeyUnread;
+        next.selectionType = SelectionType.Unread;
+      }
+      return next;
     });
+    console.log('Reloaded content.');
+  };
+
+  handleFeedsChanged = () => {
+    this.setState({ reloading: true });
+    this.reloadContent()
+      .catch((err: Error) => {
+        console.error(`Failed to reload content: ${err}`);
+      })
+      .finally(() => this.setState({ reloading: false }));
   };
 
   handleSelect = (type: SelectionType, key: SelectionKey) => {
@@ -486,7 +552,22 @@ export default class App extends React.Component<AppProps, AppState> {
               >
                 <LogoutTwoToneIcon />
               </IconButton>
+              <div className="GoliathActionBarSpacer"></div>
+              <IconButton
+                aria-label="Settings"
+                className="GoliathButton"
+                size="small"
+                onClick={() => this.setState({ showSettingsModal: true })}
+              >
+                <SettingsTwoToneIcon />
+              </IconButton>
             </Box>
+            {this.state.reloading && (
+              <LinearProgress
+                className="GoliathReloadProgress"
+                aria-label="Refreshing subscriptions"
+              />
+            )}
             <Box className="GoliathLogo">Goliath</Box>
             <FolderFeedList
               folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
@@ -495,7 +576,7 @@ export default class App extends React.Component<AppProps, AppState> {
               selectionType={selectionType}
               handleSelect={this.handleSelect}
               hideEmpty={this.state.hideEmpty}
-              toggleHideEmpty={() => this.handleToggleHideEmpty()}
+              onAddFeed={() => this.setState({ showQuickAdd: true })}
             />
           </Drawer>
           <Box
@@ -533,7 +614,7 @@ export default class App extends React.Component<AppProps, AppState> {
                   ? this.handleNavigateToAdjacentEntry
                   : undefined
               }
-              showKeybindingsModal={this.state.showKeybindingsModal}
+              modalOpen={this.isModalOpen(this.state)}
               isMobile={this.state.isMobile}
               isTabletPortrait={this.state.isTabletPortrait}
               isTabletLandscape={this.state.isTabletLandscape}
@@ -560,6 +641,41 @@ export default class App extends React.Component<AppProps, AppState> {
         <KeybindingsModal
           open={this.state.showKeybindingsModal}
           onClose={() => this.setState({ showKeybindingsModal: false })}
+        />
+        <SettingsModal
+          open={this.state.showSettingsModal}
+          onClose={() => this.setState({ showSettingsModal: false })}
+          isMobile={this.state.isMobile}
+          reloading={this.state.reloading}
+          theme={this.state.theme}
+          onToggleTheme={this.globalHandlers.toggleTheme}
+          hideEmpty={this.state.hideEmpty}
+          onToggleHideEmpty={this.globalHandlers.toggleHideEmpty}
+          onShowKeybindings={() =>
+            this.setState({
+              showSettingsModal: false,
+              showKeybindingsModal: true,
+            })
+          }
+          folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
+          onAddFeed={() => this.setState({ showQuickAdd: true })}
+          renameFeed={(feedId, title) =>
+            this.fetchApi.RenameFeed(feedId, title)
+          }
+          moveFeed={(feedId, to, from) =>
+            this.fetchApi.MoveFeed(feedId, to, from)
+          }
+          unsubscribeFeed={(feedId) => this.fetchApi.UnsubscribeFeed(feedId)}
+          onFeedsChanged={this.handleFeedsChanged}
+        />
+        <QuickAddDialog
+          open={this.state.showQuickAdd}
+          onClose={() => this.setState({ showQuickAdd: false })}
+          folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
+          addFeed={(url) => this.fetchApi.AddFeed(url)}
+          moveFeed={(feedId, to) => this.fetchApi.MoveFeed(feedId, to)}
+          unsubscribeFeed={(feedId) => this.fetchApi.UnsubscribeFeed(feedId)}
+          onChanged={this.handleFeedsChanged}
         />
       </ThemeProvider>
     );
