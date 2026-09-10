@@ -1009,11 +1009,11 @@ func (crdb *Crdb) UpdateFeedMetadataForUser(u models.User, f models.Feed) error 
 
 	query := `
 		UPDATE Feed
-		SET hash = $1, title = $2, description = $3, link = $4
-		WHERE userid = $5 AND folder = $6 AND id = $7
+		SET hash = $1, title = $2, description = $3, link = $4, titleoverridden = $5
+		WHERE userid = $6 AND folder = $7 AND id = $8
 	`
 	_, err := crdb.db.Exec(
-		query, f.Hash(), f.Title, f.Description, f.Link, u.UserId, f.FolderID, f.ID)
+		query, f.Hash(), f.Title, f.Description, f.Link, f.TitleOverridden, u.UserId, f.FolderID, f.ID)
 	return err
 }
 
@@ -1125,13 +1125,79 @@ func (crdb *Crdb) GetAllFoldersForUser(u models.User) ([]models.Folder, error) {
 
 // GetAllFeedsForUser returns a list of all feeds in the database for the
 // given user.
+// GetFeedForUser returns a single feed belonging to the user.
+//
+// Ownership is part of the lookup rather than a check afterwards, so a feed
+// belonging to somebody else is reported the same way as one that does not
+// exist: sql.ErrNoRows. That distinction is not the caller's to make, and an
+// endpoint that could make it would answer whether an ID is in use.
+func (crdb *Crdb) GetFeedForUser(u models.User, feedId int64) (models.Feed, error) {
+	defer logElapsedTime(time.Now(), "GetFeedForUser")
+
+	var f models.Feed
+	query := `
+		SELECT id, folder, title, description, url, link, latest, estimated_refresh_interval, titleoverridden
+		FROM Feed
+		WHERE userid = $1 AND id = $2
+	`
+	err := crdb.db.QueryRow(query, u.UserId, feedId).Scan(
+		&f.ID, &f.FolderID, &f.Title, &f.Description, &f.URL, &f.Link, &f.Latest,
+		&f.EstimatedRefreshInterval, &f.TitleOverridden)
+	if err != nil {
+		return models.Feed{}, err
+	}
+	return f, nil
+}
+
+// GetFeedByUrlForUser returns the user's feed with the given URL, or
+// sql.ErrNoRows if they are not subscribed to it.
+//
+// The user's own feeds are the search space, so this answers "am I already
+// subscribed to this" without telling the asker anything about anyone else.
+// Nothing stops one user holding the same URL twice -- the uniqueness
+// constraint is on a hash that includes the title -- so the lowest ID is
+// returned to keep repeated asks consistent.
+func (crdb *Crdb) GetFeedByUrlForUser(u models.User, url string) (models.Feed, error) {
+	defer logElapsedTime(time.Now(), "GetFeedByUrlForUser")
+
+	var f models.Feed
+	query := `
+		SELECT id, folder, title, description, url, link, latest, estimated_refresh_interval, titleoverridden
+		FROM Feed
+		WHERE userid = $1 AND url = $2
+		ORDER BY id
+		LIMIT 1
+	`
+	err := crdb.db.QueryRow(query, u.UserId, url).Scan(
+		&f.ID, &f.FolderID, &f.Title, &f.Description, &f.URL, &f.Link, &f.Latest,
+		&f.EstimatedRefreshInterval, &f.TitleOverridden)
+	if err != nil {
+		return models.Feed{}, err
+	}
+	return f, nil
+}
+
+// GetFolderForUser returns a single folder belonging to the user, reporting a
+// folder that is not theirs as sql.ErrNoRows for the same reason as
+// GetFeedForUser.
+func (crdb *Crdb) GetFolderForUser(u models.User, folderId int64) (models.Folder, error) {
+	defer logElapsedTime(time.Now(), "GetFolderForUser")
+
+	var f models.Folder
+	query := `SELECT id, name FROM Folder WHERE userid = $1 AND id = $2`
+	if err := crdb.db.QueryRow(query, u.UserId, folderId).Scan(&f.ID, &f.Name); err != nil {
+		return models.Folder{}, err
+	}
+	return f, nil
+}
+
 func (crdb *Crdb) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
 	defer logElapsedTime(time.Now(), "GetAllFeedsForUser")
 
 	var feeds []models.Feed
 
 	query := `
-		SELECT id, folder, title, description, url, link, latest, estimated_refresh_interval
+		SELECT id, folder, title, description, url, link, latest, estimated_refresh_interval, titleoverridden
 		FROM Feed
 		WHERE userid = $1
 	`
@@ -1144,7 +1210,7 @@ func (crdb *Crdb) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
 
 	for rows.Next() {
 		f := models.Feed{}
-		if err = rows.Scan(&f.ID, &f.FolderID, &f.Title, &f.Description, &f.URL, &f.Link, &f.Latest, &f.EstimatedRefreshInterval); err != nil {
+		if err = rows.Scan(&f.ID, &f.FolderID, &f.Title, &f.Description, &f.URL, &f.Link, &f.Latest, &f.EstimatedRefreshInterval, &f.TitleOverridden); err != nil {
 			return feeds, err
 		}
 		feeds = append(feeds, f)

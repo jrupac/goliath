@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	log "github.com/golang/glog"
@@ -47,9 +48,20 @@ var (
 )
 
 var (
-	pauseChan             = make(chan struct{})
-	pauseChanDone         = make(chan struct{})
-	resumeChan            = make(chan struct{})
+	pauseChan     = make(chan struct{})
+	pauseChanDone = make(chan struct{})
+	resumeChan    = make(chan struct{})
+
+	// fetcherRunning reports whether Start's loop is reading the channels
+	// above, and fetcherDone is closed when it stops reading them. All three
+	// channels are unbuffered, so sending on one when nothing is receiving
+	// blocks forever. Callers pause around a change to the feed list, and some
+	// of them are serving a request: one that hung because fetching had not
+	// started, or had just stopped, would hang the request rather than make a
+	// change nothing needed to be paused for.
+	fetcherRunning atomic.Bool
+	fetcherDone    = make(chan struct{})
+
 	bluemondayTitlePolicy = bluemonday.StrictPolicy()
 	bluemondayBodyPolicy  = makeBodyPolicy()
 )
@@ -173,17 +185,30 @@ func fetchFuncWithClient(client *http.Client) rss.FetchFunc {
 }
 
 // Pause stops all continuous feed fetching in a way that is resume-able.
-// This call will block until fetching is fully paused. If fetching has not
-// started yet, this call will block indefinitely.
+// This call blocks until fetching is fully paused, and does nothing if
+// fetching is not running.
 func Pause() {
-	pauseChan <- struct{}{}
-	<-pauseChanDone
+	if !fetcherRunning.Load() {
+		return
+	}
+	select {
+	case pauseChan <- struct{}{}:
+		<-pauseChanDone
+	case <-fetcherDone:
+		// Fetching stopped while this was being asked for; nothing to pause.
+	}
 }
 
-// Resume resumes continuous feed fetching with a fresh read of feeds.
-// If fetching has not started yet, this call will block indefinitely.
+// Resume resumes continuous feed fetching with a fresh read of feeds, and
+// does nothing if fetching is not running.
 func Resume() {
-	resumeChan <- struct{}{}
+	if !fetcherRunning.Load() {
+		return
+	}
+	select {
+	case resumeChan <- struct{}{}:
+	case <-fetcherDone:
+	}
 }
 
 type Fetcher struct {
@@ -227,6 +252,12 @@ func (f Fetcher) Start(ctx context.Context) {
 	fetchCond := &sync.WaitGroup{}
 	fetchCond.Add(1)
 	go f.start(fetchCtx, fetchCond)
+
+	fetcherRunning.Store(true)
+	defer func() {
+		fetcherRunning.Store(false)
+		close(fetcherDone)
+	}()
 
 	for {
 		select {
@@ -441,8 +472,6 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 			log.V(2).Infof("Not persisting because of muted word: %s", a)
 			numMuted += 1
 		} else {
-			numInserted += 1
-
 			// Remove existing articles that are similar to the newly fetched one.
 			unreadIds, readIds := getSimilarExistingArticles(existingArticles, a)
 
@@ -463,9 +492,14 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 			}
 
 			log.V(2).Infof("Processed for %s a new article: %s", user, a)
+			// Counted here rather than where the article was accepted for
+			// insertion, so that the reported total is what was stored and not
+			// what was attempted. A failed insert reading as a success is how
+			// a feed comes to look like it is being filled while staying empty.
 			if err = f.d.InsertArticleForUser(user, a); err != nil {
 				log.Warningf("while persisting article for %s due to %s: %s", user, err, a)
 			} else {
+				numInserted += 1
 				f.retCache.Add(user, feed.ID, a.Hash())
 			}
 

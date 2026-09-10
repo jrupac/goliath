@@ -16,7 +16,15 @@ import (
 	"github.com/mat/besticon/v3/besticon"
 )
 
+// isValidAbsoluteURL reports whether a URL taken from feed markup is usable as
+// an absolute address.
+//
+// Trimmed first, because an element written across several lines carries the
+// surrounding whitespace into its text, and a URL parser rejects the newlines
+// as control characters. The address itself is fine; only its presentation in
+// the document was not.
 func isValidAbsoluteURL(s string) bool {
+	s = strings.TrimSpace(s)
 	if s == "" {
 		return false
 	}
@@ -25,7 +33,11 @@ func isValidAbsoluteURL(s string) bool {
 }
 
 func (f Fetcher) updateFeedMetadataForUser(ctx context.Context, u models.User, mFeed *models.Feed, rFeed *rss.Feed) {
-	if rFeed.Title != "" {
+	// A title the user set is theirs to keep. This runs on every first fetch,
+	// and pausing the fetcher to add or remove a subscription makes the next
+	// fetch a first fetch, so without this a rename survives only until the
+	// next change to the feed list.
+	if rFeed.Title != "" && !mFeed.TitleOverridden {
 		// Feed titles are plain text (possibly with HTML entities), not HTML
 		// documents. Use html.UnescapeString to decode entities without parsing
 		// angle brackets as tags — this preserves titles like "<antirez>".
@@ -34,8 +46,8 @@ func (f Fetcher) updateFeedMetadataForUser(ctx context.Context, u models.User, m
 	if rFeed.Description != "" {
 		mFeed.Description = strings.TrimSpace(html.UnescapeString(rFeed.Description))
 	}
-	if rFeed.Link != "" && isValidAbsoluteURL(rFeed.Link) {
-		mFeed.Link = rFeed.Link
+	if isValidAbsoluteURL(rFeed.Link) {
+		mFeed.Link = strings.TrimSpace(rFeed.Link)
 	}
 
 	// Check if the context is canceled. If not, updated the feed metadata.

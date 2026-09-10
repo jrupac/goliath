@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"database/sql"
 	"errors"
 	"time"
 
@@ -44,6 +45,14 @@ type MockDB struct {
 	OnLookupSession                                func(token models.Secret) (models.User, models.Session, error)
 	OnDeleteSessionForUser                         func(u models.User, id models.SessionId) (int64, error)
 	OnGetArticleMetaWithFilterForUser              func(u models.User, filter models.StreamFilter, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error)
+	OnGetAllFoldersForUser                         func(u models.User) ([]models.Folder, error)
+	OnGetFeedForUser                               func(u models.User, feedID int64) (models.Feed, error)
+	OnGetFeedByUrlForUser                          func(u models.User, url string) (models.Feed, error)
+	OnGetFolderForUser                             func(u models.User, folderID int64) (models.Folder, error)
+	OnInsertFeedForUser                            func(u models.User, f models.Feed, folderID int64) (int64, error)
+	OnUpdateFolderForFeedForUser                   func(u models.User, feedID, folderID int64) error
+	OnUpdateFeedMetadataForUser                    func(u models.User, f models.Feed) error
+	OnDeleteFeedForUser                            func(u models.User, feedID, folderID int64) error
 }
 
 func (m *MockDB) Open(string) error            { return nil }
@@ -140,7 +149,10 @@ func (m *MockDB) GetAllRetrievalCaches() (map[UserFeedKey]string, error) {
 	return nil, nil
 }
 func (m *MockDB) PersistAllRetrievalCaches(map[UserFeedKey][]byte) error { return nil }
-func (m *MockDB) InsertFeedForUser(models.User, models.Feed, int64) (int64, error) {
+func (m *MockDB) InsertFeedForUser(u models.User, f models.Feed, folderID int64) (int64, error) {
+	if m.OnInsertFeedForUser != nil {
+		return m.OnInsertFeedForUser(u, f, folderID)
+	}
 	return 0, nil
 }
 func (m *MockDB) InsertFolderForUser(models.User, models.Folder, int64) (int64, error) {
@@ -148,7 +160,12 @@ func (m *MockDB) InsertFolderForUser(models.User, models.Folder, int64) (int64, 
 }
 func (m *MockDB) DeleteArticlesForUser(models.User, time.Time) (int64, error) { return 0, nil }
 func (m *MockDB) DeleteArticlesByIdForUser(models.User, []int64) error        { return nil }
-func (m *MockDB) DeleteFeedForUser(models.User, int64, int64) error           { return nil }
+func (m *MockDB) DeleteFeedForUser(u models.User, feedID, folderID int64) error {
+	if m.OnDeleteFeedForUser != nil {
+		return m.OnDeleteFeedForUser(u, feedID, folderID)
+	}
+	return nil
+}
 func (m *MockDB) MarkArticleForUser(models.User, int64, models.MarkAction) error {
 	return nil
 }
@@ -174,11 +191,42 @@ func (m *MockDB) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, fol
 	}
 	return nil
 }
-func (m *MockDB) UpdateFolderForFeedForUser(models.User, int64, int64) error { return nil }
+func (m *MockDB) UpdateFolderForFeedForUser(u models.User, feedID, folderID int64) error {
+	if m.OnUpdateFolderForFeedForUser != nil {
+		return m.OnUpdateFolderForFeedForUser(u, feedID, folderID)
+	}
+	return nil
+}
 func (m *MockDB) GetFolderChildrenForUser(models.User, int64) ([]int64, error) {
 	return nil, nil
 }
-func (m *MockDB) GetAllFoldersForUser(models.User) ([]models.Folder, error) { return nil, nil }
+func (m *MockDB) GetAllFoldersForUser(u models.User) ([]models.Folder, error) {
+	if m.OnGetAllFoldersForUser != nil {
+		return m.OnGetAllFoldersForUser(u)
+	}
+	return nil, nil
+}
+
+func (m *MockDB) GetFeedForUser(u models.User, feedID int64) (models.Feed, error) {
+	if m.OnGetFeedForUser != nil {
+		return m.OnGetFeedForUser(u, feedID)
+	}
+	return models.Feed{}, sql.ErrNoRows
+}
+
+func (m *MockDB) GetFeedByUrlForUser(u models.User, url string) (models.Feed, error) {
+	if m.OnGetFeedByUrlForUser != nil {
+		return m.OnGetFeedByUrlForUser(u, url)
+	}
+	return models.Feed{}, sql.ErrNoRows
+}
+
+func (m *MockDB) GetFolderForUser(u models.User, folderID int64) (models.Folder, error) {
+	if m.OnGetFolderForUser != nil {
+		return m.OnGetFolderForUser(u, folderID)
+	}
+	return models.Folder{}, sql.ErrNoRows
+}
 
 func (m *MockDB) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
 	if m.OnGetAllFeedsForUser != nil {
@@ -220,6 +268,9 @@ func (m *MockDB) ImportOpmlForUser(models.User, *opml.Opml) error { return nil }
 
 func (m *MockDB) UpdateFeedMetadataForUser(u models.User, feed models.Feed) error {
 	m.UpdateFeedMetadataForUserCalled = true
+	if m.OnUpdateFeedMetadataForUser != nil {
+		return m.OnUpdateFeedMetadataForUser(u, feed)
+	}
 	return m.UpdateFeedMetadataForUserErr
 }
 

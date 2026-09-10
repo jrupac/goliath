@@ -246,3 +246,22 @@ func TestFullTextUserAgentDefaultsToTheSharedOne(t *testing.T) {
 		t.Errorf("fullTextUserAgent defaults to %q, want empty so it falls back to userAgent", *fullTextUserAgent)
 	}
 }
+
+// Pausing is how a caller that changes the feed list makes the fetcher reread
+// it. Some of those callers serve requests, so pausing when nothing is
+// fetching has to return rather than wait for a receiver that will never
+// arrive.
+func TestPauseAndResumeDoNothingWhenNotFetching(t *testing.T) {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		Pause()
+		Resume()
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Pause/Resume blocked with no fetcher running")
+	}
+}

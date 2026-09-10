@@ -1,7 +1,9 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
@@ -134,6 +136,10 @@ func (a GReader) route(w http.ResponseWriter, r *http.Request) {
 		a.withAuth(w, r, a.handleEditTag)
 	case "/greader/reader/api/0/mark-all-as-read":
 		a.withAuth(w, r, a.markAllAsRead)
+	case "/greader/reader/api/0/subscription/quickadd":
+		a.withAuth(w, r, a.handleQuickAdd)
+	case "/greader/reader/api/0/subscription/edit":
+		a.withAuth(w, r, a.handleSubscriptionEdit)
 	case "/greader/ext/parse-full-article":
 		a.withAuth(w, r, a.handleParseFullArticle)
 	default:
@@ -237,6 +243,7 @@ func (a GReader) handleSubscriptionList(w http.ResponseWriter, _ *http.Request, 
 			Title: feed.Title,
 			// No client seems to use this field, so let it as zero
 			FirstItemMsec: "0",
+			Url:           feed.URL,
 			HtmlUrl:       feed.Link,
 			IconUrl:       iconUrl,
 			SortId:        feed.Title,
@@ -542,6 +549,242 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 	_, _ = w.Write([]byte("OK"))
 }
 
+// handleQuickAdd subscribes the user to a feed named by URL.
+//
+// The URL is fetched and parsed before anything is stored. A client adding a
+// feed sends only its address, so the title and site link have to come from
+// the feed itself; and a URL that is not a feed would otherwise become a
+// subscription that fails on every cycle, with nothing recording that it never
+// worked in the first place.
+func (a GReader) handleQuickAdd(w http.ResponseWriter, r *http.Request, user models.User) {
+	if !a.checkPostToken(w, r, user) {
+		return
+	}
+
+	// Clients send this in both the query string and the body; r.Form merges
+	// the two, so either source answers.
+	feedURL := strings.TrimSpace(r.Form.Get("quickadd"))
+	if feedURL == "" {
+		log.Warningf("Missing 'quickadd' parameter")
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	// Adding a feed already subscribed to reports the existing subscription
+	// rather than creating a second one. The insert would not collide: its
+	// conflict key covers the title, which the feed is free to change between
+	// one add and the next.
+	switch existing, err := a.d.GetFeedByUrlForUser(user, feedURL); {
+	case err == nil:
+		log.Infof("Feed %s is already subscribed as %d", feedURL, existing.ID)
+		a.returnSuccess(w, greaderQuickAddResponse{
+			Query:      feedURL,
+			NumResults: 1,
+			StreamId:   greaderFeedId(existing.ID),
+			StreamName: existing.Title,
+		})
+		return
+	case !errors.Is(err, sql.ErrNoRows):
+		log.Warningf("Failed to look up feed %s: %s", feedURL, err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	discovered, err := fetch.DiscoverFeed(feedURL)
+	if err != nil {
+		// The client's URL is what is wrong, so this is not a server error.
+		log.Warningf("Refusing to subscribe to %s: %s", feedURL, err)
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	// Paused across the write so that the fetcher rereads the feed list and
+	// picks up the new subscription, rather than ignoring it until a restart.
+	fetch.Pause()
+	defer fetch.Resume()
+
+	// Folder 0 means the root folder, which the storage layer resolves. No
+	// client sends a folder when adding, and the root is where an unfiled
+	// subscription belongs.
+	feedID, err := a.d.InsertFeedForUser(user, discovered, 0)
+	if err != nil {
+		log.Warningf("Failed to add feed %s: %s", feedURL, err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	log.Infof("Added feed %d (%q) at %s for user %s", feedID, discovered.Title, feedURL, user.Username)
+	a.returnSuccess(w, greaderQuickAddResponse{
+		Query:      feedURL,
+		NumResults: 1,
+		StreamId:   greaderFeedId(feedID),
+		StreamName: discovered.Title,
+	})
+}
+
+// handleSubscriptionEdit renames a feed, moves it between folders, or removes
+// it, selected by `ac`.
+func (a GReader) handleSubscriptionEdit(w http.ResponseWriter, r *http.Request, user models.User) {
+	if !a.checkPostToken(w, r, user) {
+		return
+	}
+
+	feedId, err := parseFeedId(r.Form.Get("s"))
+	if err != nil {
+		log.Warningf("Invalid feed ID: %s", r.Form.Get("s"))
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	// Every operation here changes or destroys a subscription, so the feed is
+	// read back under the requester's own ID. Ownership is part of that lookup,
+	// so a feed belonging to somebody else is indistinguishable from one that
+	// does not exist.
+	feed, err := a.d.GetFeedForUser(user, feedId)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Warningf("User %s asked to edit feed %d, which is not theirs", user.Username, feedId)
+			a.returnError(w, http.StatusNotFound)
+			return
+		}
+		log.Warningf("Failed to look up feed %d: %s", feedId, err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	switch ac := r.Form.Get("ac"); ac {
+	case "edit":
+		a.editSubscription(w, r, user, feed)
+	case "unsubscribe":
+		a.unsubscribeFeed(w, r, user, feed)
+	default:
+		log.Warningf("Saw unexpected 'ac' parameter: %s", ac)
+		a.returnError(w, http.StatusNotImplemented)
+	}
+}
+
+// editSubscription applies a rename, a move between folders, or both.
+//
+// Clients send one `ac=edit` for either, distinguished only by which of `t`
+// and `a` are present, so both are applied when both are given rather than one
+// being treated as the real intent.
+func (a GReader) editSubscription(w http.ResponseWriter, r *http.Request, user models.User, feed models.Feed) {
+	title := r.Form.Get("t")
+	addLabel := r.Form.Get("a")
+
+	if title == "" && addLabel == "" {
+		// Nothing to change is not an error. Clients send a bare `ac=edit`
+		// naming only the feed as a confirmation step after adding one, and
+		// treat a refusal as the add itself having failed -- which they undo by
+		// unsubscribing, destroying the feed they just created.
+		log.Infof("Edit of feed %d changes nothing", feed.ID)
+		_, _ = w.Write([]byte("OK"))
+		return
+	}
+
+	// The move is applied first. It is the change that can fail on a folder the
+	// user does not own, and applying it before the rename means a refusal
+	// leaves the feed entirely untouched.
+	if addLabel != "" {
+		folderId, err := parseFolderId(addLabel)
+		if err != nil {
+			log.Warningf("Invalid folder ID: %s", addLabel)
+			a.returnError(w, http.StatusBadRequest)
+			return
+		}
+		// `r` names the folder the client believes the feed is leaving. A feed
+		// has exactly one folder here, so the destination alone decides where
+		// it ends up and the source is only worth checking for disagreement.
+		if removeLabel := r.Form.Get("r"); removeLabel != "" {
+			if from, err := parseFolderId(removeLabel); err == nil && from != feed.FolderID {
+				log.Warningf("Client moved feed %d from folder %d, but it is in %d",
+					feed.ID, from, feed.FolderID)
+			}
+		}
+		if _, err = a.d.GetFolderForUser(user, folderId); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				log.Warningf("User %s asked to move feed %d into folder %d, which is not theirs",
+					user.Username, feed.ID, folderId)
+				a.returnError(w, http.StatusNotFound)
+				return
+			}
+			log.Warningf("Failed to look up folder %d: %s", folderId, err)
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+		if err = a.moveFeedToFolder(user, feed.ID, folderId); err != nil {
+			log.Warningf("Failed to move feed %d to folder %d: %s", feed.ID, folderId, err)
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+		log.Infof("Moved feed %d from folder %d to %d for user %s",
+			feed.ID, feed.FolderID, folderId, user.Username)
+		feed.FolderID = folderId
+	}
+
+	if title != "" {
+		feed.Title = title
+		// Marked so that fetching leaves it alone. A feed's own metadata is
+		// refreshed on every first fetch, which would otherwise undo this the
+		// next time the fetcher restarted.
+		feed.TitleOverridden = true
+		if err := a.d.UpdateFeedMetadataForUser(user, feed); err != nil {
+			log.Warningf("Failed to rename feed %d: %s", feed.ID, err)
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+		log.Infof("Renamed feed %d to %q for user %s", feed.ID, title, user.Username)
+	}
+
+	_, _ = w.Write([]byte("OK"))
+}
+
+// moveFeedToFolder repoints a feed at another folder.
+//
+// Fetching is paused across the change. A feed's folder is part of the key its
+// articles are stored under, so a fetch still holding the old one writes rows
+// that no longer satisfy the foreign key: they are rejected, and the feed stays
+// empty until something else makes the fetcher reread the list. Pausing settles
+// whatever is in flight and guarantees that reread.
+func (a GReader) moveFeedToFolder(user models.User, feedId, folderId int64) error {
+	fetch.Pause()
+	defer fetch.Resume()
+	return a.d.UpdateFolderForFeedForUser(user, feedId, folderId)
+}
+
+// unsubscribeFeed deletes a feed and everything fetched into it.
+//
+// The articles go with it: Article's foreign key to Feed has no ON DELETE, so
+// they cannot be left behind pointing at a feed that no longer exists. This is
+// the only request a client can make that destroys stored content, so what was
+// removed is logged in full -- afterwards the row is gone, and the log is the
+// only remaining account of what it was.
+func (a GReader) unsubscribeFeed(w http.ResponseWriter, r *http.Request, user models.User, feed models.Feed) {
+	articles, err := a.d.GetArticlesForFeedForUser(user, feed.ID)
+	if err != nil {
+		log.Warningf("Failed to count articles in feed %d: %s", feed.ID, err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	log.Warningf("Unsubscribing user %s from %s (%d articles), requested by %q",
+		user.Username, feed, len(articles), r.Header.Get("User-Agent"))
+
+	// Paused across the delete so the fetcher rereads the feed list and stops
+	// fetching a feed that no longer exists.
+	fetch.Pause()
+	defer fetch.Resume()
+
+	if err = a.d.DeleteFeedForUser(user, feed.ID, feed.FolderID); err != nil {
+		log.Warningf("Failed to unsubscribe from feed %d: %s", feed.ID, err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	log.Warningf("Unsubscribed user %s from feed %d", user.Username, feed.ID)
+	_, _ = w.Write([]byte("OK"))
+}
+
 func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user models.User) {
 	err := r.ParseForm()
 	if err != nil {
@@ -557,7 +800,7 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 	// This method is only for making feeds and folders as read. Only articles
 	// can be marked as unread, using the "edit tag" method.
 	if folderStr := r.Form.Get("t"); folderStr != "" {
-		folderId, err := strconv.ParseInt(folderStr, 10, 64)
+		folderId, err := parseFolderId(folderStr)
 		if err != nil {
 			log.Warningf("Invalid folder ID: %s", folderStr)
 			a.returnError(w, http.StatusBadRequest)
@@ -573,7 +816,7 @@ func (a GReader) markAllAsRead(w http.ResponseWriter, r *http.Request, user mode
 		hour, day := readActivityLabels()
 		articlesMarkedReadMetric.WithLabelValues(user.Username, "folder", hour, day).Add(float64(n))
 	} else if feedStr := r.Form.Get("s"); feedStr != "" {
-		feedId, err := strconv.ParseInt(feedStr, 10, 64)
+		feedId, err := parseFeedId(feedStr)
 		if err != nil {
 			log.Warningf("Invalid feed ID: %s", feedStr)
 			a.returnError(w, http.StatusBadRequest)
@@ -697,17 +940,41 @@ func (a GReader) resolveCredential(w http.ResponseWriter, token models.Secret) (
 	return user, models.Session{}, true
 }
 
+// feedStreamPrefix and folderStreamPrefix are what greaderFeedId and
+// greaderFolderId emit, and what a client sends back.
+const (
+	feedStreamPrefix   = "feed/"
+	folderStreamPrefix = "user/-/label/"
+)
+
+// parseFeedId reads a feed identifier from a request, accepting either the
+// `feed/<id>` stream form or a bare decimal ID.
+//
+// Both spellings are accepted because the endpoints disagreed about which they
+// took: subscription editing is given a stream ID, marking a feed read a bare
+// number. Accepting both everywhere settles it without making one existing
+// client's requests invalid.
+func parseFeedId(s string) (int64, error) {
+	return strconv.ParseInt(strings.TrimPrefix(s, feedStreamPrefix), 10, 64)
+}
+
+// parseFolderId reads a folder identifier, accepting either the
+// `user/-/label/<id>` stream form or a bare decimal ID.
+func parseFolderId(s string) (int64, error) {
+	return strconv.ParseInt(strings.TrimPrefix(s, folderStreamPrefix), 10, 64)
+}
+
 func greaderArticleId(articleId int64) string {
 	// Note: This is writing the article ID as hex.
 	return fmt.Sprintf("tag:google.com,2005:reader/item/%x", articleId)
 }
 
 func greaderFeedId(feedId int64) string {
-	return fmt.Sprintf("feed/%d", feedId)
+	return feedStreamPrefix + strconv.FormatInt(feedId, 10)
 }
 
 func greaderFolderId(folderId int64) string {
-	return fmt.Sprintf("user/-/label/%d", folderId)
+	return folderStreamPrefix + strconv.FormatInt(folderId, 10)
 }
 
 func (a GReader) validateLoginForm(r *http.Request) (models.Secret, int) {

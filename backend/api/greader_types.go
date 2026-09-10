@@ -22,13 +22,16 @@ type greaderCategory struct {
 }
 
 type greaderSubscription struct {
-	Title         string            `json:"title"`
-	FirstItemMsec string            `json:"firstitemmsec"`
-	HtmlUrl       string            `json:"htmlUrl"`
-	IconUrl       string            `json:"iconUrl"`
-	SortId        string            `json:"sortid"`
-	Id            string            `json:"id"`
-	Categories    []greaderCategory `json:"categories"`
+	Title         string `json:"title"`
+	FirstItemMsec string `json:"firstitemmsec"`
+	// Url is the feed's own XML address and HtmlUrl the site it belongs to.
+	// Without the former no client can show or edit what it is subscribed to.
+	Url        string            `json:"url"`
+	HtmlUrl    string            `json:"htmlUrl"`
+	IconUrl    string            `json:"iconUrl"`
+	SortId     string            `json:"sortid"`
+	Id         string            `json:"id"`
+	Categories []greaderCategory `json:"categories"`
 }
 
 type greaderSubscriptionList struct {
@@ -78,4 +81,16 @@ type greaderStreamItemsContents struct {
 	Id      string               `json:"id"`
 	Updated int64                `json:"updated"`
 	Items   []greaderItemContent `json:"items"`
+}
+
+// greaderQuickAddResponse is what a client is told after adding a feed.
+//
+// The shape follows the other implementations of this endpoint: the query
+// echoed back, the number of subscriptions it produced, and the stream ID the
+// new feed can be read from.
+type greaderQuickAddResponse struct {
+	Query      string `json:"query"`
+	NumResults int    `json:"numResults"`
+	StreamId   string `json:"streamId,omitempty"`
+	StreamName string `json:"streamName,omitempty"`
 }

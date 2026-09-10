@@ -2,6 +2,7 @@ package api
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -721,5 +722,501 @@ func TestStreamItemIdsClampsLimit(t *testing.T) {
 				t.Errorf("limit = %d, want %d", got, tc.want)
 			}
 		})
+	}
+}
+
+// subscriptionRequest builds a signed POST to a subscription endpoint.
+func subscriptionRequest(user models.User, path string, form url.Values) *http.Request {
+	form.Set(postTokenParam, postTokenFor(user).Reveal())
+	req := httptest.NewRequest("POST", path, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	_ = req.ParseForm()
+	return req
+}
+
+func editRequest(user models.User, form url.Values) *http.Request {
+	return subscriptionRequest(user, "/greader/reader/api/0/subscription/edit", form)
+}
+
+// Every subscription operation names a feed the requester must own. A feed
+// belonging to someone else has to be indistinguishable from one that does not
+// exist, or the endpoint answers whether an ID is in use.
+func TestSubscriptionEditRefusesAnotherUsersFeed(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+			if feedID == 1 {
+				return models.Feed{ID: 1, FolderID: 9}, nil
+			}
+			return models.Feed{}, sql.ErrNoRows
+		},
+		OnDeleteFeedForUser: func(models.User, int64, int64) error {
+			t.Error("deleted a feed the user does not own")
+			return nil
+		},
+		OnUpdateFeedMetadataForUser: func(models.User, models.Feed) error {
+			t.Error("renamed a feed the user does not own")
+			return nil
+		},
+	}
+
+	user := models.User{UserId: "u", Username: "u"}
+	for _, form := range []url.Values{
+		{"ac": {"unsubscribe"}, "s": {"feed/2"}},
+		{"ac": {"edit"}, "s": {"feed/2"}, "t": {"new"}},
+	} {
+		w := httptest.NewRecorder()
+		GReader{d: mockDB}.handleSubscriptionEdit(w, editRequest(user, form), user)
+		if got := w.Result().StatusCode; got != http.StatusNotFound {
+			t.Errorf("%v: status = %d, want %d", form, got, http.StatusNotFound)
+		}
+	}
+}
+
+// `s` arrives as a stream ID here and as a bare number on mark-all-as-read.
+// Both spellings are accepted in both places rather than adding a second
+// convention.
+func TestSubscriptionEditAcceptsBothFeedIdForms(t *testing.T) {
+	for _, s := range []string{"feed/12345", "12345"} {
+		var renamed int64
+		mockDB := &storage.MockDB{
+			OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+				return models.Feed{ID: feedID, FolderID: 9}, nil
+			},
+			OnUpdateFeedMetadataForUser: func(_ models.User, f models.Feed) error {
+				renamed = f.ID
+				return nil
+			},
+		}
+		user := models.User{UserId: "u", Username: "u"}
+		w := httptest.NewRecorder()
+		GReader{d: mockDB}.handleSubscriptionEdit(w,
+			editRequest(user, url.Values{"ac": {"edit"}, "s": {s}, "t": {"Renamed"}}), user)
+
+		if got := w.Result().StatusCode; got != http.StatusOK {
+			t.Errorf("s=%q: status = %d, want %d", s, got, http.StatusOK)
+		}
+		if renamed != 12345 {
+			t.Errorf("s=%q: renamed feed %d, want 12345", s, renamed)
+		}
+	}
+}
+
+func TestSubscriptionEditRenames(t *testing.T) {
+	var got models.Feed
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7, FolderID: 3, Title: "Old", URL: "https://e.invalid/f"}, nil
+		},
+		OnUpdateFeedMetadataForUser: func(_ models.User, f models.Feed) error {
+			got = f
+			return nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionEdit(w,
+		editRequest(user, url.Values{"ac": {"edit"}, "s": {"feed/7"}, "t": {"New Name"}}), user)
+
+	if got.Title != "New Name" {
+		t.Errorf("title = %q, want %q", got.Title, "New Name")
+	}
+	// A rename must not discard the rest of the feed.
+	if got.URL != "https://e.invalid/f" || got.FolderID != 3 {
+		t.Errorf("rename altered other fields: %+v", got)
+	}
+}
+
+// A move names its destination folder in `a`, mirroring edit-tag's add-label
+// convention.
+func TestSubscriptionEditMovesBetweenFolders(t *testing.T) {
+	var toFolder int64
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7, FolderID: 3}, nil
+		},
+		OnGetFolderForUser: func(_ models.User, folderID int64) (models.Folder, error) {
+			return models.Folder{ID: folderID}, nil
+		},
+		OnUpdateFolderForFeedForUser: func(_ models.User, _, folderID int64) error {
+			toFolder = folderID
+			return nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionEdit(w, editRequest(user, url.Values{
+		"ac": {"edit"}, "s": {"feed/7"},
+		"a": {"user/-/label/4"}, "r": {"user/-/label/3"},
+	}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusOK {
+		t.Fatalf("status = %d, want %d", got, http.StatusOK)
+	}
+	if toFolder != 4 {
+		t.Errorf("moved to folder %d, want 4", toFolder)
+	}
+}
+
+// A destination folder is checked the same way the feed is: a move into
+// somebody else's folder would file the feed where the requester cannot see it.
+func TestSubscriptionEditRefusesAnotherUsersFolder(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7, FolderID: 3}, nil
+		},
+		OnUpdateFolderForFeedForUser: func(models.User, int64, int64) error {
+			t.Error("moved a feed into a folder the user does not own")
+			return nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionEdit(w, editRequest(user, url.Values{
+		"ac": {"edit"}, "s": {"feed/7"}, "a": {"user/-/label/99"},
+	}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", got, http.StatusNotFound)
+	}
+}
+
+// A move that fails must leave the feed entirely alone, rather than renaming it
+// into a folder it did not move to.
+func TestSubscriptionEditDoesNotRenameWhenTheMoveFails(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7, FolderID: 3}, nil
+		},
+		OnUpdateFeedMetadataForUser: func(models.User, models.Feed) error {
+			t.Error("renamed the feed although the move was refused")
+			return nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionEdit(w, editRequest(user, url.Values{
+		"ac": {"edit"}, "s": {"feed/7"}, "t": {"New"}, "a": {"user/-/label/99"},
+	}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", got, http.StatusNotFound)
+	}
+}
+
+func TestSubscriptionEditUnsubscribes(t *testing.T) {
+	var deletedFeed, deletedFolder int64
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7, FolderID: 3, Title: "Doomed"}, nil
+		},
+		OnGetArticlesForFeedForUser: func(models.User, int64) ([]models.Article, error) {
+			return []models.Article{{ID: 1}, {ID: 2}}, nil
+		},
+		OnDeleteFeedForUser: func(_ models.User, feedID, folderID int64) error {
+			deletedFeed, deletedFolder = feedID, folderID
+			return nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionEdit(w,
+		editRequest(user, url.Values{"ac": {"unsubscribe"}, "s": {"feed/7"}}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusOK {
+		t.Fatalf("status = %d, want %d", got, http.StatusOK)
+	}
+	if deletedFeed != 7 || deletedFolder != 3 {
+		t.Errorf("deleted feed %d in folder %d, want 7 in 3", deletedFeed, deletedFolder)
+	}
+}
+
+// An unrecognised `ac` must not fall through to one of the operations that
+// changes something.
+func TestSubscriptionEditRefusesUnknownAction(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7}, nil
+		},
+		OnDeleteFeedForUser: func(models.User, int64, int64) error {
+			t.Error("an unknown action deleted a feed")
+			return nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionEdit(w,
+		editRequest(user, url.Values{"ac": {"disable"}, "s": {"feed/7"}}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusNotImplemented {
+		t.Errorf("status = %d, want %d", got, http.StatusNotImplemented)
+	}
+}
+
+// Every one of these mutates or destroys a subscription, so none may run on an
+// unsigned request.
+func TestSubscriptionEndpointsRequireAPostToken(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7}, nil
+		},
+		OnDeleteFeedForUser: func(models.User, int64, int64) error {
+			t.Error("deleted a feed without a post token")
+			return nil
+		},
+		OnInsertFeedForUser: func(models.User, models.Feed, int64) (int64, error) {
+			t.Error("added a feed without a post token")
+			return 0, nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+
+	for _, tc := range []struct {
+		name    string
+		path    string
+		form    url.Values
+		handler func(http.ResponseWriter, *http.Request, models.User)
+	}{
+		{"quickadd", "/greader/reader/api/0/subscription/quickadd",
+			url.Values{"quickadd": {"https://example.invalid/feed"}}, GReader{d: mockDB}.handleQuickAdd},
+		{"edit", "/greader/reader/api/0/subscription/edit",
+			url.Values{"ac": {"unsubscribe"}, "s": {"feed/7"}}, GReader{d: mockDB}.handleSubscriptionEdit},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest("POST", tc.path, strings.NewReader(tc.form.Encode()))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			_ = req.ParseForm()
+
+			w := httptest.NewRecorder()
+			tc.handler(w, req, user)
+
+			if got := w.Result().StatusCode; got != http.StatusUnauthorized {
+				t.Errorf("status = %d, want %d", got, http.StatusUnauthorized)
+			}
+		})
+	}
+}
+
+// Adding a feed already subscribed to reports the existing one. The insert
+// would not collide: its conflict key covers the title, which a feed is free to
+// change between one add and the next.
+func TestQuickAddIsIdempotentForAnExistingFeed(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetFeedByUrlForUser: func(_ models.User, url string) (models.Feed, error) {
+			if url == "https://example.invalid/feed" {
+				return models.Feed{ID: 42, Title: "Already Here", URL: url}, nil
+			}
+			return models.Feed{}, sql.ErrNoRows
+		},
+		OnInsertFeedForUser: func(models.User, models.Feed, int64) (int64, error) {
+			t.Error("inserted a feed that was already subscribed to")
+			return 0, nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleQuickAdd(w, subscriptionRequest(user,
+		"/greader/reader/api/0/subscription/quickadd",
+		url.Values{"quickadd": {"https://example.invalid/feed"}}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusOK {
+		t.Fatalf("status = %d, want %d", got, http.StatusOK)
+	}
+	var res greaderQuickAddResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if res.StreamId != "feed/42" || res.NumResults != 1 {
+		t.Errorf("response = %+v, want the existing feed", res)
+	}
+}
+
+func TestQuickAddRequiresAUrl(t *testing.T) {
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: &storage.MockDB{}}.handleQuickAdd(w, subscriptionRequest(user,
+		"/greader/reader/api/0/subscription/quickadd", url.Values{}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d", got, http.StatusBadRequest)
+	}
+}
+
+// A URL that is not a feed is the client's mistake, and is refused rather than
+// stored as a subscription that would fail on every cycle afterwards.
+func TestQuickAddRefusesSomethingThatIsNotAFeed(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnInsertFeedForUser: func(models.User, models.Feed, int64) (int64, error) {
+			t.Error("stored a subscription for a URL that is not a feed")
+			return 0, nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+
+	for _, target := range []string{
+		"not-a-url",
+		"ftp://example.invalid/feed",
+		"file:///etc/passwd",
+	} {
+		w := httptest.NewRecorder()
+		GReader{d: mockDB}.handleQuickAdd(w, subscriptionRequest(user,
+			"/greader/reader/api/0/subscription/quickadd", url.Values{"quickadd": {target}}), user)
+
+		if got := w.Result().StatusCode; got != http.StatusBadRequest {
+			t.Errorf("%s: status = %d, want %d", target, got, http.StatusBadRequest)
+		}
+	}
+}
+
+// The feed's own XML address, without which no client can show or edit what it
+// is subscribed to.
+func TestSubscriptionListIncludesTheFeedUrl(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetAllFeedsForUser: func(models.User) ([]models.Feed, error) {
+			return []models.Feed{{
+				ID: 7, FolderID: 3, Title: "Feed",
+				URL:  "https://example.invalid/feed.xml",
+				Link: "https://example.invalid/",
+			}}, nil
+		},
+	}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionList(w, httptest.NewRequest("GET", "/", nil), models.User{UserId: "u"})
+
+	var res greaderSubscriptionList
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(res.Subscriptions) != 1 {
+		t.Fatalf("got %d subscriptions, want 1", len(res.Subscriptions))
+	}
+	if got := res.Subscriptions[0].Url; got != "https://example.invalid/feed.xml" {
+		t.Errorf("url = %q, want the feed's XML address", got)
+	}
+	if got := res.Subscriptions[0].HtmlUrl; got != "https://example.invalid/" {
+		t.Errorf("htmlUrl = %q, want the site address", got)
+	}
+}
+
+// Fetching refreshes a feed's own metadata on every first fetch, and pausing
+// the fetcher to add or remove a subscription makes the next fetch a first
+// fetch. A rename that did not say it was a rename would survive only until
+// the next change to the feed list.
+func TestSubscriptionEditMarksARenamedTitleAsTheUsers(t *testing.T) {
+	var got models.Feed
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7, FolderID: 3, Title: "From The Feed"}, nil
+		},
+		OnUpdateFeedMetadataForUser: func(_ models.User, f models.Feed) error {
+			got = f
+			return nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionEdit(w,
+		editRequest(user, url.Values{"ac": {"edit"}, "s": {"feed/7"}, "t": {"My Name For It"}}), user)
+
+	if !got.TitleOverridden {
+		t.Error("a renamed feed was not marked as having a user-set title")
+	}
+}
+
+// A move alone leaves the title as the feed's own, so a later fetch is still
+// free to update it.
+func TestSubscriptionEditMoveDoesNotClaimTheTitle(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7, FolderID: 3, Title: "From The Feed"}, nil
+		},
+		OnGetFolderForUser: func(_ models.User, folderID int64) (models.Folder, error) {
+			return models.Folder{ID: folderID}, nil
+		},
+		OnUpdateFeedMetadataForUser: func(_ models.User, f models.Feed) error {
+			t.Errorf("a move rewrote the feed's metadata: %+v", f)
+			return nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionEdit(w, editRequest(user, url.Values{
+		"ac": {"edit"}, "s": {"feed/7"}, "a": {"user/-/label/4"},
+	}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusOK {
+		t.Errorf("status = %d, want %d", got, http.StatusOK)
+	}
+}
+
+// A lookup that fails for a reason other than the feed not being the user's is
+// a server problem, and saying "not found" would send the client to fix
+// something that is not wrong.
+func TestSubscriptionEditReportsLookupFailureAsServerError(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{}, errors.New("connection refused")
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionEdit(w,
+		editRequest(user, url.Values{"ac": {"unsubscribe"}, "s": {"feed/7"}}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", got, http.StatusInternalServerError)
+	}
+}
+
+// Clients send a bare `ac=edit` naming only the feed after adding one, and
+// treat a refusal as the add itself having failed -- which they undo by
+// unsubscribing. Refusing a request that asks for no change destroys the feed.
+func TestSubscriptionEditWithNothingToChangeSucceeds(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7, FolderID: 3, Title: "Just Added"}, nil
+		},
+		OnUpdateFeedMetadataForUser: func(models.User, models.Feed) error {
+			t.Error("a no-op edit rewrote the feed")
+			return nil
+		},
+		OnUpdateFolderForFeedForUser: func(models.User, int64, int64) error {
+			t.Error("a no-op edit moved the feed")
+			return nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionEdit(w,
+		editRequest(user, url.Values{"ac": {"edit"}, "s": {"feed/7"}}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusOK {
+		t.Errorf("status = %d, want %d", got, http.StatusOK)
+	}
+	if got := w.Body.String(); got != "OK" {
+		t.Errorf("body = %q, want %q", got, "OK")
+	}
+}
+
+// A lookup that fails for a reason other than the feed not being subscribed is
+// a server problem. Treating it as "not subscribed" would fetch the URL and
+// create a duplicate subscription.
+func TestQuickAddReportsLookupFailureRatherThanAddingAgain(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetFeedByUrlForUser: func(models.User, string) (models.Feed, error) {
+			return models.Feed{}, errors.New("connection refused")
+		},
+		OnInsertFeedForUser: func(models.User, models.Feed, int64) (int64, error) {
+			t.Error("added a feed although the existing-subscription check failed")
+			return 0, nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleQuickAdd(w, subscriptionRequest(user,
+		"/greader/reader/api/0/subscription/quickadd",
+		url.Values{"quickadd": {"https://example.invalid/feed"}}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", got, http.StatusInternalServerError)
 	}
 }

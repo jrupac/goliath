@@ -19,6 +19,11 @@ type Feed struct {
 	Link                     string
 	Latest                   time.Time
 	EstimatedRefreshInterval int
+	// TitleOverridden records that the title was set by the user rather than
+	// taken from the feed. Fetching refreshes a feed's own metadata on every
+	// first fetch, which would otherwise undo a rename the next time the
+	// fetcher restarted.
+	TitleOverridden bool
 }
 
 // Hash returns a SHA256 hash of this object.

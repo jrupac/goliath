@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/rss"
@@ -219,4 +220,54 @@ func TestUpdateFeedFaviconForUser(t *testing.T) {
 			t.Error("expected InsertFaviconForUser to be called")
 		}
 	})
+}
+
+// Feed markup routinely puts an element's text on its own line, so the URL
+// arrives wrapped in whitespace. A URL parser rejects the newlines as control
+// characters, which discards a perfectly good address because of how the
+// document was laid out.
+func TestIsValidAbsoluteURLIgnoresSurroundingWhitespace(t *testing.T) {
+	for _, s := range []string{
+		"https://example.invalid",
+		"\nhttp://example.invalid\n",
+		"  https://example.invalid/path  ",
+		"\n  http://example.invalid\n\t",
+	} {
+		if !isValidAbsoluteURL(s) {
+			t.Errorf("isValidAbsoluteURL(%q) = false, want true", s)
+		}
+	}
+
+	for _, s := range []string{"", "   ", "\n\n", "/relative", "not a url at all"} {
+		if isValidAbsoluteURL(s) {
+			t.Errorf("isValidAbsoluteURL(%q) = true, want false", s)
+		}
+	}
+}
+
+// The counterpart in the fetcher: a title the user set survives a metadata
+// refresh, and one that came from the feed does not.
+func TestUpdateFeedMetadataRespectsAUserSetTitle(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		overridden bool
+		want       string
+	}{
+		{"title came from the feed", false, "Upstream Title"},
+		{"title was set by the user", true, "My Name For It"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := &storage.MockDB{}
+			fetcher := New(db, &cache.MockRetrievalCache{}, nil)
+			feed := &models.Feed{
+				ID: 7, Title: "My Name For It", TitleOverridden: tc.overridden,
+			}
+			fetcher.updateFeedMetadataForUser(context.Background(), models.User{UserId: "u"},
+				feed, &rss.Feed{Title: "Upstream Title"})
+
+			if feed.Title != tc.want {
+				t.Errorf("title = %q, want %q", feed.Title, tc.want)
+			}
+		})
+	}
 }

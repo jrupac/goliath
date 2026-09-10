@@ -126,6 +126,8 @@ CREATE TABLE IF NOT EXISTS Feed
     latest TIMESTAMPTZ DEFAULT CAST(0 AS TIMESTAMPTZ),
     -- Estimated interval between feed fetches (in seconds)
     estimated_refresh_interval INT DEFAULT 600,
+    -- True when the title was set by the user rather than taken from the feed
+    titleoverridden BOOL NOT NULL DEFAULT false,
     CONSTRAINT unique_userid_hash
         UNIQUE (userid, hash)
 );
