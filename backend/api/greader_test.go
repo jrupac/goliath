@@ -1220,3 +1220,106 @@ func TestQuickAddReportsLookupFailureRatherThanAddingAgain(t *testing.T) {
 		t.Errorf("status = %d, want %d", got, http.StatusInternalServerError)
 	}
 }
+
+// A client shown the stored sentinel draws a folder called "<root>". The feeds
+// in it are the ones filed nowhere else, so it is presented under a name meant
+// for people.
+func TestSubscriptionListPresentsTheRootFolderUnderAReadableName(t *testing.T) {
+	const rootId, comicsId = int64(1), int64(2)
+	mockDB := &storage.MockDB{
+		OnGetRootFolderForUser: func(models.User) (models.Folder, error) {
+			return models.Folder{ID: rootId, Name: models.RootFolder}, nil
+		},
+		OnGetAllFoldersForUser: func(models.User) ([]models.Folder, error) {
+			return []models.Folder{
+				{ID: rootId, Name: models.RootFolder},
+				{ID: comicsId, Name: "Comics"},
+			}, nil
+		},
+		OnGetAllFeedsForUser: func(models.User) ([]models.Feed, error) {
+			return []models.Feed{
+				{ID: 10, FolderID: rootId, Title: "Unfiled"},
+				{ID: 11, FolderID: comicsId, Title: "Filed"},
+			}, nil
+		},
+	}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionList(w, httptest.NewRequest("GET", "/", nil), models.User{UserId: "u"})
+
+	var res greaderSubscriptionList
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	labels := map[string]string{}
+	for _, sub := range res.Subscriptions {
+		if len(sub.Categories) != 1 {
+			t.Fatalf("%s has %d categories, want 1", sub.Title, len(sub.Categories))
+		}
+		labels[sub.Title] = sub.Categories[0].Label
+	}
+	if got := labels["Unfiled"]; got != models.RootFolderDisplayName {
+		t.Errorf("unfiled feed's folder label = %q, want %q", got, models.RootFolderDisplayName)
+	}
+	if got := labels["Filed"]; got != "Comics" {
+		t.Errorf("filed feed's folder label = %q, want %q", got, "Comics")
+	}
+}
+
+// `a` names a destination and `r` a source. An `r` on its own is a client
+// saying the feed should no longer be filed anywhere, which is the folder
+// unfiled feeds live in.
+func TestSubscriptionEditRemovingTheOnlyLabelMovesToTheRoot(t *testing.T) {
+	const rootId, comicsId = int64(1), int64(2)
+	var movedTo int64
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7, FolderID: comicsId}, nil
+		},
+		OnGetRootFolderForUser: func(models.User) (models.Folder, error) {
+			return models.Folder{ID: rootId, Name: models.RootFolder}, nil
+		},
+		OnUpdateFolderForFeedForUser: func(_ models.User, _, folderID int64) error {
+			movedTo = folderID
+			return nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionEdit(w, editRequest(user, url.Values{
+		"ac": {"edit"}, "s": {"feed/7"}, "r": {"user/-/label/2"},
+	}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusOK {
+		t.Fatalf("status = %d, want %d", got, http.StatusOK)
+	}
+	if movedTo != rootId {
+		t.Errorf("moved to folder %d, want the root folder %d", movedTo, rootId)
+	}
+}
+
+// Removing a label from a feed already unfiled asks for no change, so nothing
+// is written.
+func TestSubscriptionEditRemovingALabelFromAnUnfiledFeedDoesNothing(t *testing.T) {
+	const rootId = int64(1)
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7, FolderID: rootId}, nil
+		},
+		OnGetRootFolderForUser: func(models.User) (models.Folder, error) {
+			return models.Folder{ID: rootId, Name: models.RootFolder}, nil
+		},
+		OnUpdateFolderForFeedForUser: func(models.User, int64, int64) error {
+			t.Error("moved a feed that was already unfiled")
+			return nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleSubscriptionEdit(w, editRequest(user, url.Values{
+		"ac": {"edit"}, "s": {"feed/7"}, "r": {"user/-/label/1"},
+	}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusOK {
+		t.Errorf("status = %d, want %d", got, http.StatusOK)
+	}
+}

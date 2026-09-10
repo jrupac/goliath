@@ -113,6 +113,7 @@ type Database interface {
 	GetFeedForUser(models.User, int64) (models.Feed, error)
 	GetFeedByUrlForUser(models.User, string) (models.Feed, error)
 	GetFolderForUser(models.User, int64) (models.Folder, error)
+	GetRootFolderForUser(models.User) (models.Folder, error)
 	GetFeedsInFolderForUser(models.User, int64) ([]models.Feed, error)
 	GetFeedsPerFolderForUser(models.User) (map[int64][]int64, error)
 	GetFolderFeedTreeForUser(models.User) (*models.Folder, error)

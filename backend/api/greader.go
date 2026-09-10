@@ -230,6 +230,22 @@ func (a GReader) handleSubscriptionList(w http.ResponseWriter, _ *http.Request, 
 		folderMap[folder.ID] = folder.Name
 	}
 
+	// The folder holding feeds that are in none of the user's own is stored
+	// under a sentinel name, which a client shown it draws as a folder called
+	// "<root>". Presented under a name meant for people instead.
+	//
+	// Canonically such a feed would carry no category at all and a client would
+	// show it at the top level. That is the better answer and not this one: the
+	// web client keys a feed selection by (feed, folder) and marks a folder read
+	// by ID, so a feed with no folder is a change to its selection model rather
+	// than to this response.
+	if root, err := a.d.GetRootFolderForUser(user); err == nil {
+		folderMap[root.ID] = models.RootFolderDisplayName
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
 	subList := greaderSubscriptionList{}
 
 	for _, feed := range feeds {
@@ -671,8 +687,9 @@ func (a GReader) handleSubscriptionEdit(w http.ResponseWriter, r *http.Request, 
 func (a GReader) editSubscription(w http.ResponseWriter, r *http.Request, user models.User, feed models.Feed) {
 	title := r.Form.Get("t")
 	addLabel := r.Form.Get("a")
+	removeLabel := r.Form.Get("r")
 
-	if title == "" && addLabel == "" {
+	if title == "" && addLabel == "" && removeLabel == "" {
 		// Nothing to change is not an error. Clients send a bare `ac=edit`
 		// naming only the feed as a confirmation step after adding one, and
 		// treat a refusal as the add itself having failed -- which they undo by
@@ -685,41 +702,21 @@ func (a GReader) editSubscription(w http.ResponseWriter, r *http.Request, user m
 	// The move is applied first. It is the change that can fail on a folder the
 	// user does not own, and applying it before the rename means a refusal
 	// leaves the feed entirely untouched.
-	if addLabel != "" {
-		folderId, err := parseFolderId(addLabel)
-		if err != nil {
-			log.Warningf("Invalid folder ID: %s", addLabel)
-			a.returnError(w, http.StatusBadRequest)
+	if addLabel != "" || removeLabel != "" {
+		folderId, ok := a.destinationFolder(w, user, feed, addLabel, removeLabel)
+		if !ok {
 			return
 		}
-		// `r` names the folder the client believes the feed is leaving. A feed
-		// has exactly one folder here, so the destination alone decides where
-		// it ends up and the source is only worth checking for disagreement.
-		if removeLabel := r.Form.Get("r"); removeLabel != "" {
-			if from, err := parseFolderId(removeLabel); err == nil && from != feed.FolderID {
-				log.Warningf("Client moved feed %d from folder %d, but it is in %d",
-					feed.ID, from, feed.FolderID)
-			}
-		}
-		if _, err = a.d.GetFolderForUser(user, folderId); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				log.Warningf("User %s asked to move feed %d into folder %d, which is not theirs",
-					user.Username, feed.ID, folderId)
-				a.returnError(w, http.StatusNotFound)
+		if folderId != feed.FolderID {
+			if err := a.moveFeedToFolder(user, feed.ID, folderId); err != nil {
+				log.Warningf("Failed to move feed %d to folder %d: %s", feed.ID, folderId, err)
+				a.returnError(w, http.StatusInternalServerError)
 				return
 			}
-			log.Warningf("Failed to look up folder %d: %s", folderId, err)
-			a.returnError(w, http.StatusInternalServerError)
-			return
+			log.Infof("Moved feed %d from folder %d to %d for user %s",
+				feed.ID, feed.FolderID, folderId, user.Username)
+			feed.FolderID = folderId
 		}
-		if err = a.moveFeedToFolder(user, feed.ID, folderId); err != nil {
-			log.Warningf("Failed to move feed %d to folder %d: %s", feed.ID, folderId, err)
-			a.returnError(w, http.StatusInternalServerError)
-			return
-		}
-		log.Infof("Moved feed %d from folder %d to %d for user %s",
-			feed.ID, feed.FolderID, folderId, user.Username)
-		feed.FolderID = folderId
 	}
 
 	if title != "" {
@@ -737,6 +734,61 @@ func (a GReader) editSubscription(w http.ResponseWriter, r *http.Request, user m
 	}
 
 	_, _ = w.Write([]byte("OK"))
+}
+
+// destinationFolder works out which folder an edit is asking a feed to end up
+// in, writing the error response and reporting false if it cannot.
+//
+// `a` adds a label and `r` removes one, mirroring how edit-tag names tags. A
+// feed here has exactly one folder, so an `a` decides the destination outright
+// and `r` is only worth checking for disagreement. An `r` on its own is a
+// client saying the feed should no longer be filed anywhere, which is the root
+// folder: the place a feed lives when it is in none of the user's own.
+func (a GReader) destinationFolder(
+	w http.ResponseWriter, user models.User, feed models.Feed, addLabel, removeLabel string) (int64, bool) {
+
+	if addLabel == "" {
+		if from, err := parseFolderId(removeLabel); err != nil {
+			log.Warningf("Invalid folder ID: %s", removeLabel)
+			a.returnError(w, http.StatusBadRequest)
+			return 0, false
+		} else if from != feed.FolderID {
+			log.Warningf("Client removed feed %d from folder %d, but it is in %d",
+				feed.ID, from, feed.FolderID)
+		}
+		root, err := a.d.GetRootFolderForUser(user)
+		if err != nil {
+			log.Warningf("Failed to look up the root folder for user %s: %s", user.Username, err)
+			a.returnError(w, http.StatusInternalServerError)
+			return 0, false
+		}
+		return root.ID, true
+	}
+
+	folderId, err := parseFolderId(addLabel)
+	if err != nil {
+		log.Warningf("Invalid folder ID: %s", addLabel)
+		a.returnError(w, http.StatusBadRequest)
+		return 0, false
+	}
+	if removeLabel != "" {
+		if from, err := parseFolderId(removeLabel); err == nil && from != feed.FolderID {
+			log.Warningf("Client moved feed %d from folder %d, but it is in %d",
+				feed.ID, from, feed.FolderID)
+		}
+	}
+	if _, err = a.d.GetFolderForUser(user, folderId); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Warningf("User %s asked to move feed %d into folder %d, which is not theirs",
+				user.Username, feed.ID, folderId)
+			a.returnError(w, http.StatusNotFound)
+			return 0, false
+		}
+		log.Warningf("Failed to look up folder %d: %s", folderId, err)
+		a.returnError(w, http.StatusInternalServerError)
+		return 0, false
+	}
+	return folderId, true
 }
 
 // moveFeedToFolder repoints a feed at another folder.

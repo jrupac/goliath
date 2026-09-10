@@ -49,6 +49,7 @@ type MockDB struct {
 	OnGetFeedForUser                               func(u models.User, feedID int64) (models.Feed, error)
 	OnGetFeedByUrlForUser                          func(u models.User, url string) (models.Feed, error)
 	OnGetFolderForUser                             func(u models.User, folderID int64) (models.Folder, error)
+	OnGetRootFolderForUser                         func(u models.User) (models.Folder, error)
 	OnInsertFeedForUser                            func(u models.User, f models.Feed, folderID int64) (int64, error)
 	OnUpdateFolderForFeedForUser                   func(u models.User, feedID, folderID int64) error
 	OnUpdateFeedMetadataForUser                    func(u models.User, f models.Feed) error
@@ -224,6 +225,13 @@ func (m *MockDB) GetFeedByUrlForUser(u models.User, url string) (models.Feed, er
 func (m *MockDB) GetFolderForUser(u models.User, folderID int64) (models.Folder, error) {
 	if m.OnGetFolderForUser != nil {
 		return m.OnGetFolderForUser(u, folderID)
+	}
+	return models.Folder{}, sql.ErrNoRows
+}
+
+func (m *MockDB) GetRootFolderForUser(u models.User) (models.Folder, error) {
+	if m.OnGetRootFolderForUser != nil {
+		return m.OnGetRootFolderForUser(u)
 	}
 	return models.Folder{}, sql.ErrNoRows
 }

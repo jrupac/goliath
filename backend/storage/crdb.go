@@ -701,15 +701,14 @@ func (crdb *Crdb) InsertFeedForUser(u models.User, f models.Feed, folderId int64
 	// If the feed is assumed to be a top-level entry, determine the ID of the
 	// root folder that it actually is under.
 	if folderId == 0 {
-		query := `SELECT id FROM Folder WHERE userid = $1 AND name = $2`
-		err := crdb.db.QueryRow(query, u.UserId, models.RootFolder).Scan(&folderId)
+		root, err := crdb.GetRootFolderForUser(u)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return -1, fmt.Errorf("root folder (%s) not found for user %s", models.RootFolder, u.UserId)
-			} else {
-				return -1, fmt.Errorf("failed to get root folder ID: %w", err)
 			}
+			return -1, fmt.Errorf("failed to get root folder ID: %w", err)
 		}
+		folderId = root.ID
 	}
 
 	query := `
@@ -735,6 +734,13 @@ func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId i
 	defer logElapsedTime(time.Now(), "InsertFolderForUser")
 
 	errFolderId := int64(-1)
+
+	// Checked here rather than at each caller, so that no path to creating a
+	// folder can miss it: feeds arrive from OPML files, the admin service and
+	// clients, and they all land on this method.
+	if err := models.ValidateFolderName(f.Name); err != nil {
+		return errFolderId, err
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxOperationTime)
 	defer cancel()
@@ -1149,6 +1155,24 @@ func (crdb *Crdb) GetFeedForUser(u models.User, feedId int64) (models.Feed, erro
 	return f, nil
 }
 
+// GetRootFolderForUser returns the folder that holds a user's feeds that are
+// not in any folder of their own.
+//
+// The root is a real row rather than a null folder because a feed's folder is
+// part of the key its articles are stored under, so every feed needs one. It is
+// an implementation detail: its name is a sentinel, not something a user chose,
+// and it should not reach a client as a folder they can see.
+func (crdb *Crdb) GetRootFolderForUser(u models.User) (models.Folder, error) {
+	defer logElapsedTime(time.Now(), "GetRootFolderForUser")
+
+	var f models.Folder
+	query := `SELECT id, name FROM Folder WHERE userid = $1 AND name = $2`
+	if err := crdb.db.QueryRow(query, u.UserId, models.RootFolder).Scan(&f.ID, &f.Name); err != nil {
+		return models.Folder{}, err
+	}
+	return f, nil
+}
+
 // GetFeedByUrlForUser returns the user's feed with the given URL, or
 // sql.ErrNoRows if they are not subscribed to it.
 //
@@ -1276,14 +1300,12 @@ func (crdb *Crdb) GetFolderFeedTreeForUser(u models.User) (*models.Folder, error
 
 	// TODO: Make this method into a transaction.
 
-	var rootId int64
-
 	// Determine the root ID
-	query := `SELECT id from Folder WHERE userid = $1 AND name = $2`
-	err := crdb.db.QueryRow(query, u.UserId, models.RootFolder).Scan(&rootId)
+	root, err := crdb.GetRootFolderForUser(u)
 	if err != nil {
 		return nil, err
 	}
+	rootId := root.ID
 
 	// Create a map from ID to Folder
 	folders, err := crdb.GetAllFoldersForUser(u)
@@ -1297,7 +1319,7 @@ func (crdb *Crdb) GetFolderFeedTreeForUser(u models.User) (*models.Folder, error
 	}
 
 	// Assemble the folder parent/child relationships
-	query = `SELECT parent, child FROM FolderChildren WHERE userid = $1`
+	query := `SELECT parent, child FROM FolderChildren WHERE userid = $1`
 	folderChildren, err := crdb.db.Query(query, u.UserId)
 	defer closeSilent(folderChildren)
 

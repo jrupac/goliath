@@ -463,6 +463,12 @@ func (s *server) AddFeed(_ context.Context, req *AddFeedRequest) (*AddFeedRespon
 		}
 	}
 
+	// Checked before pausing anything, since a name that will be refused should
+	// be refused without interrupting fetching first.
+	if err = models.ValidateFolderName(req.Folder); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	fetch.Pause()
 	defer fetch.Resume()
 
@@ -471,6 +477,7 @@ func (s *server) AddFeed(_ context.Context, req *AddFeedRequest) (*AddFeedRespon
 		newFolder := models.Folder{Name: req.Folder}
 		folderID, err = s.db.InsertFolderForUser(user, newFolder, 0)
 		if err != nil {
+			log.Warningf("while creating folder %q for user %s: %+v", req.Folder, user.Username, err)
 			return nil, status.Error(codes.DataLoss, "could not create new folder")
 		}
 	}
