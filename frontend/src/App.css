@@ -427,7 +427,7 @@
   font-size: 7px;
   font-weight: 600;
   letter-spacing: -0.3px;
-  color: white;
+  color: var(--swatch-font-color);
 }
 
 /* A feed with no favicon is drawn as its initials on one of the palette's

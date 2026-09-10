@@ -228,6 +228,10 @@
    * Initials swatch palette (8 entries, hand-chosen)
    ***************************************************************************/
 
+  /* Ink for the initials, on any of the swatches below. The same in
+     both themes, since every swatch is dark enough to carry it. */
+  --swatch-font-color: #ffffff;
+
   --swatch-0: #d4634a;
   --swatch-1: #4a9ab5;
   --swatch-2: #8a6c8a;
