@@ -1906,10 +1906,73 @@
   flex-shrink: 0;
 }
 
+/* Editing swaps a row's text for controls. They are sized to fit the row they
+   replace, so opening an editor leaves the row as tall as it was rather than
+   nudging everything below it. */
+.GoliathSettingsFeedEditor .MuiInputBase-root,
+.GoliathSettingsFeedEditor .MuiButton-root {
+  height: 30px;
+}
+
+.GoliathSettingsFeedEditor .MuiInputBase-root {
+  font-size: 14px;
+}
+
+.GoliathSettingsFeedEditor .MuiInputBase-root .MuiInputBase-input {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .GoliathSettingsConfirmText.MuiTypography-root {
   flex: 1;
   font-family: var(--primary-sans-serif-font), sans-serif;
   font-size: 13px;
+}
+
+/* The folder picker and, while a new folder is being named, its name, side
+   by side in the space the editor's buttons leave. */
+.GoliathSettingsMoveTargets {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* A folder's heading carries its own rename and remove. They appear on
+   pointing, as a feed row's do, and take the same rules. */
+.GoliathSettingsFolderHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  margin: 0 4px 8px;
+}
+
+.GoliathSettingsFolderHeader .GoliathSettingsGroupTitle.MuiTypography-root {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.GoliathSettingsFolderHeader:hover .GoliathSettingsFeedActions,
+.GoliathSettingsFolderHeader:focus-within .GoliathSettingsFeedActions {
+  opacity: 1;
+}
+
+.GoliathSettingsFolderEmpty.MuiTypography-root {
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--content-font-muted-2-color);
+}
+
+/* A picker's way to make a folder, set apart from the folders themselves. */
+.GoliathNewFolderChoice.MuiMenuItem-root {
+  color: var(--accent-color-strong);
+  border-top: 1px solid var(--modal-hairline-color);
 }
 
 /* On a phone the dialog is the whole screen: the rail becomes a row of

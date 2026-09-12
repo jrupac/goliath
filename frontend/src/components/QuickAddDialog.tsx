@@ -15,13 +15,35 @@ import {
 import CloseTwoToneIcon from '@mui/icons-material/CloseTwoTone';
 import { FolderView } from '../models/folder';
 import { FeedId, FeedView } from '../models/feed';
-import { AddedFeed } from '../api/interface';
+import { AddedFeed, FolderSummary } from '../api/interface';
 import { FolderId } from '../models/folder';
 
 // A feed the user has filed nowhere is presented under this name. The server
 // reserves it, so a folder answering to it is the one such feeds land in and
 // no user-made folder can be confused with it.
 export const UnfiledFolderTitle = 'Uncategorized';
+
+// Sentinel for a folder picker's "New folder…" choice. Real folder IDs are
+// numeric, so this cannot collide with one.
+export const NewFolderChoice = 'new-folder';
+
+// folderNameProblem says what is wrong with a name for a new or renamed
+// folder, or returns null if nothing is. The server has the final say; this
+// catches what it would refuse or misread before a request is made.
+export const folderNameProblem = (name: string): string | null => {
+  if (name === '') {
+    return 'Enter a name for the folder.';
+  }
+  // Folders are named to the server by ID, and an ID is a number, so a name
+  // that is also a number would be read as an ID.
+  if (/^[+-]?\d+$/.test(name)) {
+    return 'A folder name cannot be just a number.';
+  }
+  if (name.toLowerCase() === UnfiledFolderTitle.toLowerCase()) {
+    return `${UnfiledFolderTitle} is a reserved name.`;
+  }
+  return null;
+};
 
 // Sentinel for the folder picker meaning "leave the feed where the add put
 // it", which is the unfiled folder whether or not the client has seen it yet.
@@ -32,8 +54,10 @@ export interface QuickAddDialogProps {
   open: boolean;
   onClose: () => void;
   folderFeedView: Map<FolderView, FeedView[]>;
+  listFolders: () => Promise<FolderSummary[]>;
   addFeed: (url: string) => Promise<AddedFeed>;
   moveFeed: (feedId: FeedId, toFolderId: FolderId) => Promise<void>;
+  moveFeedToNewFolder: (feedId: FeedId, folderName: string) => Promise<void>;
   unsubscribeFeed: (feedId: FeedId) => Promise<void>;
   // Called once the subscription list has changed and is worth re-reading.
   onChanged: () => void;
@@ -56,8 +80,10 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
   open,
   onClose,
   folderFeedView,
+  listFolders,
   addFeed,
   moveFeed,
+  moveFeedToNewFolder,
   unsubscribeFeed,
   onChanged,
 }) => {
@@ -68,6 +94,8 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
   const [added, setAdded] = useState<AddedFeed | null>(null);
   const [alreadySubscribed, setAlreadySubscribed] = useState(false);
   const [folderId, setFolderId] = useState<FolderId>(KeepUnfiled);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [listed, setListed] = useState<FolderSummary[]>([]);
 
   // Runs once the dialog has finished closing, so the next open starts
   // afresh without the contents changing while it is still fading out.
@@ -79,6 +107,8 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
     setAdded(null);
     setAlreadySubscribed(false);
     setFolderId(KeepUnfiled);
+    setNewFolderName('');
+    setListed([]);
   };
 
   const knownFeedIds = useMemo(() => {
@@ -92,6 +122,23 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
     [folderFeedView]
   );
   const hasUnfiledFolder = folders.some((f) => f.title === UnfiledFolderTitle);
+
+  // Folders holding no feeds are missing from the view, which is built from
+  // subscriptions, but are as good a place to file a feed as any other. The
+  // unfiled folder is already offered as the default.
+  const emptyFolders = listed.filter(
+    (f) => f.title !== UnfiledFolderTitle && !folders.some((v) => v.id === f.id)
+  );
+
+  // A failure here leaves only the folders already known on offer, which is
+  // no reason to report the add itself as having failed.
+  const loadFolders = async () => {
+    try {
+      setListed(await listFolders());
+    } catch (err) {
+      console.error(`Failed to list folders: ${err}`);
+    }
+  };
 
   const handleSubmitUrl = async (e: FormEvent) => {
     e.preventDefault();
@@ -107,6 +154,7 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
       setAdded(feed);
       setAlreadySubscribed(knownFeedIds.has(feed.id));
       setStep('folder');
+      await loadFolders();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -124,10 +172,23 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
       return;
     }
 
+    let move: () => Promise<void>;
+    if (folderId === NewFolderChoice) {
+      const name = newFolderName.trim();
+      const problem = folderNameProblem(name);
+      if (problem !== null) {
+        setError(problem);
+        return;
+      }
+      move = () => moveFeedToNewFolder(added.id, name);
+    } else {
+      move = () => moveFeed(added.id, folderId);
+    }
+
     setBusy(true);
     setError(null);
     try {
-      await moveFeed(added.id, folderId);
+      await move();
       onChanged();
       onClose();
     } catch (err) {
@@ -217,7 +278,10 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
             label="Folder"
             value={folderId}
             disabled={busy}
-            onChange={(e) => setFolderId(e.target.value as FolderId)}
+            onChange={(e) => {
+              setFolderId(e.target.value as FolderId);
+              setError(null);
+            }}
             MenuProps={{ classes: { paper: 'GoliathMenuPaper' } }}
           >
             {!hasUnfiledFolder && (
@@ -231,8 +295,35 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
                 {f.title}
               </MenuItem>
             ))}
+            {emptyFolders.map((f) => (
+              <MenuItem key={f.id} value={f.id}>
+                {f.title}
+              </MenuItem>
+            ))}
+            <MenuItem
+              value={NewFolderChoice}
+              className="GoliathNewFolderChoice"
+            >
+              New folder…
+            </MenuItem>
           </Select>
         </FormControl>
+        {folderId === NewFolderChoice && (
+          <TextField
+            autoFocus
+            fullWidth
+            label="New folder name"
+            value={newFolderName}
+            disabled={busy}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleDone();
+              }
+            }}
+            className="GoliathAccentField GoliathDialogField"
+          />
+        )}
         {error && (
           <Typography className="GoliathDialogError">{error}</Typography>
         )}

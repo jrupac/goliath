@@ -18,6 +18,14 @@ export type AddedFeed = {
   title: string;
 };
 
+// FolderSummary is one of the user's folders as the server lists them. The
+// list includes folders with no feeds in them, which the content tree, being
+// built from subscriptions, does not know about.
+export type FolderSummary = {
+  id: FolderId;
+  title: string;
+};
+
 export interface FetchAPI {
   // HandleLogin will attempt to authenticate the user.
   // This method returns a Promise that when resolved will return a boolean
@@ -82,6 +90,27 @@ export interface FetchAPI {
 
   // UnsubscribeFeed removes the feed and every article fetched into it.
   UnsubscribeFeed(feedId: FeedId): Promise<void>;
+
+  // ListFolders returns every folder the user has, empty ones included.
+  ListFolders(): Promise<FolderSummary[]>;
+
+  // MoveFeedToNewFolder files the feed under a folder named rather than
+  // identified, which the server creates if the user has no folder by that
+  // name. There is no request that only creates a folder: one is made by
+  // filing something in it.
+  MoveFeedToNewFolder(
+    feedId: FeedId,
+    folderName: string,
+    fromFolderId?: FolderId
+  ): Promise<void>;
+
+  // RenameFolder gives the folder a new name. Its ID, and so everything filed
+  // under it, is unchanged.
+  RenameFolder(folderId: FolderId, name: string): Promise<void>;
+
+  // DeleteFolder removes the folder. The feeds in it are not unsubscribed;
+  // they move to the unfiled folder, taking their articles with them.
+  DeleteFolder(folderId: FolderId): Promise<void>;
 }
 
 export class FetchAPIFactory {

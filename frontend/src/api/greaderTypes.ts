@@ -20,6 +20,9 @@ export const enum GReaderURI {
   MarkAllAsRead = '/greader/reader/api/0/mark-all-as-read',
   SubscriptionQuickAdd = '/greader/reader/api/0/subscription/quickadd',
   SubscriptionEdit = '/greader/reader/api/0/subscription/edit',
+  TagList = '/greader/reader/api/0/tag/list',
+  RenameTag = '/greader/reader/api/0/rename-tag',
+  DisableTag = '/greader/reader/api/0/disable-tag',
   ParseFullArticle = '/greader/ext/parse-full-article',
 }
 
@@ -70,6 +73,19 @@ export interface GReaderQuickAddResponse {
   numResults: number;
   streamId: string;
   streamName: string;
+}
+
+// One entry in tag/list. A folder's id carries its numeric ID rather than its
+// name, so the name travels separately in label; state entries carry neither
+// label nor type.
+export interface GReaderTagEntry {
+  id: string;
+  label?: string;
+  type?: string;
+}
+
+export interface GReaderTagList {
+  tags: GReaderTagEntry[];
 }
 
 interface GReaderCanonical {

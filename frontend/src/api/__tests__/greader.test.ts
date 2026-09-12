@@ -240,4 +240,75 @@ describe('feed management', () => {
 
     await expect(greader.RenameFeed('42', 'x')).rejects.toThrow(/Not Found/);
   });
+
+  it('ListFolders reads folders from tag/list and skips states', async () => {
+    mockFetch.mockResolvedValueOnce(
+      okText(
+        '{"tags":[{"id":"user/-/state/com.google/starred"},' +
+          '{"id":"user/-/label/385100062798249985","label":"Uncategorized","type":"folder"},' +
+          '{"id":"user/-/label/908467600933978113","label":"Tech","type":"folder"}]}'
+      )
+    );
+
+    const folders = await greader.ListFolders();
+
+    expect(mockFetch.mock.calls[0][0]).toBe('/greader/reader/api/0/tag/list');
+    expect(folders).toEqual([
+      { id: '385100062798249985', title: 'Uncategorized' },
+      { id: '908467600933978113', title: 'Tech' },
+    ]);
+  });
+
+  // A new folder is named where a move would give an ID, and the server
+  // makes it.
+  it('MoveFeedToNewFolder names the folder rather than identifying it', async () => {
+    mockFetch.mockResolvedValueOnce(okText('OK'));
+
+    await greader.MoveFeedToNewFolder('42', 'Reading', '3');
+
+    expect(mockFetch.mock.calls[0][0]).toBe(
+      '/greader/reader/api/0/subscription/edit'
+    );
+    const form = mockFetch.mock.calls[0][1].body as FormData;
+    expect(form.get('ac')).toBe('edit');
+    expect(form.get('s')).toBe('feed/42');
+    expect(form.get('a')).toBe('user/-/label/Reading');
+    expect(form.get('r')).toBe('user/-/label/3');
+  });
+
+  it('RenameFolder sends the folder and its new name', async () => {
+    mockFetch.mockResolvedValueOnce(okText('OK'));
+
+    await greader.RenameFolder('7', 'Technology');
+
+    expect(mockFetch.mock.calls[0][0]).toBe('/greader/reader/api/0/rename-tag');
+    const form = mockFetch.mock.calls[0][1].body as FormData;
+    expect(form.get('s')).toBe('user/-/label/7');
+    expect(form.get('dest')).toBe('user/-/label/Technology');
+  });
+
+  it('RenameFolder explains a name another folder has', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      statusText: 'Conflict',
+      headers: new Headers(),
+    });
+
+    await expect(greader.RenameFolder('7', 'News')).rejects.toThrow(
+      /already has that name/
+    );
+  });
+
+  it('DeleteFolder sends the folder to disable-tag', async () => {
+    mockFetch.mockResolvedValueOnce(okText('OK'));
+
+    await greader.DeleteFolder('7');
+
+    expect(mockFetch.mock.calls[0][0]).toBe(
+      '/greader/reader/api/0/disable-tag'
+    );
+    const form = mockFetch.mock.calls[0][1].body as FormData;
+    expect(form.get('s')).toBe('user/-/label/7');
+  });
 });

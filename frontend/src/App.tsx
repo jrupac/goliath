@@ -438,6 +438,10 @@ export default class App extends React.Component<AppProps, AppState> {
       .finally(() => this.setState({ reloading: false }));
   };
 
+  // Stable, so that a component re-reading the folder list when its view of
+  // the tree changes does not also re-read it on every render of this one.
+  listFolders = () => this.fetchApi.ListFolders();
+
   handleSelect = (type: SelectionType, key: SelectionKey) => {
     this.setState((prevState) => {
       const nextState: Partial<AppState> = {
@@ -771,6 +775,14 @@ export default class App extends React.Component<AppProps, AppState> {
             this.fetchApi.MoveFeed(feedId, to, from)
           }
           unsubscribeFeed={(feedId) => this.fetchApi.UnsubscribeFeed(feedId)}
+          listFolders={this.listFolders}
+          moveFeedToNewFolder={(feedId, name, from) =>
+            this.fetchApi.MoveFeedToNewFolder(feedId, name, from)
+          }
+          renameFolder={(folderId, name) =>
+            this.fetchApi.RenameFolder(folderId, name)
+          }
+          deleteFolder={(folderId) => this.fetchApi.DeleteFolder(folderId)}
           onFeedsChanged={this.handleFeedsChanged}
         />
         <QuickAddDialog
@@ -779,6 +791,10 @@ export default class App extends React.Component<AppProps, AppState> {
           folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
           addFeed={(url) => this.fetchApi.AddFeed(url)}
           moveFeed={(feedId, to) => this.fetchApi.MoveFeed(feedId, to)}
+          listFolders={this.listFolders}
+          moveFeedToNewFolder={(feedId, name) =>
+            this.fetchApi.MoveFeedToNewFolder(feedId, name)
+          }
           unsubscribeFeed={(feedId) => this.fetchApi.UnsubscribeFeed(feedId)}
           onChanged={this.handleFeedsChanged}
         />

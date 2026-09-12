@@ -1,4 +1,4 @@
-import React, { FormEvent, ReactNode, useState } from 'react';
+import React, { FormEvent, ReactNode, useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -25,8 +25,14 @@ import TuneTwoToneIcon from '@mui/icons-material/TuneTwoTone';
 import { GoliathTheme } from '../utils/types';
 import { FolderId, FolderView } from '../models/folder';
 import { FeedId, FeedView } from '../models/feed';
+import { FolderSummary } from '../api/interface';
 import { extractText } from '../utils/helpers';
 import FeedIcon from './FeedIcon';
+import {
+  folderNameProblem,
+  NewFolderChoice,
+  UnfiledFolderTitle,
+} from './QuickAddDialog';
 
 type SettingsSection = 'general' | 'feeds';
 
@@ -55,8 +61,18 @@ export interface SettingsModalProps {
     fromFolderId: FolderId
   ) => Promise<void>;
   unsubscribeFeed: (feedId: FeedId) => Promise<void>;
-  // Called after a feed changed on the server, so the caller can re-read the
-  // subscription list.
+  // Every folder the user has. The view above has only the folders that hold
+  // a feed, being built from subscriptions.
+  listFolders: () => Promise<FolderSummary[]>;
+  moveFeedToNewFolder: (
+    feedId: FeedId,
+    folderName: string,
+    fromFolderId: FolderId
+  ) => Promise<void>;
+  renameFolder: (folderId: FolderId, name: string) => Promise<void>;
+  deleteFolder: (folderId: FolderId) => Promise<void>;
+  // Called after a feed or folder changed on the server, so the caller can
+  // re-read the subscription list.
   onFeedsChanged: () => void;
 }
 
@@ -82,6 +98,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   renameFeed,
   moveFeed,
   unsubscribeFeed,
+  listFolders,
+  moveFeedToNewFolder,
+  renameFolder,
+  deleteFolder,
   onFeedsChanged,
 }) => {
   const [section, setSection] = useState<SettingsSection>('general');
@@ -159,6 +179,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               renameFeed={renameFeed}
               moveFeed={moveFeed}
               unsubscribeFeed={unsubscribeFeed}
+              listFolders={listFolders}
+              moveFeedToNewFolder={moveFeedToNewFolder}
+              renameFolder={renameFolder}
+              deleteFolder={deleteFolder}
               onFeedsChanged={onFeedsChanged}
             />
           )}
@@ -285,6 +309,13 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
 );
 
 type RowMode = 'rename' | 'move' | 'unsubscribe';
+type FolderMode = 'rename' | 'delete';
+
+// What is being edited: one feed row or one folder heading, never two things
+// at once.
+type Editing =
+  | { kind: 'feed'; id: FeedId; mode: RowMode }
+  | { kind: 'folder'; id: FolderId; mode: FolderMode };
 
 interface FeedSettingsProps {
   folderFeedView: Map<FolderView, FeedView[]>;
@@ -296,13 +327,21 @@ interface FeedSettingsProps {
     fromFolderId: FolderId
   ) => Promise<void>;
   unsubscribeFeed: (feedId: FeedId) => Promise<void>;
+  listFolders: () => Promise<FolderSummary[]>;
+  moveFeedToNewFolder: (
+    feedId: FeedId,
+    folderName: string,
+    fromFolderId: FolderId
+  ) => Promise<void>;
+  renameFolder: (folderId: FolderId, name: string) => Promise<void>;
+  deleteFolder: (folderId: FolderId) => Promise<void>;
   onFeedsChanged: () => void;
 }
 
 /**
  * Every subscription, grouped by folder, with rename, move and unsubscribe
- * on each row. One row is editable at a time; the others stay as they are
- * until it is saved or abandoned.
+ * on each row and rename and remove on each folder. One thing is editable at
+ * a time; the rest stay as they are until it is saved or abandoned.
  */
 const FeedSettings: React.FC<FeedSettingsProps> = ({
   folderFeedView,
@@ -310,16 +349,91 @@ const FeedSettings: React.FC<FeedSettingsProps> = ({
   renameFeed,
   moveFeed,
   unsubscribeFeed,
+  listFolders,
+  moveFeedToNewFolder,
+  renameFolder,
+  deleteFolder,
   onFeedsChanged,
 }) => {
-  const [editing, setEditing] = useState<{
-    feedId: FeedId;
-    mode: RowMode;
-  } | null>(null);
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const [listed, setListed] = useState<FolderSummary[]>([]);
 
-  const folders = Array.from(folderFeedView.keys());
+  // The view has no folder that holds no feeds, so the server's own list is
+  // what shows those. It is re-read whenever the view changes, since that is
+  // when a folder may have been made, emptied or removed.
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const folders = await listFolders();
+        if (!cancelled) {
+          setListed(folders);
+        }
+      } catch (err) {
+        console.error(`Failed to list folders: ${err}`);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [folderFeedView, listFolders]);
+
+  const viewFolders = Array.from(folderFeedView.keys());
+  const notInView: FolderView[] = listed
+    .filter((f) => !viewFolders.some((v) => v.id === f.id))
+    .map((f) => ({ id: f.id, title: f.title, unread_count: 0 }));
+  // A feed can be moved into any folder, the unfiled one included, but only
+  // a folder the user made is worth showing when it is empty.
+  const moveTargets = [...viewFolders, ...notInView];
+  const emptyFolders = notInView.filter((f) => f.title !== UnfiledFolderTitle);
+
   let feedCount = 0;
   folderFeedView.forEach((feeds) => (feedCount += feeds.length));
+
+  const renderFolder = (folder: FolderView, feeds: FeedView[]) => (
+    <FolderGroup
+      key={folder.id}
+      folder={folder}
+      feedCount={feeds.length}
+      mode={
+        editing?.kind === 'folder' && editing.id === folder.id
+          ? editing.mode
+          : null
+      }
+      onSetMode={(mode) =>
+        setEditing(
+          mode === null ? null : { kind: 'folder', id: folder.id, mode }
+        )
+      }
+      renameFolder={renameFolder}
+      deleteFolder={deleteFolder}
+      onFeedsChanged={onFeedsChanged}
+    >
+      {feeds.map((feed) => (
+        <FeedRow
+          key={feed.id}
+          feed={feed}
+          folders={moveTargets}
+          mode={
+            editing?.kind === 'feed' && editing.id === feed.id
+              ? editing.mode
+              : null
+          }
+          onSetMode={(mode) =>
+            setEditing(
+              mode === null ? null : { kind: 'feed', id: feed.id, mode }
+            )
+          }
+          renameFeed={renameFeed}
+          moveFeed={moveFeed}
+          moveFeedToNewFolder={moveFeedToNewFolder}
+          unsubscribeFeed={unsubscribeFeed}
+          onFeedsChanged={onFeedsChanged}
+        />
+      ))}
+    </FolderGroup>
+  );
 
   return (
     <>
@@ -338,26 +452,214 @@ const FeedSettings: React.FC<FeedSettingsProps> = ({
           Add feed
         </Button>
       </Box>
-      {Array.from(folderFeedView, ([folder, feeds]) => (
-        <SettingsGroup key={folder.id} title={folder.title}>
-          {feeds.map((feed) => (
-            <FeedRow
-              key={feed.id}
-              feed={feed}
-              folders={folders}
-              mode={editing?.feedId === feed.id ? editing.mode : null}
-              onSetMode={(mode) =>
-                setEditing(mode === null ? null : { feedId: feed.id, mode })
-              }
-              renameFeed={renameFeed}
-              moveFeed={moveFeed}
-              unsubscribeFeed={unsubscribeFeed}
-              onFeedsChanged={onFeedsChanged}
-            />
-          ))}
-        </SettingsGroup>
-      ))}
+      {Array.from(folderFeedView, ([folder, feeds]) =>
+        renderFolder(folder, feeds)
+      )}
+      {emptyFolders.map((folder) => renderFolder(folder, []))}
     </>
+  );
+};
+
+/** The spinner a busy confirm button shows in place of its icon. */
+const busyIcon = (busy: boolean, icon: ReactNode) =>
+  busy ? <CircularProgress size={14} color="inherit" /> : icon;
+
+interface FolderGroupProps {
+  folder: FolderView;
+  feedCount: number;
+  mode: FolderMode | null;
+  onSetMode: (mode: FolderMode | null) => void;
+  renameFolder: (folderId: FolderId, name: string) => Promise<void>;
+  deleteFolder: (folderId: FolderId) => Promise<void>;
+  onFeedsChanged: () => void;
+  children: ReactNode;
+}
+
+/**
+ * One folder's feeds, under a heading that renames or removes the folder.
+ *
+ * The unfiled folder has neither. It is where a feed goes when it is in no
+ * other folder rather than a folder the user made, and removing a folder is
+ * what sends feeds there.
+ */
+const FolderGroup: React.FC<FolderGroupProps> = ({
+  folder,
+  feedCount,
+  mode,
+  onSetMode,
+  renameFolder,
+  deleteFolder,
+  onFeedsChanged,
+  children,
+}) => {
+  const [name, setName] = useState(folder.title);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const editable = folder.title !== UnfiledFolderTitle;
+
+  const enterMode = (next: FolderMode) => {
+    setName(folder.title);
+    setError(null);
+    onSetMode(next);
+  };
+
+  const run = async (action: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await action();
+      onSetMode(null);
+      onFeedsChanged();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRename = (e: FormEvent) => {
+    e.preventDefault();
+    if (busy) {
+      return;
+    }
+    const trimmed = name.trim();
+    if (trimmed === folder.title) {
+      onSetMode(null);
+      return;
+    }
+    const problem = folderNameProblem(trimmed);
+    if (problem !== null) {
+      setError(problem);
+      return;
+    }
+    run(() => renameFolder(folder.id, trimmed));
+  };
+
+  const handleDelete = () => {
+    if (busy) {
+      return;
+    }
+    run(() => deleteFolder(folder.id));
+  };
+
+  const cancelButton = (
+    <Button
+      size="small"
+      className="GoliathQuietButton"
+      onClick={() => onSetMode(null)}
+      disabled={busy}
+    >
+      Cancel
+    </Button>
+  );
+
+  const errorText = error && (
+    <Typography className="GoliathDialogError">{error}</Typography>
+  );
+
+  const deleteQuestion =
+    feedCount === 0
+      ? 'Remove this empty folder?'
+      : feedCount === 1
+        ? `Remove this folder? Its feed moves to ${UnfiledFolderTitle}.`
+        : `Remove this folder? Its ${feedCount} feeds move to ${UnfiledFolderTitle}.`;
+
+  return (
+    <Box className="GoliathSettingsGroup">
+      <Box className="GoliathSettingsFolderHeader">
+        {mode === 'rename' ? (
+          <Box className="GoliathSettingsFeedEditing">
+            <form onSubmit={handleRename} className="GoliathSettingsFeedEditor">
+              <TextField
+                autoFocus
+                size="small"
+                fullWidth
+                value={name}
+                disabled={busy}
+                onChange={(e) => setName(e.target.value)}
+                className="GoliathAccentField"
+                slotProps={{ htmlInput: { 'aria-label': 'Folder name' } }}
+              />
+              <Button
+                size="small"
+                variant="contained"
+                className="GoliathAccentButton"
+                type="submit"
+                disabled={busy}
+                startIcon={busyIcon(busy, <CheckTwoToneIcon />)}
+              >
+                Save
+              </Button>
+              {cancelButton}
+            </form>
+            {errorText}
+          </Box>
+        ) : (
+          <>
+            <Typography className="GoliathSettingsGroupTitle">
+              {folder.title}
+            </Typography>
+            {editable && (
+              <Box className="GoliathSettingsFeedActions">
+                <Tooltip title="Rename folder">
+                  <IconButton
+                    size="small"
+                    aria-label={`Rename folder ${folder.title}`}
+                    onClick={() => enterMode('rename')}
+                  >
+                    <EditTwoToneIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Remove folder">
+                  <IconButton
+                    size="small"
+                    className="GoliathDangerIconButton"
+                    aria-label={`Remove folder ${folder.title}`}
+                    onClick={() => enterMode('delete')}
+                  >
+                    <DeleteTwoToneIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            )}
+          </>
+        )}
+      </Box>
+      <Box className="GoliathSettingsCard">
+        {mode === 'delete' && (
+          <Box className="GoliathSettingsCardRow GoliathSettingsFeedRow">
+            <Box className="GoliathSettingsFeedEditing">
+              <Box className="GoliathSettingsFeedEditor">
+                <Typography className="GoliathSettingsConfirmText">
+                  {deleteQuestion}
+                </Typography>
+                <Button
+                  size="small"
+                  variant="contained"
+                  className="GoliathDangerButton"
+                  onClick={handleDelete}
+                  disabled={busy}
+                  startIcon={busyIcon(busy, <DeleteTwoToneIcon />)}
+                >
+                  Remove
+                </Button>
+                {cancelButton}
+              </Box>
+              {errorText}
+            </Box>
+          </Box>
+        )}
+        {feedCount === 0 ? (
+          <Box className="GoliathSettingsCardRow GoliathSettingsFeedRow">
+            <Typography className="GoliathSettingsFolderEmpty">
+              No feeds in this folder.
+            </Typography>
+          </Box>
+        ) : (
+          children
+        )}
+      </Box>
+    </Box>
   );
 };
 
@@ -372,6 +674,11 @@ interface FeedRowProps {
     toFolderId: FolderId,
     fromFolderId: FolderId
   ) => Promise<void>;
+  moveFeedToNewFolder: (
+    feedId: FeedId,
+    folderName: string,
+    fromFolderId: FolderId
+  ) => Promise<void>;
   unsubscribeFeed: (feedId: FeedId) => Promise<void>;
   onFeedsChanged: () => void;
 }
@@ -383,12 +690,14 @@ const FeedRow: React.FC<FeedRowProps> = ({
   onSetMode,
   renameFeed,
   moveFeed,
+  moveFeedToNewFolder,
   unsubscribeFeed,
   onFeedsChanged,
 }) => {
   const plainTitle = extractText(feed.title) || feed.title;
   const [title, setTitle] = useState(plainTitle);
   const [folderId, setFolderId] = useState<FolderId>(feed.folder_id);
+  const [newFolderName, setNewFolderName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -397,6 +706,7 @@ const FeedRow: React.FC<FeedRowProps> = ({
   const enterMode = (next: RowMode) => {
     setTitle(plainTitle);
     setFolderId(feed.folder_id);
+    setNewFolderName('');
     setError(null);
     onSetMode(next);
   };
@@ -432,6 +742,16 @@ const FeedRow: React.FC<FeedRowProps> = ({
     if (busy) {
       return;
     }
+    if (folderId === NewFolderChoice) {
+      const name = newFolderName.trim();
+      const problem = folderNameProblem(name);
+      if (problem !== null) {
+        setError(problem);
+        return;
+      }
+      run(() => moveFeedToNewFolder(feed.id, name, feed.folder_id));
+      return;
+    }
     if (folderId === feed.folder_id) {
       onSetMode(null);
       return;
@@ -465,13 +785,7 @@ const FeedRow: React.FC<FeedRowProps> = ({
       type={onClick === undefined ? 'submit' : 'button'}
       onClick={onClick}
       disabled={busy}
-      startIcon={
-        busy ? (
-          <CircularProgress size={14} color="inherit" />
-        ) : (
-          <CheckTwoToneIcon />
-        )
-      }
+      startIcon={busyIcon(busy, <CheckTwoToneIcon />)}
     >
       {label}
     </Button>
@@ -499,22 +813,51 @@ const FeedRow: React.FC<FeedRowProps> = ({
       case 'move':
         return (
           <Box className="GoliathSettingsFeedEditor">
-            <Select
-              size="small"
-              fullWidth
-              value={folderId}
-              disabled={busy}
-              onChange={(e) => setFolderId(e.target.value as FolderId)}
-              className="GoliathAccentField"
-              inputProps={{ 'aria-label': 'Folder' }}
-              MenuProps={{ classes: { paper: 'GoliathMenuPaper' } }}
-            >
-              {folders.map((f) => (
-                <MenuItem key={f.id} value={f.id}>
-                  {f.title}
+            <Box className="GoliathSettingsMoveTargets">
+              <Select
+                size="small"
+                fullWidth
+                value={folderId}
+                disabled={busy}
+                onChange={(e) => {
+                  setFolderId(e.target.value as FolderId);
+                  setError(null);
+                }}
+                className="GoliathAccentField"
+                inputProps={{ 'aria-label': 'Folder' }}
+                MenuProps={{ classes: { paper: 'GoliathMenuPaper' } }}
+              >
+                {folders.map((f) => (
+                  <MenuItem key={f.id} value={f.id}>
+                    {f.title}
+                  </MenuItem>
+                ))}
+                <MenuItem
+                  value={NewFolderChoice}
+                  className="GoliathNewFolderChoice"
+                >
+                  New folder…
                 </MenuItem>
-              ))}
-            </Select>
+              </Select>
+              {folderId === NewFolderChoice && (
+                <TextField
+                  autoFocus
+                  size="small"
+                  fullWidth
+                  placeholder="Folder name"
+                  value={newFolderName}
+                  disabled={busy}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleMove();
+                    }
+                  }}
+                  className="GoliathAccentField"
+                  slotProps={{ htmlInput: { 'aria-label': 'New folder name' } }}
+                />
+              )}
+            </Box>
             {confirmButton('Move', handleMove)}
             {cancelButton}
           </Box>
@@ -531,13 +874,7 @@ const FeedRow: React.FC<FeedRowProps> = ({
               className="GoliathDangerButton"
               onClick={handleUnsubscribe}
               disabled={busy}
-              startIcon={
-                busy ? (
-                  <CircularProgress size={14} color="inherit" />
-                ) : (
-                  <DeleteTwoToneIcon />
-                )
-              }
+              startIcon={busyIcon(busy, <DeleteTwoToneIcon />)}
             >
               Unsubscribe
             </Button>

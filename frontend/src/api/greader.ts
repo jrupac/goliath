@@ -1,4 +1,4 @@
-import { AddedFeed, FetchAPI, LoginInfo } from './interface';
+import { AddedFeed, FetchAPI, FolderSummary, LoginInfo } from './interface';
 import {
   ArticleSelection,
   FeedSelection,
@@ -24,6 +24,7 @@ import {
   GReaderSubscription,
   GReaderSubscriptionList,
   GReaderTag,
+  GReaderTagList,
   GReaderURI,
   GoliathURI,
 } from './greaderTypes';
@@ -271,6 +272,77 @@ export default class GReader implements FetchAPI {
     formData.set('s', this.feedStreamId(feedId));
 
     await this.editSubscription(formData, 'Unsubscribing');
+  }
+
+  public async MoveFeedToNewFolder(
+    feedId: FeedId,
+    folderName: string,
+    fromFolderId?: FolderId
+  ): Promise<void> {
+    const formData = new FormData();
+    formData.set('ac', 'edit');
+    formData.set('s', this.feedStreamId(feedId));
+    // A name where a move would give an ID: the server files the feed under
+    // the folder of that name, and makes the folder if there is none.
+    formData.set('a', this.folderLabel(folderName));
+    if (fromFolderId !== undefined) {
+      formData.set('r', this.folderStreamId(fromFolderId));
+    }
+
+    await this.editSubscription(formData, 'Creating the folder');
+  }
+
+  public async ListFolders(): Promise<FolderSummary[]> {
+    const res: Response = await this.doFetch({ uri: GReaderURI.TagList });
+
+    if (!res.ok) {
+      throw new Error('Listing folders failed: ' + res.statusText);
+    }
+
+    const result: string = await res.text();
+    const tagList: GReaderTagList = parseJson(result);
+    return (tagList.tags ?? [])
+      .filter((tag) => tag.type === 'folder')
+      .map((tag) => ({
+        id: this.parseFolderID(tag.id),
+        title: tag.label ?? '',
+      }));
+  }
+
+  public async RenameFolder(folderId: FolderId, name: string): Promise<void> {
+    const formData = new FormData();
+    formData.set('s', this.folderStreamId(folderId));
+    formData.set('dest', this.folderLabel(name));
+
+    const res: Response = await this.doFetch({
+      uri: GReaderURI.RenameTag,
+      formData: formData,
+    });
+
+    if (!res.ok) {
+      // Folder names are unique, and a clash is the one refusal the user can
+      // act on without knowing anything more.
+      if (res.status === 409) {
+        throw new Error('Another folder already has that name.');
+      }
+      console.log('Renaming the folder failed: ' + res.statusText);
+      throw new Error('Renaming the folder failed: ' + res.statusText);
+    }
+  }
+
+  public async DeleteFolder(folderId: FolderId): Promise<void> {
+    const formData = new FormData();
+    formData.set('s', this.folderStreamId(folderId));
+
+    const res: Response = await this.doFetch({
+      uri: GReaderURI.DisableTag,
+      formData: formData,
+    });
+
+    if (!res.ok) {
+      console.log('Removing the folder failed: ' + res.statusText);
+      throw new Error('Removing the folder failed: ' + res.statusText);
+    }
   }
 
   private async editSubscription(
@@ -614,6 +686,12 @@ export default class GReader implements FetchAPI {
 
   private folderStreamId(folderId: FolderId): string {
     return 'user/-/label/' + folderId;
+  }
+
+  // The same stream form carrying a name instead of an ID, which the server
+  // tells apart by whether it reads as a number.
+  private folderLabel(name: string): string {
+    return 'user/-/label/' + name;
   }
 
   private parseFeedID(uri: string): string {

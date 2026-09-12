@@ -22,8 +22,10 @@ describe('QuickAddDialog', () => {
     open: true,
     onClose: vi.fn(),
     folderFeedView,
+    listFolders: vi.fn().mockResolvedValue([]),
     addFeed: vi.fn().mockResolvedValue({ id: '2', title: 'Fresh' }),
     moveFeed: vi.fn().mockResolvedValue(undefined),
+    moveFeedToNewFolder: vi.fn().mockResolvedValue(undefined),
     unsubscribeFeed: vi.fn().mockResolvedValue(undefined),
     onChanged: vi.fn(),
     ...overrides,
@@ -113,5 +115,75 @@ describe('QuickAddDialog', () => {
       await screen.findByText('That address is not a feed.')
     ).toBeInTheDocument();
     expect(props.onClose).not.toHaveBeenCalled();
+  });
+
+  const chooseFolder = async (name: string) => {
+    fireEvent.mouseDown(screen.getByRole('combobox'));
+    fireEvent.click(await screen.findByRole('option', { name }));
+  };
+
+  it('files the feed under a new folder when one is named', async () => {
+    const props = makeProps();
+    render(<QuickAddDialog {...props} />);
+
+    await submitUrl('https://example.com/feed');
+    await screen.findByText('Fresh');
+    await chooseFolder('New folder…');
+    fireEvent.change(screen.getByLabelText('New folder name'), {
+      target: { value: ' Reading ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    await waitFor(() => expect(props.onClose).toHaveBeenCalled());
+    expect(props.moveFeedToNewFolder).toHaveBeenCalledWith('2', 'Reading');
+    expect(props.moveFeed).not.toHaveBeenCalled();
+  });
+
+  // Folders are named to the server by numeric ID, so a numeric name would be
+  // read as one.
+  it('refuses a new folder name that is just a number', async () => {
+    const props = makeProps();
+    render(<QuickAddDialog {...props} />);
+
+    await submitUrl('https://example.com/feed');
+    await screen.findByText('Fresh');
+    await chooseFolder('New folder…');
+    fireEvent.change(screen.getByLabelText('New folder name'), {
+      target: { value: '2024' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    expect(
+      await screen.findByText(/cannot be just a number/)
+    ).toBeInTheDocument();
+    expect(props.moveFeedToNewFolder).not.toHaveBeenCalled();
+    expect(props.onClose).not.toHaveBeenCalled();
+  });
+
+  // A folder holding no feeds is missing from the view, which is built from
+  // subscriptions, but a feed can still be filed there.
+  it('offers folders that hold no feeds', async () => {
+    const props = makeProps({
+      listFolders: vi.fn().mockResolvedValue([
+        { id: '1', title: 'Uncategorized' },
+        { id: '10', title: 'News' },
+        { id: '11', title: 'Empty' },
+      ]),
+    });
+    render(<QuickAddDialog {...props} />);
+
+    await submitUrl('https://example.com/feed');
+    await screen.findByText('Fresh');
+    fireEvent.mouseDown(screen.getByRole('combobox'));
+    expect(await screen.findByRole('option', { name: 'Empty' })).toBeTruthy();
+    expect(screen.getAllByRole('option', { name: 'News' })).toHaveLength(1);
+    expect(
+      screen.getAllByRole('option', { name: 'Uncategorized' })
+    ).toHaveLength(1);
+    fireEvent.click(screen.getByRole('option', { name: 'Empty' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    await waitFor(() => expect(props.onClose).toHaveBeenCalled());
+    expect(props.moveFeed).toHaveBeenCalledWith('2', '11');
   });
 });
