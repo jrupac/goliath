@@ -726,10 +726,10 @@ func (crdb *Crdb) InsertFeedForUser(u models.User, f models.Feed, folderId int64
 	return feedID, err
 }
 
-// InsertFolderForUser inserts a new folder into the database. If `parentId` is
-// 0, the folder is assumed to be the root folder. Otherwise, the folder will be
-// nested under the folder with that ID. On error, -1 is returned for the folder
-// ID.
+// InsertFolderForUser inserts a new folder into the database, nested under the
+// folder with ID `parentId`. A `parentId` of 0 files it under the root folder,
+// or, for the root folder itself, under nothing. On error, -1 is returned for
+// the folder ID.
 func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId int64) (int64, error) {
 	defer logElapsedTime(time.Now(), "InsertFolderForUser")
 
@@ -761,9 +761,8 @@ func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId i
 		return errFolderId, fmt.Errorf("failed to insert folder: %w", err)
 	}
 
-	// If the parentID is not the root, update the FolderChildren mapping.
-	// If the parentID is root, there is nothing to update.
-	if parentId != 0 {
+	switch {
+	case parentId != 0:
 		query = `
 			INSERT INTO FolderChildren(userid, parent, child) 
 			VALUES($1, $2, $3)
@@ -772,6 +771,23 @@ func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId i
 		_, err = tx.ExecContext(ctx, query, u.UserId, parentId, folderID)
 		if err != nil {
 			return errFolderId, fmt.Errorf("failed to insert into FolderChildren: %w", err)
+		}
+	case f.Name != models.RootFolder:
+		// Filed under the root, which is where a folder given no parent belongs.
+		// Unlinked, it would still hold feeds and still be listed to clients,
+		// but anything walking the hierarchy from the root -- OPML export --
+		// would pass over it and every feed in it. A folder the insert merged
+		// into keeps whatever parent it already has.
+		query = `
+			INSERT INTO FolderChildren(userid, parent, child)
+			SELECT userid, id, $2 FROM Folder
+			WHERE userid = $1 AND name = $3
+			AND NOT EXISTS (SELECT 1 FROM FolderChildren WHERE userid = $1 AND child = $2)
+			ON CONFLICT (userid, parent, child) DO NOTHING
+		`
+		_, err = tx.ExecContext(ctx, query, u.UserId, folderID, models.RootFolder)
+		if err != nil {
+			return errFolderId, fmt.Errorf("failed to file folder under the root: %w", err)
 		}
 	}
 
@@ -852,6 +868,81 @@ func (crdb *Crdb) DeleteFeedForUser(u models.User, feedId int64, folderId int64)
 	}
 
 	return nil
+}
+
+// ErrRootFolder reports an attempt to remove the root folder. It is where a
+// feed goes when it is filed nowhere else, so every user has to have one.
+var ErrRootFolder = errors.New("the root folder cannot be removed")
+
+// DeleteFolderForUser removes one of the user's folders and returns how many
+// feeds it held. A folder that is not theirs is reported as sql.ErrNoRows.
+//
+// The feeds in it move to the root folder rather than going with it: removing
+// a way of filing feeds is not a request to unsubscribe from them. Their
+// articles follow through the cascade on Article's key to Feed. A folder nested
+// inside it moves up to the root in the same way.
+//
+// One transaction, so that a failure part-way leaves the folder as it was
+// rather than half emptied.
+func (crdb *Crdb) DeleteFolderForUser(u models.User, folderId int64) (int64, error) {
+	defer logElapsedTime(time.Now(), "DeleteFolderForUser")
+
+	ctx, cancel := context.WithTimeout(context.Background(), maxOperationTime)
+	defer cancel()
+	tx, err := crdb.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer rollbackSilent(tx)
+
+	var name string
+	query := `SELECT name FROM Folder WHERE userid = $1 AND id = $2`
+	if err = tx.QueryRowContext(ctx, query, u.UserId, folderId).Scan(&name); err != nil {
+		return 0, err
+	}
+	if name == models.RootFolder {
+		return 0, ErrRootFolder
+	}
+
+	var rootId int64
+	query = `SELECT id FROM Folder WHERE userid = $1 AND name = $2`
+	if err = tx.QueryRowContext(ctx, query, u.UserId, models.RootFolder).Scan(&rootId); err != nil {
+		return 0, fmt.Errorf("failed to find the root folder: %w", err)
+	}
+
+	query = `UPDATE Feed SET folder = $3 WHERE userid = $1 AND folder = $2`
+	res, err := tx.ExecContext(ctx, query, u.UserId, folderId, rootId)
+	if err != nil {
+		return 0, fmt.Errorf("failed to move feeds to the root folder: %w", err)
+	}
+	moved, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to count moved feeds: %w", err)
+	}
+
+	query = `
+		INSERT INTO FolderChildren(userid, parent, child)
+		SELECT userid, $3::INT8, child FROM FolderChildren WHERE userid = $1 AND parent = $2
+		ON CONFLICT (userid, parent, child) DO NOTHING
+	`
+	if _, err = tx.ExecContext(ctx, query, u.UserId, folderId, rootId); err != nil {
+		return 0, fmt.Errorf("failed to move subfolders to the root folder: %w", err)
+	}
+
+	query = `DELETE FROM FolderChildren WHERE userid = $1 AND (parent = $2 OR child = $2)`
+	if _, err = tx.ExecContext(ctx, query, u.UserId, folderId); err != nil {
+		return 0, fmt.Errorf("failed to unlink folder: %w", err)
+	}
+
+	query = `DELETE FROM Folder WHERE userid = $1 AND id = $2`
+	if _, err = tx.ExecContext(ctx, query, u.UserId, folderId); err != nil {
+		return 0, fmt.Errorf("failed to delete folder: %w", err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return moved, nil
 }
 
 /*******************************************************************************
@@ -1062,6 +1153,43 @@ func (crdb *Crdb) UpdateFolderForFeedForUser(u models.User, feedId int64, folder
 	query := `UPDATE Feed SET folder = $1 WHERE userid = $2 and id = $3`
 	_, err := crdb.db.Exec(query, folderId, u.UserId, feedId)
 	return err
+}
+
+// ErrFolderNameTaken reports a rename onto a name another of the user's
+// folders already has. Names are unique per user, and two folders answering to
+// one name could not be told apart by anyone looking at the list.
+var ErrFolderNameTaken = errors.New("folder name is already taken")
+
+// RenameFolderForUser gives one of the user's folders a new name, reporting a
+// folder that is not theirs as sql.ErrNoRows.
+//
+// The root is excluded by the statement itself rather than left to callers:
+// its stored name is how it is found, so renaming it would leave the user with
+// no root at all.
+func (crdb *Crdb) RenameFolderForUser(u models.User, folderId int64, name string) error {
+	defer logElapsedTime(time.Now(), "RenameFolderForUser")
+
+	if err := models.ValidateFolderName(name); err != nil {
+		return err
+	}
+
+	query := `UPDATE Folder SET name = $3 WHERE userid = $1 AND id = $2 AND name != $4`
+	res, err := crdb.db.Exec(query, u.UserId, folderId, name, models.RootFolder)
+	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code.Name() == "unique_violation" {
+			return ErrFolderNameTaken
+		}
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 // UpdateArticleParsedContentForUser updates the parsed content column of the article.

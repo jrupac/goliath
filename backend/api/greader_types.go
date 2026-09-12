@@ -38,6 +38,23 @@ type greaderSubscriptionList struct {
 	Subscriptions []greaderSubscription `json:"subscriptions"`
 }
 
+// greaderTag is one entry in tag/list: a state stream, or one of the user's
+// folders.
+//
+// A folder's ID carries its numeric ID rather than its name, as everywhere
+// else, so the name travels separately in Label; a client that took the name
+// from the tail of the ID would show a number. Type marks a folder as a folder,
+// as distinct from a label applied to items.
+type greaderTag struct {
+	Id    string `json:"id"`
+	Label string `json:"label,omitempty"`
+	Type  string `json:"type,omitempty"`
+}
+
+type greaderTagList struct {
+	Tags []greaderTag `json:"tags"`
+}
+
 type greaderCanonical struct {
 	Href string `json:"href"`
 }

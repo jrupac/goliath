@@ -1,12 +1,14 @@
 package api
 
 import (
+	"cmp"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -140,6 +142,12 @@ func (a GReader) route(w http.ResponseWriter, r *http.Request) {
 		a.withAuth(w, r, a.handleQuickAdd)
 	case "/greader/reader/api/0/subscription/edit":
 		a.withAuth(w, r, a.handleSubscriptionEdit)
+	case "/greader/reader/api/0/tag/list":
+		a.withAuth(w, r, a.handleTagList)
+	case "/greader/reader/api/0/rename-tag":
+		a.withAuth(w, r, a.handleRenameTag)
+	case "/greader/reader/api/0/disable-tag":
+		a.withAuth(w, r, a.handleDisableTag)
 	case "/greader/ext/parse-full-article":
 		a.withAuth(w, r, a.handleParseFullArticle)
 	default:
@@ -765,30 +773,92 @@ func (a GReader) destinationFolder(
 		return root.ID, true
 	}
 
-	folderId, err := parseFolderId(addLabel)
-	if err != nil {
-		log.Warningf("Invalid folder ID: %s", addLabel)
-		a.returnError(w, http.StatusBadRequest)
-		return 0, false
-	}
 	if removeLabel != "" {
 		if from, err := parseFolderId(removeLabel); err == nil && from != feed.FolderID {
 			log.Warningf("Client moved feed %d from folder %d, but it is in %d",
 				feed.ID, from, feed.FolderID)
 		}
 	}
-	if _, err = a.d.GetFolderForUser(user, folderId); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			log.Warningf("User %s asked to move feed %d into folder %d, which is not theirs",
-				user.Username, feed.ID, folderId)
-			a.returnError(w, http.StatusNotFound)
-			return 0, false
-		}
-		log.Warningf("Failed to look up folder %d: %s", folderId, err)
-		a.returnError(w, http.StatusInternalServerError)
+	// If the desination folder does not exist, this is the path by which it is created.
+	folder, ok := a.folderForLabel(w, user, addLabel, true)
+	if !ok {
 		return 0, false
 	}
-	return folderId, true
+	return folder.ID, true
+}
+
+// folderForLabel finds the user's folder a label names, writing the error
+// response and reporting false if it cannot. With create set, a name that
+// matches none of the user's folders makes one, filed under the root.
+//
+// A label is `user/-/label/<x>` or a bare <x>. An <x> that reads as a number is
+// a folder ID, which is what this server hands out; anything else is a folder
+// name, which is what other servers hand out and what a client sends when it
+// is making a folder up. A folder whose name is itself a number is therefore
+// reachable only by its ID. The root's display name resolves to the root, so
+// that filing a feed under the category a client was shown puts it back where
+// it came from.
+func (a GReader) folderForLabel(
+	w http.ResponseWriter, user models.User, label string, create bool) (models.Folder, bool) {
+
+	tail, isLabel := strings.CutPrefix(label, folderStreamPrefix)
+	if !isLabel && strings.Contains(label, "/") {
+		// Another kind of stream ID, such as a state. Taken as a name it would
+		// make a folder called "user/-/state/...".
+		log.Warningf("Not a folder label: %q", label)
+		a.returnError(w, http.StatusBadRequest)
+		return models.Folder{}, false
+	}
+
+	if id, err := strconv.ParseInt(tail, 10, 64); err == nil {
+		folder, err := a.d.GetFolderForUser(user, id)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				log.Warningf("User %s named folder %d, which is not theirs", user.Username, id)
+				a.returnError(w, http.StatusNotFound)
+				return models.Folder{}, false
+			}
+			log.Warningf("Failed to look up folder %d: %s", id, err)
+			a.returnError(w, http.StatusInternalServerError)
+			return models.Folder{}, false
+		}
+		return folder, true
+	}
+
+	name := strings.TrimSpace(tail)
+	if name == "" {
+		log.Warningf("Empty folder label: %q", label)
+		a.returnError(w, http.StatusBadRequest)
+		return models.Folder{}, false
+	}
+
+	folders, err := a.d.GetAllFoldersForUser(user)
+	if err != nil {
+		log.Warningf("Failed to list folders for user %s: %s", user.Username, err)
+		a.returnError(w, http.StatusInternalServerError)
+		return models.Folder{}, false
+	}
+	isRoot := strings.EqualFold(name, models.RootFolderDisplayName)
+	for _, f := range folders {
+		if (isRoot && f.Name == models.RootFolder) || (!isRoot && f.Name == name) {
+			return f, true
+		}
+	}
+
+	if !create || isRoot {
+		log.Warningf("User %s named folder %q, which does not exist", user.Username, name)
+		a.returnError(w, http.StatusNotFound)
+		return models.Folder{}, false
+	}
+
+	id, err := a.d.InsertFolderForUser(user, models.Folder{Name: name}, 0)
+	if err != nil {
+		log.Warningf("Failed to create folder %q for user %s: %s", name, user.Username, err)
+		a.returnError(w, http.StatusInternalServerError)
+		return models.Folder{}, false
+	}
+	log.Infof("Created folder %d (%q) for user %s", id, name, user.Username)
+	return models.Folder{ID: id, Name: name}, true
 }
 
 // moveFeedToFolder repoints a feed at another folder.
@@ -834,6 +904,144 @@ func (a GReader) unsubscribeFeed(w http.ResponseWriter, r *http.Request, user mo
 	}
 
 	log.Warningf("Unsubscribed user %s from feed %d", user.Username, feed.ID)
+	_, _ = w.Write([]byte("OK"))
+}
+
+// handleTagList lists the user's folders, along with the state a client can
+// file items under.
+//
+// The root is listed under its display name, as subscription/list presents
+// it, so that every category a client sees on a feed is also a tag it can find
+// here.
+func (a GReader) handleTagList(w http.ResponseWriter, _ *http.Request, user models.User) {
+	folders, err := a.d.GetAllFoldersForUser(user)
+	if err != nil {
+		log.Warningf("Failed to list folders for user %s: %s", user.Username, err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+	slices.SortFunc(folders, func(x, y models.Folder) int { return cmp.Compare(x.ID, y.ID) })
+
+	tags := greaderTagList{Tags: []greaderTag{{Id: starredStreamId}}}
+	for _, f := range folders {
+		label := f.Name
+		if f.Name == models.RootFolder {
+			label = models.RootFolderDisplayName
+		}
+		tags.Tags = append(tags.Tags, greaderTag{Id: greaderFolderId(f.ID), Label: label, Type: "folder"})
+	}
+	a.returnSuccess(w, tags)
+}
+
+// handleRenameTag renames one of the user's folders.
+//
+// The folder is named by `s`, or by `t`, which some clients use instead; the
+// new name is `dest`, which is always a name, whether as `user/-/label/<name>`
+// or bare. A folder keeps its ID across a rename, so nothing filed under it
+// moves and no ID a client holds stops working.
+func (a GReader) handleRenameTag(w http.ResponseWriter, r *http.Request, user models.User) {
+	if !a.checkPostToken(w, r, user) {
+		return
+	}
+
+	source := r.Form.Get("s")
+	if source == "" {
+		source = r.Form.Get("t")
+	}
+	dest := r.Form.Get("dest")
+	name, isLabel := strings.CutPrefix(dest, folderStreamPrefix)
+	name = strings.TrimSpace(name)
+	if source == "" || name == "" || (!isLabel && strings.Contains(dest, "/")) {
+		log.Warningf("Invalid rename of folder %q to %q", source, dest)
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	folder, ok := a.folderForLabel(w, user, source, false)
+	if !ok {
+		return
+	}
+	if folder.Name == models.RootFolder {
+		log.Warningf("Refusing to rename the root folder for user %s", user.Username)
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+	if err := models.ValidateFolderName(name); err != nil {
+		log.Warningf("Refusing to rename folder %d: %s", folder.ID, err)
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	switch err := a.d.RenameFolderForUser(user, folder.ID, name); {
+	case err == nil:
+	case errors.Is(err, storage.ErrFolderNameTaken):
+		log.Warningf("Refusing to rename folder %d to %q, which another folder has", folder.ID, name)
+		a.returnError(w, http.StatusConflict)
+		return
+	case errors.Is(err, sql.ErrNoRows):
+		a.returnError(w, http.StatusNotFound)
+		return
+	default:
+		log.Warningf("Failed to rename folder %d: %s", folder.ID, err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
+	log.Infof("Renamed folder %d from %q to %q for user %s", folder.ID, folder.Name, name, user.Username)
+	_, _ = w.Write([]byte("OK"))
+}
+
+// handleDisableTag removes one or more of the user's folders, moving the feeds
+// in each to the root folder.
+//
+// Folders are named by `s`, which may repeat, or by `t`. Every one is resolved
+// before any is removed, so that a request naming a folder the user does not
+// own changes nothing, rather than removing whichever folders were listed
+// before it.
+func (a GReader) handleDisableTag(w http.ResponseWriter, r *http.Request, user models.User) {
+	if !a.checkPostToken(w, r, user) {
+		return
+	}
+
+	labels := slices.Concat(r.Form["s"], r.Form["t"])
+	if len(labels) == 0 {
+		log.Warningf("Missing folder to remove")
+		a.returnError(w, http.StatusBadRequest)
+		return
+	}
+
+	var folders []models.Folder
+	for _, label := range labels {
+		folder, ok := a.folderForLabel(w, user, label, false)
+		if !ok {
+			return
+		}
+		if folder.Name == models.RootFolder {
+			log.Warningf("Refusing to remove the root folder for user %s", user.Username)
+			a.returnError(w, http.StatusBadRequest)
+			return
+		}
+		if !slices.ContainsFunc(folders, func(f models.Folder) bool { return f.ID == folder.ID }) {
+			folders = append(folders, folder)
+		}
+	}
+
+	// Paused across the change for the same reason as a move: the feeds leaving
+	// each folder change the key their articles are stored under.
+	fetch.Pause()
+	defer fetch.Resume()
+
+	for _, folder := range folders {
+		moved, err := a.d.DeleteFolderForUser(user, folder.ID)
+		if err != nil {
+			log.Warningf("Failed to remove folder %d: %s", folder.ID, err)
+			a.returnError(w, http.StatusInternalServerError)
+			return
+		}
+		log.Warningf("Removed folder %d (%q) for user %s, moving %d feeds to the root, requested by %q",
+			folder.ID, folder.Name, user.Username, moved, r.Header.Get("User-Agent"))
+	}
+
 	_, _ = w.Write([]byte("OK"))
 }
 

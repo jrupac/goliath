@@ -88,6 +88,7 @@ type Database interface {
 	DeleteArticlesForUser(models.User, time.Time) (int64, error)
 	DeleteArticlesByIdForUser(models.User, []int64) error
 	DeleteFeedForUser(models.User, int64, int64) error
+	DeleteFolderForUser(models.User, int64) (int64, error)
 
 	// Marking
 
@@ -102,6 +103,7 @@ type Database interface {
 	UpdateLatestTimeForFeedForUser(models.User, int64, int64, time.Time) error
 	UpdateEstimatedRefreshIntervalForFeedForUser(models.User, int64, int64, int) error
 	UpdateFolderForFeedForUser(models.User, int64, int64) error
+	RenameFolderForUser(models.User, int64, string) error
 	UpdateArticleParsedContentForUser(models.User, int64, string) error
 	UpdateArticleContentForUser(models.User, int64, string, string) error
 

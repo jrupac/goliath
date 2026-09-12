@@ -54,6 +54,9 @@ type MockDB struct {
 	OnUpdateFolderForFeedForUser                   func(u models.User, feedID, folderID int64) error
 	OnUpdateFeedMetadataForUser                    func(u models.User, f models.Feed) error
 	OnDeleteFeedForUser                            func(u models.User, feedID, folderID int64) error
+	OnInsertFolderForUser                          func(u models.User, f models.Folder, parentID int64) (int64, error)
+	OnRenameFolderForUser                          func(u models.User, folderID int64, name string) error
+	OnDeleteFolderForUser                          func(u models.User, folderID int64) (int64, error)
 }
 
 func (m *MockDB) Open(string) error            { return nil }
@@ -156,7 +159,22 @@ func (m *MockDB) InsertFeedForUser(u models.User, f models.Feed, folderID int64)
 	}
 	return 0, nil
 }
-func (m *MockDB) InsertFolderForUser(models.User, models.Folder, int64) (int64, error) {
+func (m *MockDB) InsertFolderForUser(u models.User, f models.Folder, parentID int64) (int64, error) {
+	if m.OnInsertFolderForUser != nil {
+		return m.OnInsertFolderForUser(u, f, parentID)
+	}
+	return 0, nil
+}
+func (m *MockDB) RenameFolderForUser(u models.User, folderID int64, name string) error {
+	if m.OnRenameFolderForUser != nil {
+		return m.OnRenameFolderForUser(u, folderID, name)
+	}
+	return nil
+}
+func (m *MockDB) DeleteFolderForUser(u models.User, folderID int64) (int64, error) {
+	if m.OnDeleteFolderForUser != nil {
+		return m.OnDeleteFolderForUser(u, folderID)
+	}
 	return 0, nil
 }
 func (m *MockDB) DeleteArticlesForUser(models.User, time.Time) (int64, error) { return 0, nil }
