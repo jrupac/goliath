@@ -72,7 +72,7 @@ FROM backend_source AS backend_debug
 ARG BUILD_TIMESTAMP=0
 ARG BUILD_HASH=debug
 
-RUN CGO_ENABLED=0 GOOS=linux go build -mod=vendor -v -gcflags="all=-N -l" -ldflags \
+RUN CGO_ENABLED=0 GOOS=linux go build -v -gcflags="all=-N -l" -ldflags \
     "-X main.buildTimestamp=${BUILD_TIMESTAMP} \
     -X main.buildHash=${BUILD_HASH}" \
     -o goliath

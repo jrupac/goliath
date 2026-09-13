@@ -1,9 +1,7 @@
 # The image must be reproducible from source alone, so host build artifacts
-# must never enter the build context. `backend/vendor/` in particular is a
-# gitignored local artifact that Go picks up automatically: once it drifts from
-# backend/go.mod (Dependabot bumps the module, nothing regenerates the vendor
-# dir) the Docker build fails while local `go build` still passes, because the
-# go.work workspace resolves against the root vendor/ instead.
+# must never enter the build context. Modules are downloaded inside the build;
+# a vendor directory on the host is not used, and Go would pick one up
+# automatically and fail the build once it drifted from go.mod.
 vendor
 **/vendor
 node_modules
