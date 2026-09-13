@@ -181,7 +181,7 @@ func runUpgrade(o upgradeOptions) {
 	latest := migrations[len(migrations)-1].Version
 
 	fmt.Printf("Ensuring %s is running...\n", dbService)
-	startService(o.env, dbService)
+	startDatabase(o.env, dbService, dbContainer)
 
 	applied, versioned, err := readApplied(dbContainer)
 	if err != nil {
@@ -296,7 +296,7 @@ func runUpgrade(o upgradeOptions) {
 	}
 
 	next("Starting %s service...", appService)
-	startService(o.env, appService)
+	startApp(o.env, appService)
 
 	next("Waiting for %s to report build %s and schema v%d...", o.versionURL, hash, latest)
 	want := expectedVersion{Hash: hash, Schema: latest, DBSchema: latest}

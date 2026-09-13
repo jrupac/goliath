@@ -44,8 +44,8 @@ services:
     build:
       target: prod
       args:
-        - BUILD_TIMESTAMP=${BUILD_TIMESTAMP}
-        - BUILD_HASH=${BUILD_HASH}
+        - BUILD_TIMESTAMP=${BUILD_TIMESTAMP:-0}
+        - BUILD_HASH=${BUILD_HASH:-unknown}
     container_name: "goliath"
     dns: 8.8.8.8
     profiles: ["prod"]
@@ -81,7 +81,11 @@ services:
     networks:
       - goliath-backend
     ports:
-      - "8080:8080"
+      # CockroachDB's admin UI. The cluster runs insecure, so it is reachable
+      # from this host only. Set GOLIATH_CRDB_UI_PORT in .env where the port is
+      # taken, rather than editing this file: a modified checkout stops
+      # `goliath-cli upgrade` from pulling.
+      - "127.0.0.1:${GOLIATH_CRDB_UI_PORT:-8080}:8080"
 
   prometheus:
     <<: *prometheus_template

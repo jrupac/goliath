@@ -37,7 +37,7 @@ Example:
 			_, dbService, dbContainer := getServiceNames(env)
 			fmt.Println("Error: --checkpoint flag is required")
 			fmt.Println()
-			startService(env, dbService)
+			startDatabase(env, dbService, dbContainer)
 			printAvailableCheckpoints(env, dbContainer)
 			os.Exit(1)
 		}
@@ -61,7 +61,7 @@ listed here; restore those with tools/dev-db/restore.sh.`,
 		_, dbService, dbContainer := getServiceNames(env)
 
 		fmt.Printf("Ensuring %s is running...\n", dbService)
-		startService(env, dbService)
+		startDatabase(env, dbService, dbContainer)
 		fmt.Println()
 
 		printAvailableCheckpoints(env, dbContainer)
@@ -89,7 +89,7 @@ func runRollback(env, requested string, force bool) {
 	// The database has to be up before checkpoints can be listed, since it is
 	// the database that holds them.
 	fmt.Printf("[1/6] Ensuring %s is running...\n", dbService)
-	startService(env, dbService)
+	startDatabase(env, dbService, dbContainer)
 
 	fmt.Printf("[2/6] Locating checkpoint %s...\n", requested)
 	checkpoint, found, err := resolveCheckpoint(dbContainer, requested)
@@ -142,7 +142,7 @@ func runRollback(env, requested string, force bool) {
 	}
 
 	fmt.Printf("[6/6] Starting %s service...\n", appService)
-	startService(env, appService)
+	startApp(env, appService)
 
 	fmt.Println()
 	fmt.Println("Rollback completed successfully!")

@@ -67,7 +67,7 @@ func runDeployRollback(env string, forceFull, yes bool, versionURL string) {
 	}
 
 	fmt.Printf("Ensuring %s is running...\n", dbService)
-	startService(env, dbService)
+	startDatabase(env, dbService, dbContainer)
 	applied, _, err := readApplied(dbContainer)
 	if err != nil {
 		exitWith("%v", err)
@@ -118,7 +118,7 @@ func runDeployRollback(env string, forceFull, yes bool, versionURL string) {
 	if err = tagImage(rec.PreviousImage, repo+":latest"); err != nil {
 		exitWith("tagging the previous image: %v", err)
 	}
-	startService(env, appService)
+	startApp(env, appService)
 
 	if rec.PreviousHash == "" {
 		fmt.Printf("Waiting for %s to answer...\n", versionURL)

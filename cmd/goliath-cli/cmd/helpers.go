@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -566,9 +567,50 @@ func stopService(env, service string) {
 	}
 }
 
-func startService(env, service string) {
-	args := []string{"compose", "--profile", env, "up", "-d", service}
-	cmd := exec.Command("docker", args...)
+// databaseReadyTimeout bounds how long a started CockroachDB has to begin
+// answering queries.
+const databaseReadyTimeout = 90 * time.Second
+
+// startDatabase starts the database service if it is not running, and waits
+// until it answers queries.
+//
+// An existing container is never recreated, even when its compose
+// configuration has changed since it was created. Making sure the database is
+// running never means replacing it, and a configuration that cannot start --
+// a port some other process has taken since is enough -- would leave it down.
+func startDatabase(env, service, container string) {
+	composeUp(env, "--no-recreate", service)
+
+	deadline := time.Now().Add(databaseReadyTimeout)
+	waiting := false
+	for {
+		_, err := commandOutput("docker", "exec", container, "./cockroach", "sql", "--insecure", "-e", "SELECT 1")
+		if err == nil {
+			return
+		}
+		if time.Now().After(deadline) {
+			fmt.Printf("Error: %s did not answer within %s: %v\n", service, databaseReadyTimeout, err)
+			os.Exit(1)
+		}
+		if !waiting {
+			// A container that has just started accepts connections a few
+			// seconds after compose reports it running.
+			fmt.Printf("Waiting for %s to accept connections...\n", service)
+			waiting = true
+		}
+		time.Sleep(time.Second)
+	}
+}
+
+// startApp starts the application service, recreating its container if its
+// image or configuration has changed. Its dependencies are left as they are:
+// starting the application must not recreate the database as a side effect.
+func startApp(env, service string) {
+	composeUp(env, "--no-deps", service)
+}
+
+func composeUp(env, flag, service string) {
+	cmd := exec.Command("docker", "compose", "--profile", env, "up", "-d", flag, service)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {

@@ -95,7 +95,7 @@ func runMigration(env string, target, baseline int, skipCheckpoint bool) {
 	// The database has to be up to say what it has had, and deciding that
 	// first means a run with nothing to do never stops the application.
 	fmt.Printf("Ensuring %s is running...\n", dbService)
-	startService(env, dbService)
+	startDatabase(env, dbService, dbContainer)
 
 	applied, versioned, err := readApplied(dbContainer)
 	if err != nil {
@@ -159,7 +159,7 @@ func runMigration(env string, target, baseline int, skipCheckpoint bool) {
 	}
 
 	next("Starting %s service...", appService)
-	startService(env, appService)
+	startApp(env, appService)
 
 	fmt.Println()
 	fmt.Println("Migration completed successfully!")
