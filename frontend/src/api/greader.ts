@@ -235,10 +235,35 @@ export default class GReader implements FetchAPI {
       throw new Error('That address is not a feed.');
     }
 
+    const id = this.parseFeedID(response.streamId);
     return {
-      id: this.parseFeedID(response.streamId),
+      id,
       title: response.streamName,
+      folderId: await this.folderOfFeed(id),
     };
+  }
+
+  // folderOfFeed finds which folder a feed is filed in, from the subscription
+  // list, since an add does not say. Not finding out is no reason to report
+  // the add as failed, so it is reported as not knowing.
+  private async folderOfFeed(feedId: FeedId): Promise<FolderId | undefined> {
+    try {
+      const res: Response = await this.doFetch({
+        uri: GReaderURI.SubscriptionList,
+      });
+      if (!res.ok) {
+        return undefined;
+      }
+      const list: GReaderSubscriptionList = parseJson(await res.text());
+      const sub = list.subscriptions?.find(
+        (s) => s.id === this.feedStreamId(feedId)
+      );
+      const category = sub?.categories?.[0];
+      return category ? this.parseFolderID(category.id) : undefined;
+    } catch (err) {
+      console.log(`Finding the folder of feed ${feedId} failed: ${err}`);
+      return undefined;
+    }
   }
 
   public async RenameFeed(feedId: FeedId, title: string): Promise<void> {

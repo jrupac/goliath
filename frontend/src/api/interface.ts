@@ -16,6 +16,10 @@ export type LoginInfo = {
 export type AddedFeed = {
   id: FeedId;
   title: string;
+  // The folder the feed is filed in, when it could be found. An add usually
+  // files it nowhere, but one that turns out to be a subscription the user
+  // already had, or one they had removed and got back, keeps its folder.
+  folderId?: FolderId;
 };
 
 // FolderSummary is one of the user's folders as the server lists them. The

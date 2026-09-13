@@ -157,22 +157,48 @@ describe('feed management', () => {
     global.fetch = mockFetch;
   });
 
+  const quickAdded = okText(
+    '{"query":"https://example.com/feed","numResults":1,' +
+      '"streamId":"feed/385100064196591617","streamName":"Example"}'
+  );
+
   it('AddFeed sends the address and reads back the new feed', async () => {
-    mockFetch.mockResolvedValueOnce(
-      okText(
-        '{"query":"https://example.com/feed","numResults":1,' +
-          '"streamId":"feed/385100064196591617","streamName":"Example"}'
-      )
-    );
+    mockFetch
+      .mockResolvedValueOnce(quickAdded)
+      .mockResolvedValueOnce(
+        okText(
+          '{"subscriptions":[{"id":"feed/385100064196591617","title":"Example",' +
+            '"categories":[{"id":"user/-/label/385100062825611265","label":"Comics"}]}]}'
+        )
+      );
 
     const added = await greader.AddFeed('https://example.com/feed');
 
-    expect(added).toEqual({ id: '385100064196591617', title: 'Example' });
+    expect(added).toEqual({
+      id: '385100064196591617',
+      title: 'Example',
+      folderId: '385100062825611265',
+    });
     expect(mockFetch.mock.calls[0][0]).toBe(
       '/greader/reader/api/0/subscription/quickadd'
     );
     const form = mockFetch.mock.calls[0][1].body as FormData;
     expect(form.get('quickadd')).toBe('https://example.com/feed');
+  });
+
+  // Which folder the feed landed in is looked up after the add, and failing to
+  // find out does not undo a subscription that succeeded.
+  it('AddFeed still reports the feed when its folder cannot be found', async () => {
+    mockFetch.mockResolvedValueOnce(quickAdded).mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      headers: new Headers(),
+    });
+
+    const added = await greader.AddFeed('https://example.com/feed');
+
+    expect(added).toEqual({ id: '385100064196591617', title: 'Example' });
   });
 
   // The server answers a bad address with a client error. That is the user's

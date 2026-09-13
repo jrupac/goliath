@@ -186,4 +186,46 @@ describe('QuickAddDialog', () => {
     await waitFor(() => expect(props.onClose).toHaveBeenCalled());
     expect(props.moveFeed).toHaveBeenCalledWith('2', '11');
   });
+
+  // An address already subscribed, or a feed removed and got back, is filed
+  // where it was. Starting the picker at the unfiled folder would move it out
+  // of there on Done.
+  it('starts at the folder the feed is already in, and leaves it there', async () => {
+    const props = makeProps({
+      addFeed: vi
+        .fn()
+        .mockResolvedValue({ id: '2', title: 'Back', folderId: '10' }),
+    });
+    render(<QuickAddDialog {...props} />);
+
+    await submitUrl('https://example.com/feed');
+    await screen.findByText('Back');
+    expect(screen.getByRole('combobox')).toHaveTextContent('News');
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    await waitFor(() => expect(props.onClose).toHaveBeenCalled());
+    expect(props.moveFeed).not.toHaveBeenCalled();
+    expect(props.onChanged).toHaveBeenCalled();
+  });
+
+  it('takes a filed feed out of its folder when Uncategorized is chosen', async () => {
+    const props = makeProps({
+      listFolders: vi.fn().mockResolvedValue([
+        { id: '1', title: 'Uncategorized' },
+        { id: '10', title: 'News' },
+      ]),
+      addFeed: vi
+        .fn()
+        .mockResolvedValue({ id: '2', title: 'Back', folderId: '10' }),
+    });
+    render(<QuickAddDialog {...props} />);
+
+    await submitUrl('https://example.com/feed');
+    await screen.findByText('Back');
+    await chooseFolder('Uncategorized');
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+
+    await waitFor(() => expect(props.onClose).toHaveBeenCalled());
+    expect(props.moveFeed).toHaveBeenCalledWith('2', '1');
+  });
 });

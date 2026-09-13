@@ -45,9 +45,9 @@ export const folderNameProblem = (name: string): string | null => {
   return null;
 };
 
-// Sentinel for the folder picker meaning "leave the feed where the add put
-// it", which is the unfiled folder whether or not the client has seen it yet.
-// Real folder IDs are numeric, so this cannot collide with one.
+// Sentinel for the folder picker meaning the unfiled folder, whether or not
+// the client has seen it yet. Real folder IDs are numeric, so this cannot
+// collide with one.
 const KeepUnfiled = 'unfiled';
 
 export interface QuickAddDialogProps {
@@ -75,6 +75,10 @@ type Step = 'url' | 'folder';
  * subscribed, in which case the add created nothing and there is nothing to
  * undo. The server reports both cases identically, so which one it was is
  * decided by whether the feed it names was already known here.
+ *
+ * The folder step starts at the folder the feed is actually in. That is the
+ * unfiled one for a new subscription, but not for an address already
+ * subscribed, nor for a feed the user had removed and got back.
  */
 const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
   open,
@@ -94,6 +98,9 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
   const [added, setAdded] = useState<AddedFeed | null>(null);
   const [alreadySubscribed, setAlreadySubscribed] = useState(false);
   const [folderId, setFolderId] = useState<FolderId>(KeepUnfiled);
+  // Where the feed is, in the picker's terms, so that Done moves it only if
+  // a different folder was chosen.
+  const [currentFolderId, setCurrentFolderId] = useState<FolderId>(KeepUnfiled);
   const [newFolderName, setNewFolderName] = useState('');
   const [listed, setListed] = useState<FolderSummary[]>([]);
 
@@ -107,6 +114,7 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
     setAdded(null);
     setAlreadySubscribed(false);
     setFolderId(KeepUnfiled);
+    setCurrentFolderId(KeepUnfiled);
     setNewFolderName('');
     setListed([]);
   };
@@ -132,12 +140,32 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
 
   // A failure here leaves only the folders already known on offer, which is
   // no reason to report the add itself as having failed.
-  const loadFolders = async () => {
+  const loadFolders = async (): Promise<FolderSummary[]> => {
     try {
-      setListed(await listFolders());
+      const found = await listFolders();
+      setListed(found);
+      return found;
     } catch (err) {
       console.error(`Failed to list folders: ${err}`);
+      return [];
     }
+  };
+
+  const unfiledFolderId = [...folders, ...listed].find(
+    (f) => f.title === UnfiledFolderTitle
+  )?.id;
+
+  // The picker's value for the folder a feed is in. A folder the picker does
+  // not offer is taken as unfiled, which leaves the feed where it is.
+  const pickerValueFor = (
+    feedFolderId: FolderId | undefined,
+    found: FolderSummary[]
+  ): FolderId => {
+    const offered = [...folders, ...found].find((f) => f.id === feedFolderId);
+    if (offered === undefined || offered.title === UnfiledFolderTitle) {
+      return KeepUnfiled;
+    }
+    return offered.id;
   };
 
   const handleSubmitUrl = async (e: FormEvent) => {
@@ -151,10 +179,13 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
     setError(null);
     try {
       const feed = await addFeed(trimmed);
+      const found = await loadFolders();
+      const current = pickerValueFor(feed.folderId, found);
       setAdded(feed);
       setAlreadySubscribed(knownFeedIds.has(feed.id));
+      setCurrentFolderId(current);
+      setFolderId(current);
       setStep('folder');
-      await loadFolders();
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -166,7 +197,7 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
     if (added === null || busy) {
       return;
     }
-    if (folderId === KeepUnfiled) {
+    if (folderId === currentFolderId) {
       onChanged();
       onClose();
       return;
@@ -181,6 +212,14 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
         return;
       }
       move = () => moveFeedToNewFolder(added.id, name);
+    } else if (folderId === KeepUnfiled) {
+      // Reached only for a feed already filed somewhere, which is being
+      // taken out of its folder.
+      if (unfiledFolderId === undefined) {
+        setError(`Could not find the ${UnfiledFolderTitle} folder.`);
+        return;
+      }
+      move = () => moveFeed(added.id, unfiledFolderId);
     } else {
       move = () => moveFeed(added.id, folderId);
     }
