@@ -32,12 +32,8 @@ var upgradeCmd = &cobra.Command{
 The image that was running stays tagged :previous, and with the checkpoint is
 what 'goliath-cli rollback' returns to. One deploy back is kept.
 
-A database without the SchemaVersion table needs --baseline, as for
-migrate-schema.
-
 Examples:
   goliath-cli upgrade
-  goliath-cli upgrade --baseline v25
   goliath-cli upgrade --env dev --database upgrade_test --no-pull`,
 	GroupID: "lifecycle",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -48,17 +44,8 @@ Examples:
 		o.pruneBuildCache, _ = cmd.Flags().GetBool("prune-build-cache")
 		o.versionURL, _ = cmd.Flags().GetString("version-url")
 		o.resumedFrom, _ = cmd.Flags().GetString("resumed-from")
-		baselineFlag, _ := cmd.Flags().GetString("baseline")
 		useDatabase(cmd)
 		getServiceNames(o.env)
-
-		if baselineFlag != "" {
-			var err error
-			if o.baseline, err = parseVersion(baselineFlag); err != nil {
-				fmt.Printf("Error: --baseline: %v\n", err)
-				os.Exit(1)
-			}
-		}
 
 		if o.resumedFrom == "" {
 			prepareUpgrade(o.noPull)
@@ -70,7 +57,6 @@ Examples:
 
 type upgradeOptions struct {
 	env             string
-	baseline        int
 	noPull          bool
 	yes             bool
 	pruneBuildCache bool
@@ -82,7 +68,6 @@ func init() {
 	rootCmd.AddCommand(upgradeCmd)
 	addEnvFlag(upgradeCmd)
 	addDatabaseFlag(upgradeCmd)
-	upgradeCmd.Flags().String("baseline", "", "For a database without the SchemaVersion table: the newest migration it has had (e.g., v25)")
 	upgradeCmd.Flags().Bool("no-pull", false, "Deploy the checkout as it is, without fetching")
 	upgradeCmd.Flags().Bool("yes", false, "Skip the confirmation prompt")
 	upgradeCmd.Flags().Bool("prune-build-cache", false, "Also prune Docker's build cache, which is shared by everything on the host")
@@ -187,7 +172,7 @@ func runUpgrade(o upgradeOptions) {
 	if err != nil {
 		exitWith("%v", err)
 	}
-	plan, err := makePlan(migrations, applied, versioned, o.baseline, 0)
+	plan, err := makePlan(migrations, applied, versioned, 0)
 	if err != nil {
 		exitWith("%v", err)
 	}
@@ -215,9 +200,6 @@ func runUpgrade(o upgradeOptions) {
 	fmt.Printf("  schema: v%d -> v%d\n", plan.From, latest)
 	if len(plan.Pending) > 0 {
 		fmt.Print(describePending(plan.Pending))
-	}
-	if plan.Baseline != nil {
-		fmt.Printf("  %s records no schema version and is taken to be at v%d.\n", schemaDatabase, plan.From)
 	}
 	fmt.Println()
 	switch {

@@ -55,8 +55,8 @@ type Migration struct {
 }
 
 // firstAnnotated is the first version whose file must declare what it does to
-// older binaries. Earlier ones predate the declaration and are only ever
-// recorded as part of a baseline, never applied one by one.
+// older binaries. Earlier ones predate the declaration, and are never applied
+// one by one: every database that records its version is already past them.
 const firstAnnotated = 26
 
 // compatHeader is the declaration a migration carries in its leading comment
@@ -184,8 +184,8 @@ type Applied struct {
 
 // ErrUnversioned is a database with no record of its migrations.
 var ErrUnversioned = errors.New(
-	"database records no schema version; record the one it is at with " +
-		"`goliath-cli migrate-schema --baseline vNN`")
+	"database records no schema version, so which migrations it has had is unknown; " +
+		"check that the database named is the right one")
 
 // Current is the version a database is at: the newest migration it has had.
 func Current(applied []Applied) int {

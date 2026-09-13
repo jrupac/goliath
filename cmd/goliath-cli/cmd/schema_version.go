@@ -23,11 +23,6 @@ import (
 // whichever build of the CLI is doing it.
 var migrationsDir = filepath.Join("backend", "schema")
 
-// baselineName is what the tracking table records for a baseline: a single
-// row standing for every migration up to its version, which the database had
-// before anything recorded them.
-const baselineName = "baseline"
-
 func loadMigrations() ([]schema.Migration, error) {
 	migrations, err := schema.Load(os.DirFS(migrationsDir))
 	if err != nil {
@@ -159,49 +154,20 @@ func parseApplied(records [][]string) ([]schema.Applied, error) {
 
 // Plan is what a run will do to a database.
 type Plan struct {
-	// From is the version the database is at, or the baseline it is taken to
-	// be at.
+	// From is the version the database is at.
 	From    int
 	Pending []schema.Migration
-	// Baseline is set for a database without the tracking table. It stands
-	// for every migration up to From, and is recorded, along with every
-	// pending migration, only once one of them has created the table.
-	Baseline *schema.Applied
 }
-
-// creates matches a migration that creates the tracking table.
-var createsTrackingTable = regexp.MustCompile(`(?i)CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?SchemaVersion\b`)
 
 // makePlan decides what a run applies.
 //
-// A database without the tracking table predates it, and only whoever is
-// running this knows which migrations it has had: that is the baseline, and
-// it is refused for a database that records its own version, which it knows
-// better. Such a run has to include the migration creating the table, since
-// nothing can be recorded until it exists.
-func makePlan(migrations []schema.Migration, applied []schema.Applied, versioned bool, baseline, target int) (Plan, error) {
+// A database that records nothing is refused, whether it lacks the tracking
+// table or has an empty one: which migrations it has had is then a guess, and
+// guessing is how a migration gets run twice.
+func makePlan(migrations []schema.Migration, applied []schema.Applied, versioned bool, target int) (Plan, error) {
 	if !versioned {
-		if baseline == 0 {
-			return Plan{}, errors.New("the database records no schema version; say which version it is " +
-				"already at, the newest migration it has had, with --baseline vNN")
-		}
-		base := schema.Applied{Version: baseline, Name: baselineName, BreaksOlderBinaries: true}
-		pending, err := planPending(migrations, []schema.Applied{base}, target)
-		if err != nil {
-			return Plan{}, err
-		}
-		for _, m := range pending {
-			if createsTrackingTable.MatchString(m.SQL) {
-				return Plan{From: baseline, Pending: pending, Baseline: &base}, nil
-			}
-		}
-		return Plan{}, errors.New("none of the migrations this would apply creates the SchemaVersion " +
-			"table, so nothing could be recorded; the baseline or --version is too late")
-	}
-
-	if baseline != 0 {
-		return Plan{}, fmt.Errorf("the database already records schema v%d; --baseline is only for "+
-			"one that records nothing", schema.Current(applied))
+		return Plan{}, fmt.Errorf("%s has no SchemaVersion table, so which migrations it has had "+
+			"is unknown; check that --database names the right one", schemaDatabase)
 	}
 	if len(applied) == 0 {
 		// The table exists but is empty: something went wrong, and guessing
@@ -253,8 +219,8 @@ func planPending(migrations []schema.Migration, applied []schema.Applied, target
 }
 
 // safeRecordName admits what the tracking table's name column is given: a
-// migration's file name, which schema.Load has already matched, or the
-// baseline's. It is a backstop for interpolation, as checkpointIdSafe is.
+// migration's file name, which schema.Load has already matched. It is a
+// backstop for interpolation, as checkpointIdSafe is.
 var safeRecordName = regexp.MustCompile(`^[a-z0-9_.]+$`)
 
 // recordStatement is the statement that records a migration as applied.
@@ -267,42 +233,20 @@ func recordStatement(version int, name string, breaks bool) (string, error) {
 		schemaDatabase, version, name, breaks), nil
 }
 
-// apply applies a migration to the database being acted on and, if record is
-// set, records it in the same session, so that the row is written only if
-// every statement before it succeeded: the SQL shell stops at the first error
-// when reading from a pipe.
-func apply(dbContainer string, m schema.Migration, record bool) error {
+// apply applies a migration to the database being acted on and records it in
+// the same session, so that the row is written only if every statement before
+// it succeeded: the SQL shell stops at the first error when reading from a
+// pipe.
+func apply(dbContainer string, m schema.Migration) error {
 	sql, err := forDatabase(m.SQL, schemaDatabase)
 	if err != nil {
 		return fmt.Errorf("%s: %w", m.Name, err)
 	}
-	if record {
-		stmt, err := recordStatement(m.Version, m.Name, m.Compat.BreaksOlderBinaries())
-		if err != nil {
-			return err
-		}
-		sql += "\n" + stmt + "\n"
-	}
-	return crdbExec(dbContainer, sql)
-}
-
-// recordBootstrap records a baseline and the migrations applied after it, in
-// one transaction.
-func recordBootstrap(dbContainer string, baseline schema.Applied, applied []schema.Migration) error {
-	stmts := []string{"BEGIN;"}
-	stmt, err := recordStatement(baseline.Version, baseline.Name, baseline.BreaksOlderBinaries)
+	stmt, err := recordStatement(m.Version, m.Name, m.Compat.BreaksOlderBinaries())
 	if err != nil {
 		return err
 	}
-	stmts = append(stmts, stmt)
-	for _, m := range applied {
-		if stmt, err = recordStatement(m.Version, m.Name, m.Compat.BreaksOlderBinaries()); err != nil {
-			return err
-		}
-		stmts = append(stmts, stmt)
-	}
-	stmts = append(stmts, "COMMIT;")
-	return crdbExec(dbContainer, strings.Join(stmts, "\n"))
+	return crdbExec(dbContainer, sql+"\n"+stmt+"\n")
 }
 
 func describePending(pending []schema.Migration) string {

@@ -20,11 +20,6 @@ Which migrations are pending is decided by the database's SchemaVersion table
 and the files in backend/schema. With --version, migrations are applied up to
 and including that one; without it, up to the newest.
 
-A database that predates the SchemaVersion table has to be told which version
-it is already at. It is recorded at that version, and with every migration
-applied after it, once the migration that creates the table has run:
-  goliath-cli migrate-schema --baseline v25
-
 The checkpoint is a full backup taken while the application is stopped, so
 rolling back to it restores both the schema and the data as they were. Its name
 is printed on completion, along with the command that restores it.
@@ -37,11 +32,10 @@ Examples:
 	Run: func(cmd *cobra.Command, args []string) {
 		env, _ := cmd.Flags().GetString("env")
 		version, _ := cmd.Flags().GetString("version")
-		baselineFlag, _ := cmd.Flags().GetString("baseline")
 		skipCheckpoint, _ := cmd.Flags().GetBool("skip-checkpoint")
 		useDatabase(cmd)
 
-		var target, baseline int
+		var target int
 		var err error
 		if version != "" {
 			if target, err = parseVersion(version); err != nil {
@@ -49,13 +43,7 @@ Examples:
 				os.Exit(1)
 			}
 		}
-		if baselineFlag != "" {
-			if baseline, err = parseVersion(baselineFlag); err != nil {
-				fmt.Printf("Error: --baseline: %v\n", err)
-				os.Exit(1)
-			}
-		}
-		runMigration(env, target, baseline, skipCheckpoint)
+		runMigration(env, target, skipCheckpoint)
 	},
 }
 
@@ -64,7 +52,6 @@ func init() {
 	addEnvFlag(migrateSchemaCmd)
 	addDatabaseFlag(migrateSchemaCmd)
 	migrateSchemaCmd.Flags().String("version", "", "Apply migrations up to and including this one (e.g., v28); the newest if unset")
-	migrateSchemaCmd.Flags().String("baseline", "", "For a database without the SchemaVersion table: the newest migration it has had (e.g., v25)")
 	migrateSchemaCmd.Flags().Bool("skip-checkpoint", false, "Apply the migrations without taking a checkpoint first")
 }
 
@@ -83,7 +70,7 @@ func getServiceNames(env string) (appService, dbService, dbContainer string) {
 	}
 }
 
-func runMigration(env string, target, baseline int, skipCheckpoint bool) {
+func runMigration(env string, target int, skipCheckpoint bool) {
 	appService, dbService, dbContainer := getServiceNames(env)
 
 	migrations, err := loadMigrations()
@@ -102,7 +89,7 @@ func runMigration(env string, target, baseline int, skipCheckpoint bool) {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
-	plan, err := makePlan(migrations, applied, versioned, baseline, target)
+	plan, err := makePlan(migrations, applied, versioned, target)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
@@ -125,11 +112,6 @@ func runMigration(env string, target, baseline int, skipCheckpoint bool) {
 	fmt.Printf("\nMigrating %s (environment: %s) from v%d to v%d:\n%s\n",
 		schemaDatabase, env, plan.From, plan.Pending[len(plan.Pending)-1].Version,
 		describePending(plan.Pending))
-	if plan.Baseline != nil {
-		fmt.Printf("%s records no schema version. It is taken to be at v%d, and is recorded\n", schemaDatabase, plan.From)
-		fmt.Println("as such, with each migration below, once they have all applied.")
-		fmt.Println()
-	}
 
 	// Stopping the application first is what lets the checkpoint be taken as of
 	// now rather than as of a moment in the past: with no writer, there is
@@ -186,30 +168,16 @@ func rollbackCommand(env, checkpoint string) string {
 // the application stays stopped either way, since what it would start against
 // is a schema nobody chose.
 func applyPlan(dbContainer string, plan Plan) error {
-	bootstrap := plan.Baseline != nil
 	for i, m := range plan.Pending {
 		fmt.Printf("        %s\n", m.Name)
-		if err := apply(dbContainer, m, !bootstrap); err != nil {
+		if err := apply(dbContainer, m); err != nil {
 			fmt.Printf("Error applying %s: %v\n", m.Name, err)
 			fmt.Println()
 			if i > 0 {
-				done := fmt.Sprintf("%s through %s", plan.Pending[0].Name, plan.Pending[i-1].Name)
-				if bootstrap {
-					fmt.Printf("Applied before it, and not recorded: %s.\n", done)
-				} else {
-					fmt.Printf("Applied and recorded before it: %s.\n", done)
-				}
+				fmt.Printf("Applied and recorded before it: %s through %s.\n",
+					plan.Pending[0].Name, plan.Pending[i-1].Name)
 			}
 			fmt.Printf("%s may have applied in part, and is not recorded.\n", m.Name)
-			return err
-		}
-	}
-
-	if bootstrap {
-		if err := recordBootstrap(dbContainer, *plan.Baseline, plan.Pending); err != nil {
-			fmt.Printf("Error recording the migrations: %v\n", err)
-			fmt.Println()
-			fmt.Println("Every migration applied, but none is recorded.")
 			return err
 		}
 	}

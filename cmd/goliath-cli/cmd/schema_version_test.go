@@ -40,17 +40,6 @@ func migrationsUpTo(versions ...int) []schema.Migration {
 	return ms
 }
 
-// withTrackingTable makes the migration numbered v the one that creates the
-// tracking table.
-func withTrackingTable(ms []schema.Migration, v int) []schema.Migration {
-	for i := range ms {
-		if ms[i].Version == v {
-			ms[i].SQL += "CREATE TABLE IF NOT EXISTS SchemaVersion (version INT PRIMARY KEY);\n"
-		}
-	}
-	return ms
-}
-
 func versions(ms []schema.Migration) []int {
 	var vs []int
 	for _, m := range ms {
@@ -73,7 +62,7 @@ func equalInts(a, b []int) bool {
 
 func TestPlanPending(t *testing.T) {
 	onDisk := migrationsUpTo(20, 25, 26, 27, 28)
-	at := func(v int) []schema.Applied { return []schema.Applied{{Version: v, Name: baselineName}} }
+	at := func(v int) []schema.Applied { return []schema.Applied{{Version: v, Name: "baseline"}} }
 
 	cases := []struct {
 		name    string
@@ -90,8 +79,8 @@ func TestPlanPending(t *testing.T) {
 		{name: "database ahead of checkout", disk: onDisk, applied: at(29), wantErr: "behind"},
 		{name: "target beyond checkout", disk: onDisk, applied: at(25), target: 30, wantErr: "no migration v30"},
 		{name: "gap in the numbering", disk: migrationsUpTo(25, 26, 28), applied: at(25), wantErr: "no migration v27"},
-		// A baseline at a version with no file of its own is fine: what
-		// matters is that the next file follows it.
+		// A row at a version with no file of its own, as a baseline row is,
+		// is fine: what matters is that the next file follows it.
 		{name: "baseline between files", disk: migrationsUpTo(20, 26), applied: at(25), want: []int{26}},
 	}
 	for _, c := range cases {
@@ -114,7 +103,7 @@ func TestPlanPending(t *testing.T) {
 }
 
 func TestMakePlan(t *testing.T) {
-	onDisk := withTrackingTable(migrationsUpTo(25, 26, 27, 28, 29), 29)
+	onDisk := migrationsUpTo(25, 26, 27, 28, 29)
 	recorded := func(vs ...int) []schema.Applied {
 		var as []schema.Applied
 		for _, v := range vs {
@@ -122,29 +111,26 @@ func TestMakePlan(t *testing.T) {
 		}
 		return as
 	}
+	fromBaseline := append([]schema.Applied{{Version: 25, Name: "baseline", BreaksOlderBinaries: true}}, recorded(26)...)
 
 	cases := []struct {
 		name      string
 		applied   []schema.Applied
 		versioned bool
-		baseline  int
 		target    int
 		want      []int
-		bootstrap bool
 		wantErr   string
 	}{
-		{name: "unversioned, no baseline", wantErr: "--baseline"},
-		{name: "unversioned, with a baseline", baseline: 25, want: []int{26, 27, 28, 29}, bootstrap: true},
-		{name: "unversioned, stopping before the table", baseline: 25, target: 28, wantErr: "creates the SchemaVersion"},
-		{name: "unversioned, baseline past the table", baseline: 29, wantErr: "creates the SchemaVersion"},
-		{name: "versioned, with a baseline", applied: recorded(29), versioned: true, baseline: 25, wantErr: "already records"},
+		{name: "unversioned", wantErr: "no SchemaVersion table"},
 		{name: "versioned but empty", versioned: true, wantErr: "empty"},
 		{name: "versioned", applied: recorded(27), versioned: true, want: []int{28, 29}},
+		{name: "versioned, up to a target", applied: recorded(27), versioned: true, target: 28, want: []int{28}},
 		{name: "versioned, current", applied: recorded(29), versioned: true},
+		{name: "versioned from a baseline row", applied: fromBaseline, versioned: true, want: []int{27, 28, 29}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			plan, err := makePlan(onDisk, c.applied, c.versioned, c.baseline, c.target)
+			plan, err := makePlan(onDisk, c.applied, c.versioned, c.target)
 			if c.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), c.wantErr) {
 					t.Fatalf("err = %v, want one mentioning %q", err, c.wantErr)
@@ -157,25 +143,26 @@ func TestMakePlan(t *testing.T) {
 			if !equalInts(versions(plan.Pending), c.want) {
 				t.Errorf("pending %v, want %v", versions(plan.Pending), c.want)
 			}
-			if (plan.Baseline != nil) != c.bootstrap {
-				t.Errorf("baseline %v, want bootstrap=%v", plan.Baseline, c.bootstrap)
-			}
 		})
 	}
 }
 
-// The migrations in the checkout, not only the fixtures above: the bootstrap
-// has to find the real file that creates the table, and every file it may
-// apply has to be retargetable.
+// The migrations in the checkout, not only the fixtures above: every file a
+// run may apply, taking the oldest recorded version as its start, has to be
+// retargetable.
 func TestCheckoutMigrations(t *testing.T) {
 	migrations, err := schema.Load(os.DirFS(filepath.Join("..", "..", "..", "backend", "schema")))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	plan, err := makePlan(migrations, nil, false, 25, 0)
+	oldest := []schema.Applied{{Version: 25, Name: "baseline", BreaksOlderBinaries: true}}
+	plan, err := makePlan(migrations, oldest, true, 0)
 	if err != nil {
-		t.Fatalf("bootstrapping from the production baseline: %v", err)
+		t.Fatalf("planning from v25: %v", err)
+	}
+	if len(plan.Pending) == 0 {
+		t.Fatal("nothing to apply after v25")
 	}
 	for _, m := range plan.Pending {
 		if _, err := forDatabase(m.SQL, "upgrade_test"); err != nil {
@@ -236,9 +223,6 @@ func TestParseApplied(t *testing.T) {
 func TestRecordStatementRefusesUnsafeNames(t *testing.T) {
 	if _, err := recordStatement(26, "v26_x.sql", false); err != nil {
 		t.Errorf("refused a migration file name: %v", err)
-	}
-	if _, err := recordStatement(1, baselineName, true); err != nil {
-		t.Errorf("refused the baseline name: %v", err)
 	}
 	for _, name := range []string{"x'); DROP DATABASE goliath; --", "v26 x.sql", ""} {
 		if _, err := recordStatement(26, name, false); err == nil {

@@ -81,7 +81,7 @@ func TestCheckpointPath(t *testing.T) {
 
 func TestChooseRollback(t *testing.T) {
 	rec := deployRecord{SchemaFrom: 25}
-	baseline := schema.Applied{Version: 25, Name: baselineName, BreaksOlderBinaries: true}
+	baseline := schema.Applied{Version: 25, Name: "baseline", BreaksOlderBinaries: true}
 	compatible := func(v int) schema.Applied { return schema.Applied{Version: v, Name: "v.sql"} }
 	breaking := func(v int) schema.Applied { return schema.Applied{Version: v, Name: "v.sql", BreaksOlderBinaries: true} }
 
