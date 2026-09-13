@@ -10,11 +10,19 @@ RUN DEBIAN_FRONTEND=noninteractive \
     && apt-get install --no-install-recommends --assume-yes \
     curl \
     git \
-    protobuf-compiler \
+    unzip \
     ca-certificates
 
+# protoc from its release rather than the distribution's package, which is too
+# old to know field options the admin proto uses, such as debug_redact.
+ARG PROTOC_VERSION=36.1
+RUN curl -sSL -o /tmp/protoc.zip \
+    "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOC_VERSION}/protoc-${PROTOC_VERSION}-linux-x86_64.zip" \
+    && unzip -o /tmp/protoc.zip -d /usr/local bin/protoc 'include/*' \
+    && rm /tmp/protoc.zip
+
 # Download pre-built protoc plugins
-ARG PROTOC_GEN_GO_VERSION=1.36.6
+ARG PROTOC_GEN_GO_VERSION=1.36.11
 ARG PROTOC_GEN_GO_GRPC_VERSION=1.5.1
 RUN curl -sSL \
     "https://github.com/protocolbuffers/protobuf-go/releases/download/v${PROTOC_GEN_GO_VERSION}/protoc-gen-go.v${PROTOC_GEN_GO_VERSION}.linux.amd64.tar.gz" \
