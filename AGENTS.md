@@ -146,11 +146,20 @@ The backend serves the built static files from `/` and `/static/`.
 | `UserPrefs` | Per-user mute words, unmuted feed list |
 | `RetrievalCache` | Persisted fetch-state cache |
 
-Schema migrations live in `backend/schema/` as `vNN_<description>.sql`, applied
-via `goliath-cli migrate-schema`. That stops the application, checkpoints the
-database, applies the migration, and restarts, printing the
-`goliath-cli rollback-schema` command that undoes it. Checkpoints are CockroachDB
-backups; list them with `goliath-cli list-checkpoints`.
+Schema migrations live in `backend/schema/` as `vNN_<description>.sql`. Each
+declares in its leading comments whether binaries built before it keep running
+once it is applied (`-- older-binaries: compatible` or `incompatible`). A new
+migration is mirrored in `latest.sql`, which also records the version it stamps
+a new database with. The `SchemaVersion` table records which migrations a
+database has had; the backend refuses to start on a database behind its newest
+migration, or ahead of it on one declared incompatible.
+
+`goliath-cli migrate-schema` applies pending migrations: it stops the
+application, checkpoints the database, applies and records each migration, and
+restarts, printing the `goliath-cli rollback-schema` command that undoes it.
+Checkpoints are CockroachDB backups; list them with
+`goliath-cli list-checkpoints`. `--database` points these commands at a copy,
+for rehearsing.
 
 ## Configuration
 

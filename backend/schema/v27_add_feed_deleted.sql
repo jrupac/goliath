@@ -1,4 +1,6 @@
 -- Add deleted column to Feed table, marking a feed the user unsubscribed from.
+--
+-- older-binaries: compatible
 
 SET DATABASE TO Goliath;
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/opml"
+	"github.com/jrupac/goliath/schema"
 )
 
 // MockDB is a mock implementation of the Database interface for testing.
@@ -98,6 +99,8 @@ func (m *MockDB) PurgeDeletedUsers(before time.Time) (int64, int64, error) {
 	}
 	return 0, 0, nil
 }
+
+func (m *MockDB) GetSchemaVersions() ([]schema.Applied, error) { return nil, nil }
 
 func (m *MockDB) GetUserSummaries() ([]models.UserSummary, error) {
 	if m.OnGetUserSummaries != nil {

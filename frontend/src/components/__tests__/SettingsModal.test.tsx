@@ -37,6 +37,7 @@ describe('SettingsModal folders', () => {
     onShowKeybindings: vi.fn(),
     buildTimestamp: 'now',
     buildHash: 'abc123',
+    schemaVersion: 'v28',
     folderFeedView,
     onAddFeed: vi.fn(),
     renameFeed: vi.fn().mockResolvedValue(undefined),

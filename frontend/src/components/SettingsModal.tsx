@@ -51,6 +51,7 @@ export interface SettingsModalProps {
   onShowKeybindings: () => void;
   buildTimestamp: string;
   buildHash: string;
+  schemaVersion: string;
 
   folderFeedView: Map<FolderView, FeedView[]>;
   onAddFeed: () => void;
@@ -93,6 +94,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onShowKeybindings,
   buildTimestamp,
   buildHash,
+  schemaVersion,
   folderFeedView,
   onAddFeed,
   renameFeed,
@@ -171,6 +173,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               onShowKeybindings={onShowKeybindings}
               buildTimestamp={buildTimestamp}
               buildHash={buildHash}
+              schemaVersion={schemaVersion}
             />
           ) : (
             <FeedSettings
@@ -248,6 +251,7 @@ interface GeneralSettingsProps {
   onShowKeybindings: () => void;
   buildTimestamp: string;
   buildHash: string;
+  schemaVersion: string;
 }
 
 const GeneralSettings: React.FC<GeneralSettingsProps> = ({
@@ -258,6 +262,7 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
   onShowKeybindings,
   buildTimestamp,
   buildHash,
+  schemaVersion,
 }) => (
   <>
     <SettingsGroup title="Appearance">
@@ -304,6 +309,7 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
         Built at {buildTimestamp} &middot;{' '}
         <span className="GoliathSettingsBuildHash">{buildHash}</span>
       </span>
+      <span>Schema {schemaVersion}</span>
     </Box>
   </>
 );

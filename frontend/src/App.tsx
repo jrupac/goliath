@@ -81,6 +81,7 @@ export interface AppProps {}
 export interface AppState {
   buildTimestamp: string;
   buildHash: string;
+  schemaVersion: string;
   selectionKey: SelectionKey;
   selectionType: SelectionType;
   status: Status;
@@ -122,6 +123,7 @@ export default class App extends React.Component<AppProps, AppState> {
     this.state = {
       buildTimestamp: '',
       buildHash: '',
+      schemaVersion: '',
       selectionKey: KeyUnread,
       selectionType: SelectionType.Unread,
       status: Status.Start,
@@ -281,6 +283,7 @@ export default class App extends React.Component<AppProps, AppState> {
     this.setState({
       buildTimestamp: versionData.build_timestamp,
       buildHash: versionData.build_hash,
+      schemaVersion: versionData.schema,
     });
     console.log('Fetched version info.');
 
@@ -766,6 +769,7 @@ export default class App extends React.Component<AppProps, AppState> {
           }
           buildTimestamp={this.state.buildTimestamp}
           buildHash={this.state.buildHash}
+          schemaVersion={this.state.schemaVersion}
           folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
           onAddFeed={() => this.setState({ showQuickAdd: true })}
           renameFeed={(feedId, title) =>

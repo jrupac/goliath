@@ -31,6 +31,7 @@ Example:
 		env, _ := cmd.Flags().GetString("env")
 		checkpoint, _ := cmd.Flags().GetString("checkpoint")
 		force, _ := cmd.Flags().GetBool("force")
+		useDatabase(cmd)
 
 		if checkpoint == "" {
 			_, dbService, dbContainer := getServiceNames(env)
@@ -56,6 +57,7 @@ listed here; restore those with tools/dev-db/restore.sh.`,
 	GroupID: "lifecycle",
 	Run: func(cmd *cobra.Command, args []string) {
 		env, _ := cmd.Flags().GetString("env")
+		useDatabase(cmd)
 		_, dbService, dbContainer := getServiceNames(env)
 
 		fmt.Printf("Ensuring %s is running...\n", dbService)
@@ -71,9 +73,11 @@ func init() {
 	addEnvFlag(rollbackSchemaCmd)
 	rollbackSchemaCmd.Flags().String("checkpoint", "", "Checkpoint to restore (see list-checkpoints)")
 	rollbackSchemaCmd.Flags().Bool("force", false, "Skip the confirmation prompt")
+	addDatabaseFlag(rollbackSchemaCmd)
 
 	rootCmd.AddCommand(listCheckpointsCmd)
 	addEnvFlag(listCheckpointsCmd)
+	addDatabaseFlag(listCheckpointsCmd)
 }
 
 func runRollback(env, requested string, force bool) {
@@ -131,9 +135,9 @@ func runRollback(env, requested string, force bool) {
 		fmt.Printf("Error restoring checkpoint: %v\n", err)
 		fmt.Printf("The database may be in a partial state and %s is stopped.\n", appService)
 		fmt.Println("Both checkpoints are unharmed. Retry with:")
-		fmt.Printf("  goliath-cli rollback-schema --env %s --checkpoint %s\n", env, checkpoint)
+		fmt.Printf("  %s\n", rollbackCommand(env, checkpoint))
 		fmt.Println("Or return to the state from just before this attempt with:")
-		fmt.Printf("  goliath-cli rollback-schema --env %s --checkpoint %s\n", env, undo)
+		fmt.Printf("  %s\n", rollbackCommand(env, undo))
 		os.Exit(1)
 	}
 
@@ -144,5 +148,5 @@ func runRollback(env, requested string, force bool) {
 	fmt.Println("Rollback completed successfully!")
 	fmt.Println()
 	fmt.Println("To undo this rollback, returning to the state from just before it ran:")
-	fmt.Printf("  goliath-cli rollback-schema --env %s --checkpoint %s\n", env, undo)
+	fmt.Printf("  %s\n", rollbackCommand(env, undo))
 }

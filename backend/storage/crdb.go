@@ -14,6 +14,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/opml"
+	"github.com/jrupac/goliath/schema"
 	"github.com/lib/pq"
 )
 
@@ -83,6 +84,34 @@ func (crdb *Crdb) Open(dbPath string) error {
 // Close closes the database connection.
 func (crdb *Crdb) Close() error {
 	return crdb.db.Close()
+}
+
+// GetSchemaVersions returns the migrations the database records having had. A
+// database without the tracking table has recorded none, which is a state to
+// report rather than a failure to query.
+func (crdb *Crdb) GetSchemaVersions() ([]schema.Applied, error) {
+	defer logElapsedTime(time.Now(), "GetSchemaVersions")
+
+	rows, err := crdb.db.Query(
+		`SELECT version, name, breaks_older_binaries FROM SchemaVersion ORDER BY version`)
+	var pqErr *pq.Error
+	if errors.As(err, &pqErr) && pqErr.Code == "42P01" { // undefined_table
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer closeSilent(rows)
+
+	var applied []schema.Applied
+	for rows.Next() {
+		var a schema.Applied
+		if err = rows.Scan(&a.Version, &a.Name, &a.BreaksOlderBinaries); err != nil {
+			return nil, err
+		}
+		applied = append(applied, a)
+	}
+	return applied, rows.Err()
 }
 
 /*******************************************************************************

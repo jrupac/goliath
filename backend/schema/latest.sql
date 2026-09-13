@@ -247,6 +247,26 @@ CREATE TABLE IF NOT EXISTS UserFeedMuteRegexes
             ON DELETE CASCADE
 );
 
+-- Which migrations the database has had, written by goliath-cli as it applies
+-- them and read by the application at startup to decide whether it can run.
+CREATE TABLE IF NOT EXISTS SchemaVersion
+(
+    version               INT PRIMARY KEY,
+    name                  STRING      NOT NULL,
+    applied               TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Whether a binary built before this version must refuse to run once it
+    -- has been applied
+    breaks_older_binaries BOOL        NOT NULL
+);
+
+-- This file always writes the latest schema version and its own file.
+-- It is marked as `breaks_older_binaries` because this file cannot know
+-- what previous migrations may have been done on an existing DB.
+INSERT INTO SchemaVersion (version, name, breaks_older_binaries)
+SELECT 29, 'latest.sql', true
+WHERE NOT EXISTS (SELECT 1 FROM SchemaVersion)
+  AND NOT EXISTS (SELECT 1 FROM UserTable);
+
 -- The application connects as `goliath`, but a table is owned by whoever ran
 -- this file, and a grant on the database does not reach the tables in it. So
 -- every table needs a grant, and this has to be the last statement here: it

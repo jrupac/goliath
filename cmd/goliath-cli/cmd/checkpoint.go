@@ -22,9 +22,6 @@ const (
 	// whereas the URI scheme is a documented interface.
 	checkpointCollection = "nodelocal://1/goliath-checkpoints"
 
-	// schemaDatabase is the database the migrations in backend/schema target.
-	schemaDatabase = "goliath"
-
 	// checkpointAppUser is the SQL user the backend connects as. RESTORE
 	// creates the database owned by root and carries over none of the original
 	// database's grants, so this has to be granted again afterwards. Without
@@ -33,6 +30,10 @@ const (
 	// corrupt restore but is only a missing grant.
 	checkpointAppUser = "goliath"
 )
+
+// schemaDatabase is the database the lifecycle commands act on: the one the
+// migrations in backend/schema target, unless --database names a copy.
+var schemaDatabase = "goliath"
 
 // checkpointIdSafe admits the characters a collection path is built from.
 //
@@ -212,6 +213,6 @@ func printAvailableCheckpoints(env, dbContainer string) {
 	fmt.Println("Available checkpoints, newest first:")
 	for _, name := range names {
 		fmt.Printf("\n  %s\n", name)
-		fmt.Printf("    goliath-cli rollback-schema --env %s --checkpoint %s\n", env, name)
+		fmt.Printf("    %s\n", rollbackCommand(env, name))
 	}
 }

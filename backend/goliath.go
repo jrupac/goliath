@@ -19,6 +19,7 @@ import (
 	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/fetch"
 	"github.com/jrupac/goliath/opml"
+	"github.com/jrupac/goliath/schema"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -36,11 +37,18 @@ var (
 	opmlUsername   = flag.String("opmlUsername", "", "Username of user to import or export OPML.")
 	opmlImportPath = flag.String("opmlImportPath", "", "Path of OPML file to import.")
 	opmlExportPath = flag.String("opmlExportPath", "", "Path to file to export OPML.")
+	// Only for use in unusual cases when running a binary against a different schema version.
+	skipSchemaCheck = flag.Bool("skipSchemaCheck", false,
+		"Start even if the database's schema version says this binary cannot run on it.")
 )
 
 // Linker-overridden variables.
 var buildTimestamp = "<unknown>"
 var buildHash = "<unknown>"
+
+// dbSchemaVersion is the version the database was at when the server started.
+// Only goliath-cli migrates, and it stops the server to do so.
+var dbSchemaVersion int
 
 func main() {
 	iniflags.Parse()
@@ -72,6 +80,7 @@ func main() {
 		}
 	}()
 
+	checkSchema(d)
 	processOpml(d)
 
 	users, err := d.GetAllUsers()
@@ -117,6 +126,25 @@ func main() {
 
 	if err = serve(ctx, d, scheduler); err != nil {
 		log.Infof("%s", err)
+	}
+}
+
+// checkSchema refuses to start against a database this binary cannot use.
+// This can be overridden by the `skipSchemaCheck` flag.
+func checkSchema(d storage.Database) {
+	applied, err := d.GetSchemaVersions()
+	if err != nil {
+		log.Fatalf("Unable to read the database's schema version: %s", err)
+	}
+	dbSchemaVersion = schema.Current(applied)
+	log.Infof("Schema: binary v%d, database v%d", schema.Latest(), dbSchemaVersion)
+
+	if err = schema.Check(schema.Latest(), applied); err != nil {
+		if !*skipSchemaCheck {
+			// A refusal, not a crash, so no stack trace.
+			log.Exitf("Incompatible schema: %s", err)
+		}
+		log.Warningf("Starting despite an incompatible schema, as asked: %s", err)
 	}
 }
 
@@ -238,9 +266,14 @@ func newMux(d storage.Database, subs fetch.Subscriptions) *http.ServeMux {
 func handleVersion(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	resp := map[string]string{
+	resp := map[string]any{
 		"build_timestamp": buildTimestamp,
 		"build_hash":      buildHash,
+		// The newest migration the binary was built with, and the newest the
+		// database had when it started. They differ only when the database is
+		// ahead, on migrations the binary was allowed to run past.
+		"schema_version":    schema.Latest(),
+		"db_schema_version": dbSchemaVersion,
 	}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		log.Warningf("Failed to encode response JSON: %s", err)

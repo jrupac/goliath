@@ -5,6 +5,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/opml"
+	"github.com/jrupac/goliath/schema"
 	"github.com/jrupac/goliath/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"time"
@@ -37,6 +38,7 @@ type Database interface {
 
 	Open(string) error
 	Close() error
+	GetSchemaVersions() ([]schema.Applied, error)
 
 	// User management
 

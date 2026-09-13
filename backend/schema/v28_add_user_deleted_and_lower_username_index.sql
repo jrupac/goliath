@@ -1,5 +1,7 @@
 -- Let a user be deleted and restored before being purged, and make usernames
 -- unique regardless of case.
+--
+-- older-binaries: compatible
 
 SET DATABASE TO Goliath;
 

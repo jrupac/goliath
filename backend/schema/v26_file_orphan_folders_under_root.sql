@@ -1,4 +1,6 @@
 -- File every folder that has no parent under the root folder.
+--
+-- older-binaries: compatible
 
 SET DATABASE TO Goliath;
 
