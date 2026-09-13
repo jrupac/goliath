@@ -180,8 +180,10 @@ make build    # Docker build → ./dist/goliath-cli
 make install  # installs to /usr/local/bin/goliath-cli
 ```
 
-CLI commands: feed CRUD, mute-word management, schema migration and rollback,
-compose operations, SQL shell.
+CLI commands: user management (`add-user`, `list-users`, `delete-user`,
+`restore-user`), sessions
+and password changes, feed CRUD, mute-word management, schema migration and
+rollback, compose operations, SQL shell.
 
 ### Admin gRPC
 
@@ -201,6 +203,38 @@ cd frontend && bun run test
 # Lint frontend
 cd frontend && bun run lint
 ```
+
+Tests named `*_live_test.go` need a real CockroachDB and are skipped without
+one. Most take `GOLIATH_TEST_DB`, the connection string of a throwaway
+database.
+
+The multi-user end-to-end test (`backend/e2e_live_test.go`) runs a whole
+server in-process -- HTTP handlers, admin service, fetch scheduler -- against a
+database it creates and drops, with a local server standing in for feed
+publishers. It needs a cluster connection that can create databases:
+
+```bash
+cd backend
+# Correctness, with the race detector
+GOLIATH_E2E_CRDB='postgresql://root@localhost:26257/defaultdb?sslmode=disable' \
+  go test -race -run TestMultiUserEndToEnd -v .
+# Users start with a share of an existing database's feeds and articles
+GOLIATH_E2E_SEED_DB=<database> ...
+# Sizing run: 100 users x 500 feeds; take timings without -race
+GOLIATH_E2E_SCALE=large GOLIATH_E2E_REPORT=report.json ... -timeout 120m
+```
+
+It ends with a table of per-request latencies.
+
+Nothing a test does should reach a real feed publisher: fetching is per user,
+so many test users multiply the traffic to every site they share.
+`backend/feedtest` serves synthetic feeds from a local address for that, with
+items published on demand and requests counted per feed. `backend/devseed`
+copies a database's feeds and articles to test users, moving each feed onto
+that server. For trying clients by hand,
+`go run ./devseed/seedtesters -db <new> -source <database>` (from `backend/`)
+builds such a database, prints the users' credentials and the flags to point a
+locally run server at it, and serves the feeds until interrupted.
 
 ## CI/CD
 

@@ -201,13 +201,12 @@ func serveMetrics(ctx context.Context) {
 }
 
 func serve(ctx context.Context, d storage.Database, subs fetch.Subscriptions) error {
-	mux := http.NewServeMux()
 	srv := &http.Server{
 		Addr:           fmt.Sprintf(":%d", *port),
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 10,
-		Handler:        mux,
+		Handler:        newMux(d, subs),
 	}
 
 	go func(srv *http.Server) {
@@ -218,6 +217,13 @@ func serve(ctx context.Context, d storage.Database, subs fetch.Subscriptions) er
 		}
 	}(srv)
 
+	log.Infof("Starting HTTP server on %s", srv.Addr)
+	return srv.ListenAndServe()
+}
+
+// newMux routes every path the HTTP server answers.
+func newMux(d storage.Database, subs fetch.Subscriptions) *http.ServeMux {
+	mux := http.NewServeMux()
 	mux.HandleFunc("/auth", auth.HandleLogin(d))
 	mux.HandleFunc("/logout", auth.HandleLogout(d))
 	mux.HandleFunc("/fever/", api.FeverHandler(d))
@@ -226,8 +232,7 @@ func serve(ctx context.Context, d storage.Database, subs fetch.Subscriptions) er
 	mux.Handle("/cache", auth.WithAuth(cache.NewImageProxy(), d, *publicFolder, cache.DenyUnauthenticated, true))
 	mux.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))
 	mux.Handle("/", auth.WithAuth(http.FileServer(http.Dir(*publicFolder)), d, *publicFolder, nil, false))
-	log.Infof("Starting HTTP server on %s", srv.Addr)
-	return srv.ListenAndServe()
+	return mux
 }
 
 func handleVersion(w http.ResponseWriter, _ *http.Request) {

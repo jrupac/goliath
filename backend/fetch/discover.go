@@ -29,6 +29,13 @@ var discoverClient = &http.Client{
 	Transport: utils.GuardedTransport("Feed discovery", discoverTimeout, nil),
 }
 
+// SetDiscoverClientForTesting replaces the client subscriptions are checked
+// with, so that a test can subscribe to feeds served from a local address the
+// guard refuses.
+func SetDiscoverClientForTesting(client *http.Client) {
+	discoverClient = client
+}
+
 // DiscoverFeed fetches `feedURL` and returns what is known about it, or an
 // error describing why it cannot be subscribed to.
 //
