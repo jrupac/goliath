@@ -350,7 +350,7 @@ func (a Fever) handleLinks(_ storage.Database, _ models.User, resp *responseType
 func (a Fever) handleUnreadItemIDs(d storage.Database, u models.User, resp *responseType) error {
 	defer a.recordLatency(time.Now(), "unread_item_ids")
 
-	articles, err := d.GetArticleMetaWithFilterForUser(u, models.StreamFilterUnread, -1, models.StreamCursor{})
+	articles, err := d.GetArticleMetaWithFilterForUser(u, models.Stream{Filter: models.StreamFilterUnread}, -1, models.StreamCursor{})
 	if err != nil {
 		return &apiError{err, true}
 	}

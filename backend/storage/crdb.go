@@ -1653,19 +1653,53 @@ func (crdb *Crdb) GetAllFaviconsForUser(u models.User) (map[int64]string, error)
 const liveArticles = `feed NOT IN (SELECT id FROM Feed WHERE userid = $1 AND deleted IS NOT NULL)`
 
 // articleMetaQuery is the one shape behind every filtered metadata read. The
-// substituted fragments are constants chosen from the stream filter, never
-// caller input; every value travels as a bound parameter.
+// conditions it substitutes come from articleMetaConditions, built from
+// constants and numbered placeholders, never from caller input; every value
+// travels as a bound parameter.
 var articleMetaQuery = template.Must(template.New("articleMeta").Parse(`
 		SELECT id, feed, folder, date
 		FROM Article
-		WHERE userid = $1 AND id > $2 AND {{.Filter}} AND ` + liveArticles + `
-		{{- with .SinceColumn}}
-		  AND {{.}} > $4
+		WHERE userid = $1 AND id > $2 AND ` + liveArticles + `
+		{{- range .}}
+		  AND {{.}}
 		{{- end}}
 		ORDER BY id LIMIT $3
 	`))
 
-// articleMetaQueryFragments names what articleMetaQuery substitutes.
+// articleMetaConditions returns the conditions selecting a stream's articles
+// within a cursor, beyond the user, ID bound and liveness that articleMetaQuery
+// always applies, with the values they bind. Placeholders are numbered from $4,
+// after the three the query binds itself.
+func articleMetaConditions(stream models.Stream, cursor models.StreamCursor) ([]string, []any, error) {
+	fragments, err := articleMetaFragments(stream.Filter)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	conditions := []string{fragments.Filter}
+	var args []any
+	bind := func(v any) string {
+		args = append(args, v)
+		return fmt.Sprintf("$%d", 3+len(args))
+	}
+
+	if stream.ExcludeRead {
+		conditions = append(conditions, "NOT read")
+	}
+	if stream.FeedID != 0 {
+		conditions = append(conditions, "feed = "+bind(stream.FeedID))
+	}
+	if stream.FolderID != 0 {
+		conditions = append(conditions, "folder = "+bind(stream.FolderID))
+	}
+	if !cursor.Since.IsZero() {
+		conditions = append(conditions, fragments.SinceColumn+" > "+bind(cursor.Since))
+	}
+	return conditions, args, nil
+}
+
+// articleMetaQueryFragments are the parts of a read that a stream filter
+// decides.
 type articleMetaQueryFragments struct {
 	// Filter is the predicate selecting the stream's articles.
 	Filter string
@@ -1691,14 +1725,16 @@ func articleMetaFragments(filter models.StreamFilter) (articleMetaQueryFragments
 		return articleMetaQueryFragments{Filter: "saved", SinceColumn: "date"}, nil
 	case models.StreamFilterUnsaved:
 		return articleMetaQueryFragments{Filter: "NOT saved", SinceColumn: "date"}, nil
+	case models.StreamFilterAll:
+		return articleMetaQueryFragments{Filter: "TRUE", SinceColumn: "date"}, nil
 	default:
 		return articleMetaQueryFragments{}, fmt.Errorf("invalid filter: %+v", filter)
 	}
 }
 
-// GetArticleMetaWithFilterForUser returns a list of <=`limit` articles with
-// `filter` within `cursor`. Only metadata fields are returned, not content.
-func (crdb *Crdb) GetArticleMetaWithFilterForUser(u models.User, filter models.StreamFilter, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
+// GetArticleMetaWithFilterForUser returns a list of <=`limit` articles in
+// `stream` within `cursor`. Only metadata fields are returned, not content.
+func (crdb *Crdb) GetArticleMetaWithFilterForUser(u models.User, stream models.Stream, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
 	defer logElapsedTime(time.Now(), "GetUnreadArticleMetaForUser")
 
 	var articles []models.ArticleMeta
@@ -1712,20 +1748,14 @@ func (crdb *Crdb) GetArticleMetaWithFilterForUser(u models.User, filter models.S
 		sinceID = 0
 	}
 
-	fragments, err := articleMetaFragments(filter)
+	conditions, bound, err := articleMetaConditions(stream, cursor)
 	if err != nil {
 		return articles, err
 	}
-
-	args := []any{u.UserId, sinceID, limit}
-	if cursor.Since.IsZero() {
-		fragments.SinceColumn = ""
-	} else {
-		args = append(args, cursor.Since)
-	}
+	args := append([]any{u.UserId, sinceID, limit}, bound...)
 
 	var query strings.Builder
-	if err = articleMetaQuery.Execute(&query, fragments); err != nil {
+	if err = articleMetaQuery.Execute(&query, conditions); err != nil {
 		return articles, fmt.Errorf("failed to build article metadata query: %w", err)
 	}
 

@@ -317,12 +317,16 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 		}
 	}
 
+	// "xt" excludes the items carrying a tag. Read is the tag clients exclude,
+	// asking for only the unread part of a stream, and the only one honoured.
+	excludeRead := false
 	if xt := r.Form.Get("xt"); xt != "" {
 		if xt != readStreamId {
 			log.Warningf("Saw unexpected 'xt' parameter: %s", xt)
 			a.returnError(w, http.StatusNotImplemented)
 			return
 		}
+		excludeRead = true
 	}
 
 	if ot := r.Form.Get("ot"); ot != "" {
@@ -342,34 +346,60 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 		return
 	}
 
-	var articles []models.ArticleMeta
-
+	stream := models.Stream{ExcludeRead: excludeRead}
 	s := r.Form.Get("s")
-	switch s {
-	case starredStreamId:
-		articles, err = a.d.GetArticleMetaWithFilterForUser(user, models.StreamFilterSaved, limit, cursor)
-		if err != nil {
-			a.returnError(w, http.StatusInternalServerError)
-			return
-		}
-	case readingListStreamId:
-		articles, err = a.d.GetArticleMetaWithFilterForUser(user, models.StreamFilterUnread, limit, cursor)
-		if err != nil {
-			a.returnError(w, http.StatusInternalServerError)
-			return
-		}
-	case readStreamId:
+	switch {
+	case s == starredStreamId:
+		stream.Filter = models.StreamFilterSaved
+	case s == readingListStreamId:
+		// Unread whether or not read items are excluded, which clients ask for
+		// on every sync of this stream.
+		stream.Filter = models.StreamFilterUnread
+	case s == readStreamId:
 		// Clients poll this stream to reconcile read state set elsewhere,
 		// bounding it with "ot" so that the answer stays proportional to how
 		// long they have been away.
-		articles, err = a.d.GetArticleMetaWithFilterForUser(user, models.StreamFilterRead, limit, cursor)
+		stream.Filter = models.StreamFilterRead
+	case strings.HasPrefix(s, feedStreamPrefix):
+		// A feed or folder stream holds everything in it, read or not, which
+		// is what clients expect; one wanting only the unread part says so with
+		// "xt".
+		feedId, err := parseFeedId(s)
 		if err != nil {
+			log.Warningf("Invalid feed stream: %s", s)
+			a.returnError(w, http.StatusBadRequest)
+			return
+		}
+		// Looked up under the requester's own ID, as every subscription
+		// operation does, so that someone else's feed reads as one that does
+		// not exist rather than as an empty stream.
+		if _, err = a.d.GetFeedForUser(user, feedId); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				a.returnError(w, http.StatusNotFound)
+				return
+			}
+			log.Warningf("Failed to look up feed %d: %s", feedId, err)
 			a.returnError(w, http.StatusInternalServerError)
 			return
 		}
+		stream.Filter = models.StreamFilterAll
+		stream.FeedID = feedId
+	case strings.HasPrefix(s, folderStreamPrefix):
+		folder, ok := a.folderForLabel(w, user, s, false)
+		if !ok {
+			return
+		}
+		stream.Filter = models.StreamFilterAll
+		stream.FolderID = folder.ID
 	default:
 		log.Warningf("Saw unexpected 's' parameter: %s", s)
 		a.returnError(w, http.StatusNotImplemented)
+		return
+	}
+
+	articles, err := a.d.GetArticleMetaWithFilterForUser(user, stream, limit, cursor)
+	if err != nil {
+		a.returnError(w, http.StatusInternalServerError)
 		return
 	}
 

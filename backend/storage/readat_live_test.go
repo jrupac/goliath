@@ -92,7 +92,7 @@ func TestReadAtAgainstDatabase(t *testing.T) {
 	// `since`.
 	inCursor := func(id int64, since time.Time) bool {
 		metas, err := crdb.GetArticleMetaWithFilterForUser(
-			u, models.StreamFilterRead, MaxFetchedRows, models.StreamCursor{Since: since})
+			u, models.Stream{Filter: models.StreamFilterRead}, MaxFetchedRows, models.StreamCursor{Since: since})
 		if err != nil {
 			t.Fatalf("GetArticleMetaWithFilterForUser: %v", err)
 		}

@@ -46,7 +46,7 @@ type MockDB struct {
 	OnCreateSession                                func(u models.User, scheme models.AuthScheme, userAgent string) (models.Secret, error)
 	OnLookupSession                                func(token models.Secret) (models.User, models.Session, error)
 	OnDeleteSessionForUser                         func(u models.User, id models.SessionId) (int64, error)
-	OnGetArticleMetaWithFilterForUser              func(u models.User, filter models.StreamFilter, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error)
+	OnGetArticleMetaWithFilterForUser              func(u models.User, stream models.Stream, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error)
 	OnGetAllFoldersForUser                         func(u models.User) ([]models.Folder, error)
 	OnGetFeedForUser                               func(u models.User, feedID int64) (models.Feed, error)
 	OnGetFeedByUrlForUser                          func(u models.User, url string) (models.Feed, error)
@@ -296,9 +296,9 @@ func (m *MockDB) GetFolderFeedTreeForUser(models.User) (*models.Folder, error) {
 func (m *MockDB) GetAllFaviconsForUser(models.User) (map[int64]string, error) {
 	return nil, nil
 }
-func (m *MockDB) GetArticleMetaWithFilterForUser(u models.User, filter models.StreamFilter, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
+func (m *MockDB) GetArticleMetaWithFilterForUser(u models.User, stream models.Stream, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
 	if m.OnGetArticleMetaWithFilterForUser != nil {
-		return m.OnGetArticleMetaWithFilterForUser(u, filter, limit, cursor)
+		return m.OnGetArticleMetaWithFilterForUser(u, stream, limit, cursor)
 	}
 	return nil, nil
 }

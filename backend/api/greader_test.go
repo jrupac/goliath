@@ -563,8 +563,8 @@ func streamItemIdsRequest(params url.Values) *http.Request {
 func TestStreamItemIdsReadStreamReturnsReadItems(t *testing.T) {
 	var gotFilter models.StreamFilter
 	mockDB := &storage.MockDB{
-		OnGetArticleMetaWithFilterForUser: func(_ models.User, filter models.StreamFilter, _ int, _ models.StreamCursor) ([]models.ArticleMeta, error) {
-			gotFilter = filter
+		OnGetArticleMetaWithFilterForUser: func(_ models.User, stream models.Stream, _ int, _ models.StreamCursor) ([]models.ArticleMeta, error) {
+			gotFilter = stream.Filter
 			return []models.ArticleMeta{{ID: 12345, FeedID: 7, FolderID: 3}}, nil
 		},
 	}
@@ -598,7 +598,7 @@ func TestStreamItemIdsReadStreamReturnsReadItems(t *testing.T) {
 func TestStreamItemIdsOtIsATimestampNotAnId(t *testing.T) {
 	var got models.StreamCursor
 	mockDB := &storage.MockDB{
-		OnGetArticleMetaWithFilterForUser: func(_ models.User, _ models.StreamFilter, _ int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
+		OnGetArticleMetaWithFilterForUser: func(_ models.User, _ models.Stream, _ int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
 			got = cursor
 			return nil, nil
 		},
@@ -624,7 +624,7 @@ func TestStreamItemIdsOtIsATimestampNotAnId(t *testing.T) {
 func TestStreamItemIdsContinuationAndOtCompose(t *testing.T) {
 	var got models.StreamCursor
 	mockDB := &storage.MockDB{
-		OnGetArticleMetaWithFilterForUser: func(_ models.User, _ models.StreamFilter, _ int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
+		OnGetArticleMetaWithFilterForUser: func(_ models.User, _ models.Stream, _ int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
 			got = cursor
 			return nil, nil
 		},
@@ -665,8 +665,8 @@ func TestStreamItemIdsRejectsUnparseableOt(t *testing.T) {
 func TestStreamItemIdsReadingListStillMeansUnread(t *testing.T) {
 	var gotFilter models.StreamFilter
 	mockDB := &storage.MockDB{
-		OnGetArticleMetaWithFilterForUser: func(_ models.User, filter models.StreamFilter, _ int, _ models.StreamCursor) ([]models.ArticleMeta, error) {
-			gotFilter = filter
+		OnGetArticleMetaWithFilterForUser: func(_ models.User, stream models.Stream, _ int, _ models.StreamCursor) ([]models.ArticleMeta, error) {
+			gotFilter = stream.Filter
 			return nil, nil
 		},
 	}
@@ -683,6 +683,92 @@ func TestStreamItemIdsReadingListStillMeansUnread(t *testing.T) {
 	}
 	if gotFilter != models.StreamFilterUnread {
 		t.Errorf("filter = %v, want StreamFilterUnread", gotFilter)
+	}
+}
+
+// streamFor sends a stream/items/ids request and reports the stream the
+// handler asked the database for, and whether it asked at all.
+func streamFor(t *testing.T, mockDB *storage.MockDB, params url.Values) (models.Stream, bool, int) {
+	t.Helper()
+	var got models.Stream
+	asked := false
+	mockDB.OnGetArticleMetaWithFilterForUser = func(_ models.User, stream models.Stream, _ int, _ models.StreamCursor) ([]models.ArticleMeta, error) {
+		got, asked = stream, true
+		return nil, nil
+	}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleStreamItemIds(w, streamItemIdsRequest(params), models.User{UserId: "u"})
+	return got, asked, w.Result().StatusCode
+}
+
+// A feed stream holds everything in the feed, and "xt" narrows it to the
+// unread part, as clients expect of any stream but the reading list.
+func TestStreamItemIdsFeedStreamHoldsEverythingInTheFeed(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+			return models.Feed{ID: feedID}, nil
+		},
+	}
+
+	got, _, status := streamFor(t, mockDB, url.Values{"s": {"feed/7"}})
+	if want := (models.Stream{Filter: models.StreamFilterAll, FeedID: 7}); status != http.StatusOK || got != want {
+		t.Errorf("s=feed/7: status %d, stream %+v; want 200 and %+v", status, got, want)
+	}
+
+	got, _, status = streamFor(t, mockDB, url.Values{"s": {"feed/7"}, "xt": {readStreamId}})
+	if want := (models.Stream{Filter: models.StreamFilterAll, FeedID: 7, ExcludeRead: true}); status != http.StatusOK || got != want {
+		t.Errorf("s=feed/7&xt=read: status %d, stream %+v; want 200 and %+v", status, got, want)
+	}
+}
+
+// A folder stream is the feeds filed in that folder, named by ID or by name as
+// every other label is.
+func TestStreamItemIdsFolderStream(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetFolderForUser: func(_ models.User, folderID int64) (models.Folder, error) {
+			return models.Folder{ID: folderID, Name: "Comics"}, nil
+		},
+		OnGetAllFoldersForUser: func(models.User) ([]models.Folder, error) {
+			return []models.Folder{{ID: 3, Name: "Comics"}}, nil
+		},
+	}
+
+	for _, s := range []string{"user/-/label/3", "user/-/label/Comics"} {
+		got, _, status := streamFor(t, mockDB, url.Values{"s": {s}})
+		if want := (models.Stream{Filter: models.StreamFilterAll, FolderID: 3}); status != http.StatusOK || got != want {
+			t.Errorf("s=%s: status %d, stream %+v; want 200 and %+v", s, status, got, want)
+		}
+	}
+}
+
+// Someone else's feed or folder reads as one that does not exist, not as an
+// empty stream.
+func TestStreamItemIdsRefusesAnotherUsersFeedOrFolder(t *testing.T) {
+	for _, s := range []string{"feed/7", "user/-/label/3", "user/-/label/Nobody's"} {
+		_, asked, status := streamFor(t, &storage.MockDB{}, url.Values{"s": {s}})
+		if status != http.StatusNotFound || asked {
+			t.Errorf("s=%s: status %d, read articles %t; want 404 and no read", s, status, asked)
+		}
+	}
+}
+
+func TestStreamItemIdsExcludesReadItemsFromAnyStream(t *testing.T) {
+	got, _, status := streamFor(t, &storage.MockDB{}, url.Values{"s": {starredStreamId}, "xt": {readStreamId}})
+	if want := (models.Stream{Filter: models.StreamFilterSaved, ExcludeRead: true}); status != http.StatusOK || got != want {
+		t.Errorf("starred&xt=read: status %d, stream %+v; want 200 and %+v", status, got, want)
+	}
+}
+
+func TestStreamItemIdsRefusesStreamsItDoesNotServe(t *testing.T) {
+	for _, params := range []url.Values{
+		{"s": {broadcastStreamId}},
+		{"s": {"user/-/state/com.google/like"}},
+		{"s": {readingListStreamId}, "xt": {starredStreamId}},
+	} {
+		_, asked, status := streamFor(t, &storage.MockDB{}, params)
+		if status != http.StatusNotImplemented || asked {
+			t.Errorf("%v: status %d, read articles %t; want 501 and no read", params, status, asked)
+		}
 	}
 }
 
@@ -704,7 +790,7 @@ func TestStreamItemIdsClampsLimit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var got int
 			mockDB := &storage.MockDB{
-				OnGetArticleMetaWithFilterForUser: func(_ models.User, _ models.StreamFilter, limit int, _ models.StreamCursor) ([]models.ArticleMeta, error) {
+				OnGetArticleMetaWithFilterForUser: func(_ models.User, _ models.Stream, limit int, _ models.StreamCursor) ([]models.ArticleMeta, error) {
 					got = limit
 					return nil, nil
 				},

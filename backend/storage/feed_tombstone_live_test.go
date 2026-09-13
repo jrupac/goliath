@@ -241,7 +241,7 @@ func checkVisible(t *testing.T, crdb *Crdb, u models.User, id int64, articles []
 func visibleArticles(t *testing.T, crdb *Crdb, u models.User, feedID int64, ids []int64) int {
 	t.Helper()
 	n := 0
-	meta, err := crdb.GetArticleMetaWithFilterForUser(u, models.StreamFilterUnread, -1, models.StreamCursor{SinceID: -1})
+	meta, err := crdb.GetArticleMetaWithFilterForUser(u, models.Stream{Filter: models.StreamFilterUnread}, -1, models.StreamCursor{SinceID: -1})
 	if err != nil {
 		t.Fatalf("GetArticleMetaWithFilterForUser: %v", err)
 	}

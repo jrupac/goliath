@@ -47,7 +47,23 @@ const (
 	StreamFilterUnread
 	StreamFilterSaved
 	StreamFilterUnsaved
+	// StreamFilterAll selects every article, read or not.
+	StreamFilterAll
 )
+
+// Stream selects which of a user's articles a stream holds. How the stream is
+// paged is StreamCursor's business.
+type Stream struct {
+	Filter StreamFilter
+	// FeedID, when set, narrows the stream to one feed.
+	FeedID int64
+	// FolderID, when set, narrows the stream to the feeds filed directly in one
+	// folder: the folder each feed is listed under, not those nested in it.
+	FolderID int64
+	// ExcludeRead leaves read articles out, which is how a client asks for only
+	// the unread part of a stream.
+	ExcludeRead bool
+}
 
 // StreamCursor bounds a query over a stream of articles.
 //
