@@ -192,7 +192,15 @@ make install  # installs to /usr/local/bin/goliath-cli
 CLI commands: user management (`add-user`, `list-users`, `delete-user`,
 `restore-user`), sessions
 and password changes, feed CRUD, mute-word management, schema migration and
-rollback, compose operations, SQL shell.
+rollback, deploys (`upgrade`, `rollback`), compose operations, SQL shell.
+
+`goliath-cli upgrade` is how a deployment is updated: it fast-forwards the
+checkout, rebuilds the CLI and continues in it, builds the new image while the
+old one runs, checkpoints, migrates, starts, and waits for `/version` to report
+the new build and schema. The replaced image stays tagged `:previous`, and
+`goliath-cli rollback` returns to it, restoring the checkpoint too when a
+migration since would stop the old binary. What was deployed is logged in
+`.goliath/deploys.jsonl` on the host.
 
 ### Admin gRPC
 

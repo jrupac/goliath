@@ -17,6 +17,7 @@ build
 # snapshots are large and irrelevant to the image.
 config.ini
 tools/dev-db/snapshots
+.goliath
 
 # Not read during the build; BUILD_HASH/BUILD_TIMESTAMP come in as build args.
 .git

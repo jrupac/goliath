@@ -30,3 +30,6 @@ screenshots/
 
 # Local dev database snapshots (see tools/dev-db/)
 tools/dev-db/snapshots/
+
+# What goliath-cli upgrade and rollback have deployed on this host
+.goliath/

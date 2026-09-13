@@ -134,6 +134,11 @@ services:
   backend-dev: &backend_template
     build:
       target: dev
+      # Set by `goliath-cli upgrade`, so that /version names the build it is
+      # waiting for; otherwise the Dockerfile's own defaults.
+      args:
+        - BUILD_TIMESTAMP=${BUILD_TIMESTAMP:-0}
+        - BUILD_HASH=${BUILD_HASH:-dev}
     container_name: "backend_dev"
     profiles: ["dev"]
     depends_on:
