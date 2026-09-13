@@ -180,6 +180,17 @@ func fetchFuncWithClient(client *http.Client) rss.FetchFunc {
 	}
 }
 
+// iconFinder looks up icons with a besticon finder of its own for each lookup.
+// A besticon finder keeps the icons of its last lookup in itself, so one shared
+// by the workers fetching feeds at once would hand one feed's icons to another.
+type iconFinder struct {
+	b *besticon.Besticon
+}
+
+func (f iconFinder) FetchIcons(url string) ([]besticon.Icon, error) {
+	return f.b.NewIconFinder().FetchIcons(url)
+}
+
 type Fetcher struct {
 	d         storage.Database
 	retCache  cache.RetrievalCache
@@ -194,7 +205,7 @@ func New(d storage.Database, retCache cache.RetrievalCache, allowed utils.Addres
 	return &Fetcher{
 		d:         d,
 		retCache:  retCache,
-		finder:    b.NewIconFinder(),
+		finder:    iconFinder{b},
 		fetchFunc: fetchFuncWithClient(newFeedClient(allowed)),
 	}
 }
