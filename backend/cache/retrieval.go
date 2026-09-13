@@ -117,19 +117,10 @@ func (r *CuckooFilterRetrievalCache) loadCache(d storage.Database) error {
 }
 
 func (r *CuckooFilterRetrievalCache) startPeriodicWriter(ctx context.Context, d storage.Database) {
-	initial := make(chan struct{})
-	tick := make(<-chan time.Time)
-
-	go func() {
-		tick = time.After(*retrievalCacheWriteInterval)
-		initial <- struct{}{}
-	}()
+	tick := time.After(*retrievalCacheWriteInterval)
 
 	for {
 		select {
-		case <-initial:
-			// This is to allow for the first interval to complete.
-			continue
 		case <-tick:
 			r.persistCache(d)
 			tick = time.After(*retrievalCacheWriteInterval)
