@@ -121,7 +121,7 @@ func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetc
 		// Update database and local copy if the estimate changed
 		if newEmaSeconds != emaSeconds {
 			log.V(2).Infof("Updating estimated refresh interval for %s %s to %s", user, feed, time.Duration(newEmaSeconds)*time.Second)
-			err := f.d.UpdateEstimatedRefreshIntervalForFeedForUser(user, feed.FolderID, feed.ID, newEmaSeconds)
+			err := f.d.UpdateEstimatedRefreshIntervalForFeedForUser(user, feed.ID, newEmaSeconds)
 			if err != nil {
 				log.Warningf("Failed to update estimated refresh interval in DB: %s", err)
 			} else {

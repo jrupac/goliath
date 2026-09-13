@@ -36,7 +36,9 @@ type MockDB struct {
 	OnGetAllFeedsForUser                           func(u models.User) ([]models.Feed, error)
 	OnGetAllRetrievalCaches                        func() (map[UserFeedKey]string, error)
 	OnGetActiveFeedKeys                            func() (map[UserFeedKey]bool, error)
-	OnUpdateEstimatedRefreshIntervalForFeedForUser func(u models.User, folderId, id int64, interval int) error
+	OnGetLiveFeedKeys                              func() (map[UserFeedKey]bool, error)
+	OnInsertArticleForUser                         func(u models.User, a models.Article) error
+	OnUpdateEstimatedRefreshIntervalForFeedForUser func(u models.User, id int64, interval int) error
 	OnGetUserByUsername                            func(username string) (models.User, error)
 	OnUpdateUserCredentials                        func(u models.User, hashPass, key models.Secret) error
 	OnGetArticleContentsForUser                    func(u models.User, afterID int64, limit int) ([]models.Article, error)
@@ -53,7 +55,9 @@ type MockDB struct {
 	OnInsertFeedForUser                            func(u models.User, f models.Feed, folderID int64) (int64, error)
 	OnUpdateFolderForFeedForUser                   func(u models.User, feedID, folderID int64) error
 	OnUpdateFeedMetadataForUser                    func(u models.User, f models.Feed) error
-	OnDeleteFeedForUser                            func(u models.User, feedID, folderID int64) error
+	OnRenameFeedForUser                            func(u models.User, f models.Feed) error
+	OnTombstoneFeedForUser                         func(u models.User, feedID int64) error
+	OnRestoreFeedByUrlForUser                      func(u models.User, url string) (models.Feed, error)
 	OnInsertFolderForUser                          func(u models.User, f models.Folder, parentID int64) (int64, error)
 	OnRenameFolderForUser                          func(u models.User, folderID int64, name string) error
 	OnDeleteFolderForUser                          func(u models.User, folderID int64) (int64, error)
@@ -146,6 +150,12 @@ func (m *MockDB) GetActiveFeedKeys() (map[UserFeedKey]bool, error) {
 	}
 	return nil, nil
 }
+func (m *MockDB) GetLiveFeedKeys() (map[UserFeedKey]bool, error) {
+	if m.OnGetLiveFeedKeys != nil {
+		return m.OnGetLiveFeedKeys()
+	}
+	return nil, nil
+}
 func (m *MockDB) GetAllRetrievalCaches() (map[UserFeedKey]string, error) {
 	if m.OnGetAllRetrievalCaches != nil {
 		return m.OnGetAllRetrievalCaches()
@@ -179,12 +189,19 @@ func (m *MockDB) DeleteFolderForUser(u models.User, folderID int64) (int64, erro
 }
 func (m *MockDB) DeleteArticlesForUser(models.User, time.Time) (int64, error) { return 0, nil }
 func (m *MockDB) DeleteArticlesByIdForUser(models.User, []int64) error        { return nil }
-func (m *MockDB) DeleteFeedForUser(u models.User, feedID, folderID int64) error {
-	if m.OnDeleteFeedForUser != nil {
-		return m.OnDeleteFeedForUser(u, feedID, folderID)
+func (m *MockDB) TombstoneFeedForUser(u models.User, feedID int64) error {
+	if m.OnTombstoneFeedForUser != nil {
+		return m.OnTombstoneFeedForUser(u, feedID)
 	}
 	return nil
 }
+func (m *MockDB) RestoreFeedByUrlForUser(u models.User, url string) (models.Feed, error) {
+	if m.OnRestoreFeedByUrlForUser != nil {
+		return m.OnRestoreFeedByUrlForUser(u, url)
+	}
+	return models.Feed{}, sql.ErrNoRows
+}
+func (m *MockDB) PurgeDeletedFeeds(time.Time) (int64, int64, error) { return 0, 0, nil }
 func (m *MockDB) MarkArticleForUser(models.User, int64, models.MarkAction) error {
 	return nil
 }
@@ -201,12 +218,18 @@ func (m *MockDB) MarkFeedForUser(models.User, int64, models.MarkAction) (int64, 
 func (m *MockDB) MarkFolderForUser(models.User, int64, models.MarkAction) (int64, error) {
 	return 0, nil
 }
-func (m *MockDB) UpdateLatestTimeForFeedForUser(models.User, int64, int64, time.Time) error {
+func (m *MockDB) UpdateLatestTimeForFeedForUser(models.User, int64, time.Time) error {
 	return nil
 }
-func (m *MockDB) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, folderId, id int64, interval int) error {
+func (m *MockDB) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, id int64, interval int) error {
 	if m.OnUpdateEstimatedRefreshIntervalForFeedForUser != nil {
-		return m.OnUpdateEstimatedRefreshIntervalForFeedForUser(u, folderId, id, interval)
+		return m.OnUpdateEstimatedRefreshIntervalForFeedForUser(u, id, interval)
+	}
+	return nil
+}
+func (m *MockDB) RenameFeedForUser(u models.User, f models.Feed) error {
+	if m.OnRenameFeedForUser != nil {
+		return m.OnRenameFeedForUser(u, f)
 	}
 	return nil
 }
@@ -300,12 +323,17 @@ func (m *MockDB) UpdateFeedMetadataForUser(u models.User, feed models.Feed) erro
 	return m.UpdateFeedMetadataForUserErr
 }
 
-func (m *MockDB) InsertFaviconForUser(u models.User, folderId, id int64, mime string, favicon []byte) error {
+func (m *MockDB) InsertFaviconForUser(u models.User, id int64, mime string, favicon []byte) error {
 	m.InsertFaviconForUserCalled = true
 	return m.InsertFaviconForUserErr
 }
 
 func (m *MockDB) InsertArticleForUser(u models.User, a models.Article) error {
+	if m.OnInsertArticleForUser != nil {
+		if err := m.OnInsertArticleForUser(u, a); err != nil {
+			return err
+		}
+	}
 	m.InsertedArticles = append(m.InsertedArticles, a)
 	if m.ProcessItemsCalled != nil {
 		m.ProcessItemsCalled <- true

@@ -2,9 +2,9 @@ package fetch
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -119,92 +119,118 @@ func TestProcessUserFeedItems(t *testing.T) {
 	})
 }
 
-func TestFetchUserFeed(t *testing.T) {
-	user := models.User{UserId: "test-user"}
-	feed := models.Feed{ID: 1, URL: "http://example.com/feed"}
-	db := &storage.MockDB{}
-
-	fetcher := Fetcher{
-		d:         db,
-		retCache:  cache.NewMockRetrievalCache(),
-		finder:    &mockIconFinder{},
-		fetchFunc: mockFetchFunc,
-	}
-
-	// Use a context that we can cancel to stop the infinite loop in fetchUserFeed.
-	ctx, cancel := context.WithCancel(context.Background())
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	go fetcher.fetchUserFeed(ctx, &wg, user, feed)
-
-	// Wait a moment for the first fetch to complete, then cancel.
-	time.Sleep(100 * time.Millisecond)
-	cancel()
-	wg.Wait()
-
-	if !db.UpdateFeedMetadataForUserCalled {
-		t.Error("expected UpdateFeedMetadataForUser to be called")
-	}
-	if len(db.InsertedArticles) == 0 {
-		t.Error("expected articles to be inserted")
+func fetchTask(user models.User, feedID int64) task {
+	return task{
+		ctx:  context.Background(),
+		key:  storage.UserFeedKey{UserID: user.UserId, FeedID: feedID},
+		user: user,
 	}
 }
 
-func TestFetcher_PauseResume(t *testing.T) {
-	user := models.User{UserId: "test-user"}
+func TestFetchFeed(t *testing.T) {
+	user := models.User{UserId: "test-user", Username: "test"}
+	pastTime, _ := time.Parse(time.RFC3339, "2025-01-01T00:00:00Z")
+
+	for _, refresh := range []bool{true, false} {
+		db := &storage.MockDB{
+			OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+				return models.Feed{ID: feedID, URL: "http://example.com/feed", Latest: pastTime}, nil
+			},
+		}
+		fetcher := Fetcher{
+			d:         db,
+			retCache:  cache.NewMockRetrievalCache(),
+			finder:    &mockIconFinder{},
+			fetchFunc: mockFetchFunc,
+		}
+
+		tk := fetchTask(user, 1)
+		tk.failures = 2
+		tk.refreshMetadata = refresh
+		o := fetcher.fetchFeed(tk)
+
+		if o.gone || o.failures != 0 {
+			t.Errorf("refresh=%t: outcome = %+v, want a success", refresh, o)
+		}
+		if !o.next.After(time.Now()) {
+			t.Errorf("refresh=%t: next fetch %s is not in the future", refresh, o.next)
+		}
+		if len(db.InsertedArticles) != 2 {
+			t.Errorf("refresh=%t: inserted %d articles, want 2", refresh, len(db.InsertedArticles))
+		}
+		// Metadata is refreshed only when the scheduler says it is due.
+		if o.refreshedMetadata != refresh || db.UpdateFeedMetadataForUserCalled != refresh {
+			t.Errorf("refresh=%t: refreshed metadata = %t, wrote it = %t",
+				refresh, o.refreshedMetadata, db.UpdateFeedMetadataForUserCalled)
+		}
+	}
+}
+
+// The feed is read afresh for every fetch, so one unsubscribed from since the
+// last is dropped rather than fetched.
+func TestFetchFeedDropsAFeedNoLongerSubscribedTo(t *testing.T) {
+	fetcher := Fetcher{
+		d: &storage.MockDB{},
+		fetchFunc: func(string) (*http.Response, error) {
+			t.Error("fetched a feed no longer subscribed to")
+			return nil, errors.New("unreachable")
+		},
+	}
+
+	if o := fetcher.fetchFeed(fetchTask(models.User{UserId: "u"}, 1)); !o.gone {
+		t.Errorf("outcome = %+v, want the feed reported gone", o)
+	}
+}
+
+// A feed unsubscribed from while it is being fetched turns the fetch's writes
+// into no-ops. The fetch stops at the first one rather than carrying on and
+// scheduling a feed that no longer exists.
+func TestFetchFeedStopsWhenUnsubscribedFromMidFetch(t *testing.T) {
+	pastTime, _ := time.Parse(time.RFC3339, "2025-01-01T00:00:00Z")
+	var inserts int
 	db := &storage.MockDB{
-		GetAllUsersCalled:  make(chan bool, 1),
-		ProcessItemsCalled: make(chan bool, 1),
-		OnGetAllUsers: func() ([]models.User, error) {
-			return []models.User{user}, nil
+		OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+			return models.Feed{ID: feedID, URL: "http://example.com/feed", Latest: pastTime}, nil
 		},
-		OnGetAllFeedsForUser: func(u models.User) ([]models.Feed, error) {
-			return []models.Feed{{ID: 1, URL: "http://example.com/feed"}}, nil
+		OnInsertArticleForUser: func(models.User, models.Article) error {
+			inserts++
+			return storage.ErrFeedGone
+		},
+		OnUpdateEstimatedRefreshIntervalForFeedForUser: func(models.User, int64, int) error {
+			t.Error("rescheduled a feed that is gone")
+			return nil
 		},
 	}
+	fetcher := Fetcher{d: db, retCache: cache.NewMockRetrievalCache(), finder: &mockIconFinder{}, fetchFunc: mockFetchFunc}
 
-	retCache := cache.NewMockRetrievalCache()
-	fetcher := New(db, retCache, nil)
-	fetcher.fetchFunc = mockFetchFunc
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // Ensure cleanup
-
-	go fetcher.Start(ctx)
-
-	// 1. Wait for the first fetch to start
-	select {
-	case <-db.GetAllUsersCalled:
-		// This is good, means the fetch loop started
-	case <-time.After(1 * time.Second):
-		t.Fatal("timed out waiting for fetcher to start")
+	if o := fetcher.fetchFeed(fetchTask(models.User{UserId: "u"}, 1)); !o.gone {
+		t.Errorf("outcome = %+v, want the feed reported gone", o)
 	}
-
-	// 2. Wait for the first set of items to be processed
-	select {
-	case <-db.ProcessItemsCalled:
-		// This is good, means the first fetch completed
-	case <-time.After(10 * time.Second):
-		t.Fatal("timed out waiting for first fetch to complete")
+	if inserts != 1 {
+		t.Errorf("attempted %d inserts, want to stop after the first", inserts)
 	}
+}
 
-	// 3. Pause the fetcher
-	t.Log("Pausing fetcher...")
-	Pause()
-	t.Log("Fetcher paused.")
+func TestFetchFeedBacksOffOnFailure(t *testing.T) {
+	db := &storage.MockDB{
+		OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+			return models.Feed{ID: feedID, URL: "http://example.com/feed"}, nil
+		},
+	}
+	fetcher := Fetcher{d: db, fetchFunc: func(string) (*http.Response, error) {
+		return nil, errors.New("connection refused")
+	}}
 
-	// 4. Resume the fetcher
-	t.Log("Resuming fetcher...")
-	Resume()
-	t.Log("Fetcher resumed.")
+	tk := fetchTask(models.User{UserId: "u"}, 1)
+	tk.failures = 2
+	start := time.Now()
+	o := fetcher.fetchFeed(tk)
 
-	// 5. Wait for the second fetch to start
-	select {
-	case <-db.GetAllUsersCalled:
-		// This is good, means the fetch loop has resumed
-	case <-time.After(1 * time.Second):
-		t.Fatal("timed out waiting for fetcher to resume")
+	if o.gone || o.failures != 3 {
+		t.Fatalf("outcome = %+v, want a third consecutive failure", o)
+	}
+	if want := start.Add(fetcher.calculateFailureBackoff(3)); o.next.Before(want) {
+		t.Errorf("next fetch at %s, want no earlier than %s", o.next, want)
 	}
 }
 
@@ -244,24 +270,5 @@ func TestUserAgentIsSentOnFeedFetches(t *testing.T) {
 func TestFullTextUserAgentDefaultsToTheSharedOne(t *testing.T) {
 	if *fullTextUserAgent != "" {
 		t.Errorf("fullTextUserAgent defaults to %q, want empty so it falls back to userAgent", *fullTextUserAgent)
-	}
-}
-
-// Pausing is how a caller that changes the feed list makes the fetcher reread
-// it. Some of those callers serve requests, so pausing when nothing is
-// fetching has to return rather than wait for a receiver that will never
-// arrive.
-func TestPauseAndResumeDoNothingWhenNotFetching(t *testing.T) {
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		Pause()
-		Resume()
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("Pause/Resume blocked with no fetcher running")
 	}
 }

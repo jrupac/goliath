@@ -49,12 +49,14 @@ func init() {
 
 // GReader is an implementation of the GReader API.
 type GReader struct {
-	d storage.Database
+	d    storage.Database
+	subs fetch.Subscriptions
 }
 
-// GReaderHandler returns a new GReader handler.
-func GReaderHandler(d storage.Database) http.HandlerFunc {
-	return GReader{d}.Handler()
+// GReaderHandler returns a new GReader handler, which tells subs about every
+// feed a client adds or removes.
+func GReaderHandler(d storage.Database, subs fetch.Subscriptions) http.HandlerFunc {
+	return GReader{d: d, subs: subs}.Handler()
 }
 
 // Handler returns a handler function that implements the GReader API.
@@ -614,6 +616,26 @@ func (a GReader) handleQuickAdd(w http.ResponseWriter, r *http.Request, user mod
 		return
 	}
 
+	// A feed unsubscribed from and not yet garbage collected comes back as it
+	// was, with its articles and in its folder, rather than as a second
+	// subscription beside what is left of the first.
+	switch restored, err := a.d.RestoreFeedByUrlForUser(user, feedURL); {
+	case err == nil:
+		log.Infof("Restored feed %d (%q) at %s for user %s", restored.ID, restored.Title, feedURL, user.Username)
+		a.subs.Schedule(user, restored.ID)
+		a.returnSuccess(w, greaderQuickAddResponse{
+			Query:      feedURL,
+			NumResults: 1,
+			StreamId:   greaderFeedId(restored.ID),
+			StreamName: restored.Title,
+		})
+		return
+	case !errors.Is(err, sql.ErrNoRows):
+		log.Warningf("Failed to restore feed %s: %s", feedURL, err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+
 	discovered, err := fetch.DiscoverFeed(feedURL)
 	if err != nil {
 		// The client's URL is what is wrong, so this is not a server error.
@@ -621,11 +643,6 @@ func (a GReader) handleQuickAdd(w http.ResponseWriter, r *http.Request, user mod
 		a.returnError(w, http.StatusBadRequest)
 		return
 	}
-
-	// Paused across the write so that the fetcher rereads the feed list and
-	// picks up the new subscription, rather than ignoring it until a restart.
-	fetch.Pause()
-	defer fetch.Resume()
 
 	// Folder 0 means the root folder, which the storage layer resolves. No
 	// client sends a folder when adding, and the root is where an unfiled
@@ -638,6 +655,7 @@ func (a GReader) handleQuickAdd(w http.ResponseWriter, r *http.Request, user mod
 	}
 
 	log.Infof("Added feed %d (%q) at %s for user %s", feedID, discovered.Title, feedURL, user.Username)
+	a.subs.Schedule(user, feedID)
 	a.returnSuccess(w, greaderQuickAddResponse{
 		Query:      feedURL,
 		NumResults: 1,
@@ -716,7 +734,9 @@ func (a GReader) editSubscription(w http.ResponseWriter, r *http.Request, user m
 			return
 		}
 		if folderId != feed.FolderID {
-			if err := a.moveFeedToFolder(user, feed.ID, folderId); err != nil {
+			// A fetch in flight across the move needs no coordinating with: it
+			// reads an article's folder from its feed as it stores it.
+			if err := a.d.UpdateFolderForFeedForUser(user, feed.ID, folderId); err != nil {
 				log.Warningf("Failed to move feed %d to folder %d: %s", feed.ID, folderId, err)
 				a.returnError(w, http.StatusInternalServerError)
 				return
@@ -728,12 +748,11 @@ func (a GReader) editSubscription(w http.ResponseWriter, r *http.Request, user m
 	}
 
 	if title != "" {
+		// Marked as the user's by the rename, so that fetching, which refreshes
+		// a feed's own metadata periodically, leaves it alone.
 		feed.Title = title
-		// Marked so that fetching leaves it alone. A feed's own metadata is
-		// refreshed on every first fetch, which would otherwise undo this the
-		// next time the fetcher restarted.
 		feed.TitleOverridden = true
-		if err := a.d.UpdateFeedMetadataForUser(user, feed); err != nil {
+		if err := a.d.RenameFeedForUser(user, feed); err != nil {
 			log.Warningf("Failed to rename feed %d: %s", feed.ID, err)
 			a.returnError(w, http.StatusInternalServerError)
 			return
@@ -861,26 +880,14 @@ func (a GReader) folderForLabel(
 	return models.Folder{ID: id, Name: name}, true
 }
 
-// moveFeedToFolder repoints a feed at another folder.
+// unsubscribeFeed removes a feed and everything fetched into it.
 //
-// Fetching is paused across the change. A feed's folder is part of the key its
-// articles are stored under, so a fetch still holding the old one writes rows
-// that no longer satisfy the foreign key: they are rejected, and the feed stays
-// empty until something else makes the fetcher reread the list. Pausing settles
-// whatever is in flight and guarantees that reread.
-func (a GReader) moveFeedToFolder(user models.User, feedId, folderId int64) error {
-	fetch.Pause()
-	defer fetch.Resume()
-	return a.d.UpdateFolderForFeedForUser(user, feedId, folderId)
-}
-
-// unsubscribeFeed deletes a feed and everything fetched into it.
-//
-// The articles go with it: Article's foreign key to Feed has no ON DELETE, so
-// they cannot be left behind pointing at a feed that no longer exists. This is
-// the only request a client can make that destroys stored content, so what was
-// removed is logged in full -- afterwards the row is gone, and the log is the
-// only remaining account of what it was.
+// The feed is tombstoned rather than deleted: it and its articles disappear
+// from every read at once, and are deleted by the garbage collector's next
+// run, until which adding the feed again brings them back. Past that, this is
+// the only request a client can make that destroys stored content, so what
+// was removed is logged in full. Afterwards the log is the only remaining
+// account of what it was.
 func (a GReader) unsubscribeFeed(w http.ResponseWriter, r *http.Request, user models.User, feed models.Feed) {
 	articles, err := a.d.GetArticlesForFeedForUser(user, feed.ID)
 	if err != nil {
@@ -892,16 +899,18 @@ func (a GReader) unsubscribeFeed(w http.ResponseWriter, r *http.Request, user mo
 	log.Warningf("Unsubscribing user %s from %s (%d articles), requested by %q",
 		user.Username, feed, len(articles), r.Header.Get("User-Agent"))
 
-	// Paused across the delete so the fetcher rereads the feed list and stops
-	// fetching a feed that no longer exists.
-	fetch.Pause()
-	defer fetch.Resume()
-
-	if err = a.d.DeleteFeedForUser(user, feed.ID, feed.FolderID); err != nil {
+	switch err = a.d.TombstoneFeedForUser(user, feed.ID); {
+	case err == nil:
+	case errors.Is(err, sql.ErrNoRows):
+		// Unsubscribed by another request since it was looked up.
+		a.returnError(w, http.StatusNotFound)
+		return
+	default:
 		log.Warningf("Failed to unsubscribe from feed %d: %s", feed.ID, err)
 		a.returnError(w, http.StatusInternalServerError)
 		return
 	}
+	a.subs.Unschedule(user, feed.ID)
 
 	log.Warningf("Unsubscribed user %s from feed %d", user.Username, feed.ID)
 	_, _ = w.Write([]byte("OK"))
@@ -1025,11 +1034,6 @@ func (a GReader) handleDisableTag(w http.ResponseWriter, r *http.Request, user m
 			folders = append(folders, folder)
 		}
 	}
-
-	// Paused across the change for the same reason as a move: the feeds leaving
-	// each folder change the key their articles are stored under.
-	fetch.Pause()
-	defer fetch.Resume()
 
 	for _, folder := range folders {
 		moved, err := a.d.DeleteFolderForUser(user, folder.ID)

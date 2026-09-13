@@ -33,8 +33,21 @@ func StartGC(ctx context.Context, d Database) {
 }
 
 func performGCRun(d Database) {
+	collectFeeds(d)
 	collectArticles(d)
 	collectSessions(d)
+}
+
+// collectFeeds removes the feeds users have unsubscribed from, and their
+// articles. Unsubscribing only marks a feed, so that the request does not wait
+// on deleting everything it held; this is where that deletion happens.
+func collectFeeds(d Database) {
+	feeds, articles, err := d.PurgeDeletedFeeds(time.Now())
+	if err != nil {
+		log.Warningf("Feed GC run failed: %s", err)
+		return
+	}
+	log.Infof("Feed GC complete; deleted %d unsubscribed feeds and %d articles.", feeds, articles)
 }
 
 func collectArticles(d Database) {

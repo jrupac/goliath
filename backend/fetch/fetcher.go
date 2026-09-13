@@ -2,15 +2,15 @@ package fetch
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	log "github.com/golang/glog"
@@ -45,23 +45,11 @@ var (
 		"EMA smoothing factor applied when the observed publication gap is longer than the current estimated interval (feed appears to be slowing down). Lower values resist upward drift from anomalous gaps such as silence periods or server restarts.")
 	maxGapEMAMultiple = flag.Float64("maxGapEMAMultiple", 3.0,
 		"Maximum ratio by which a single observed publication gap may exceed the current estimated interval before being clamped for the EMA update. Prevents a single long quiet period from disproportionately inflating the estimate in one step.")
+	feedMetadataRefreshInterval = flag.Duration("feedMetadataRefreshInterval", 6*time.Hour,
+		"Interval between refreshes of a feed's own title, description, site link and favicon.")
 )
 
 var (
-	pauseChan     = make(chan struct{})
-	pauseChanDone = make(chan struct{})
-	resumeChan    = make(chan struct{})
-
-	// fetcherRunning reports whether Start's loop is reading the channels
-	// above, and fetcherDone is closed when it stops reading them. All three
-	// channels are unbuffered, so sending on one when nothing is receiving
-	// blocks forever. Callers pause around a change to the feed list, and some
-	// of them are serving a request: one that hung because fetching had not
-	// started, or had just stopped, would hang the request rather than make a
-	// change nothing needed to be paused for.
-	fetcherRunning atomic.Bool
-	fetcherDone    = make(chan struct{})
-
 	bluemondayTitlePolicy = bluemonday.StrictPolicy()
 	bluemondayBodyPolicy  = makeBodyPolicy()
 )
@@ -115,13 +103,21 @@ func init() {
 	prometheus.MustRegister(feedFetchErrorsMetric)
 	prometheus.MustRegister(feedFetchAttemptsMetric)
 	prometheus.MustRegister(feedFetchStatsMetric)
+
+	// Additional time layouts that sometimes appear in feeds.
+	rss.TimeLayouts = append(rss.TimeLayouts,
+		"2006-01-02",
+		"Monday, 02 Jan 2006 15:04:05 MST",
+		"Mon, 02 Jan 2006 15:04:05 MST",
+		"Mon, 2 Jan 2006 15:04:05 MST",
+		"Mon, 02 Jan 2006",
+	)
 }
 
 type imagePair struct {
-	folderId int64
-	id       int64
-	mime     string
-	favicon  []byte
+	id      int64
+	mime    string
+	favicon []byte
 }
 
 func makeBodyPolicy() *bluemonday.Policy {
@@ -184,33 +180,6 @@ func fetchFuncWithClient(client *http.Client) rss.FetchFunc {
 	}
 }
 
-// Pause stops all continuous feed fetching in a way that is resume-able.
-// This call blocks until fetching is fully paused, and does nothing if
-// fetching is not running.
-func Pause() {
-	if !fetcherRunning.Load() {
-		return
-	}
-	select {
-	case pauseChan <- struct{}{}:
-		<-pauseChanDone
-	case <-fetcherDone:
-		// Fetching stopped while this was being asked for; nothing to pause.
-	}
-}
-
-// Resume resumes continuous feed fetching with a fresh read of feeds, and
-// does nothing if fetching is not running.
-func Resume() {
-	if !fetcherRunning.Load() {
-		return
-	}
-	select {
-	case resumeChan <- struct{}{}:
-	case <-fetcherDone:
-	}
-}
-
 type Fetcher struct {
 	d         storage.Database
 	retCache  cache.RetrievalCache
@@ -230,193 +199,111 @@ func New(d storage.Database, retCache cache.RetrievalCache, allowed utils.Addres
 	}
 }
 
-// Start starts continuous feed fetching and writes fetched articles to the
-// database.
-func (f Fetcher) Start(ctx context.Context) {
-	log.Infof("Starting continuous feed fetching.")
+// task is one fetch of one feed for one user, as the scheduler hands it to a
+// worker. It carries only what the scheduler remembers between fetches; the
+// feed itself is read fresh, so that a move, a rename or an unsubscribe made
+// since the last fetch is what this one sees.
+type task struct {
+	// ctx is cancelled when the feed is unscheduled while the task runs.
+	ctx             context.Context
+	key             storage.UserFeedKey
+	user            models.User
+	failures        int
+	refreshMetadata bool
+}
 
-	// Add additional time layouts that sometimes appear in feeds.
-	rss.TimeLayouts = append(rss.TimeLayouts, "2006-01-02")
-	rss.TimeLayouts = append(rss.TimeLayouts, "Monday, 02 Jan 2006 15:04:05 MST")
-	rss.TimeLayouts = append(rss.TimeLayouts, "Mon, 02 Jan 2006 15:04:05 MST")
-	rss.TimeLayouts = append(rss.TimeLayouts, "Mon, 2 Jan 2006 15:04:05 MST")
-	rss.TimeLayouts = append(rss.TimeLayouts, "Mon, 02 Jan 2006")
+// outcome is what a worker reports about a task once it is done.
+type outcome struct {
+	key storage.UserFeedKey
+	// next is when the feed is next due.
+	next time.Time
+	// failures is the count of consecutive failed fetches, this one included.
+	failures          int
+	refreshedMetadata bool
+	// gone reports that the feed is no longer subscribed to, so it is not to
+	// be fetched again.
+	gone bool
+	// labels are the per-feed metric labels this fetch wrote under, so that
+	// the series can be deleted once the feed goes or its labels change.
+	labels []string
+}
 
-	// Create a new cancel-able context since fetching may be paused and resumed
-	// separately from the parent context.
-	// Note: We need to keep the original context around too because we're waiting
-	// on a cancellation of the *parent* context in the select statement below.
-	fetchCtx, cancel := context.WithCancel(ctx)
+// fetchFeed fetches one feed and stores whatever is new in it.
+func (f Fetcher) fetchFeed(t task) outcome {
+	o := outcome{key: t.key, failures: t.failures}
+	user := t.user
 
-	// A WaitGroup of size 1 to wait on all fetching to complete.
-	fetchCond := &sync.WaitGroup{}
-	fetchCond.Add(1)
-	go f.start(fetchCtx, fetchCond)
+	feed, err := f.d.GetFeedForUser(user, t.key.FeedID)
+	if errors.Is(err, sql.ErrNoRows) {
+		log.Infof("Feed %d is no longer subscribed to by %s; no longer fetching it", t.key.FeedID, user)
+		o.gone = true
+		return o
+	}
+	fetchTime := time.Now()
+	if err != nil {
+		log.Warningf("while reading feed %d for %s: %s", t.key.FeedID, user, err)
+		o.failures++
+		o.next = fetchTime.Add(f.calculateFailureBackoff(o.failures))
+		return o
+	}
 
-	fetcherRunning.Store(true)
-	defer func() {
-		fetcherRunning.Store(false)
-		close(fetcherDone)
-	}()
+	o.labels = []string{user.Username, strconv.FormatInt(feed.ID, 10), feed.Title, feed.URL}
+	feedFetchAttemptsMetric.WithLabelValues(o.labels...).Inc()
+	log.Infof("Fetching %s %s", user, feed)
 
-	for {
-		select {
-		case <-pauseChan:
-			cancel()
-			fetchCond.Wait()
-			log.Info("Fetcher paused.")
-			pauseChanDone <- struct{}{}
-		case <-resumeChan:
-			// Create a new context from the parent context when resuming
-			fetchCtx, cancel = context.WithCancel(ctx)
-			fetchCond.Add(1)
-			go f.start(fetchCtx, fetchCond)
-			log.Info("Fetcher resumed.")
-		case <-ctx.Done():
-			// Explicitly cancel the child context when returning to avoid leaking it
-			cancel()
-			fetchCond.Wait()
-			return
+	fetched, err := rss.FetchByFunc(f.fetchFunc, feed.URL)
+	if err != nil {
+		log.Warningf("while fetching %s %s: %s", user, feed, err)
+		o.failures++
+		o.next = fetchTime.Add(f.calculateFailureBackoff(o.failures))
+		feedFetchErrorsMetric.WithLabelValues(o.labels...).Inc()
+	} else {
+		if t.refreshMetadata {
+			f.updateFeedMetadataForUser(t.ctx, user, &feed, fetched)
+			f.updateFeedFaviconForUser(t.ctx, user, &feed, fetched)
+			o.refreshedMetadata = true
 		}
+
+		if err = f.processUserFeedItems(t.ctx, user, &feed, fetched.Items); err != nil {
+			if errors.Is(err, storage.ErrFeedGone) {
+				log.Infof("Feed %s was unsubscribed from by %s during a fetch; no longer fetching it", feed, user)
+				o.gone = true
+			}
+			// Otherwise cancelled, because the feed was unscheduled or fetching
+			// is stopping, and nothing will read the rest of the outcome.
+			return o
+		}
+		o.failures = 0
+		o.next = f.calculateNextInterval(user, &feed, fetched, fetchTime)
 	}
+
+	interval := o.next.Sub(fetchTime)
+	feedFetchIntervalMetric.WithLabelValues(o.labels...).Set(interval.Seconds())
+	feedFetchConsecutiveFailuresMetric.WithLabelValues(o.labels...).Set(float64(o.failures))
+	log.Infof("Waiting to fetch %s %s until %s (interval: %s, consecutive failures: %d)",
+		user, feed, o.next, interval, o.failures)
+	return o
 }
 
-func (f Fetcher) start(ctx context.Context, parent *sync.WaitGroup) {
-	defer parent.Done()
-
-	users, err := f.d.GetAllUsers()
-	if err != nil {
-		log.Fatalf("cannot start fetcher because fetching users failed: %s", err)
-	}
-
-	// A WaitGroup used to wait for all users' fetch loops to complete.
-	userCond := &sync.WaitGroup{}
-	userCond.Add(len(users))
-
-	for _, user := range users {
-		go f.startFetchForUser(ctx, userCond, user)
-	}
-
-	userCond.Wait()
-	log.Infof("Stopped feed fetching.")
-}
-
-func (f Fetcher) startFetchForUser(ctx context.Context, parent *sync.WaitGroup, user models.User) {
-	defer parent.Done()
-
-	feeds, err := f.d.GetAllFeedsForUser(user)
-	if err != nil {
-		log.Errorf("while fetching all feeds for %s: %s", user, err)
+// deleteFeedMetrics removes the per-feed series written under the given
+// labels.
+func deleteFeedMetrics(labels []string) {
+	if labels == nil {
 		return
 	}
-
-	utils.DebugPrint(fmt.Sprintf("Feed list for %s", user), feeds)
-
-	// A WaitGroup used to wait for all feeds for this user to complete.
-	feedCond := &sync.WaitGroup{}
-	feedCond.Add(len(feeds))
-
-	for _, feed := range feeds {
-		go f.fetchUserFeed(ctx, feedCond, user, feed)
-	}
-
-	feedCond.Wait()
-	log.Infof("Stopped feed fetching for user %s.", user)
-}
-
-func (f Fetcher) fetchUserFeed(ctx context.Context, parent *sync.WaitGroup, user models.User, feed models.Feed) {
-	defer parent.Done()
-
-	log.Infof("Starting fetch for:\n\t%s %s", user, feed)
-	tick := make(<-chan time.Time)
-	firstFetchDone := make(chan firstFetchResult, 1)
-
-	feedIDStr := strconv.FormatInt(feed.ID, 10)
-	defer func() {
-		feedFetchIntervalMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL)
-		feedFetchConsecutiveFailuresMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL)
-		feedFetchErrorsMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL)
-		feedFetchAttemptsMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL)
-		for _, stat := range feedFetchStatKeys {
-			feedFetchStatsMetric.DeleteLabelValues(user.Username, feedIDStr, feed.Title, feed.URL, stat)
-		}
-	}()
-
-	go func() {
-		feedFetchAttemptsMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Inc()
-		fetchTime := time.Now()
-		fetch, err := rss.FetchByFunc(f.fetchFunc, feed.URL)
-		if err != nil {
-			log.Warningf("during first fetch for %s %s: %s", user, feed, err)
-			firstFetchDone <- firstFetchResult{
-				nextFetch: fetchTime.Add(*minFetchInterval),
-				interval:  *minFetchInterval,
-				err:       err,
-			}
-			return
-		}
-
-		// On only the initial fetch, update feed metadata and favicon
-		f.updateFeedMetadataForUser(ctx, user, &feed, fetch)
-		f.updateFeedFaviconForUser(ctx, user, &feed, fetch)
-
-		f.processUserFeedItems(ctx, user, &feed, fetch.Items)
-
-		refresh := f.calculateNextInterval(user, &feed, fetch, fetchTime)
-		firstFetchDone <- firstFetchResult{
-			nextFetch: refresh,
-			interval:  refresh.Sub(fetchTime),
-			err:       nil,
-		}
-	}()
-
-	var consecutiveFailures int
-	for {
-		select {
-		case result := <-firstFetchDone:
-			if result.err != nil {
-				consecutiveFailures = 1
-				feedFetchErrorsMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Inc()
-			} else {
-				consecutiveFailures = 0
-			}
-			feedFetchIntervalMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Set(result.interval.Seconds())
-			feedFetchConsecutiveFailuresMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Set(float64(consecutiveFailures))
-
-			tick = time.After(time.Until(result.nextFetch))
-			log.Infof("First fetch done for %s %s. Waiting until %s (interval: %s)", user, feed, result.nextFetch, result.interval)
-			// Disable the channel so we do not read from it again.
-			firstFetchDone = nil
-		case <-tick:
-			feedFetchAttemptsMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Inc()
-			log.Infof("Fetching %s %s", user, feed)
-			var refresh time.Time
-			var interval time.Duration
-			fetchTime := time.Now()
-			if fetch, err := rss.FetchByFunc(f.fetchFunc, feed.URL); err != nil {
-				log.Warningf("while fetching %s %s: %s", user, feed, err)
-				consecutiveFailures++
-				interval = f.calculateFailureBackoff(consecutiveFailures)
-				refresh = fetchTime.Add(interval)
-				feedFetchErrorsMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Inc()
-			} else {
-				f.processUserFeedItems(ctx, user, &feed, fetch.Items)
-				consecutiveFailures = 0
-				refresh = f.calculateNextInterval(user, &feed, fetch, fetchTime)
-				interval = refresh.Sub(fetchTime)
-			}
-			feedFetchIntervalMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Set(interval.Seconds())
-			feedFetchConsecutiveFailuresMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL).Set(float64(consecutiveFailures))
-
-			log.Infof("Waiting to fetch %s %s until %s (interval: %s, consecutive failures: %d)", user, feed, refresh, interval, consecutiveFailures)
-			tick = time.After(time.Until(refresh))
-		case <-ctx.Done():
-			return
-		}
+	feedFetchIntervalMetric.DeleteLabelValues(labels...)
+	feedFetchConsecutiveFailuresMetric.DeleteLabelValues(labels...)
+	feedFetchErrorsMetric.DeleteLabelValues(labels...)
+	feedFetchAttemptsMetric.DeleteLabelValues(labels...)
+	for _, stat := range feedFetchStatKeys {
+		feedFetchStatsMetric.DeleteLabelValues(append(slices.Clone(labels), stat)...)
 	}
 }
 
-func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, feed *models.Feed, items []*rss.Item) {
+// processUserFeedItems stores the new items of a fetched feed. It stops early,
+// returning why, if the context is cancelled or the feed turns out to have
+// been unsubscribed from, in which case storage.ErrFeedGone is returned.
+func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, feed *models.Feed, items []*rss.Item) error {
 	prevLatest := feed.Latest
 	numTotal := len(items)
 	var numInserted, numMarkedRead, numUpdatedExisting, numExistingRemoved, numTooOld, numRetrievalCache, numMuted int
@@ -452,9 +339,8 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 	}
 
 	for _, item := range items {
-		// The context is canceled, so just return
-		if ctx.Err() != nil {
-			return
+		if err = ctx.Err(); err != nil {
+			return err
 		}
 
 		a := processItem(feed, item)
@@ -496,7 +382,9 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 			// insertion, so that the reported total is what was stored and not
 			// what was attempted. A failed insert reading as a success is how
 			// a feed comes to look like it is being filled while staying empty.
-			if err = f.d.InsertArticleForUser(user, a); err != nil {
+			if err = f.d.InsertArticleForUser(user, a); errors.Is(err, storage.ErrFeedGone) {
+				return err
+			} else if err != nil {
 				log.Warningf("while persisting article for %s due to %s: %s", user, err, a)
 			} else {
 				numInserted += 1
@@ -504,7 +392,7 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 			}
 
 			if a.Date.After(feed.Latest) {
-				err = f.d.UpdateLatestTimeForFeedForUser(user, feed.FolderID, feed.ID, a.Date)
+				err = f.d.UpdateLatestTimeForFeedForUser(user, feed.ID, a.Date)
 				if err != nil {
 					log.Warningf("while updating latest feed time for %s: %s", feed, err)
 				} else {
@@ -525,10 +413,5 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 			feedFetchStatsMetric.WithLabelValues(user.Username, feedIDStr, feed.Title, feed.URL, stat).Add(float64(statCounts[i]))
 		}
 	}
-}
-
-type firstFetchResult struct {
-	nextFetch time.Time
-	interval  time.Duration
-	err       error
+	return nil
 }

@@ -749,11 +749,11 @@ func TestSubscriptionEditRefusesAnotherUsersFeed(t *testing.T) {
 			}
 			return models.Feed{}, sql.ErrNoRows
 		},
-		OnDeleteFeedForUser: func(models.User, int64, int64) error {
+		OnTombstoneFeedForUser: func(models.User, int64) error {
 			t.Error("deleted a feed the user does not own")
 			return nil
 		},
-		OnUpdateFeedMetadataForUser: func(models.User, models.Feed) error {
+		OnRenameFeedForUser: func(models.User, models.Feed) error {
 			t.Error("renamed a feed the user does not own")
 			return nil
 		},
@@ -782,7 +782,7 @@ func TestSubscriptionEditAcceptsBothFeedIdForms(t *testing.T) {
 			OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
 				return models.Feed{ID: feedID, FolderID: 9}, nil
 			},
-			OnUpdateFeedMetadataForUser: func(_ models.User, f models.Feed) error {
+			OnRenameFeedForUser: func(_ models.User, f models.Feed) error {
 				renamed = f.ID
 				return nil
 			},
@@ -807,7 +807,7 @@ func TestSubscriptionEditRenames(t *testing.T) {
 		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3, Title: "Old", URL: "https://e.invalid/f"}, nil
 		},
-		OnUpdateFeedMetadataForUser: func(_ models.User, f models.Feed) error {
+		OnRenameFeedForUser: func(_ models.User, f models.Feed) error {
 			got = f
 			return nil
 		},
@@ -887,7 +887,7 @@ func TestSubscriptionEditDoesNotRenameWhenTheMoveFails(t *testing.T) {
 		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3}, nil
 		},
-		OnUpdateFeedMetadataForUser: func(models.User, models.Feed) error {
+		OnRenameFeedForUser: func(models.User, models.Feed) error {
 			t.Error("renamed the feed although the move was refused")
 			return nil
 		},
@@ -903,8 +903,24 @@ func TestSubscriptionEditDoesNotRenameWhenTheMoveFails(t *testing.T) {
 	}
 }
 
+// recordingSubscriptions records what a handler told the fetcher.
+type recordingSubscriptions struct {
+	scheduled, unscheduled []int64
+}
+
+func (r *recordingSubscriptions) Schedule(_ models.User, feedID int64) {
+	r.scheduled = append(r.scheduled, feedID)
+}
+
+func (r *recordingSubscriptions) Unschedule(_ models.User, feedID int64) {
+	r.unscheduled = append(r.unscheduled, feedID)
+}
+
+// Unsubscribing tombstones the feed and stops fetching it, in that order: a
+// fetch that starts in between finds the feed gone and drops it.
 func TestSubscriptionEditUnsubscribes(t *testing.T) {
-	var deletedFeed, deletedFolder int64
+	var tombstoned int64
+	subs := &recordingSubscriptions{}
 	mockDB := &storage.MockDB{
 		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3, Title: "Doomed"}, nil
@@ -912,21 +928,110 @@ func TestSubscriptionEditUnsubscribes(t *testing.T) {
 		OnGetArticlesForFeedForUser: func(models.User, int64) ([]models.Article, error) {
 			return []models.Article{{ID: 1}, {ID: 2}}, nil
 		},
-		OnDeleteFeedForUser: func(_ models.User, feedID, folderID int64) error {
-			deletedFeed, deletedFolder = feedID, folderID
+		OnTombstoneFeedForUser: func(_ models.User, feedID int64) error {
+			if len(subs.unscheduled) != 0 {
+				t.Error("unscheduled the feed before tombstoning it")
+			}
+			tombstoned = feedID
 			return nil
 		},
 	}
 	user := models.User{UserId: "u", Username: "u"}
 	w := httptest.NewRecorder()
-	GReader{d: mockDB}.handleSubscriptionEdit(w,
+	GReader{d: mockDB, subs: subs}.handleSubscriptionEdit(w,
 		editRequest(user, url.Values{"ac": {"unsubscribe"}, "s": {"feed/7"}}), user)
 
 	if got := w.Result().StatusCode; got != http.StatusOK {
 		t.Fatalf("status = %d, want %d", got, http.StatusOK)
 	}
-	if deletedFeed != 7 || deletedFolder != 3 {
-		t.Errorf("deleted feed %d in folder %d, want 7 in 3", deletedFeed, deletedFolder)
+	if tombstoned != 7 {
+		t.Errorf("tombstoned feed %d, want 7", tombstoned)
+	}
+	if len(subs.unscheduled) != 1 || subs.unscheduled[0] != 7 {
+		t.Errorf("unscheduled %v, want [7]", subs.unscheduled)
+	}
+}
+
+// A feed unsubscribed from by another request between the lookup and the
+// tombstone is gone, not a server failure.
+func TestSubscriptionEditUnsubscribeOfAFeedAlreadyGone(t *testing.T) {
+	subs := &recordingSubscriptions{}
+	mockDB := &storage.MockDB{
+		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+			return models.Feed{ID: 7, FolderID: 3}, nil
+		},
+		OnTombstoneFeedForUser: func(models.User, int64) error {
+			return sql.ErrNoRows
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB, subs: subs}.handleSubscriptionEdit(w,
+		editRequest(user, url.Values{"ac": {"unsubscribe"}, "s": {"feed/7"}}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusNotFound {
+		t.Errorf("status = %d, want %d", got, http.StatusNotFound)
+	}
+}
+
+// Adding a feed that was unsubscribed from and not yet garbage collected
+// brings that feed back, articles and all, rather than subscribing afresh.
+func TestQuickAddRestoresAFeedUnsubscribedFrom(t *testing.T) {
+	subs := &recordingSubscriptions{}
+	mockDB := &storage.MockDB{
+		OnRestoreFeedByUrlForUser: func(_ models.User, url string) (models.Feed, error) {
+			if url == "https://example.invalid/feed" {
+				return models.Feed{ID: 42, Title: "Back Again", URL: url}, nil
+			}
+			return models.Feed{}, sql.ErrNoRows
+		},
+		OnInsertFeedForUser: func(models.User, models.Feed, int64) (int64, error) {
+			t.Error("subscribed afresh to a feed that could be restored")
+			return 0, nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB, subs: subs}.handleQuickAdd(w, subscriptionRequest(user,
+		"/greader/reader/api/0/subscription/quickadd",
+		url.Values{"quickadd": {"https://example.invalid/feed"}}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusOK {
+		t.Fatalf("status = %d, want %d", got, http.StatusOK)
+	}
+	var res greaderQuickAddResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if res.StreamId != "feed/42" || res.StreamName != "Back Again" {
+		t.Errorf("response = %+v, want the restored feed", res)
+	}
+	if len(subs.scheduled) != 1 || subs.scheduled[0] != 42 {
+		t.Errorf("scheduled %v, want [42]", subs.scheduled)
+	}
+}
+
+// A restore that fails for a reason other than there being nothing to restore
+// is a server problem. Carrying on would subscribe afresh beside a feed that
+// may still come back.
+func TestQuickAddReportsRestoreFailureRatherThanAddingAgain(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnRestoreFeedByUrlForUser: func(models.User, string) (models.Feed, error) {
+			return models.Feed{}, errors.New("connection refused")
+		},
+		OnInsertFeedForUser: func(models.User, models.Feed, int64) (int64, error) {
+			t.Error("added a feed although the restore check failed")
+			return 0, nil
+		},
+	}
+	user := models.User{UserId: "u", Username: "u"}
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleQuickAdd(w, subscriptionRequest(user,
+		"/greader/reader/api/0/subscription/quickadd",
+		url.Values{"quickadd": {"https://example.invalid/feed"}}), user)
+
+	if got := w.Result().StatusCode; got != http.StatusInternalServerError {
+		t.Errorf("status = %d, want %d", got, http.StatusInternalServerError)
 	}
 }
 
@@ -937,7 +1042,7 @@ func TestSubscriptionEditRefusesUnknownAction(t *testing.T) {
 		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
 			return models.Feed{ID: 7}, nil
 		},
-		OnDeleteFeedForUser: func(models.User, int64, int64) error {
+		OnTombstoneFeedForUser: func(models.User, int64) error {
 			t.Error("an unknown action deleted a feed")
 			return nil
 		},
@@ -959,7 +1064,7 @@ func TestSubscriptionEndpointsRequireAPostToken(t *testing.T) {
 		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
 			return models.Feed{ID: 7}, nil
 		},
-		OnDeleteFeedForUser: func(models.User, int64, int64) error {
+		OnTombstoneFeedForUser: func(models.User, int64) error {
 			t.Error("deleted a feed without a post token")
 			return nil
 		},
@@ -1097,17 +1202,15 @@ func TestSubscriptionListIncludesTheFeedUrl(t *testing.T) {
 	}
 }
 
-// Fetching refreshes a feed's own metadata on every first fetch, and pausing
-// the fetcher to add or remove a subscription makes the next fetch a first
-// fetch. A rename that did not say it was a rename would survive only until
-// the next change to the feed list.
+// Fetching refreshes a feed's own metadata periodically. A rename that did not
+// say it was a rename would survive only until the next refresh.
 func TestSubscriptionEditMarksARenamedTitleAsTheUsers(t *testing.T) {
 	var got models.Feed
 	mockDB := &storage.MockDB{
 		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3, Title: "From The Feed"}, nil
 		},
-		OnUpdateFeedMetadataForUser: func(_ models.User, f models.Feed) error {
+		OnRenameFeedForUser: func(_ models.User, f models.Feed) error {
 			got = f
 			return nil
 		},
@@ -1132,7 +1235,7 @@ func TestSubscriptionEditMoveDoesNotClaimTheTitle(t *testing.T) {
 		OnGetFolderForUser: func(_ models.User, folderID int64) (models.Folder, error) {
 			return models.Folder{ID: folderID}, nil
 		},
-		OnUpdateFeedMetadataForUser: func(_ models.User, f models.Feed) error {
+		OnRenameFeedForUser: func(_ models.User, f models.Feed) error {
 			t.Errorf("a move rewrote the feed's metadata: %+v", f)
 			return nil
 		},
@@ -1175,7 +1278,7 @@ func TestSubscriptionEditWithNothingToChangeSucceeds(t *testing.T) {
 		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3, Title: "Just Added"}, nil
 		},
-		OnUpdateFeedMetadataForUser: func(models.User, models.Feed) error {
+		OnRenameFeedForUser: func(models.User, models.Feed) error {
 			t.Error("a no-op edit rewrote the feed")
 			return nil
 		},

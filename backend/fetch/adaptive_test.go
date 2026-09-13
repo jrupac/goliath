@@ -86,7 +86,7 @@ func TestCalculateNextInterval(t *testing.T) {
 	t.Run("bootstraps new feed with multiple items (Latest is zero)", func(t *testing.T) {
 		var updatedInterval int
 		db := &storage.MockDB{}
-		db.OnUpdateEstimatedRefreshIntervalForFeedForUser = func(u models.User, folderId, id int64, interval int) error {
+		db.OnUpdateEstimatedRefreshIntervalForFeedForUser = func(u models.User, id int64, interval int) error {
 			updatedInterval = interval
 			return nil
 		}
@@ -127,7 +127,7 @@ func TestCalculateNextInterval(t *testing.T) {
 	t.Run("incremental update for single new item (gap > EMA uses slower alpha)", func(t *testing.T) {
 		var updatedInterval int
 		db := &storage.MockDB{}
-		db.OnUpdateEstimatedRefreshIntervalForFeedForUser = func(u models.User, folderId, id int64, interval int) error {
+		db.OnUpdateEstimatedRefreshIntervalForFeedForUser = func(u models.User, id int64, interval int) error {
 			updatedInterval = interval
 			return nil
 		}
@@ -264,7 +264,7 @@ func TestCalculateNextInterval(t *testing.T) {
 	t.Run("gap below EMA uses faster alpha", func(t *testing.T) {
 		var updatedInterval int
 		db := &storage.MockDB{}
-		db.OnUpdateEstimatedRefreshIntervalForFeedForUser = func(u models.User, folderId, id int64, interval int) error {
+		db.OnUpdateEstimatedRefreshIntervalForFeedForUser = func(u models.User, id int64, interval int) error {
 			updatedInterval = interval
 			return nil
 		}
@@ -298,7 +298,7 @@ func TestCalculateNextInterval(t *testing.T) {
 	t.Run("gap cap prevents large outlier gaps from inflating EMA", func(t *testing.T) {
 		var updatedInterval int
 		db := &storage.MockDB{}
-		db.OnUpdateEstimatedRefreshIntervalForFeedForUser = func(u models.User, folderId, id int64, interval int) error {
+		db.OnUpdateEstimatedRefreshIntervalForFeedForUser = func(u models.User, id int64, interval int) error {
 			updatedInterval = interval
 			return nil
 		}

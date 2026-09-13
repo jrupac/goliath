@@ -2,6 +2,8 @@ package admin
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -26,7 +28,8 @@ var (
 
 type server struct {
 	UnimplementedAdminServiceServer
-	db storage.Database
+	db   storage.Database
+	subs fetch.Subscriptions
 }
 
 // AddUser adds a specified user into the database.
@@ -419,7 +422,6 @@ func (s *server) DeleteUnmutedFeed(_ context.Context, req *DeleteUnmutedFeedRequ
 }
 
 // AddFeed adds the specified feed into the database.
-// During the operation of adding a feed, fetching is paused and restarted.
 func (s *server) AddFeed(_ context.Context, req *AddFeedRequest) (*AddFeedResponse, error) {
 	resp := &AddFeedResponse{}
 	folderID := int64(-1)
@@ -463,14 +465,9 @@ func (s *server) AddFeed(_ context.Context, req *AddFeedRequest) (*AddFeedRespon
 		}
 	}
 
-	// Checked before pausing anything, since a name that will be refused should
-	// be refused without interrupting fetching first.
 	if err = models.ValidateFolderName(req.Folder); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-
-	fetch.Pause()
-	defer fetch.Resume()
 
 	// Folder ID not found, so create a new one
 	if folderID == -1 {
@@ -486,6 +483,7 @@ func (s *server) AddFeed(_ context.Context, req *AddFeedRequest) (*AddFeedRespon
 	if err != nil {
 		return resp, status.Error(codes.DataLoss, "failed to persist feed")
 	}
+	s.subs.Schedule(user, feedID)
 
 	resp.Id = feedID
 
@@ -518,8 +516,9 @@ func (s *server) GetFeeds(_ context.Context, req *GetFeedsRequest) (*GetFeedsRes
 	return resp, nil
 }
 
-// RemoveFeed removes the requested feed for the requested user.
-// During the operation of adding a feed, fetching is paused and restarted.
+// RemoveFeed unsubscribes the requested user from the requested feed. As when a
+// client unsubscribes, the feed and its articles are removed by the garbage
+// collector's next run.
 func (s *server) RemoveFeed(_ context.Context, req *RemoveFeedRequest) (*RemoveFeedResponse, error) {
 	resp := &RemoveFeedResponse{}
 
@@ -535,35 +534,19 @@ func (s *server) RemoveFeed(_ context.Context, req *RemoveFeedRequest) (*RemoveF
 		return nil, status.Error(codes.NotFound, "could not find user")
 	}
 
-	feeds, err := s.db.GetAllFeedsForUser(user)
-	if err != nil {
-		return nil, status.Error(codes.Internal, "internal error")
-	}
-
-	var folderId int64 = -1
-	for _, f := range feeds {
-		if f.ID == req.Id {
-			folderId = f.FolderID
-			break
-		}
-	}
-	if folderId == -1 {
+	switch err = s.db.TombstoneFeedForUser(user, req.Id); {
+	case err == nil:
+	case errors.Is(err, sql.ErrNoRows):
 		return nil, status.Error(codes.InvalidArgument, "could not find feed")
-	}
-
-	fetch.Pause()
-	defer fetch.Resume()
-
-	err = s.db.DeleteFeedForUser(user, req.Id, folderId)
-	if err != nil {
+	default:
 		return nil, status.Error(codes.Internal, "internal error")
 	}
+	s.subs.Unschedule(user, req.Id)
 
 	return resp, nil
 }
 
 // EditFeed updates the requested feed for the requested user.
-// During the operation of adding a feed, fetching is paused and restarted.
 func (s *server) EditFeed(_ context.Context, req *EditFeedRequest) (*EditFeedResponse, error) {
 	resp := &EditFeedResponse{}
 
@@ -594,9 +577,6 @@ func (s *server) EditFeed(_ context.Context, req *EditFeedRequest) (*EditFeedRes
 	if folderId == -1 {
 		return nil, status.Error(codes.InvalidArgument, "could not find folder")
 	}
-
-	fetch.Pause()
-	defer fetch.Resume()
 
 	err = s.db.UpdateFolderForFeedForUser(user, req.Id, folderId)
 	if err != nil {
@@ -714,18 +694,19 @@ func (s *server) DeleteFeedMuteRegex(_ context.Context, req *DeleteFeedMuteRegex
 	return resp, nil
 }
 
-func newServer(d storage.Database) AdminServiceServer {
-	s := &server{db: d}
+func newServer(d storage.Database, subs fetch.Subscriptions) AdminServiceServer {
+	s := &server{db: d, subs: subs}
 	return s
 }
 
-// Start starts the gRPC admin server.
-func Start(ctx context.Context, d storage.Database) {
+// Start starts the gRPC admin server, which tells subs about every feed it
+// adds or removes.
+func Start(ctx context.Context, d storage.Database, subs fetch.Subscriptions) {
 	log.Infof("Starting gRPC admin server.")
 
 	s := grpc.NewServer()
 
-	RegisterAdminServiceServer(s, newServer(d))
+	RegisterAdminServiceServer(s, newServer(d, subs))
 	reflection.Register(s)
 
 	go func(s *grpc.Server) {

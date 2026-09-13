@@ -33,10 +33,8 @@ func isValidAbsoluteURL(s string) bool {
 }
 
 func (f Fetcher) updateFeedMetadataForUser(ctx context.Context, u models.User, mFeed *models.Feed, rFeed *rss.Feed) {
-	// A title the user set is theirs to keep. This runs on every first fetch,
-	// and pausing the fetcher to add or remove a subscription makes the next
-	// fetch a first fetch, so without this a rename survives only until the
-	// next change to the feed list.
+	// A title the user set is theirs to keep. The statement keeps it as well,
+	// since this copy of the feed may have been read before the rename.
 	if rFeed.Title != "" && !mFeed.TitleOverridden {
 		// Feed titles are plain text (possibly with HTML entities), not HTML
 		// documents. Use html.UnescapeString to decode entities without parsing
@@ -118,12 +116,12 @@ func (f Fetcher) updateFeedFaviconForUser(ctx context.Context, u models.User, fe
 		return
 	}
 
-	ip := maybeResizeImage(feed.FolderID, feed.ID, icon, img)
+	ip := maybeResizeImage(feed.ID, icon, img)
 	utils.DebugPrint("Received a new image:", ip)
 
 	// Check if the context is canceled. If not, updated the favicon.
 	if ctx.Err() == nil {
-		if err = f.d.InsertFaviconForUser(u, ip.folderId, ip.id, ip.mime, ip.favicon); err != nil {
+		if err = f.d.InsertFaviconForUser(u, ip.id, ip.mime, ip.favicon); err != nil {
 			log.Warningf("while persisting icon for user %s feed '%s': %s", u, fetchHost, err)
 		}
 	}

@@ -99,11 +99,11 @@ func main() {
 		log.Fatalf("Invalid feed address allowlist: %s", err)
 	}
 
-	fetcher := fetch.New(d, retrievalCache, feedAllowlist)
+	scheduler := fetch.NewScheduler(fetch.New(d, retrievalCache, feedAllowlist), d)
 
-	go fetcher.Start(ctx)
+	go scheduler.Run(ctx)
 	go storage.StartGC(ctx, d)
-	go admin.Start(ctx, d)
+	go admin.Start(ctx, d, scheduler)
 	go serveMetrics(ctx)
 
 	api.InitPostTokenKey()
@@ -115,7 +115,7 @@ func main() {
 		log.Fatalf("Invalid image proxy configuration: %s", err)
 	}
 
-	if err = serve(ctx, d); err != nil {
+	if err = serve(ctx, d, scheduler); err != nil {
 		log.Infof("%s", err)
 	}
 }
@@ -200,7 +200,7 @@ func serveMetrics(ctx context.Context) {
 	}
 }
 
-func serve(ctx context.Context, d storage.Database) error {
+func serve(ctx context.Context, d storage.Database, subs fetch.Subscriptions) error {
 	mux := http.NewServeMux()
 	srv := &http.Server{
 		Addr:           fmt.Sprintf(":%d", *port),
@@ -221,7 +221,7 @@ func serve(ctx context.Context, d storage.Database) error {
 	mux.HandleFunc("/auth", auth.HandleLogin(d))
 	mux.HandleFunc("/logout", auth.HandleLogout(d))
 	mux.HandleFunc("/fever/", api.FeverHandler(d))
-	mux.HandleFunc("/greader/", api.GReaderHandler(d))
+	mux.HandleFunc("/greader/", api.GReaderHandler(d, subs))
 	mux.HandleFunc("/version", handleVersion)
 	mux.Handle("/cache", auth.WithAuth(cache.NewImageProxy(), d, *publicFolder, cache.DenyUnauthenticated, true))
 	mux.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))

@@ -128,6 +128,9 @@ CREATE TABLE IF NOT EXISTS Feed
     estimated_refresh_interval INT DEFAULT 600,
     -- True when the title was set by the user rather than taken from the feed
     titleoverridden BOOL NOT NULL DEFAULT false,
+    -- Set when the user unsubscribes; the row and its articles are removed by
+    -- the garbage collector, and until then re-adding the feed clears it
+    deleted TIMESTAMPTZ,
     CONSTRAINT unique_userid_hash
         UNIQUE (userid, hash)
 );
@@ -136,6 +139,12 @@ CREATE
     INDEX IF NOT EXISTS feed_userid_idx
     ON Feed (userid)
     STORING (title, description, url, link, latest);
+
+-- Which of a user's feeds are unsubscribed from, asked by every read of their
+-- articles; usually none, so this is usually empty
+CREATE
+    INDEX IF NOT EXISTS feed_deleted_idx
+    ON Feed (userid) WHERE deleted IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS UserUnmuteFeeds
 (

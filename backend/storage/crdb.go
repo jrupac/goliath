@@ -532,11 +532,22 @@ func (crdb *Crdb) DeleteMuteRegexForFeedForUser(u models.User, feedId int64, reg
  * Retrieval cache
  ******************************************************************************/
 
-// GetActiveFeedKeys retrieves the keys of all active feeds.
+// GetActiveFeedKeys retrieves the keys of all feeds that still have a row,
+// including those unsubscribed from and awaiting garbage collection. A feed
+// can be restored until then, and it should come back remembering what it had
+// already fetched.
 func (crdb *Crdb) GetActiveFeedKeys() (map[UserFeedKey]bool, error) {
 	defer logElapsedTime(time.Now(), "GetActiveFeedKeys")
+	return crdb.feedKeys(`SELECT userid, id FROM Feed`)
+}
 
-	query := `SELECT userid, id FROM Feed`
+// GetLiveFeedKeys retrieves the keys of every feed any user is subscribed to.
+func (crdb *Crdb) GetLiveFeedKeys() (map[UserFeedKey]bool, error) {
+	defer logElapsedTime(time.Now(), "GetLiveFeedKeys")
+	return crdb.feedKeys(`SELECT userid, id FROM Feed WHERE deleted IS NULL`)
+}
+
+func (crdb *Crdb) feedKeys(query string) (map[UserFeedKey]bool, error) {
 	rows, err := crdb.db.Query(query)
 	defer closeSilent(rows)
 
@@ -631,35 +642,54 @@ func (crdb *Crdb) PersistAllRetrievalCaches(entries map[UserFeedKey][]byte) erro
  * Content insertion
  ******************************************************************************/
 
-// InsertArticleForUser inserts the given article object into the database.
+// ErrFeedGone reports a write into a feed that is not live: unsubscribed from,
+// or removed outright. A fetch that was already running when that happened is
+// the ordinary way to get it, and such a fetch should stop rather than retry.
+var ErrFeedGone = errors.New("feed is not subscribed")
+
+// InsertArticleForUser inserts the given article object into the database,
+// reporting ErrFeedGone if its feed is not live.
+//
+// The article's folder is read from its feed inside the statement rather than
+// taken from the article. A feed's folder is part of the key its articles are
+// stored under, so a fetch that read the feed before it was moved would
+// otherwise write rows naming the old folder, which the foreign key refuses.
 func (crdb *Crdb) InsertArticleForUser(u models.User, a models.Article) error {
 	defer logElapsedTime(time.Now(), "InsertArticleForUser")
 
 	query := `
-		INSERT INTO Article (userid, folder, feed, hash, title, summary, content, parsed, link, read, saved, date, retrieved)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-		ON CONFLICT (userid, feed, hash) DO NOTHING
-		RETURNING id
+		WITH live AS (
+			SELECT folder FROM Feed WHERE userid = $1 AND id = $2 AND deleted IS NULL
+		), inserted AS (
+			INSERT INTO Article (userid, folder, feed, hash, title, summary, content, parsed, link, read, saved, date, retrieved)
+			SELECT $1::UUID, folder, $2::INT8, $3::STRING, $4::STRING, $5::STRING, $6::STRING, $7::STRING,
+			       $8::STRING, $9::BOOL, $10::BOOL, $11::TIMESTAMPTZ, $12::TIMESTAMPTZ
+			FROM live
+			ON CONFLICT (userid, feed, hash) DO NOTHING
+			RETURNING id
+		)
+		SELECT (SELECT count(*) FROM live), (SELECT count(*) FROM inserted)
 	`
+	var live, inserted int
 	err := crdb.db.QueryRow(query,
-		u.UserId, a.FolderID, a.FeedID, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Saved, a.Date, a.Retrieved,
-	).Scan(&a.ID)
-
+		u.UserId, a.FeedID, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Saved, a.Date, a.Retrieved,
+	).Scan(&live, &inserted)
 	if err != nil {
-		// If no rows were returned, it means a duplicate was found
-		if errors.Is(err, sql.ErrNoRows) {
-			log.V(2).Infof("Duplicate article entry, skipping (hash): %s", a.Hash())
-			return nil
-		}
 		return fmt.Errorf("failed to insert article: %w", err)
 	}
 
+	if live == 0 {
+		return ErrFeedGone
+	}
+	if inserted == 0 {
+		log.V(2).Infof("Duplicate article entry, skipping (hash): %s", a.Hash())
+	}
 	return nil
 }
 
 // InsertFaviconForUser inserts the given favicon and associated metadata into
 // the database.
-func (crdb *Crdb) InsertFaviconForUser(u models.User, folderId int64, feedId int64, mime string, img []byte) error {
+func (crdb *Crdb) InsertFaviconForUser(u models.User, feedId int64, mime string, img []byte) error {
 	defer logElapsedTime(time.Now(), "InsertFaviconForUser")
 
 	// TODO: Consider wrapping this into a Favicon model type.
@@ -667,12 +697,11 @@ func (crdb *Crdb) InsertFaviconForUser(u models.User, folderId int64, feedId int
 	h := base64.StdEncoding.EncodeToString(img)
 
 	query := `
-		UPDATE Feed 
-		SET favicon = $1, mime = $2 
-		WHERE userid = $3 AND folder = $4 AND id = $5
-		  AND EXISTS (SELECT 1 FROM Feed WHERE userid = $3 AND folder = $4 AND id = $5)
+		UPDATE Feed
+		SET favicon = $1, mime = $2
+		WHERE userid = $3 AND id = $4 AND deleted IS NULL
 	`
-	result, err := crdb.db.Exec(query, h, mime, u.UserId, folderId, feedId)
+	result, err := crdb.db.Exec(query, h, mime, u.UserId, feedId)
 	if err != nil {
 		return fmt.Errorf("failed to update favicon: %w", err)
 	}
@@ -683,7 +712,7 @@ func (crdb *Crdb) InsertFaviconForUser(u models.User, folderId int64, feedId int
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("original feed not found for user %s, folder %d, feed %d", u.UserId, folderId, feedId)
+		return ErrFeedGone
 	}
 
 	return nil
@@ -693,6 +722,9 @@ func (crdb *Crdb) InsertFaviconForUser(u models.User, folderId int64, feedId int
 // the feed is assumed to be a top-level entry. Otherwise, the feed will be
 // nested under the folder with that ID. If the root folder does not exist,
 // returns -1 as the feed ID.
+//
+// A feed that collides with one the user unsubscribed from is that feed
+// restored, rather than a live ID for a row every read leaves out.
 func (crdb *Crdb) InsertFeedForUser(u models.User, f models.Feed, folderId int64) (int64, error) {
 	defer logElapsedTime(time.Now(), "InsertFeedForUser")
 
@@ -719,7 +751,8 @@ func (crdb *Crdb) InsertFeedForUser(u models.User, f models.Feed, folderId int64
 			title = excluded.title,
 			description = excluded.description,
 			url = excluded.url,
-			link = excluded.link
+			link = excluded.link,
+			deleted = NULL
 		RETURNING id
 	`
 	err := crdb.db.QueryRow(query, u.UserId, folderId, f.Hash(), f.Title, f.Description, f.URL, f.Link).Scan(&feedID)
@@ -837,37 +870,103 @@ func (crdb *Crdb) DeleteArticlesByIdForUser(u models.User, ids []int64) error {
 	return err
 }
 
-// DeleteFeedForUser deletes the specified feed and all articles under that feed.
-func (crdb *Crdb) DeleteFeedForUser(u models.User, feedId int64, folderId int64) error {
-	defer logElapsedTime(time.Now(), "DeleteFeedForUser")
+// TombstoneFeedForUser unsubscribes the user from a feed, reporting a feed that
+// is not theirs, or is already unsubscribed from, as sql.ErrNoRows.
+//
+// The feed is marked rather than deleted. Deleting it means deleting every
+// article it holds, which the request would otherwise wait on, and a fetch
+// already in flight would be racing the delete. Marked, the feed and its
+// articles drop out of every read a client can make, the fetcher's writes into
+// it do nothing, and the garbage collector removes it on its next run.
+func (crdb *Crdb) TombstoneFeedForUser(u models.User, feedId int64) error {
+	defer logElapsedTime(time.Now(), "TombstoneFeedForUser")
 
-	// TODO: Add an `ON DELETE CASCADE` constraint to `Article` to simplify.
+	query := `UPDATE Feed SET deleted = now() WHERE userid = $1 AND id = $2 AND deleted IS NULL`
+	res, err := crdb.db.Exec(query, u.UserId, feedId)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+// RestoreFeedByUrlForUser resubscribes the user to a feed with the given URL
+// that they unsubscribed from and the garbage collector has not yet removed,
+// returning it with the articles it had. A URL with no such feed is reported
+// as sql.ErrNoRows.
+func (crdb *Crdb) RestoreFeedByUrlForUser(u models.User, url string) (models.Feed, error) {
+	defer logElapsedTime(time.Now(), "RestoreFeedByUrlForUser")
+
+	var f models.Feed
+	query := `
+		UPDATE Feed SET deleted = NULL
+		WHERE userid = $1 AND id = (
+			SELECT id FROM Feed
+			WHERE userid = $1 AND url = $2 AND deleted IS NOT NULL
+			ORDER BY id
+			LIMIT 1
+		)
+		RETURNING id, folder, title, description, url, link, latest, estimated_refresh_interval, titleoverridden
+	`
+	err := crdb.db.QueryRow(query, u.UserId, url).Scan(
+		&f.ID, &f.FolderID, &f.Title, &f.Description, &f.URL, &f.Link, &f.Latest,
+		&f.EstimatedRefreshInterval, &f.TitleOverridden)
+	if err != nil {
+		return models.Feed{}, err
+	}
+	return f, nil
+}
+
+// PurgeDeletedFeeds removes every feed unsubscribed from before the given time,
+// along with its articles, returning how many of each were removed.
+//
+// One transaction and one cutoff, so that a feed unsubscribed from while this
+// runs is either removed whole or left whole: never its row without its
+// articles, which the foreign key would refuse anyway.
+func (crdb *Crdb) PurgeDeletedFeeds(before time.Time) (int64, int64, error) {
+	defer logElapsedTime(time.Now(), "PurgeDeletedFeeds")
 
 	ctx, cancel := context.WithTimeout(context.Background(), maxOperationTime)
 	defer cancel()
 	tx, err := crdb.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return 0, 0, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer rollbackSilent(tx)
 
-	query := `DELETE FROM Article WHERE userid = $1 AND folder = $2 AND feed = $3`
-	_, err = tx.ExecContext(ctx, query, u.UserId, folderId, feedId)
+	// Article's foreign key to Feed has no ON DELETE, so the articles go first.
+	query := `
+		DELETE FROM Article
+		WHERE (userid, folder, feed) IN (SELECT userid, folder, id FROM Feed WHERE deleted < $1)
+	`
+	res, err := tx.ExecContext(ctx, query, before)
 	if err != nil {
-		return fmt.Errorf("failed to delete articles: %w", err)
+		return 0, 0, fmt.Errorf("failed to delete articles: %w", err)
 	}
-
-	query = `DELETE FROM Feed WHERE userid = $1 AND folder = $2 AND id = $3`
-	_, err = tx.ExecContext(ctx, query, u.UserId, folderId, feedId)
+	articles, err := res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to delete feed: %w", err)
+		return 0, 0, fmt.Errorf("failed to count deleted articles: %w", err)
 	}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+	res, err = tx.ExecContext(ctx, `DELETE FROM Feed WHERE deleted < $1`, before)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to delete feeds: %w", err)
+	}
+	feeds, err := res.RowsAffected()
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to count deleted feeds: %w", err)
 	}
 
-	return nil
+	if err = tx.Commit(); err != nil {
+		return 0, 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return feeds, articles, nil
 }
 
 // ErrRootFolder reports an attempt to remove the root folder. It is where a
@@ -910,14 +1009,17 @@ func (crdb *Crdb) DeleteFolderForUser(u models.User, folderId int64) (int64, err
 		return 0, fmt.Errorf("failed to find the root folder: %w", err)
 	}
 
-	query = `UPDATE Feed SET folder = $3 WHERE userid = $1 AND folder = $2`
-	res, err := tx.ExecContext(ctx, query, u.UserId, folderId, rootId)
-	if err != nil {
+	// Feeds unsubscribed from move too, since the folder is going, but are not
+	// counted: they are not feeds the user would say the folder held.
+	query = `
+		WITH moved AS (
+			UPDATE Feed SET folder = $3 WHERE userid = $1 AND folder = $2 RETURNING deleted
+		)
+		SELECT count(*) FROM moved WHERE deleted IS NULL
+	`
+	var moved int64
+	if err = tx.QueryRowContext(ctx, query, u.UserId, folderId, rootId).Scan(&moved); err != nil {
 		return 0, fmt.Errorf("failed to move feeds to the root folder: %w", err)
-	}
-	moved, err := res.RowsAffected()
-	if err != nil {
-		return 0, fmt.Errorf("failed to count moved feeds: %w", err)
 	}
 
 	query = `
@@ -1099,45 +1201,66 @@ func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, mark models.M
  * Metadata update
  ******************************************************************************/
 
-// UpdateFeedMetadataForUser updates various fields for the row corresponding to
-// given models.Feed with the values in that object.
+// UpdateFeedMetadataForUser refreshes a feed's own metadata -- its title,
+// description and site link -- with the values in the given models.Feed.
+//
+// This is what the fetcher writes, and it may be writing from a copy of the
+// feed read before the user renamed it. So a title the user set is kept in the
+// statement itself, not on the strength of the copy, and the flag recording it
+// is left alone; RenameFeedForUser is the only thing that sets either.
 func (crdb *Crdb) UpdateFeedMetadataForUser(u models.User, f models.Feed) error {
 	defer logElapsedTime(time.Now(), "UpdateFeedMetadataForUser")
 
 	query := `
 		UPDATE Feed
-		SET hash = $1, title = $2, description = $3, link = $4, titleoverridden = $5
-		WHERE userid = $6 AND folder = $7 AND id = $8
+		SET hash = CASE WHEN titleoverridden THEN hash ELSE $1 END,
+		    title = CASE WHEN titleoverridden THEN title ELSE $2 END,
+		    description = $3, link = $4
+		WHERE userid = $5 AND id = $6 AND deleted IS NULL
 	`
 	_, err := crdb.db.Exec(
-		query, f.Hash(), f.Title, f.Description, f.Link, f.TitleOverridden, u.UserId, f.FolderID, f.ID)
+		query, f.Hash(), f.Title, f.Description, f.Link, u.UserId, f.ID)
+	return err
+}
+
+// RenameFeedForUser gives a feed the title in the given models.Feed, and marks
+// it as the user's own so that refreshing the feed's metadata keeps it.
+func (crdb *Crdb) RenameFeedForUser(u models.User, f models.Feed) error {
+	defer logElapsedTime(time.Now(), "RenameFeedForUser")
+
+	query := `
+		UPDATE Feed
+		SET hash = $1, title = $2, titleoverridden = true
+		WHERE userid = $3 AND id = $4 AND deleted IS NULL
+	`
+	_, err := crdb.db.Exec(query, f.Hash(), f.Title, u.UserId, f.ID)
 	return err
 }
 
 // UpdateLatestTimeForFeedForUser sets the latest retrieval time for the given
 // feed to the given timestamp.
-func (crdb *Crdb) UpdateLatestTimeForFeedForUser(u models.User, folderId int64, id int64, latest time.Time) error {
+func (crdb *Crdb) UpdateLatestTimeForFeedForUser(u models.User, id int64, latest time.Time) error {
 	defer logElapsedTime(time.Now(), "UpdateLatestTimeForFeedForUser")
 
 	query := `
 		UPDATE Feed
 		SET latest = $1
-		WHERE userid = $2 AND folder = $3 AND id = $4
+		WHERE userid = $2 AND id = $3 AND deleted IS NULL
 	`
-	_, err := crdb.db.Exec(query, latest, u.UserId, folderId, id)
+	_, err := crdb.db.Exec(query, latest, u.UserId, id)
 	return err
 }
 
 // UpdateEstimatedRefreshIntervalForFeedForUser sets the estimated refresh interval (in seconds) for the given feed.
-func (crdb *Crdb) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, folderId int64, id int64, interval int) error {
+func (crdb *Crdb) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, id int64, interval int) error {
 	defer logElapsedTime(time.Now(), "UpdateEstimatedRefreshIntervalForFeedForUser")
 
 	query := `
 		UPDATE Feed
 		SET estimated_refresh_interval = $1
-		WHERE userid = $2 AND folder = $3 AND id = $4
+		WHERE userid = $2 AND id = $3 AND deleted IS NULL
 	`
-	_, err := crdb.db.Exec(query, interval, u.UserId, folderId, id)
+	_, err := crdb.db.Exec(query, interval, u.UserId, id)
 	return err
 }
 
@@ -1272,7 +1395,7 @@ func (crdb *Crdb) GetFeedForUser(u models.User, feedId int64) (models.Feed, erro
 	query := `
 		SELECT id, folder, title, description, url, link, latest, estimated_refresh_interval, titleoverridden
 		FROM Feed
-		WHERE userid = $1 AND id = $2
+		WHERE userid = $1 AND id = $2 AND deleted IS NULL
 	`
 	err := crdb.db.QueryRow(query, u.UserId, feedId).Scan(
 		&f.ID, &f.FolderID, &f.Title, &f.Description, &f.URL, &f.Link, &f.Latest,
@@ -1316,7 +1439,7 @@ func (crdb *Crdb) GetFeedByUrlForUser(u models.User, url string) (models.Feed, e
 	query := `
 		SELECT id, folder, title, description, url, link, latest, estimated_refresh_interval, titleoverridden
 		FROM Feed
-		WHERE userid = $1 AND url = $2
+		WHERE userid = $1 AND url = $2 AND deleted IS NULL
 		ORDER BY id
 		LIMIT 1
 	`
@@ -1351,7 +1474,7 @@ func (crdb *Crdb) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
 	query := `
 		SELECT id, folder, title, description, url, link, latest, estimated_refresh_interval, titleoverridden
 		FROM Feed
-		WHERE userid = $1
+		WHERE userid = $1 AND deleted IS NULL
 	`
 	rows, err := crdb.db.Query(query, u.UserId)
 	defer closeSilent(rows)
@@ -1378,7 +1501,7 @@ func (crdb *Crdb) GetFeedsInFolderForUser(u models.User, folderId int64) ([]mode
 
 	var feeds []models.Feed
 
-	query := `SELECT id, title, url FROM Feed WHERE userid = $1 AND folder = $2`
+	query := `SELECT id, title, url FROM Feed WHERE userid = $1 AND folder = $2 AND deleted IS NULL`
 	rows, err := crdb.db.Query(query, u.UserId, folderId)
 	defer closeSilent(rows)
 
@@ -1402,7 +1525,7 @@ func (crdb *Crdb) GetFeedsPerFolderForUser(u models.User) (map[int64][]int64, er
 
 	resp := map[int64][]int64{}
 
-	query := `SELECT folder, id FROM Feed WHERE userid = $1`
+	query := `SELECT folder, id FROM Feed WHERE userid = $1 AND deleted IS NULL`
 	rows, err := crdb.db.Query(query, u.UserId)
 	defer closeSilent(rows)
 
@@ -1501,7 +1624,7 @@ func (crdb *Crdb) GetAllFaviconsForUser(u models.User) (map[int64]string, error)
 	query := `
 		SELECT id, mime, favicon
 		FROM Feed
-		WHERE userid = $1 AND favicon IS NOT NULL
+		WHERE userid = $1 AND favicon IS NOT NULL AND deleted IS NULL
 	`
 	rows, err := crdb.db.Query(query, u.UserId)
 	defer closeSilent(rows)
@@ -1522,13 +1645,20 @@ func (crdb *Crdb) GetAllFaviconsForUser(u models.User) (map[int64]string, error)
 	return favicons, err
 }
 
+// liveArticles restricts a read of Article to articles whose feed the user is
+// still subscribed to. Every read a client can reach carries it: the articles
+// of a feed unsubscribed from stay stored until the garbage collector removes
+// them with the feed, so that re-adding it can bring them back. It names the
+// user as $1, which every such query already binds.
+const liveArticles = `feed NOT IN (SELECT id FROM Feed WHERE userid = $1 AND deleted IS NOT NULL)`
+
 // articleMetaQuery is the one shape behind every filtered metadata read. The
 // substituted fragments are constants chosen from the stream filter, never
 // caller input; every value travels as a bound parameter.
 var articleMetaQuery = template.Must(template.New("articleMeta").Parse(`
 		SELECT id, feed, folder, date
 		FROM Article
-		WHERE userid = $1 AND id > $2 AND {{.Filter}}
+		WHERE userid = $1 AND id > $2 AND {{.Filter}} AND ` + liveArticles + `
 		{{- with .SinceColumn}}
 		  AND {{.}} > $4
 		{{- end}}
@@ -1671,8 +1801,7 @@ func (crdb *Crdb) GetArticlesForUser(u models.User, ids []int64) ([]models.Artic
 	query := `
 		SELECT id, feed, folder, title, summary, content, parsed, link, date
 		FROM Article
-		WHERE userid = $1 AND id = ANY($2)
-	`
+		WHERE userid = $1 AND id = ANY($2) AND ` + liveArticles
 	rows, err = crdb.db.Query(query, u.UserId, pq.Array(ids))
 	defer closeSilent(rows)
 
@@ -1707,40 +1836,16 @@ func (crdb *Crdb) GetArticlesWithFilterForUser(u models.User, filter models.Stre
 		sinceID = 0
 	}
 
-	var query string
-
-	switch filter {
-	case models.StreamFilterRead:
-		query = `
-		SELECT id, feed, folder, title, summary, content, parsed, link, date
-		FROM Article
-		WHERE userid = $1 AND id > $2 AND read
-		ORDER BY id LIMIT $3
-	`
-	case models.StreamFilterUnread:
-		query = `
-		SELECT id, feed, folder, title, summary, content, parsed, link, date
-		FROM Article
-		WHERE userid = $1 AND id > $2 AND NOT read
-		ORDER BY id LIMIT $3
-	`
-	case models.StreamFilterSaved:
-		query = `
-		SELECT id, feed, folder, title, summary, content, parsed, link, date
-		FROM Article
-		WHERE userid = $1 AND id > $2 AND saved
-		ORDER BY id LIMIT $3
-	`
-	case models.StreamFilterUnsaved:
-		query = `
-		SELECT id, feed, folder, title, summary, content, parsed, link, date
-		FROM Article
-		WHERE userid = $1 AND id > $2 AND NOT saved
-		ORDER BY id LIMIT $3
-	`
-	default:
-		return articles, fmt.Errorf("invalid filter: %+v", filter)
+	fragments, err := articleMetaFragments(filter)
+	if err != nil {
+		return articles, err
 	}
+	query := `
+		SELECT id, feed, folder, title, summary, content, parsed, link, date
+		FROM Article
+		WHERE userid = $1 AND id > $2 AND ` + fragments.Filter + ` AND ` + liveArticles + `
+		ORDER BY id LIMIT $3
+	`
 
 	rows, err = crdb.db.Query(query, u.UserId, sinceID, limit)
 	defer closeSilent(rows)

@@ -73,13 +73,14 @@ type Database interface {
 	// Retrieval cache
 
 	GetActiveFeedKeys() (map[UserFeedKey]bool, error)
+	GetLiveFeedKeys() (map[UserFeedKey]bool, error)
 	GetAllRetrievalCaches() (map[UserFeedKey]string, error)
 	PersistAllRetrievalCaches(map[UserFeedKey][]byte) error
 
 	// Content insertion
 
 	InsertArticleForUser(models.User, models.Article) error
-	InsertFaviconForUser(models.User, int64, int64, string, []byte) error
+	InsertFaviconForUser(models.User, int64, string, []byte) error
 	InsertFeedForUser(models.User, models.Feed, int64) (int64, error)
 	InsertFolderForUser(models.User, models.Folder, int64) (int64, error)
 
@@ -87,7 +88,9 @@ type Database interface {
 
 	DeleteArticlesForUser(models.User, time.Time) (int64, error)
 	DeleteArticlesByIdForUser(models.User, []int64) error
-	DeleteFeedForUser(models.User, int64, int64) error
+	TombstoneFeedForUser(models.User, int64) error
+	RestoreFeedByUrlForUser(models.User, string) (models.Feed, error)
+	PurgeDeletedFeeds(time.Time) (int64, int64, error)
 	DeleteFolderForUser(models.User, int64) (int64, error)
 
 	// Marking
@@ -100,8 +103,9 @@ type Database interface {
 	// Metadata update
 
 	UpdateFeedMetadataForUser(models.User, models.Feed) error
-	UpdateLatestTimeForFeedForUser(models.User, int64, int64, time.Time) error
-	UpdateEstimatedRefreshIntervalForFeedForUser(models.User, int64, int64, int) error
+	RenameFeedForUser(models.User, models.Feed) error
+	UpdateLatestTimeForFeedForUser(models.User, int64, time.Time) error
+	UpdateEstimatedRefreshIntervalForFeedForUser(models.User, int64, int) error
 	UpdateFolderForFeedForUser(models.User, int64, int64) error
 	RenameFolderForUser(models.User, int64, string) error
 	UpdateArticleParsedContentForUser(models.User, int64, string) error
