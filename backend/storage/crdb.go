@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"strings"
 	"text/template"
 	"time"
@@ -88,24 +89,387 @@ func (crdb *Crdb) Close() error {
  * User management
  ******************************************************************************/
 
-// InsertUser inserts the given user into the database.
-func (crdb *Crdb) InsertUser(u models.User) error {
+// ErrUserExists reports an attempt to add a user whose name is already taken,
+// ignoring case.
+var ErrUserExists = errors.New("a user with that name already exists")
+
+// ErrUserPendingPurge reports an attempt to add a user whose name, ignoring
+// case, belongs to a deleted user not yet purged. The name is kept for them so
+// that they can be restored.
+var ErrUserPendingPurge = errors.New("a deleted user with that name has not yet been purged")
+
+// txRetries bounds how many times a transaction that lost a serialization
+// conflict is run again before its error is returned.
+const txRetries = 5
+
+// inTx runs fn in a transaction and commits it, running it again from the
+// start if the database aborts it to preserve serializability. fn must
+// therefore be safe to repeat, which in practice means doing nothing outside
+// the transaction.
+//
+// Each retry waits a random and growing interval first, so that transactions
+// which conflicted with each other do not collide again in lockstep.
+func (crdb *Crdb) inTx(fn func(ctx context.Context, tx *sql.Tx) error) error {
+	ctx, cancel := context.WithTimeout(context.Background(), maxOperationTime)
+	defer cancel()
+
+	var err error
+	for attempt := range txRetries {
+		if attempt > 0 {
+			time.Sleep(rand.N(time.Duration(attempt) * 20 * time.Millisecond))
+		}
+		err = func() error {
+			tx, err := crdb.db.BeginTx(ctx, nil)
+			if err != nil {
+				return fmt.Errorf("failed to begin transaction: %w", err)
+			}
+			defer rollbackSilent(tx)
+			if err = fn(ctx, tx); err != nil {
+				return err
+			}
+			return tx.Commit()
+		}()
+		var pqErr *pq.Error
+		if !errors.As(err, &pqErr) || pqErr.Code.Name() != "serialization_failure" {
+			return err
+		}
+	}
+	return err
+}
+
+// InsertUser stores a new user along with the rows every user is assumed to
+// have, and returns it with its assigned ID.
+//
+// The root folder and preferences are created in the same transaction as the
+// user. Adding a feed files it under the root when no folder is named, and the
+// fetcher reads preferences on every fetch, so a user without either would
+// exist but fail on the first thing they did.
+//
+// A name taken ignoring case is refused. The index on the lowered name enforces
+// that against a concurrent insert; the check before inserting is what turns it
+// into ErrUserExists, and with the index is a point lookup, so adds of
+// different names do not contend.
+func (crdb *Crdb) InsertUser(u models.User) (models.User, error) {
 	defer logElapsedTime(time.Now(), "InsertUser")
 
-	query := `INSERT INTO UserTable (id, username, key) VALUES($1, $2, $3)`
-	_, err := crdb.db.Exec(query, u.UserId, u.Username, u.Key)
+	err := crdb.inTx(func(ctx context.Context, tx *sql.Tx) error {
+		var deleted sql.NullTime
+		query := `SELECT deleted FROM UserTable WHERE lower(username) = lower($1)`
+		switch err := tx.QueryRowContext(ctx, query, u.Username).Scan(&deleted); {
+		case errors.Is(err, sql.ErrNoRows):
+		case err != nil:
+			return fmt.Errorf("failed to check username: %w", err)
+		case deleted.Valid:
+			return ErrUserPendingPurge
+		default:
+			return ErrUserExists
+		}
+
+		query = `INSERT INTO UserTable (username, key, hashpass) VALUES ($1, $2, $3) RETURNING id`
+		if err := tx.QueryRowContext(ctx, query, u.Username, u.Key, u.HashPass).Scan(&u.UserId); err != nil {
+			var pqErr *pq.Error
+			if errors.As(err, &pqErr) && pqErr.Code.Name() == "unique_violation" {
+				return ErrUserExists
+			}
+			return fmt.Errorf("failed to insert user: %w", err)
+		}
+
+		query = `INSERT INTO UserPrefs (userid, mute_words) VALUES ($1, ARRAY[]::STRING[])`
+		if _, err := tx.ExecContext(ctx, query, u.UserId); err != nil {
+			return fmt.Errorf("failed to insert preferences: %w", err)
+		}
+
+		query = `INSERT INTO Folder (userid, name) VALUES ($1, $2)`
+		if _, err := tx.ExecContext(ctx, query, u.UserId, models.RootFolder); err != nil {
+			return fmt.Errorf("failed to insert root folder: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return models.User{}, err
+	}
+	return u, nil
+}
+
+// TombstoneUser deletes a user, returning counts of what they hold.
+//
+// The user is marked rather than removed. Every lookup a credential goes
+// through leaves a marked user out, and their sessions are revoked here, so
+// they are refused from their next request; but what they own stays until the
+// garbage collector purges it. Removing it all at once would hold every row
+// they own under lock in one transaction, and keeping it for a while means the
+// deletion can be undone.
+func (crdb *Crdb) TombstoneUser(u models.User) (models.UserDeletion, error) {
+	defer logElapsedTime(time.Now(), "TombstoneUser")
+
+	var del models.UserDeletion
+	err := crdb.inTx(func(ctx context.Context, tx *sql.Tx) error {
+		del = models.UserDeletion{}
+
+		res, err := tx.ExecContext(ctx, `UPDATE UserTable SET deleted = now() WHERE id = $1 AND deleted IS NULL`, u.UserId)
+		if err != nil {
+			return fmt.Errorf("failed to mark user deleted: %w", err)
+		}
+		if n, err := res.RowsAffected(); err != nil {
+			return err
+		} else if n == 0 {
+			return sql.ErrNoRows
+		}
+
+		query := `SELECT count(*) FROM Session WHERE userid = $1 AND lastseen > $2`
+		if err = tx.QueryRowContext(ctx, query, u.UserId, SessionExpiryCutoff()).Scan(&del.Sessions); err != nil {
+			return fmt.Errorf("failed to count sessions: %w", err)
+		}
+		if _, err = tx.ExecContext(ctx, `DELETE FROM Session WHERE userid = $1`, u.UserId); err != nil {
+			return fmt.Errorf("failed to revoke sessions: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return del, err
+	}
+
+	// Counted after the transaction rather than in it: the counts describe
+	// what the user holds rather than decide anything, and counting a large
+	// user's articles is not worth holding the transaction open for.
+	query := `SELECT count(*) FROM Feed WHERE userid = $1 AND deleted IS NULL`
+	if err = crdb.db.QueryRow(query, u.UserId).Scan(&del.Feeds); err != nil {
+		return del, fmt.Errorf("failed to count feeds: %w", err)
+	}
+	// Tombstoned feeds are excluded rather than live ones joined: the planner
+	// answers the join by scanning every user's articles.
+	query = `SELECT count(*) FROM Article WHERE userid = $1
+		AND feed NOT IN (SELECT id FROM Feed WHERE userid = $1 AND deleted IS NOT NULL)`
+	if err = crdb.db.QueryRow(query, u.UserId).Scan(&del.Articles); err != nil {
+		return del, fmt.Errorf("failed to count articles: %w", err)
+	}
+	return del, nil
+}
+
+// RestoreUser undoes the deletion of the named user and returns them, provided
+// they were deleted after cutoff. One deleted before it may already be part-way
+// through a purge, so is reported as sql.ErrNoRows, as is anyone not deleted.
+func (crdb *Crdb) RestoreUser(username string, cutoff time.Time) (models.User, error) {
+	defer logElapsedTime(time.Now(), "RestoreUser")
+
+	var u models.User
+	query := `
+		UPDATE UserTable SET deleted = NULL
+		WHERE username = $1 AND deleted > $2
+		RETURNING id, username, key, hashpass
+	`
+	err := crdb.db.QueryRow(query, username, cutoff).Scan(&u.UserId, &u.Username, &u.Key, &u.HashPass)
+	if err != nil {
+		return models.User{}, err
+	}
+	return u, nil
+}
+
+// purgeBatchSize bounds how many articles one statement of a purge deletes.
+const purgeBatchSize = 10000
+
+// PurgeDeletedUsers removes every user deleted before cutoff, with everything
+// they owned, and returns how many users and articles went.
+//
+// Not one transaction. A deleted user is already invisible to clients and no
+// longer fetched, so their data need not disappear all at once, and deleting a
+// large user's articles in batches keeps each statement short and each lock
+// brief. A purge interrupted part-way is finished by the next: the user row
+// goes last, so whatever is left is still found.
+func (crdb *Crdb) PurgeDeletedUsers(cutoff time.Time) (int64, int64, error) {
+	defer logElapsedTime(time.Now(), "PurgeDeletedUsers")
+
+	rows, err := crdb.db.Query(`SELECT id FROM UserTable WHERE deleted < $1`, cutoff)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to list deleted users: %w", err)
+	}
+	var ids []models.UserId
+	for rows.Next() {
+		var id models.UserId
+		if err = rows.Scan(&id); err != nil {
+			closeSilent(rows)
+			return 0, 0, err
+		}
+		ids = append(ids, id)
+	}
+	closeSilent(rows)
+	if err = rows.Err(); err != nil {
+		return 0, 0, err
+	}
+
+	var users, articles int64
+	for _, id := range ids {
+		n, err := crdb.purgeUser(id)
+		articles += n
+		if err != nil {
+			return users, articles, fmt.Errorf("failed to purge user %s: %w", id, err)
+		}
+		users++
+	}
+	return users, articles, nil
+}
+
+// purgeUser removes one deleted user and everything they own, returning how
+// many articles went.
+//
+// Folder, Feed and Article do not cascade from the user, so they go here,
+// children first. What does cascade -- sessions, preferences, mute rules,
+// retrieval caches -- goes with the user row or with their feeds.
+func (crdb *Crdb) purgeUser(id models.UserId) (int64, error) {
+	// Each batch reads the next IDs in order from where the last one stopped,
+	// then deletes exactly those. Deleting whatever comes first in the user's
+	// range instead would make every batch step over the rows every earlier
+	// batch deleted, which stay behind as deletion markers until the database
+	// collects them, so the batches would slow as the purge went on.
+	var articles int64
+	var after int64 = -1
+	for {
+		rows, err := crdb.db.Query(`SELECT id FROM Article WHERE userid = $1 AND id > $2 ORDER BY id LIMIT $3`,
+			id, after, purgeBatchSize)
+		if err != nil {
+			return articles, fmt.Errorf("failed to list articles: %w", err)
+		}
+		ids := make([]int64, 0, purgeBatchSize)
+		for rows.Next() {
+			var a int64
+			if err = rows.Scan(&a); err != nil {
+				closeSilent(rows)
+				return articles, err
+			}
+			ids = append(ids, a)
+		}
+		closeSilent(rows)
+		if err = rows.Err(); err != nil {
+			return articles, fmt.Errorf("failed to list articles: %w", err)
+		}
+		if len(ids) == 0 {
+			break
+		}
+		after = ids[len(ids)-1]
+
+		res, err := crdb.db.Exec(`DELETE FROM Article WHERE userid = $1 AND id = ANY($2)`, id, pq.Array(ids))
+		if err != nil {
+			return articles, fmt.Errorf("failed to delete articles: %w", err)
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return articles, err
+		}
+		articles += n
+		if len(ids) < purgeBatchSize {
+			break
+		}
+	}
+
+	for _, query := range []string{
+		`DELETE FROM Feed WHERE userid = $1`,
+		`DELETE FROM FolderChildren WHERE userid = $1`,
+		`DELETE FROM Folder WHERE userid = $1`,
+		`DELETE FROM UserTable WHERE id = $1 AND deleted IS NOT NULL`,
+	} {
+		if _, err := crdb.db.Exec(query, id); err != nil {
+			return articles, fmt.Errorf("failed to run %q: %w", query, err)
+		}
+	}
+	return articles, nil
+}
+
+// GetUserSummaries returns every user, ordered by username, with counts of
+// what each holds.
+//
+// Each count is its own grouped query rather than a join across all of them,
+// which would multiply rows between the tables before counting them.
+func (crdb *Crdb) GetUserSummaries() ([]models.UserSummary, error) {
+	defer logElapsedTime(time.Now(), "GetUserSummaries")
+
+	rows, err := crdb.db.Query(`SELECT id, username, deleted FROM UserTable ORDER BY username`)
+	if err != nil {
+		return nil, err
+	}
+	var summaries []models.UserSummary
+	byId := map[models.UserId]*models.UserSummary{}
+	for rows.Next() {
+		var s models.UserSummary
+		var deleted sql.NullTime
+		if err = rows.Scan(&s.User.UserId, &s.User.Username, &deleted); err != nil {
+			closeSilent(rows)
+			return nil, err
+		}
+		s.Deleted = deleted.Time
+		summaries = append(summaries, s)
+	}
+	closeSilent(rows)
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	for i := range summaries {
+		byId[summaries[i].User.UserId] = &summaries[i]
+	}
+
+	counts := []struct {
+		query  string
+		args   []any
+		fields func(*models.UserSummary) []*int64
+	}{
+		{
+			`SELECT userid, count(*) FROM Feed WHERE deleted IS NULL GROUP BY userid`, nil,
+			func(s *models.UserSummary) []*int64 { return []*int64{&s.Feeds} },
+		},
+		{
+			`SELECT userid, count(*) FROM Folder WHERE name != $1 GROUP BY userid`,
+			[]any{models.RootFolder},
+			func(s *models.UserSummary) []*int64 { return []*int64{&s.Folders} },
+		},
+		{
+			`SELECT userid, count(*), count(*) FILTER (WHERE NOT read) FROM Article
+			 WHERE feed NOT IN (SELECT id FROM Feed WHERE deleted IS NOT NULL) GROUP BY userid`, nil,
+			func(s *models.UserSummary) []*int64 { return []*int64{&s.Articles, &s.Unread} },
+		},
+		{
+			`SELECT userid, count(*) FROM Session WHERE lastseen > $1 GROUP BY userid`,
+			[]any{SessionExpiryCutoff()},
+			func(s *models.UserSummary) []*int64 { return []*int64{&s.Sessions} },
+		},
+	}
+	for _, c := range counts {
+		if err = crdb.scanUserCounts(c.query, c.args, byId, c.fields); err != nil {
+			return nil, err
+		}
+	}
+	return summaries, nil
+}
+
+// scanUserCounts runs a query whose rows are a user ID followed by counts, and
+// stores each row's counts in the fields of that user's summary.
+func (crdb *Crdb) scanUserCounts(query string, args []any, byId map[models.UserId]*models.UserSummary,
+	fields func(*models.UserSummary) []*int64) error {
+	rows, err := crdb.db.Query(query, args...)
 	if err != nil {
 		return err
 	}
+	defer closeSilent(rows)
 
-	// Also add an empty mute_word column for the new user
-	query = `
-		INSERT INTO UserPrefs (userid, mute_words)
-		VALUES($1, ARRAY[]::STRING[])
-	`
-	_, err = crdb.db.Exec(query, u.UserId)
-
-	return err
+	n := len(fields(&models.UserSummary{}))
+	for rows.Next() {
+		var id models.UserId
+		vals := make([]int64, n)
+		dest := []any{&id}
+		for i := range vals {
+			dest = append(dest, &vals[i])
+		}
+		if err = rows.Scan(dest...); err != nil {
+			return err
+		}
+		s, ok := byId[id]
+		if !ok {
+			// A user added after the users were read; left for the next listing.
+			continue
+		}
+		for i, f := range fields(s) {
+			*f = vals[i]
+		}
+	}
+	return rows.Err()
 }
 
 // GetAllUsers returns a list of all models.User objects.
@@ -114,7 +478,7 @@ func (crdb *Crdb) GetAllUsers() ([]models.User, error) {
 
 	var users []models.User
 
-	query := `SELECT id, username, key FROM UserTable`
+	query := `SELECT id, username, key FROM UserTable WHERE deleted IS NULL`
 	rows, err := crdb.db.Query(query)
 	defer closeSilent(rows)
 
@@ -139,7 +503,7 @@ func (crdb *Crdb) GetUserByKey(key models.Secret) (models.User, error) {
 
 	var u models.User
 
-	query := `SELECT id, username, key, hashpass FROM UserTable WHERE key = $1`
+	query := `SELECT id, username, key, hashpass FROM UserTable WHERE key = $1 AND deleted IS NULL`
 	err := crdb.db.QueryRow(query, key).Scan(&u.UserId, &u.Username, &u.Key, &u.HashPass)
 
 	if !u.Valid() {
@@ -155,7 +519,7 @@ func (crdb *Crdb) GetUserByUsername(username string) (models.User, error) {
 
 	var u models.User
 
-	query := `SELECT id, username, key, hashpass FROM UserTable WHERE username = $1`
+	query := `SELECT id, username, key, hashpass FROM UserTable WHERE username = $1 AND deleted IS NULL`
 	err := crdb.db.QueryRow(query, username).Scan(&u.UserId, &u.Username, &u.Key, &u.HashPass)
 
 	if !u.Valid() {
@@ -235,7 +599,7 @@ func (crdb *Crdb) LookupSession(token models.Secret) (models.User, models.Sessio
 		SELECT s.id, s.userid, s.scheme, s.created, s.lastseen, s.useragent,
 		       u.username, u.key, u.hashpass
 		FROM Session s JOIN UserTable u ON u.id = s.userid
-		WHERE s.tokenhash = $1 AND s.lastseen > $2`
+		WHERE s.tokenhash = $1 AND s.lastseen > $2 AND u.deleted IS NULL`
 	err := crdb.db.QueryRow(query, hash, SessionExpiryCutoff()).Scan(
 		&s.SessionId, &s.UserId, &scheme, &s.Created, &s.LastSeen, &s.UserAgent,
 		&u.Username, &u.Key, &u.HashPass)
@@ -775,59 +1139,51 @@ func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId i
 		return errFolderId, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), maxOperationTime)
-	defer cancel()
-	tx, err := crdb.db.BeginTx(ctx, nil)
-	if err != nil {
-		return errFolderId, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer rollbackSilent(tx)
-
+	// Retried, since creating two folders at once for one user conflicts: each
+	// reads the user's folder links to see whether its own folder is filed.
 	var folderID int64
-	query := `
-		INSERT INTO Folder(userid, name) VALUES($1, $2)
-		ON CONFLICT(userid, name) DO UPDATE SET name = excluded.name 
-		RETURNING id
-	`
-	err = tx.QueryRowContext(ctx, query, u.UserId, f.Name).Scan(&folderID)
+	err := crdb.inTx(func(ctx context.Context, tx *sql.Tx) error {
+		query := `
+			INSERT INTO Folder(userid, name) VALUES($1, $2)
+			ON CONFLICT(userid, name) DO UPDATE SET name = excluded.name
+			RETURNING id
+		`
+		if err := tx.QueryRowContext(ctx, query, u.UserId, f.Name).Scan(&folderID); err != nil {
+			return fmt.Errorf("failed to insert folder: %w", err)
+		}
+
+		switch {
+		case parentId != 0:
+			query = `
+				INSERT INTO FolderChildren(userid, parent, child)
+				VALUES($1, $2, $3)
+				ON CONFLICT (userid, parent, child) DO NOTHING
+			`
+			if _, err := tx.ExecContext(ctx, query, u.UserId, parentId, folderID); err != nil {
+				return fmt.Errorf("failed to insert into FolderChildren: %w", err)
+			}
+		case f.Name != models.RootFolder:
+			// Filed under the root, which is where a folder given no parent
+			// belongs. Unlinked, it would still hold feeds and still be listed
+			// to clients, but anything walking the hierarchy from the root --
+			// OPML export -- would pass over it and every feed in it. A folder
+			// the insert merged into keeps whatever parent it already has.
+			query = `
+				INSERT INTO FolderChildren(userid, parent, child)
+				SELECT userid, id, $2 FROM Folder
+				WHERE userid = $1 AND name = $3
+				AND NOT EXISTS (SELECT 1 FROM FolderChildren WHERE userid = $1 AND child = $2)
+				ON CONFLICT (userid, parent, child) DO NOTHING
+			`
+			if _, err := tx.ExecContext(ctx, query, u.UserId, folderID, models.RootFolder); err != nil {
+				return fmt.Errorf("failed to file folder under the root: %w", err)
+			}
+		}
+		return nil
+	})
 	if err != nil {
-		return errFolderId, fmt.Errorf("failed to insert folder: %w", err)
+		return errFolderId, err
 	}
-
-	switch {
-	case parentId != 0:
-		query = `
-			INSERT INTO FolderChildren(userid, parent, child) 
-			VALUES($1, $2, $3)
-			ON CONFLICT (userid, parent, child) DO NOTHING
-		`
-		_, err = tx.ExecContext(ctx, query, u.UserId, parentId, folderID)
-		if err != nil {
-			return errFolderId, fmt.Errorf("failed to insert into FolderChildren: %w", err)
-		}
-	case f.Name != models.RootFolder:
-		// Filed under the root, which is where a folder given no parent belongs.
-		// Unlinked, it would still hold feeds and still be listed to clients,
-		// but anything walking the hierarchy from the root -- OPML export --
-		// would pass over it and every feed in it. A folder the insert merged
-		// into keeps whatever parent it already has.
-		query = `
-			INSERT INTO FolderChildren(userid, parent, child)
-			SELECT userid, id, $2 FROM Folder
-			WHERE userid = $1 AND name = $3
-			AND NOT EXISTS (SELECT 1 FROM FolderChildren WHERE userid = $1 AND child = $2)
-			ON CONFLICT (userid, parent, child) DO NOTHING
-		`
-		_, err = tx.ExecContext(ctx, query, u.UserId, folderID, models.RootFolder)
-		if err != nil {
-			return errFolderId, fmt.Errorf("failed to file folder under the root: %w", err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errFolderId, fmt.Errorf("failed to commit transaction: %w", err)
-	}
-
 	return folderID, nil
 }
 
@@ -982,67 +1338,63 @@ var ErrRootFolder = errors.New("the root folder cannot be removed")
 // inside it moves up to the root in the same way.
 //
 // One transaction, so that a failure part-way leaves the folder as it was
-// rather than half emptied.
+// rather than half emptied, and retried, since it reads and rewrites the user's
+// folder links and feeds, which anything else changing their folders conflicts
+// with.
 func (crdb *Crdb) DeleteFolderForUser(u models.User, folderId int64) (int64, error) {
 	defer logElapsedTime(time.Now(), "DeleteFolderForUser")
 
-	ctx, cancel := context.WithTimeout(context.Background(), maxOperationTime)
-	defer cancel()
-	tx, err := crdb.db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer rollbackSilent(tx)
-
-	var name string
-	query := `SELECT name FROM Folder WHERE userid = $1 AND id = $2`
-	if err = tx.QueryRowContext(ctx, query, u.UserId, folderId).Scan(&name); err != nil {
-		return 0, err
-	}
-	if name == models.RootFolder {
-		return 0, ErrRootFolder
-	}
-
-	var rootId int64
-	query = `SELECT id FROM Folder WHERE userid = $1 AND name = $2`
-	if err = tx.QueryRowContext(ctx, query, u.UserId, models.RootFolder).Scan(&rootId); err != nil {
-		return 0, fmt.Errorf("failed to find the root folder: %w", err)
-	}
-
-	// Feeds unsubscribed from move too, since the folder is going, but are not
-	// counted: they are not feeds the user would say the folder held.
-	query = `
-		WITH moved AS (
-			UPDATE Feed SET folder = $3 WHERE userid = $1 AND folder = $2 RETURNING deleted
-		)
-		SELECT count(*) FROM moved WHERE deleted IS NULL
-	`
 	var moved int64
-	if err = tx.QueryRowContext(ctx, query, u.UserId, folderId, rootId).Scan(&moved); err != nil {
-		return 0, fmt.Errorf("failed to move feeds to the root folder: %w", err)
-	}
+	err := crdb.inTx(func(ctx context.Context, tx *sql.Tx) error {
+		var name string
+		query := `SELECT name FROM Folder WHERE userid = $1 AND id = $2`
+		if err := tx.QueryRowContext(ctx, query, u.UserId, folderId).Scan(&name); err != nil {
+			return err
+		}
+		if name == models.RootFolder {
+			return ErrRootFolder
+		}
 
-	query = `
-		INSERT INTO FolderChildren(userid, parent, child)
-		SELECT userid, $3::INT8, child FROM FolderChildren WHERE userid = $1 AND parent = $2
-		ON CONFLICT (userid, parent, child) DO NOTHING
-	`
-	if _, err = tx.ExecContext(ctx, query, u.UserId, folderId, rootId); err != nil {
-		return 0, fmt.Errorf("failed to move subfolders to the root folder: %w", err)
-	}
+		var rootId int64
+		query = `SELECT id FROM Folder WHERE userid = $1 AND name = $2`
+		if err := tx.QueryRowContext(ctx, query, u.UserId, models.RootFolder).Scan(&rootId); err != nil {
+			return fmt.Errorf("failed to find the root folder: %w", err)
+		}
 
-	query = `DELETE FROM FolderChildren WHERE userid = $1 AND (parent = $2 OR child = $2)`
-	if _, err = tx.ExecContext(ctx, query, u.UserId, folderId); err != nil {
-		return 0, fmt.Errorf("failed to unlink folder: %w", err)
-	}
+		// Feeds unsubscribed from move too, since the folder is going, but are
+		// not counted: they are not feeds the user would say the folder held.
+		query = `
+			WITH moved AS (
+				UPDATE Feed SET folder = $3 WHERE userid = $1 AND folder = $2 RETURNING deleted
+			)
+			SELECT count(*) FROM moved WHERE deleted IS NULL
+		`
+		if err := tx.QueryRowContext(ctx, query, u.UserId, folderId, rootId).Scan(&moved); err != nil {
+			return fmt.Errorf("failed to move feeds to the root folder: %w", err)
+		}
 
-	query = `DELETE FROM Folder WHERE userid = $1 AND id = $2`
-	if _, err = tx.ExecContext(ctx, query, u.UserId, folderId); err != nil {
-		return 0, fmt.Errorf("failed to delete folder: %w", err)
-	}
+		query = `
+			INSERT INTO FolderChildren(userid, parent, child)
+			SELECT userid, $3::INT8, child FROM FolderChildren WHERE userid = $1 AND parent = $2
+			ON CONFLICT (userid, parent, child) DO NOTHING
+		`
+		if _, err := tx.ExecContext(ctx, query, u.UserId, folderId, rootId); err != nil {
+			return fmt.Errorf("failed to move subfolders to the root folder: %w", err)
+		}
 
-	if err = tx.Commit(); err != nil {
-		return 0, fmt.Errorf("failed to commit transaction: %w", err)
+		query = `DELETE FROM FolderChildren WHERE userid = $1 AND (parent = $2 OR child = $2)`
+		if _, err := tx.ExecContext(ctx, query, u.UserId, folderId); err != nil {
+			return fmt.Errorf("failed to unlink folder: %w", err)
+		}
+
+		query = `DELETE FROM Folder WHERE userid = $1 AND id = $2`
+		if _, err := tx.ExecContext(ctx, query, u.UserId, folderId); err != nil {
+			return fmt.Errorf("failed to delete folder: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
 	}
 	return moved, nil
 }

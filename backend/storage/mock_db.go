@@ -61,11 +61,50 @@ type MockDB struct {
 	OnInsertFolderForUser                          func(u models.User, f models.Folder, parentID int64) (int64, error)
 	OnRenameFolderForUser                          func(u models.User, folderID int64, name string) error
 	OnDeleteFolderForUser                          func(u models.User, folderID int64) (int64, error)
+	OnInsertUser                                   func(u models.User) (models.User, error)
+	OnTombstoneUser                                func(u models.User) (models.UserDeletion, error)
+	OnRestoreUser                                  func(username string, cutoff time.Time) (models.User, error)
+	OnPurgeDeletedUsers                            func(before time.Time) (int64, int64, error)
+	OnGetUserSummaries                             func() ([]models.UserSummary, error)
 }
 
-func (m *MockDB) Open(string) error            { return nil }
-func (m *MockDB) Close() error                 { return nil }
-func (m *MockDB) InsertUser(models.User) error { return nil }
+func (m *MockDB) Open(string) error { return nil }
+func (m *MockDB) Close() error      { return nil }
+
+func (m *MockDB) InsertUser(u models.User) (models.User, error) {
+	if m.OnInsertUser != nil {
+		return m.OnInsertUser(u)
+	}
+	return u, nil
+}
+
+func (m *MockDB) TombstoneUser(u models.User) (models.UserDeletion, error) {
+	if m.OnTombstoneUser != nil {
+		return m.OnTombstoneUser(u)
+	}
+	return models.UserDeletion{}, nil
+}
+
+func (m *MockDB) RestoreUser(username string, cutoff time.Time) (models.User, error) {
+	if m.OnRestoreUser != nil {
+		return m.OnRestoreUser(username, cutoff)
+	}
+	return models.User{}, sql.ErrNoRows
+}
+
+func (m *MockDB) PurgeDeletedUsers(before time.Time) (int64, int64, error) {
+	if m.OnPurgeDeletedUsers != nil {
+		return m.OnPurgeDeletedUsers(before)
+	}
+	return 0, 0, nil
+}
+
+func (m *MockDB) GetUserSummaries() ([]models.UserSummary, error) {
+	if m.OnGetUserSummaries != nil {
+		return m.OnGetUserSummaries()
+	}
+	return nil, nil
+}
 
 func (m *MockDB) GetAllUsers() ([]models.User, error) {
 	if m.GetAllUsersCalled != nil {

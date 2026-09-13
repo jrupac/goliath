@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/fetch"
@@ -32,10 +33,134 @@ type server struct {
 	subs fetch.Subscriptions
 }
 
-// AddUser adds a specified user into the database.
-// NOTE: This method is currently unimplemented.
-func (s *server) AddUser(_ context.Context, _ *AddUserRequest) (*AddUserResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not yet implemented")
+// AddUser adds a user with the given name and password.
+func (s *server) AddUser(_ context.Context, req *AddUserRequest) (*AddUserResponse, error) {
+	if err := models.ValidateUsername(req.Username); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if req.Password == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Password")
+	}
+
+	user, err := models.NewUser(req.Username, models.Secret(req.Password))
+	if err != nil {
+		log.Warningf("while deriving credentials for new user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not derive credentials")
+	}
+
+	switch user, err = s.db.InsertUser(user); {
+	case errors.Is(err, storage.ErrUserExists):
+		return nil, status.Errorf(codes.AlreadyExists, "a user named %q already exists, ignoring case", req.Username)
+	case errors.Is(err, storage.ErrUserPendingPurge):
+		return nil, status.Errorf(codes.AlreadyExists,
+			"a deleted user named %q, ignoring case, has not yet been purged; restore them or wait", req.Username)
+	case err != nil:
+		log.Warningf("while adding user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not add user")
+	}
+
+	log.Infof("Added user %s (%s).", user.Username, user.UserId)
+	return &AddUserResponse{UserId: string(user.UserId)}, nil
+}
+
+// ListUsers returns every user with counts of what each holds.
+func (s *server) ListUsers(_ context.Context, _ *ListUsersRequest) (*ListUsersResponse, error) {
+	summaries, err := s.db.GetUserSummaries()
+	if err != nil {
+		log.Warningf("while listing users: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not list users")
+	}
+
+	resp := &ListUsersResponse{}
+	for _, u := range summaries {
+		s := &UserSummary{
+			UserId:       string(u.User.UserId),
+			Username:     u.User.Username,
+			FeedCount:    u.Feeds,
+			FolderCount:  u.Folders,
+			ArticleCount: u.Articles,
+			UnreadCount:  u.Unread,
+			SessionCount: u.Sessions,
+		}
+		if !u.Deleted.IsZero() {
+			s.DeletedUnixSec = u.Deleted.Unix()
+		}
+		resp.User = append(resp.User, s)
+	}
+	return resp, nil
+}
+
+// DeleteUser marks a user deleted, signing them out and stopping their feeds,
+// and leaves what they own for the garbage collector.
+func (s *server) DeleteUser(_ context.Context, req *DeleteUserRequest) (*DeleteUserResponse, error) {
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+
+	user, err := s.db.GetUserByUsername(req.Username)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	}
+
+	// Read before the deletion, after which the user is no longer found. A
+	// feed added in between is caught by the next reconcile, which leaves out
+	// deleted users.
+	feeds, err := s.db.GetAllFeedsForUser(user)
+	if err != nil {
+		log.Warningf("while listing feeds of user to delete: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not list feeds for user")
+	}
+
+	switch del, err := s.db.TombstoneUser(user); {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, status.Errorf(codes.NotFound, "could not find user")
+	case err != nil:
+		log.Warningf("while deleting user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not delete user")
+	default:
+		for _, f := range feeds {
+			s.subs.Unschedule(user, f.ID)
+		}
+		purgeAfter := time.Now().Add(storage.DeletedUserRetention())
+		log.Infof("Deleted user %s (%s) holding %d feeds and %d articles, revoking %d sessions; purge after %s.",
+			user.Username, user.UserId, del.Feeds, del.Articles, del.Sessions, purgeAfter)
+		return &DeleteUserResponse{
+			FeedCount:         del.Feeds,
+			ArticleCount:      del.Articles,
+			SessionCount:      del.Sessions,
+			PurgeAfterUnixSec: purgeAfter.Unix(),
+		}, nil
+	}
+}
+
+// RestoreUser undoes the deletion of a user who has not yet been purged, and
+// resumes fetching their feeds.
+func (s *server) RestoreUser(_ context.Context, req *RestoreUserRequest) (*RestoreUserResponse, error) {
+	if req.Username == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "must specify Username")
+	}
+
+	user, err := s.db.RestoreUser(req.Username, storage.DeletedUserCutoff())
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, status.Errorf(codes.NotFound,
+			"no deleted user by that name who is still within the retention window")
+	case err != nil:
+		log.Warningf("while restoring user: %+v", err)
+		return nil, status.Errorf(codes.Internal, "could not restore user")
+	}
+
+	// Scheduled now rather than left for the next reconcile, which would pick
+	// them up within its interval anyway.
+	feeds, err := s.db.GetAllFeedsForUser(user)
+	if err != nil {
+		log.Warningf("restored user %s but could not list their feeds to schedule: %+v", user.Username, err)
+	}
+	for _, f := range feeds {
+		s.subs.Schedule(user, f.ID)
+	}
+	log.Infof("Restored user %s (%s) with %d feeds.", user.Username, user.UserId, len(feeds))
+	return &RestoreUserResponse{}, nil
 }
 
 // authSchemeToProto maps a stored scheme onto the wire enum. A scheme with no
@@ -699,12 +824,22 @@ func newServer(d storage.Database, subs fetch.Subscriptions) AdminServiceServer 
 	return s
 }
 
-// Start starts the gRPC admin server, which tells subs about every feed it
-// adds or removes.
+// Start starts the gRPC admin server on the configured port, which tells subs
+// about every feed it adds or removes.
 func Start(ctx context.Context, d storage.Database, subs fetch.Subscriptions) {
-	log.Infof("Starting gRPC admin server.")
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *adminPort))
+	if err != nil {
+		log.Warningf("failed to listen on admin port: %s", err)
+		return
+	}
+	Serve(ctx, lis, d, subs)
+}
 
-	s := grpc.NewServer()
+// Serve runs the gRPC admin server on lis until ctx is cancelled.
+func Serve(ctx context.Context, lis net.Listener, d storage.Database, subs fetch.Subscriptions) {
+	log.Infof("Starting gRPC admin server on %s.", lis.Addr())
+
+	s := grpc.NewServer(grpc.UnaryInterceptor(auditLog))
 
 	RegisterAdminServiceServer(s, newServer(d, subs))
 	reflection.Register(s)
@@ -716,12 +851,6 @@ func Start(ctx context.Context, d storage.Database, subs fetch.Subscriptions) {
 			s.GracefulStop()
 		}
 	}(s)
-
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *adminPort))
-	if err != nil {
-		log.Warningf("failed to listen on admin port: %s", err)
-		return
-	}
 
 	if err := s.Serve(lis); err != nil {
 		log.Infof("%s", err)

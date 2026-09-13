@@ -5,18 +5,87 @@ option go_package = "github.com/jrupac/goliath/admin";
 package admin;
 
 message AddUserRequest {
-  // Required. String value of username. Exact values (including capitalization)
-  // are persisted.
+  // Required. ASCII letters and digits, with '.', '_' and '-' allowed after
+  // the first character; at most 64 characters. Capitalization is persisted
+  // as given, but a name differing from an existing one only in case is
+  // refused, including one belonging to a deleted user not yet purged.
   string Username = 1;
 
-  // Required. Key used in Fever API operations. This is defined as:
-  //   md5sum($username:$password)
-  // Note the ":" (colon) between the user-supplied username and password.
-  string Key = 2;
+  // Required. The password, in the clear. The admin service listens on
+  // loopback only, and the server needs the password itself to derive both the
+  // stored hash and the Fever key.
+  string Password = 3 [debug_redact = true];
+
+  // Formerly the precomputed Fever key. The server derives every credential
+  // from the password, so it no longer accepts one derived elsewhere.
+  reserved 2;
+  reserved "Key";
+}
+
+message AddUserResponse {
+  // Identifier assigned to the new user.
+  string UserId = 1;
+}
+
+// One user and how much they hold.
+message UserSummary {
+  string UserId = 1;
+  string Username = 2;
+
+  // Feeds subscribed to, not counting any unsubscribed from and awaiting
+  // removal.
+  int64 FeedCount = 3;
+
+  // Folders, not counting the root that holds feeds filed nowhere else.
+  int64 FolderCount = 4;
+
+  // Articles stored, read or not, in feeds subscribed to.
+  int64 ArticleCount = 5;
+
+  // Of those articles, how many are unread.
+  int64 UnreadCount = 6;
+
+  // Unexpired sessions.
+  int64 SessionCount = 7;
+
+  // When the user was deleted, in seconds since the Unix epoch, or zero if
+  // they have not been. A deleted user can be restored until they are purged.
+  int64 DeletedUnixSec = 8;
+}
+
+message ListUsersRequest {
+}
+
+message ListUsersResponse {
+  // Every user, ordered by username.
+  repeated UserSummary User = 1;
+}
+
+message DeleteUserRequest {
+  // Required. Username of the user to delete.
+  string Username = 1;
+}
+
+message DeleteUserResponse {
+  // What the user holds, all of which goes when they are purged.
+  int64 FeedCount = 1;
+  int64 ArticleCount = 2;
+
+  // Sessions revoked. Unlike the rest, these go at once.
+  int64 SessionCount = 3;
+
+  // When the user becomes eligible to be purged, in seconds since the Unix
+  // epoch. Until then RestoreUser brings them back as they were.
+  int64 PurgeAfterUnixSec = 4;
+}
+
+message RestoreUserRequest {
+  // Required. Username of the deleted user to restore.
+  string Username = 1;
 }
 
 // Empty response. Success is indicated by gRPC-level status code.
-message AddUserResponse {
+message RestoreUserResponse {
 }
 
 message GetMuteWordsRequest {
@@ -293,7 +362,7 @@ message ChangePasswordRequest {
   // Required. The new password, in the clear. The admin service listens on
   // loopback only, and the server needs the password itself to derive both the
   // stored hash and the Fever key.
-  string Password = 2;
+  string Password = 2 [debug_redact = true];
 }
 
 message ChangePasswordResponse {
@@ -323,8 +392,21 @@ message ResignProxiedImagesResponse {
 }
 
 service AdminService {
-  // Add a new user into the system.
+  // Add a new user into the system, with an empty root folder and no feeds.
   rpc AddUser (AddUserRequest) returns (AddUserResponse);
+
+  // List every user, with counts of what each holds.
+  rpc ListUsers (ListUsersRequest) returns (ListUsersResponse);
+
+  // Delete a user. They are signed out and refused at once, and their feeds
+  // stop being fetched, but what they own -- feeds, folders, articles,
+  // preferences -- stays until the garbage collector purges it once the
+  // retention window has passed. Until then RestoreUser undoes this.
+  rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse);
+
+  // Restore a deleted user who has not yet been purged, with everything they
+  // had. Their sessions were revoked on deletion and stay revoked.
+  rpc RestoreUser (RestoreUserRequest) returns (RestoreUserResponse);
 
   // List the unexpired sessions belonging to a user.
   rpc ListSessions (ListSessionsRequest) returns (ListSessionsResponse);

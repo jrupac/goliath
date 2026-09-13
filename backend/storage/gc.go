@@ -11,7 +11,22 @@ import (
 var (
 	gcInterval     = flag.Duration("gcInterval", 24*time.Hour, "Duration between GC runs against the articles table.")
 	gcKeepDuration = flag.Duration("gcKeepDuration", 7*24*time.Hour, "Duration to keep read articles.")
+
+	deletedUserRetention = flag.Duration("deletedUserRetention", 7*24*time.Hour,
+		"How long a deleted user is kept, and can be restored, before the garbage collector purges them.")
 )
+
+// DeletedUserRetention returns how long a deleted user is kept before purging.
+func DeletedUserRetention() time.Duration {
+	return *deletedUserRetention
+}
+
+// DeletedUserCutoff returns the instant before which a deleted user may be
+// purged. One deleted after it can still be restored; one deleted before it
+// cannot, so that a restore can never land on a user part-way through a purge.
+func DeletedUserCutoff() time.Time {
+	return time.Now().Add(-*deletedUserRetention)
+}
 
 // StartGC starts continuously garbage-collecting old read articles on a regular interval.
 func StartGC(ctx context.Context, d Database) {
@@ -33,9 +48,21 @@ func StartGC(ctx context.Context, d Database) {
 }
 
 func performGCRun(d Database) {
+	collectUsers(d)
 	collectFeeds(d)
 	collectArticles(d)
 	collectSessions(d)
+}
+
+// collectUsers purges the users deleted longer ago than the retention window,
+// with everything they owned.
+func collectUsers(d Database) {
+	users, articles, err := d.PurgeDeletedUsers(DeletedUserCutoff())
+	if err != nil {
+		log.Warningf("User GC run failed: %s", err)
+		return
+	}
+	log.Infof("User GC complete; purged %d deleted users and %d articles.", users, articles)
 }
 
 // collectFeeds removes the feeds users have unsubscribed from, and their

@@ -40,8 +40,12 @@ type Database interface {
 
 	// User management
 
-	InsertUser(models.User) error
+	InsertUser(models.User) (models.User, error)
+	TombstoneUser(models.User) (models.UserDeletion, error)
+	RestoreUser(string, time.Time) (models.User, error)
+	PurgeDeletedUsers(time.Time) (int64, int64, error)
 	GetAllUsers() ([]models.User, error)
+	GetUserSummaries() ([]models.UserSummary, error)
 	GetUserByKey(models.Secret) (models.User, error)
 	GetUserByUsername(string) (models.User, error)
 	UpdateUserCredentials(models.User, models.Secret, models.Secret) error

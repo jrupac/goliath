@@ -22,7 +22,10 @@ CREATE TABLE IF NOT EXISTS UserTable
     username STRING NOT NULL,
     -- Data columns
     key      STRING NOT NULL,
-    hashpass STRING
+    hashpass STRING,
+    -- Set when the user is deleted; everything they own stays until the
+    -- garbage collector purges them, and until then they can be restored
+    deleted  TIMESTAMPTZ
 );
 
 -- A user is looked up by either credential, and both lookups read both
@@ -32,6 +35,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS usertable_username_key
     ON UserTable (username) STORING (key);
 CREATE UNIQUE INDEX IF NOT EXISTS usertable_key_key
     ON UserTable (key) STORING (username);
+
+-- Usernames are unique regardless of case, since two differing only in case
+-- would be indistinguishable to the people typing them. Adding a user checks
+-- for such a name first, and this makes that check a point lookup. A deleted
+-- user keeps their name until purged, so that restoring them cannot collide.
+CREATE UNIQUE INDEX IF NOT EXISTS usertable_username_lower_key
+    ON UserTable (lower(username));
 
 CREATE TABLE IF NOT EXISTS Session
 (

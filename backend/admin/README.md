@@ -2,6 +2,60 @@
 
 ## Admin Server gRPC
 
+### User Management
+
+`goliath-cli` wraps these, prompting for passwords rather than taking them on
+the command line:
+
+```shell
+$ goliath-cli add-user --user <username>
+$ goliath-cli list-users
+$ goliath-cli delete-user --user <username>
+$ goliath-cli restore-user --user <username>
+```
+
+A username is ASCII letters and digits, with `.`, `_` and `-` allowed after the
+first character, and may not differ from an existing one only in case.
+
+Deleting a user signs them out everywhere and stops their feeds at once, but
+keeps their feeds, folders and articles, and their name, until the garbage
+collector purges them after `deletedUserRetention` (a week by default). Until
+then `restore-user` brings them back as they were, though every client has to
+sign in again. The purge removes a large user's articles in batches rather than
+in one transaction.
+
+Every admin call is logged with its outcome and duration. Fields marked
+`debug_redact` in the proto, the passwords, are blanked in that log; the Go
+protobuf runtime does not do this by itself, so never log a request any other
+way.
+
+#### Add a user
+
+```shell
+$ grpc_cli call <URL> AdminService.AddUser <<EOF
+Username: "<username>"
+Password: "<password>"
+EOF
+```
+
+#### List users
+
+```shell
+$ grpc_cli call <URL> AdminService.ListUsers ''
+```
+
+#### Delete a user
+
+```shell
+$ grpc_cli call <URL> AdminService.DeleteUser 'Username: "<username>"'
+```
+
+#### Restore a deleted user
+
+```shell
+$ grpc_cli call <URL> AdminService.RestoreUser 'Username: "<username>"'
+```
+
 ### Feed Management
 
 #### Get all feeds
