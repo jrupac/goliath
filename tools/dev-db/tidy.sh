@@ -154,12 +154,14 @@ fi
 checkpoints="$(csv "SHOW BACKUPS IN '$CHECKPOINTS'" 2>/dev/null | grep -E '^/[0-9][0-9/.-]*$' || true)"
 if [[ -n "$checkpoints" ]]; then
   echo "Migration checkpoints, oldest first, with the database each holds:" >&2
-  while read -r cp; do
+  # Read from its own descriptor: docker exec -i in the loop would otherwise
+  # consume the rest of the list from standard input.
+  while read -r cp <&3; do
     cpdb="$(csv "SELECT DISTINCT database_name FROM [SHOW BACKUP FROM '$cp' IN '$CHECKPOINTS'] WHERE database_name IS NOT NULL" | paste -sd, -)"
     echo "  $cp (${cpdb:-?})" >&2
     echo "    restore: goliath-cli rollback-schema --env dev --database ${cpdb:-<db>} --checkpoint $cp" >&2
     echo "    remove:  docker exec $CONTAINER rm -rf /cockroach/cockroach-data/extern/goliath-checkpoints$cp" >&2
-  done <<<"$checkpoints"
+  done 3<<<"$checkpoints"
 fi
 
 echo >&2
