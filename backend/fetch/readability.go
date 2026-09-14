@@ -7,18 +7,17 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"codeberg.org/readeck/go-readability/v2"
 	"github.com/PuerkitoBio/goquery"
 	log "github.com/golang/glog"
+	"github.com/jrupac/goliath/utils"
 )
 
 var (
@@ -36,76 +35,25 @@ var (
 	extractor     *articleExtractor
 )
 
-// articleExtractor handles secure fetching and parsing of full article text.
+// articleExtractor fetches articles and extracts their full text.
 type articleExtractor struct {
 	client    *http.Client
 	userAgent string
 }
 
-func isPrivateIP(ip net.IP) bool {
-	if ip == nil {
-		return true
-	}
-	if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsPrivate() {
-		return true
-	}
-	// CGNAT range: 100.64.0.0/10
-	if ip4 := ip.To4(); ip4 != nil {
-		if ip4[0] == 100 && (ip4[1] >= 64 && ip4[1] <= 127) {
-			return true
-		}
-	}
-	return false
-}
-
-// newArticleExtractor creates a hardened HTTP client with SSRF protection and timeout.
-func newArticleExtractor(timeout time.Duration, userAgent string) *articleExtractor {
-	dialer := &net.Dialer{
-		Timeout:   10 * time.Second,
-		KeepAlive: 30 * time.Second,
-		Control: func(network, address string, c syscall.RawConn) error {
-			host, _, err := net.SplitHostPort(address)
-			if err != nil {
-				return err
-			}
-			ip := net.ParseIP(host)
-			if ip != nil && isPrivateIP(ip) {
-				return fmt.Errorf("SSRF protection: access to private IP %s is blocked", ip)
-			}
-			return nil
-		},
-	}
-
-	// Double check IP resolution during network dial
-	transport := &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		DialContext:           dialer.DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-
-	client := &http.Client{
-		Transport: transport,
-		Timeout:   timeout,
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if len(via) >= 5 {
-				return errors.New("stopped after 5 redirects")
-			}
-			// Block cross-host redirects to avoid SSRF bypass via redirect to metadata endpoints
-			if len(via) > 0 {
-				if req.URL.Host != via[0].URL.Host {
-					return fmt.Errorf("SSRF protection: cross-host redirect from %s to %s is blocked", via[0].URL.Host, req.URL.Host)
-				}
-			}
-			return nil
-		},
-	}
-
+// newArticleExtractor returns an extractor whose requests are address-guarded,
+// reaching addresses on allowed anyway.
+//
+// An article's link comes from its feed, so it is a URL this process did not
+// choose. Redirects are followed to any host, since articles routinely move
+// between them: each hop is dialed through the same guard, so following one
+// reaches nowhere the link itself could not.
+func newArticleExtractor(timeout time.Duration, userAgent string, allowed utils.AddressAllowlist) *articleExtractor {
 	return &articleExtractor{
-		client:    client,
+		client: &http.Client{
+			Timeout:   timeout,
+			Transport: utils.GuardedTransport("Full-text extraction", timeout, allowed),
+		},
 		userAgent: userAgent,
 	}
 }
@@ -166,7 +114,7 @@ func ExtractFullText(ctx context.Context, url string) (string, error) {
 			userAgent = *fullTextUserAgent
 		}
 		log.Infof("Initializing full-text article extractor (timeout=%s, userAgent=%s)", timeout, userAgent)
-		extractor = newArticleExtractor(timeout, userAgent)
+		extractor = newArticleExtractor(timeout, userAgent, nil)
 	})
 
 	return extractor.Extract(ctx, url)
@@ -310,7 +258,7 @@ func rewriteFragmentUrls(content string, articleURL *url.URL) string {
 // SetClientForTesting overrides the HTTP client of the default extractor for unit testing.
 func SetClientForTesting(client *http.Client) {
 	extractorOnce.Do(func() {
-		extractor = newArticleExtractor(10*time.Second, "Goliath/Test")
+		extractor = newArticleExtractor(10*time.Second, "Goliath/Test", nil)
 	})
 	extractor.client = client
 }

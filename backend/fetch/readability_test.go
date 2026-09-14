@@ -2,57 +2,34 @@ package fetch
 
 import (
 	"context"
-	"net"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jrupac/goliath/utils"
 )
 
-func TestIsPrivateIP(t *testing.T) {
-	tests := []struct {
-		ip   net.IP
-		want bool
-	}{
-		{net.ParseIP("127.0.0.1"), true},
-		{net.ParseIP("::1"), true},
-		{net.ParseIP("10.0.0.1"), true},
-		{net.ParseIP("172.16.0.1"), true},
-		{net.ParseIP("192.168.1.1"), true},
-		{net.ParseIP("100.64.0.1"), true},
-		{net.ParseIP("100.127.255.255"), true},
-		{net.ParseIP("100.128.0.1"), false},
-		{net.ParseIP("8.8.8.8"), false},
-		{net.ParseIP("1.1.1.1"), false},
-		{nil, true},
-	}
+// An article's link comes from its feed, so extraction is guarded like a feed
+// fetch. The refusal happens in the dialer, so nothing is sent.
+func TestExtractionRefusesInternalAddresses(t *testing.T) {
+	e := newArticleExtractor(time.Second, "Test-Agent", nil)
 
-	for _, tt := range tests {
-		got := isPrivateIP(tt.ip)
-		if got != tt.want {
-			t.Errorf("isPrivateIP(%v) = %v, want %v", tt.ip, got, tt.want)
+	for _, target := range []string{
+		"http://127.0.0.1/foo",
+		"http://169.254.169.254/latest/meta-data/",
+		"http://100.64.0.1/",
+	} {
+		if _, err := e.Extract(context.Background(), target); !errors.Is(err, utils.ErrBlockedAddress) {
+			t.Errorf("%s: err = %v, want %v", target, err, utils.ErrBlockedAddress)
 		}
 	}
 }
 
-func TestSSRFBlocking(t *testing.T) {
-	e := newArticleExtractor(1*time.Second, "Test-Agent")
-
-	// 127.0.0.1 is a loopback IP, which should be blocked by the dialer Control function.
-	_, err := e.Extract(context.Background(), "http://127.0.0.1:9999/foo")
-	if err == nil {
-		t.Fatal("expected error when fetching private/loopback IP, got nil")
-	}
-
-	if !strings.Contains(err.Error(), "SSRF protection") && !strings.Contains(err.Error(), "access to private IP") {
-		t.Errorf("expected SSRF protection error, got: %v", err)
-	}
-}
-
-func TestExtractionSuccess(t *testing.T) {
-	htmlContent := `
+const articleHTML = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -68,9 +45,10 @@ func TestExtractionSuccess(t *testing.T) {
 </body>
 </html>`
 
+func TestExtractionSuccess(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		w.Write([]byte(htmlContent))
+		w.Write([]byte(articleHTML))
 	}))
 	defer ts.Close()
 
@@ -96,34 +74,46 @@ func TestExtractionSuccess(t *testing.T) {
 	}
 }
 
-func TestCrossHostRedirectBlocking(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/redirect" {
-			// Redirect to a different host (localhost vs 127.0.0.1)
-			http.Redirect(w, r, "http://localhost/target", http.StatusFound)
-			return
-		}
-		w.Write([]byte("ok"))
+// Articles move between hosts, so a redirect to another one is followed; each
+// hop is dialed through the guard, so a redirect inward is still refused.
+func TestExtractionFollowsRedirectsThroughTheGuard(t *testing.T) {
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		_, _ = w.Write([]byte(articleHTML))
 	}))
-	defer ts.Close()
+	defer target.Close()
 
-	dummy := newArticleExtractor(1*time.Second, "Test-Agent")
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/moved":
+			http.Redirect(w, r, target.URL+"/article", http.StatusFound)
+		case "/inward":
+			http.Redirect(w, r, "http://169.254.169.254/latest/meta-data/", http.StatusFound)
+		}
+	}))
+	defer origin.Close()
 
-	e := &articleExtractor{
-		client: &http.Client{
-			Transport:     ts.Client().Transport,
-			CheckRedirect: dummy.client.CheckRedirect,
-		},
-		userAgent: "Test-Agent",
+	// The test servers are on loopback, so they are reached as a configured
+	// bridge would be. The redirect inward is not on the list.
+	allowed, err := utils.NewAddressAllowlist([]string{
+		strings.TrimPrefix(origin.URL, "http://"),
+		strings.TrimPrefix(target.URL, "http://"),
+	})
+	if err != nil {
+		t.Fatalf("NewAddressAllowlist: %v", err)
+	}
+	e := newArticleExtractor(5*time.Second, "Test-Agent", allowed)
+
+	content, err := e.Extract(context.Background(), origin.URL+"/moved")
+	if err != nil {
+		t.Fatalf("redirect to another host: %v", err)
+	}
+	if !strings.Contains(content, "Interesting Article Title") {
+		t.Errorf("extracted %q, want the target's article", content)
 	}
 
-	_, err := e.Extract(context.Background(), ts.URL+"/redirect")
-	if err == nil {
-		t.Fatal("expected redirect to be blocked, but it succeeded")
-	}
-
-	if !strings.Contains(err.Error(), "SSRF protection") && !strings.Contains(err.Error(), "cross-host redirect") {
-		t.Errorf("expected cross-host redirect error, got: %v", err)
+	if _, err := e.Extract(context.Background(), origin.URL+"/inward"); !errors.Is(err, utils.ErrBlockedAddress) {
+		t.Errorf("redirect inward: err = %v, want %v", err, utils.ErrBlockedAddress)
 	}
 }
 
