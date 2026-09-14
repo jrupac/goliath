@@ -111,17 +111,26 @@ func GuardedTransport(subject string, timeout time.Duration, allowed AddressAllo
 	return transport
 }
 
+// sharedAddressSpace is 100.64.0.0/10. Carriers use it behind NAT and overlay
+// networks assign it to their members, so it is as internal as the private
+// ranges, though not marked as one of them.
+var sharedAddressSpace = func() *net.IPNet {
+	_, n, _ := net.ParseCIDR("100.64.0.0/10")
+	return n
+}()
+
 // IsPublicAddress reports whether an address is one this process may reach on
 // behalf of a URL it did not choose.
 //
 // Everything that is not routable on the public internet is refused, because
 // the value of reaching it is that the server can and the requester cannot:
-// loopback and private ranges are the internal services this process sits
-// alongside, and link-local covers the address cloud providers answer instance
-// credentials on.
+// loopback, private and shared ranges are the internal services this process
+// sits alongside, and link-local covers the address cloud providers answer
+// instance credentials on.
 func IsPublicAddress(ip net.IP) bool {
 	return !ip.IsLoopback() &&
 		!ip.IsPrivate() &&
+		!sharedAddressSpace.Contains(ip) &&
 		!ip.IsUnspecified() &&
 		!ip.IsLinkLocalUnicast() &&
 		!ip.IsLinkLocalMulticast() &&

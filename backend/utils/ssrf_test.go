@@ -16,6 +16,7 @@ func TestIsPublicAddressRefusesInternalRanges(t *testing.T) {
 	for _, addr := range []string{
 		"127.0.0.1", "::1", // loopback
 		"10.0.0.1", "192.168.1.1", "172.16.0.1", // private
+		"100.64.0.1", "100.127.255.255", "::ffff:100.64.0.1", // shared
 		"fd00::1",         // unique local
 		"169.254.169.254", // link-local, where cloud metadata lives
 		"fe80::1",
@@ -27,7 +28,7 @@ func TestIsPublicAddressRefusesInternalRanges(t *testing.T) {
 		}
 	}
 
-	for _, addr := range []string{"8.8.8.8", "1.1.1.1", "2606:4700:4700::1111"} {
+	for _, addr := range []string{"8.8.8.8", "1.1.1.1", "2606:4700:4700::1111", "100.63.255.255", "100.128.0.1"} {
 		if !IsPublicAddress(net.ParseIP(addr)) {
 			t.Errorf("IsPublicAddress(%s) = false, want true", addr)
 		}
