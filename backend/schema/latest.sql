@@ -156,6 +156,13 @@ CREATE
     INDEX IF NOT EXISTS feed_deleted_idx
     ON Feed (userid) WHERE deleted IS NOT NULL;
 
+-- Looks a user's feed up by URL, as adding one does first. Without it the
+-- lookup reads every feed the user has, and so waits on any of them being
+-- written: a fetch recording its latest time, or a move rewriting a key.
+CREATE
+    INDEX IF NOT EXISTS feed_userid_url_idx
+    ON Feed (userid, url);
+
 CREATE TABLE IF NOT EXISTS UserUnmuteFeeds
 (
     -- Key columns
@@ -263,7 +270,7 @@ CREATE TABLE IF NOT EXISTS SchemaVersion
 -- It is marked as `breaks_older_binaries` because this file cannot know
 -- what previous migrations may have been done on an existing DB.
 INSERT INTO SchemaVersion (version, name, breaks_older_binaries)
-SELECT 29, 'latest.sql', true
+SELECT 30, 'latest.sql', true
 WHERE NOT EXISTS (SELECT 1 FROM SchemaVersion)
   AND NOT EXISTS (SELECT 1 FROM UserTable);
 
