@@ -58,8 +58,8 @@ func TestFeedTombstoneAgainstDatabase(t *testing.T) {
 			Retrieved: time.Now(),
 		}
 	}
-	if err = crdb.InsertArticleForUser(u, article(1, root.ID)); err != nil {
-		t.Fatalf("InsertArticleForUser: %v", err)
+	if _, err = crdb.InsertArticlesForUser(u, id, []models.Article{article(1, root.ID)}); err != nil {
+		t.Fatalf("InsertArticlesForUser: %v", err)
 	}
 
 	// A fetch that read the feed before it was moved still names the old
@@ -76,8 +76,8 @@ func TestFeedTombstoneAgainstDatabase(t *testing.T) {
 	if err = crdb.UpdateFolderForFeedForUser(u, id, folder); err != nil {
 		t.Fatalf("UpdateFolderForFeedForUser: %v", err)
 	}
-	if err = crdb.InsertArticleForUser(u, article(2, root.ID)); err != nil {
-		t.Fatalf("InsertArticleForUser naming the folder the feed left: %v", err)
+	if _, err = crdb.InsertArticlesForUser(u, id, []models.Article{article(2, root.ID)}); err != nil {
+		t.Fatalf("InsertArticlesForUser naming the folder the feed left: %v", err)
 	}
 	articles, err := crdb.GetArticlesForFeedForUser(u, id)
 	if err != nil || len(articles) != 2 {
@@ -121,8 +121,8 @@ func TestFeedTombstoneAgainstDatabase(t *testing.T) {
 	checkGone(t, crdb, u, id, url, ids)
 
 	// A fetch still in flight writes nothing into it.
-	if err = crdb.InsertArticleForUser(u, article(3, folder)); !errors.Is(err, ErrFeedGone) {
-		t.Errorf("InsertArticleForUser into a tombstoned feed: %v, want ErrFeedGone", err)
+	if _, err = crdb.InsertArticlesForUser(u, id, []models.Article{article(3, folder)}); !errors.Is(err, ErrFeedGone) {
+		t.Errorf("InsertArticlesForUser into a tombstoned feed: %v, want ErrFeedGone", err)
 	}
 	if err = crdb.InsertFaviconForUser(u, id, "image/png", []byte{1}); !errors.Is(err, ErrFeedGone) {
 		t.Errorf("InsertFaviconForUser into a tombstoned feed: %v, want ErrFeedGone", err)

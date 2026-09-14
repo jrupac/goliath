@@ -39,7 +39,8 @@ type MockDB struct {
 	OnGetActiveFeedKeys                            func() (map[UserFeedKey]bool, error)
 	OnPersistAllRetrievalCaches                    func(entries map[UserFeedKey][]byte) error
 	OnGetLiveFeedKeys                              func() (map[UserFeedKey]bool, error)
-	OnInsertArticleForUser                         func(u models.User, a models.Article) error
+	OnInsertArticlesForUser                        func(u models.User, feedID int64, articles []models.Article) (int, error)
+	OnUpdateLatestTimeForFeedForUser               func(u models.User, feedID int64, latest time.Time) error
 	OnUpdateEstimatedRefreshIntervalForFeedForUser func(u models.User, id int64, interval int) error
 	OnGetUserByUsername                            func(username string) (models.User, error)
 	OnUpdateUserCredentials                        func(u models.User, hashPass, key models.Secret) error
@@ -266,7 +267,10 @@ func (m *MockDB) MarkFeedForUser(models.User, int64, models.MarkAction) (int64, 
 func (m *MockDB) MarkFolderForUser(models.User, int64, models.MarkAction) (int64, error) {
 	return 0, nil
 }
-func (m *MockDB) UpdateLatestTimeForFeedForUser(models.User, int64, time.Time) error {
+func (m *MockDB) UpdateLatestTimeForFeedForUser(u models.User, feedID int64, latest time.Time) error {
+	if m.OnUpdateLatestTimeForFeedForUser != nil {
+		return m.OnUpdateLatestTimeForFeedForUser(u, feedID, latest)
+	}
 	return nil
 }
 func (m *MockDB) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, id int64, interval int) error {
@@ -376,17 +380,19 @@ func (m *MockDB) InsertFaviconForUser(u models.User, id int64, mime string, favi
 	return m.InsertFaviconForUserErr
 }
 
-func (m *MockDB) InsertArticleForUser(u models.User, a models.Article) error {
-	if m.OnInsertArticleForUser != nil {
-		if err := m.OnInsertArticleForUser(u, a); err != nil {
-			return err
+func (m *MockDB) InsertArticlesForUser(u models.User, feedID int64, articles []models.Article) (int, error) {
+	if m.OnInsertArticlesForUser != nil {
+		if n, err := m.OnInsertArticlesForUser(u, feedID, articles); err != nil {
+			return n, err
 		}
 	}
-	m.InsertedArticles = append(m.InsertedArticles, a)
+	m.InsertedArticles = append(m.InsertedArticles, articles...)
 	if m.ProcessItemsCalled != nil {
-		m.ProcessItemsCalled <- true
+		for range articles {
+			m.ProcessItemsCalled <- true
+		}
 	}
-	return nil
+	return len(articles), nil
 }
 
 func (m *MockDB) GetArticlesForFeedForUser(u models.User, feedID int64) ([]models.Article, error) {

@@ -166,6 +166,82 @@ func TestFetchFeed(t *testing.T) {
 	}
 }
 
+// A fetch stores what it accepted in one call, and moves the feed's latest
+// time once, to the newest of it. An item a document repeats is stored once.
+func TestProcessUserFeedItemsStoresTogether(t *testing.T) {
+	items := loadTestData(t).Items
+	pastTime, _ := time.Parse(time.RFC3339, "2025-01-01T00:00:00Z")
+	var calls int
+	var latest []time.Time
+	db := &storage.MockDB{
+		OnInsertArticlesForUser: func(_ models.User, _ int64, articles []models.Article) (int, error) {
+			calls++
+			return len(articles), nil
+		},
+		OnUpdateLatestTimeForFeedForUser: func(_ models.User, _ int64, l time.Time) error {
+			latest = append(latest, l)
+			return nil
+		},
+	}
+	fetcher := Fetcher{d: db, retCache: cache.NewMockRetrievalCache()}
+	feed := &models.Feed{ID: 1, Latest: pastTime}
+
+	if err := fetcher.processUserFeedItems(context.Background(), models.User{UserId: "u"}, feed, append(items, items[0])); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 || len(db.InsertedArticles) != 2 {
+		t.Errorf("%d calls storing %d articles, want 1 storing 2", calls, len(db.InsertedArticles))
+	}
+	want := time.Date(2025, 10, 12, 11, 0, 0, 0, time.UTC)
+	if len(latest) != 1 || !latest[0].Equal(want) {
+		t.Errorf("latest time updated to %v, want once to %s", latest, want)
+	}
+}
+
+// An article the database refuses costs only itself: the batch is retried an
+// article at a time, and the feed's latest time stops short of the refused
+// one so that the next fetch tries it again.
+func TestProcessUserFeedItemsRetriesARefusedBatchOneAtATime(t *testing.T) {
+	items := loadTestData(t).Items
+	pastTime, _ := time.Parse(time.RFC3339, "2025-01-01T00:00:00Z")
+	user := models.User{UserId: "u"}
+	var latest []time.Time
+	db := &storage.MockDB{
+		OnInsertArticlesForUser: func(_ models.User, _ int64, articles []models.Article) (int, error) {
+			for _, a := range articles {
+				if a.Title == "Test Article 2" {
+					return 0, errors.New("refused")
+				}
+			}
+			return len(articles), nil
+		},
+		OnUpdateLatestTimeForFeedForUser: func(_ models.User, _ int64, l time.Time) error {
+			latest = append(latest, l)
+			return nil
+		},
+	}
+	retCache := cache.NewMockRetrievalCache()
+	fetcher := Fetcher{d: db, retCache: retCache}
+	feed := &models.Feed{ID: 1, Latest: pastTime}
+
+	if err := fetcher.processUserFeedItems(context.Background(), user, feed, items); err != nil {
+		t.Fatal(err)
+	}
+	if len(db.InsertedArticles) != 1 || db.InsertedArticles[0].Title != "Test Article 1" {
+		t.Fatalf("stored %+v, want only Test Article 1", db.InsertedArticles)
+	}
+	want := time.Date(2025, 10, 12, 10, 0, 0, 0, time.UTC)
+	if len(latest) != 1 || !latest[0].Equal(want) {
+		t.Errorf("latest time updated to %v, want once to the stored article's %s", latest, want)
+	}
+	if !retCache.Lookup(user, feed.ID, db.InsertedArticles[0].Hash()) {
+		t.Error("the stored article is not in the retrieval cache")
+	}
+	if refused := processItem(feed, items[1]); retCache.Lookup(user, feed.ID, refused.Hash()) {
+		t.Error("the refused article is in the retrieval cache, so the next fetch would skip it")
+	}
+}
+
 // The feed is read afresh for every fetch, so one unsubscribed from since the
 // last is dropped rather than fetched.
 func TestFetchFeedDropsAFeedNoLongerSubscribedTo(t *testing.T) {
@@ -192,9 +268,9 @@ func TestFetchFeedStopsWhenUnsubscribedFromMidFetch(t *testing.T) {
 		OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
 			return models.Feed{ID: feedID, URL: "http://example.com/feed", Latest: pastTime}, nil
 		},
-		OnInsertArticleForUser: func(models.User, models.Article) error {
+		OnInsertArticlesForUser: func(models.User, int64, []models.Article) (int, error) {
 			inserts++
-			return storage.ErrFeedGone
+			return 0, storage.ErrFeedGone
 		},
 		OnUpdateEstimatedRefreshIntervalForFeedForUser: func(models.User, int64, int) error {
 			t.Error("rescheduled a feed that is gone")

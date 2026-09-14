@@ -42,18 +42,19 @@ func TestReadAtAgainstDatabase(t *testing.T) {
 	// cannot be mistaken for this run's articles.
 	marker := fmt.Sprintf("readat-live-test-%d", time.Now().UnixNano())
 	const count = 3
+	var batch []models.Article
 	for i := 0; i < count; i++ {
-		a := models.Article{
+		batch = append(batch, models.Article{
 			FeedID:    feed.ID,
 			FolderID:  feed.FolderID,
 			Title:     fmt.Sprintf("%s-%d", marker, i),
 			Link:      fmt.Sprintf("https://example.invalid/%s/%d", marker, i),
 			Date:      time.Now(),
 			Retrieved: time.Now(),
-		}
-		if err = crdb.InsertArticleForUser(u, a); err != nil {
-			t.Fatalf("InsertArticleForUser: %v", err)
-		}
+		})
+	}
+	if n, err := crdb.InsertArticlesForUser(u, feed.ID, batch); err != nil || n != count {
+		t.Fatalf("InsertArticlesForUser: %d inserted, %v; want %d", n, err, count)
 	}
 
 	var ids []int64

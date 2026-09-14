@@ -397,6 +397,12 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 		feedRegexes = append(feedRegexes, r)
 	}
 
+	// Accepted articles are stored together once every item has been looked
+	// at, rather than each as it is accepted.
+	var accepted []models.Article
+	var similarUnread []int64
+	acceptedHashes := map[string]bool{}
+
 	for _, item := range items {
 		if err = ctx.Err(); err != nil {
 			return err
@@ -407,7 +413,9 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 		if !a.Date.After(prevLatest) {
 			log.V(2).Infof("Not persisting too old article: %s", a)
 			numTooOld += 1
-		} else if f.retCache.Lookup(user, feed.ID, a.Hash()) {
+		} else if acceptedHashes[a.Hash()] || f.retCache.Lookup(user, feed.ID, a.Hash()) {
+			// An item repeated within one document is caught here as well, as
+			// it would be once its first copy was stored.
 			log.V(2).Infof("Not persisting because present in retrieval cache: %s", a)
 			numRetrievalCache += 1
 		} else if maybeMuteArticleByRegex(a, feedRegexes) {
@@ -430,34 +438,41 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 				log.V(2).Infof("Found %d similar articles to \"%s\": %+v", len(unreadIds), a.Title, unreadIds)
 				numUpdatedExisting += 1
 				numExistingRemoved += len(unreadIds)
-				err = f.d.DeleteArticlesByIdForUser(user, unreadIds)
-				if err != nil {
-					log.Warningf("while deleting similar articles for %s: %s", feed, err)
-				}
+				similarUnread = append(similarUnread, unreadIds...)
 			}
 
 			log.V(2).Infof("Processed for %s a new article: %s", user, a)
-			// Counted here rather than where the article was accepted for
-			// insertion, so that the reported total is what was stored and not
-			// what was attempted. A failed insert reading as a success is how
-			// a feed comes to look like it is being filled while staying empty.
-			if err = f.d.InsertArticleForUser(user, a); errors.Is(err, storage.ErrFeedGone) {
-				return err
-			} else if err != nil {
-				log.Warningf("while persisting article for %s due to %s: %s", user, err, a)
-			} else {
-				numInserted += 1
-				f.retCache.Add(user, feed.ID, a.Hash())
-			}
+			acceptedHashes[a.Hash()] = true
+			accepted = append(accepted, a)
+		}
+	}
 
-			if a.Date.After(feed.Latest) {
-				err = f.d.UpdateLatestTimeForFeedForUser(user, feed.ID, a.Date)
-				if err != nil {
-					log.Warningf("while updating latest feed time for %s: %s", feed, err)
-				} else {
-					feed.Latest = a.Date
-				}
-			}
+	if len(similarUnread) > 0 {
+		if err = f.d.DeleteArticlesByIdForUser(user, similarUnread); err != nil {
+			log.Warningf("while deleting similar articles for %s: %s", feed, err)
+		}
+	}
+
+	var stored []models.Article
+	if stored, numInserted, err = f.storeArticles(ctx, user, feed, accepted); err != nil {
+		return err
+	}
+
+	// The feed's latest time is the newest of what was stored rather than of
+	// what was accepted: an article the database refused does not advance it,
+	// so if that article was the newest, the next fetch tries it again.
+	latest := feed.Latest
+	for _, a := range stored {
+		f.retCache.Add(user, feed.ID, a.Hash())
+		if a.Date.After(latest) {
+			latest = a.Date
+		}
+	}
+	if latest.After(feed.Latest) {
+		if err = f.d.UpdateLatestTimeForFeedForUser(user, feed.ID, latest); err != nil {
+			log.Warningf("while updating latest feed time for %s: %s", feed, err)
+		} else {
+			feed.Latest = latest
 		}
 	}
 
@@ -473,4 +488,47 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 		}
 	}
 	return nil
+}
+
+// storeArticles stores the articles one fetch accepted, returning those that
+// are stored and how many of them are new rather than already there. It stops
+// early, returning why, if the context is cancelled or the feed turns out to
+// have been unsubscribed from, in which case storage.ErrFeedGone is returned.
+//
+// They go in together, but an article the database refuses takes the rest of
+// its statement with it, so a batch that fails is retried an article at a
+// time and only the refused ones are lost. Counting what was stored rather
+// than what was attempted matters: a failed insert reading as a success is how
+// a feed comes to look like it is being filled while staying empty.
+func (f Fetcher) storeArticles(ctx context.Context, user models.User, feed *models.Feed, articles []models.Article) ([]models.Article, int, error) {
+	if len(articles) == 0 {
+		return nil, 0, nil
+	}
+	inserted, err := f.d.InsertArticlesForUser(user, feed.ID, articles)
+	if err == nil {
+		return articles, inserted, nil
+	}
+	if errors.Is(err, storage.ErrFeedGone) {
+		return nil, inserted, err
+	}
+	log.Warningf("while persisting %d articles for %s %s, retrying one at a time: %s", len(articles), user, feed, err)
+
+	// Those in statements before the one that failed are stored already, and
+	// are found so again here rather than counted twice.
+	var stored []models.Article
+	for _, a := range articles {
+		if err = ctx.Err(); err != nil {
+			return stored, inserted, err
+		}
+		n, err := f.d.InsertArticlesForUser(user, feed.ID, []models.Article{a})
+		if errors.Is(err, storage.ErrFeedGone) {
+			return stored, inserted, err
+		} else if err != nil {
+			log.Warningf("while persisting article for %s due to %s: %s", user, err, a)
+			continue
+		}
+		inserted += n
+		stored = append(stored, a)
+	}
+	return stored, inserted, nil
 }

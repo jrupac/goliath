@@ -85,7 +85,7 @@ type Database interface {
 
 	// Content insertion
 
-	InsertArticleForUser(models.User, models.Article) error
+	InsertArticlesForUser(models.User, int64, []models.Article) (int, error)
 	InsertFaviconForUser(models.User, int64, string, []byte) error
 	InsertFeedForUser(models.User, models.Feed, int64) (int64, error)
 	InsertFolderForUser(models.User, models.Folder, int64) (int64, error)

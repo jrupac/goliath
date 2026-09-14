@@ -1040,44 +1040,102 @@ func (crdb *Crdb) PersistAllRetrievalCaches(entries map[UserFeedKey][]byte) erro
 // the ordinary way to get it, and such a fetch should stop rather than retry.
 var ErrFeedGone = errors.New("feed is not subscribed")
 
-// InsertArticleForUser inserts the given article object into the database,
-// reporting ErrFeedGone if its feed is not live.
+// maxArticleBatchRows and maxArticleBatchBytes bound one statement inserting
+// articles. Content dominates an article's size, and a statement larger than
+// the server accepts in one message is refused outright, so a batch is split
+// by size as well as by count.
+const (
+	maxArticleBatchRows  = 100
+	maxArticleBatchBytes = 4 << 20
+)
+
+// InsertArticlesForUser inserts articles into one feed, returning how many
+// were new; one already stored under the same hash is left as it is. It
+// reports ErrFeedGone if the feed is not live.
 //
-// The article's folder is read from its feed inside the statement rather than
+// The articles are written in as few statements as their size allows, each
+// atomic on its own: if one fails, those before it are stored and it and
+// those after it are not.
+//
+// Each article's folder is read from its feed inside the statement rather than
 // taken from the article. A feed's folder is part of the key its articles are
 // stored under, so a fetch that read the feed before it was moved would
 // otherwise write rows naming the old folder, which the foreign key refuses.
-func (crdb *Crdb) InsertArticleForUser(u models.User, a models.Article) error {
-	defer logElapsedTime(time.Now(), "InsertArticleForUser")
+func (crdb *Crdb) InsertArticlesForUser(u models.User, feedID int64, articles []models.Article) (int, error) {
+	defer logElapsedTime(time.Now(), "InsertArticlesForUser")
+
+	inserted := 0
+	for start := 0; start < len(articles); {
+		end, size := start, 0
+		for end < len(articles) && end-start < maxArticleBatchRows {
+			size += articleBytes(articles[end])
+			if end > start && size > maxArticleBatchBytes {
+				break
+			}
+			end++
+		}
+		n, err := crdb.insertArticleBatch(u, feedID, articles[start:end])
+		inserted += n
+		if err != nil {
+			return inserted, err
+		}
+		start = end
+	}
+	return inserted, nil
+}
+
+func articleBytes(a models.Article) int {
+	return len(a.Title) + len(a.Summary) + len(a.Content) + len(a.Parsed) + len(a.Link)
+}
+
+// insertArticleBatch inserts articles in one statement. They are passed as
+// one array per column, so the statement is the same whatever the count.
+func (crdb *Crdb) insertArticleBatch(u models.User, feedID int64, articles []models.Article) (int, error) {
+	n := len(articles)
+	hashes, titles, summaries := make([]string, n), make([]string, n), make([]string, n)
+	contents, parsed, links := make([]string, n), make([]string, n), make([]string, n)
+	reads, saved := make([]bool, n), make([]bool, n)
+	// As text, which the array encoding carries without loss and the
+	// statement casts back.
+	dates, retrieved := make([]string, n), make([]string, n)
+	for i, a := range articles {
+		hashes[i], titles[i], summaries[i] = a.Hash(), a.Title, a.Summary
+		contents[i], parsed[i], links[i] = a.Content, a.Parsed, a.Link
+		reads[i], saved[i] = a.Read, a.Saved
+		dates[i], retrieved[i] = a.Date.Format(time.RFC3339Nano), a.Retrieved.Format(time.RFC3339Nano)
+	}
 
 	query := `
 		WITH live AS (
 			SELECT folder FROM Feed WHERE userid = $1 AND id = $2 AND deleted IS NULL
 		), inserted AS (
 			INSERT INTO Article (userid, folder, feed, hash, title, summary, content, parsed, link, read, saved, date, retrieved)
-			SELECT $1::UUID, folder, $2::INT8, $3::STRING, $4::STRING, $5::STRING, $6::STRING, $7::STRING,
-			       $8::STRING, $9::BOOL, $10::BOOL, $11::TIMESTAMPTZ, $12::TIMESTAMPTZ
-			FROM live
+			SELECT $1::UUID, live.folder, $2::INT8, v.hash, v.title, v.summary, v.content, v.parsed,
+			       v.link, v.read, v.saved, v.date, v.retrieved
+			FROM live, unnest($3::STRING[], $4::STRING[], $5::STRING[], $6::STRING[], $7::STRING[],
+			                  $8::STRING[], $9::BOOL[], $10::BOOL[], $11::TIMESTAMPTZ[], $12::TIMESTAMPTZ[])
+			     AS v (hash, title, summary, content, parsed, link, read, saved, date, retrieved)
 			ON CONFLICT (userid, feed, hash) DO NOTHING
 			RETURNING id
 		)
 		SELECT (SELECT count(*) FROM live), (SELECT count(*) FROM inserted)
 	`
 	var live, inserted int
-	err := crdb.db.QueryRow(query,
-		u.UserId, a.FeedID, a.Hash(), a.Title, a.Summary, a.Content, a.Parsed, a.Link, a.Read, a.Saved, a.Date, a.Retrieved,
+	err := crdb.db.QueryRow(query, u.UserId, feedID,
+		pq.Array(hashes), pq.Array(titles), pq.Array(summaries), pq.Array(contents), pq.Array(parsed),
+		pq.Array(links), pq.Array(reads), pq.Array(saved), pq.Array(dates), pq.Array(retrieved),
 	).Scan(&live, &inserted)
 	if err != nil {
-		return fmt.Errorf("failed to insert article: %w", err)
+		return 0, fmt.Errorf("failed to insert %d articles: %w", n, err)
 	}
 
 	if live == 0 {
-		return ErrFeedGone
+		return 0, ErrFeedGone
 	}
-	if inserted == 0 {
-		log.V(2).Infof("Duplicate article entry, skipping (hash): %s", a.Hash())
+	if inserted < n {
+		log.V(2).Infof("Skipped %d articles already stored for feed %d", n-inserted, feedID)
 	}
-	return nil
+	return inserted, nil
 }
 
 // InsertFaviconForUser inserts the given favicon and associated metadata into
