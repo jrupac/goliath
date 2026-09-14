@@ -35,6 +35,7 @@ type MockDB struct {
 	OnUpdateArticleParsedContentForUser            func(u models.User, articleID int64, parsed string) error
 	OnGetAllUsers                                  func() ([]models.User, error)
 	OnGetAllFeedsForUser                           func(u models.User) ([]models.Feed, error)
+	OnGetFeedsPerFolderForUser                     func(u models.User) (map[int64][]int64, error)
 	OnGetAllRetrievalCaches                        func() (map[UserFeedKey]string, error)
 	OnGetActiveFeedKeys                            func() (map[UserFeedKey]bool, error)
 	OnPersistAllRetrievalCaches                    func(entries map[UserFeedKey][]byte) error
@@ -339,7 +340,10 @@ func (m *MockDB) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
 func (m *MockDB) GetFeedsInFolderForUser(models.User, int64) ([]models.Feed, error) {
 	return nil, nil
 }
-func (m *MockDB) GetFeedsPerFolderForUser(models.User) (map[int64][]int64, error) {
+func (m *MockDB) GetFeedsPerFolderForUser(u models.User) (map[int64][]int64, error) {
+	if m.OnGetFeedsPerFolderForUser != nil {
+		return m.OnGetFeedsPerFolderForUser(u)
+	}
 	return nil, nil
 }
 func (m *MockDB) GetFolderFeedTreeForUser(models.User) (*models.Folder, error) {

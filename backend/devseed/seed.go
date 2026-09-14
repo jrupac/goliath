@@ -285,11 +285,11 @@ func copyFeed(ctx context.Context, db *sql.DB, src string, sourceUser models.Use
 	}
 
 	if _, err = db.ExecContext(ctx, `
-		INSERT INTO Article (userid, folder, feed, hash, title, summary, content, parsed, link,
+		INSERT INTO Article (userid, feed, hash, title, summary, content, parsed, link,
 		                     read, saved, date, retrieved, readat)
-		SELECT $1, $2, $3, hash, title, summary, content, parsed, link, read, saved, date, retrieved, readat
-		FROM `+src+`article WHERE userid = $4 AND feed = $5`,
-		u.UserId, folder, c.FeedID, sourceUser, f.ID); err != nil {
+		SELECT $1, $2, hash, title, summary, content, parsed, link, read, saved, date, retrieved, readat
+		FROM `+src+`article WHERE userid = $3 AND feed = $4`,
+		u.UserId, c.FeedID, sourceUser, f.ID); err != nil {
 		return c, fmt.Errorf("copying articles: %w", err)
 	}
 

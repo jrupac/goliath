@@ -116,7 +116,8 @@ CREATE TABLE IF NOT EXISTS Feed
     userid      UUID   NOT NULL,
     folder      INT    NOT NULL,
     id          SERIAL NOT NULL UNIQUE,
-    PRIMARY KEY (userid, folder, id),
+    PRIMARY KEY (userid, id),
+    -- Not part of the key, so that moving a feed rewrites only its own row
     CONSTRAINT fk_folder_cascade
         FOREIGN KEY (userid, folder)
             REFERENCES Folder
@@ -158,10 +159,15 @@ CREATE
 
 -- Looks a user's feed up by URL, as adding one does first. Without it the
 -- lookup reads every feed the user has, and so waits on any of them being
--- written: a fetch recording its latest time, or a move rewriting a key.
+-- written: a fetch recording its latest time, or a move.
 CREATE
     INDEX IF NOT EXISTS feed_userid_url_idx
     ON Feed (userid, url);
+
+-- A folder's feeds, which reading or marking a folder's articles asks for
+CREATE
+    INDEX IF NOT EXISTS feed_userid_folder_idx
+    ON Feed (userid, folder);
 
 CREATE TABLE IF NOT EXISTS UserUnmuteFeeds
 (
@@ -201,14 +207,13 @@ CREATE TABLE IF NOT EXISTS Article
 (
     -- Key columns
     userid    UUID   NOT NULL,
-    folder    INT    NOT NULL,
     feed      INT    NOT NULL,
     id        SERIAL NOT NULL UNIQUE,
-    PRIMARY KEY (userid, folder, feed, id),
-    CONSTRAINT fk_feed_folder_cascade
-        FOREIGN KEY (userid, folder, feed)
-            REFERENCES Feed
-            ON UPDATE CASCADE,
+    PRIMARY KEY (userid, feed, id),
+    -- An article's folder is its feed's, so it is not stored here
+    CONSTRAINT fk_feed
+        FOREIGN KEY (userid, feed)
+            REFERENCES Feed (userid, id),
     -- Metadata columns
     hash      STRING,
     -- Data columns
@@ -270,7 +275,7 @@ CREATE TABLE IF NOT EXISTS SchemaVersion
 -- It is marked as `breaks_older_binaries` because this file cannot know
 -- what previous migrations may have been done on an existing DB.
 INSERT INTO SchemaVersion (version, name, breaks_older_binaries)
-SELECT 30, 'latest.sql', true
+SELECT 31, 'latest.sql', true
 WHERE NOT EXISTS (SELECT 1 FROM SchemaVersion)
   AND NOT EXISTS (SELECT 1 FROM UserTable);
 

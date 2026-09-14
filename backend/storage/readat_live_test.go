@@ -46,7 +46,6 @@ func TestReadAtAgainstDatabase(t *testing.T) {
 	for i := 0; i < count; i++ {
 		batch = append(batch, models.Article{
 			FeedID:    feed.ID,
-			FolderID:  feed.FolderID,
 			Title:     fmt.Sprintf("%s-%d", marker, i),
 			Link:      fmt.Sprintf("https://example.invalid/%s/%d", marker, i),
 			Date:      time.Now(),

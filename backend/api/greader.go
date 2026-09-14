@@ -402,6 +402,12 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 		a.returnError(w, http.StatusInternalServerError)
 		return
 	}
+	folders, err := a.feedFolders(user, len(articles))
+	if err != nil {
+		log.Warningf("Failed to get feed folders: %v", err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
 
 	streamItemIds := greaderStreamItemIds{}
 	contToken := int64(0)
@@ -409,12 +415,9 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 	for _, article := range articles {
 		streamItemIds.ItemRefs = append(streamItemIds.ItemRefs, greaderItemRef{
 			// Note: This is writing the article ID as decimal in this one case.
-			Id: strconv.FormatInt(article.ID, 10),
-			DirectStreamIds: []string{
-				greaderFeedId(article.FeedID),
-				greaderFolderId(article.FolderID),
-			},
-			TimestampUsec: strconv.FormatInt(article.Date.UnixMicro(), 10),
+			Id:              strconv.FormatInt(article.ID, 10),
+			DirectStreamIds: itemStreamIds(article.FeedID, folders),
+			TimestampUsec:   strconv.FormatInt(article.Date.UnixMicro(), 10),
 		})
 
 		if article.ID > contToken {
@@ -480,6 +483,12 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 		a.returnError(w, http.StatusInternalServerError)
 		return
 	}
+	folders, err := a.feedFolders(user, len(articles))
+	if err != nil {
+		log.Warningf("Failed to get feed folders: %v", err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
 
 	streamItemContents := greaderStreamItemsContents{
 		Id:      readingListStreamId,
@@ -491,11 +500,8 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 			CrawlTimeMsec: strconv.FormatInt(article.Date.UnixMilli(), 10),
 			TimestampUsec: strconv.FormatInt(article.Date.UnixMicro(), 10),
 			Id:            greaderArticleId(article.ID),
-			Categories: []string{
-				readingListStreamId,
-				greaderFeedId(article.FeedID),
-				greaderFolderId(article.FolderID),
-			},
+			Categories: append([]string{readingListStreamId},
+				itemStreamIds(article.FeedID, folders)...),
 			Title:     article.Title,
 			Published: article.Date.Unix(),
 			Canonical: []greaderCanonical{
@@ -764,8 +770,8 @@ func (a GReader) editSubscription(w http.ResponseWriter, r *http.Request, user m
 			return
 		}
 		if folderId != feed.FolderID {
-			// A fetch in flight across the move needs no coordinating with: it
-			// reads an article's folder from its feed as it stores it.
+			// A fetch in flight across the move needs no coordinating with:
+			// an article's folder is its feed's, and is not stored with it.
 			if err := a.d.UpdateFolderForFeedForUser(user, feed.ID, folderId); err != nil {
 				log.Warningf("Failed to move feed %d to folder %d: %s", feed.ID, folderId, err)
 				a.returnError(w, http.StatusInternalServerError)
@@ -1269,6 +1275,38 @@ func greaderFeedId(feedId int64) string {
 
 func greaderFolderId(folderId int64) string {
 	return folderStreamPrefix + strconv.FormatInt(folderId, 10)
+}
+
+// feedFolders maps each of the user's feeds to the folder it is filed in, for
+// labelling items: an article's folder is its feed's, and is not stored with
+// the article. A response with no items has nothing to label, so asks nothing.
+func (a GReader) feedFolders(user models.User, items int) (map[int64]int64, error) {
+	folders := map[int64]int64{}
+	if items == 0 {
+		return folders, nil
+	}
+	perFolder, err := a.d.GetFeedsPerFolderForUser(user)
+	if err != nil {
+		return nil, err
+	}
+	for folder, feeds := range perFolder {
+		for _, feed := range feeds {
+			folders[feed] = folder
+		}
+	}
+	return folders, nil
+}
+
+// itemStreamIds returns the streams an item is directly in: its feed, and the
+// folder that feed is filed in. A feed unsubscribed from since its articles
+// were read has no folder to report, and its items are labelled with the feed
+// alone.
+func itemStreamIds(feedId int64, folders map[int64]int64) []string {
+	ids := []string{greaderFeedId(feedId)}
+	if folder, ok := folders[feedId]; ok {
+		ids = append(ids, greaderFolderId(folder))
+	}
+	return ids
 }
 
 func (a GReader) validateLoginForm(r *http.Request) (models.Secret, int) {

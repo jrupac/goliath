@@ -91,7 +91,6 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 
 	return models.Article{
 		FeedID:        feed.ID,
-		FolderID:      feed.FolderID,
 		Title:         title,
 		Summary:       contents,
 		Content:       contents,

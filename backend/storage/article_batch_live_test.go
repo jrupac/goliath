@@ -46,10 +46,6 @@ func TestInsertArticlesAgainstDatabase(t *testing.T) {
 			t.Errorf("PurgeDeletedFeeds: %v", err)
 		}
 	}()
-	feed, err := crdb.GetFeedForUser(u, id)
-	if err != nil {
-		t.Fatalf("GetFeedForUser: %v", err)
-	}
 
 	article := func(name, content string, date time.Time, read bool) models.Article {
 		return models.Article{
@@ -89,11 +85,10 @@ func TestInsertArticlesAgainstDatabase(t *testing.T) {
 	type row struct {
 		read    bool
 		date    time.Time
-		folder  int64
 		content int
 	}
 	rows, err := crdb.db.Query(
-		`SELECT title, read, date, folder, length(content) FROM Article WHERE userid = $1 AND feed = $2`, u.UserId, id)
+		`SELECT title, read, date, length(content) FROM Article WHERE userid = $1 AND feed = $2`, u.UserId, id)
 	if err != nil {
 		t.Fatalf("reading back: %v", err)
 	}
@@ -101,7 +96,7 @@ func TestInsertArticlesAgainstDatabase(t *testing.T) {
 	for rows.Next() {
 		var title string
 		var r row
-		if err = rows.Scan(&title, &r.read, &r.date, &r.folder, &r.content); err != nil {
+		if err = rows.Scan(&title, &r.read, &r.date, &r.content); err != nil {
 			t.Fatalf("scanning: %v", err)
 		}
 		got[title] = r
@@ -119,9 +114,9 @@ func TestInsertArticlesAgainstDatabase(t *testing.T) {
 		if d := r.date.Sub(a.Date); d < -time.Microsecond || d > time.Microsecond {
 			t.Errorf("%s dated %s, want %s", a.Title, r.date, a.Date)
 		}
-		if r.read != a.Read || r.folder != feed.FolderID || r.content != len(a.Content) {
-			t.Errorf("%s stored as %+v, want read=%t in folder %d with %d bytes",
-				a.Title, r, a.Read, feed.FolderID, len(a.Content))
+		if r.read != a.Read || r.content != len(a.Content) {
+			t.Errorf("%s stored as %+v, want read=%t with %d bytes",
+				a.Title, r, a.Read, len(a.Content))
 		}
 	}
 

@@ -58,8 +58,8 @@ func TestUserDeletionAgainstDatabase(t *testing.T) {
 			t.Fatalf("InsertFeedForUser: %v", err)
 		}
 		_, err = crdb.db.Exec(`
-			INSERT INTO Article (userid, folder, feed, hash, title, summary, content, link, read, date, retrieved)
-			SELECT f.userid, f.folder, f.id, 'h' || g::STRING, 'title', repeat('x', 1000), repeat('y', 1000),
+			INSERT INTO Article (userid, feed, hash, title, summary, content, link, read, date, retrieved)
+			SELECT f.userid, f.id, 'h' || g::STRING, 'title', repeat('x', 1000), repeat('y', 1000),
 			       'http://example.invalid/' || g::STRING, g % 3 = 0, now(), now()
 			FROM Feed f, generate_series(1, $2) AS g WHERE f.id = $1`, feed, n)
 		if err != nil {

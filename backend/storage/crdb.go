@@ -1056,11 +1056,6 @@ const (
 // The articles are written in as few statements as their size allows, each
 // atomic on its own: if one fails, those before it are stored and it and
 // those after it are not.
-//
-// Each article's folder is read from its feed inside the statement rather than
-// taken from the article. A feed's folder is part of the key its articles are
-// stored under, so a fetch that read the feed before it was moved would
-// otherwise write rows naming the old folder, which the foreign key refuses.
 func (crdb *Crdb) InsertArticlesForUser(u models.User, feedID int64, articles []models.Article) (int, error) {
 	defer logElapsedTime(time.Now(), "InsertArticlesForUser")
 
@@ -1107,10 +1102,10 @@ func (crdb *Crdb) insertArticleBatch(u models.User, feedID int64, articles []mod
 
 	query := `
 		WITH live AS (
-			SELECT folder FROM Feed WHERE userid = $1 AND id = $2 AND deleted IS NULL
+			SELECT 1 FROM Feed WHERE userid = $1 AND id = $2 AND deleted IS NULL
 		), inserted AS (
-			INSERT INTO Article (userid, folder, feed, hash, title, summary, content, parsed, link, read, saved, date, retrieved)
-			SELECT $1::UUID, live.folder, $2::INT8, v.hash, v.title, v.summary, v.content, v.parsed,
+			INSERT INTO Article (userid, feed, hash, title, summary, content, parsed, link, read, saved, date, retrieved)
+			SELECT $1::UUID, $2::INT8, v.hash, v.title, v.summary, v.content, v.parsed,
 			       v.link, v.read, v.saved, v.date, v.retrieved
 			FROM live, unnest($3::STRING[], $4::STRING[], $5::STRING[], $6::STRING[], $7::STRING[],
 			                  $8::STRING[], $9::BOOL[], $10::BOOL[], $11::TIMESTAMPTZ[], $12::TIMESTAMPTZ[])
@@ -1386,7 +1381,7 @@ func (crdb *Crdb) PurgeDeletedFeeds(before time.Time) (int64, int64, error) {
 	// Article's foreign key to Feed has no ON DELETE, so the articles go first.
 	query := `
 		DELETE FROM Article
-		WHERE (userid, folder, feed) IN (SELECT userid, folder, id FROM Feed WHERE deleted < $1)
+		WHERE (userid, feed) IN (SELECT userid, id FROM Feed WHERE deleted < $1)
 	`
 	res, err := tx.ExecContext(ctx, query, before)
 	if err != nil {
@@ -1420,9 +1415,8 @@ var ErrRootFolder = errors.New("the root folder cannot be removed")
 // feeds it held. A folder that is not theirs is reported as sql.ErrNoRows.
 //
 // The feeds in it move to the root folder rather than going with it: removing
-// a way of filing feeds is not a request to unsubscribe from them. Their
-// articles follow through the cascade on Article's key to Feed. A folder nested
-// inside it moves up to the root in the same way.
+// a way of filing feeds is not a request to unsubscribe from them. A folder
+// nested inside it moves up to the root in the same way.
 //
 // One transaction, so that a failure part-way leaves the folder as it was
 // rather than half emptied, and retried, since it reads and rewrites the user's
@@ -1607,8 +1601,10 @@ func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, mark models.M
 	}
 
 	// Enumerate all descendant folders of folderId in a recursive CTE and then
-	// mark all articles in any of that set of folders (including the original
-	// folder itself) in one update.
+	// mark all articles whose feed is in any of that set of folders (including
+	// the original folder itself) in one update. The feeds are picked out
+	// first rather than joined, since a join of Article to Feed can read every
+	// user's articles.
 	query := `
 		WITH RECURSIVE RecursiveFolders AS (
 			SELECT child
@@ -1623,9 +1619,10 @@ func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, mark models.M
 		UPDATE Article AS a
 		SET read = $3, readat = CASE WHEN $3 THEN COALESCE(readat, now()) END
 		WHERE a.userid = $1
-		  AND (
-			a.folder IN (SELECT child FROM RecursiveFolders)
-			OR a.folder = $2
+		  AND a.feed IN (
+			SELECT id FROM Feed
+			WHERE userid = $1
+			  AND (folder IN (SELECT child FROM RecursiveFolders) OR folder = $2)
 		  );
 	`
 	result, err := crdb.db.Exec(query, u.UserId, folderId, value)
@@ -1705,13 +1702,11 @@ func (crdb *Crdb) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, id
 
 // UpdateFolderForFeedForUser updates the folder of the given feed.
 // The new `folderId` must already exist and is enforced by a foreign key
-// constraint on the `Feed` folder.
+// constraint on the `Feed` folder. The feed's articles are not touched: their
+// folder is the feed's.
 func (crdb *Crdb) UpdateFolderForFeedForUser(u models.User, feedId int64, folderId int64) error {
 	defer logElapsedTime(time.Now(), "UpdateFolderForFeedForUser")
 
-	// The corresponding rows in the `Article` table will also be updated via the
-	// `ON UPDATE CASCADE` setting of the foreign key constraint on that table, so
-	// no need to directly update `Article` here.
 	query := `UPDATE Feed SET folder = $1 WHERE userid = $2 and id = $3`
 	_, err := crdb.db.Exec(query, folderId, u.UserId, feedId)
 	return err
@@ -1848,10 +1843,10 @@ func (crdb *Crdb) GetFeedForUser(u models.User, feedId int64) (models.Feed, erro
 // GetRootFolderForUser returns the folder that holds a user's feeds that are
 // not in any folder of their own.
 //
-// The root is a real row rather than a null folder because a feed's folder is
-// part of the key its articles are stored under, so every feed needs one. It is
-// an implementation detail: its name is a sentinel, not something a user chose,
-// and it should not reach a client as a folder they can see.
+// The root is a real row rather than a null folder because every feed is
+// required to have a folder. It is an implementation detail: its name is a
+// sentinel, not something a user chose, and it should not reach a client as a
+// folder they can see.
 func (crdb *Crdb) GetRootFolderForUser(u models.User) (models.Folder, error) {
 	defer logElapsedTime(time.Now(), "GetRootFolderForUser")
 
@@ -2096,7 +2091,7 @@ const liveArticles = `feed NOT IN (SELECT id FROM Feed WHERE userid = $1 AND del
 // constants and numbered placeholders, never from caller input; every value
 // travels as a bound parameter.
 var articleMetaQuery = template.Must(template.New("articleMeta").Parse(`
-		SELECT id, feed, folder, date
+		SELECT id, feed, date
 		FROM Article
 		WHERE userid = $1 AND id > $2 AND ` + liveArticles + `
 		{{- range .}}
@@ -2109,7 +2104,13 @@ var articleMetaQuery = template.Must(template.New("articleMeta").Parse(`
 // within a cursor, beyond the user, ID bound and liveness that articleMetaQuery
 // always applies, with the values they bind. Placeholders are numbered from $4,
 // after the three the query binds itself.
-func articleMetaConditions(stream models.Stream, cursor models.StreamCursor) ([]string, []any, error) {
+//
+// A folder stream is given the folder's feeds rather than a subquery finding
+// them. With the feeds as values the planner reads just those feeds'
+// articles, or the user's; with a subquery it estimates how many feeds it
+// will find, and when it guesses none, reads every user's articles in ID
+// order looking for the few it wants.
+func articleMetaConditions(stream models.Stream, cursor models.StreamCursor, folderFeeds []int64) ([]string, []any, error) {
 	fragments, err := articleMetaFragments(stream.Filter)
 	if err != nil {
 		return nil, nil, err
@@ -2129,7 +2130,7 @@ func articleMetaConditions(stream models.Stream, cursor models.StreamCursor) ([]
 		conditions = append(conditions, "feed = "+bind(stream.FeedID))
 	}
 	if stream.FolderID != 0 {
-		conditions = append(conditions, "folder = "+bind(stream.FolderID))
+		conditions = append(conditions, "feed = ANY("+bind(pq.Array(folderFeeds))+")")
 	}
 	if !cursor.Since.IsZero() {
 		conditions = append(conditions, fragments.SinceColumn+" > "+bind(cursor.Since))
@@ -2187,7 +2188,33 @@ func (crdb *Crdb) GetArticleMetaWithFilterForUser(u models.User, stream models.S
 		sinceID = 0
 	}
 
-	conditions, bound, err := articleMetaConditions(stream, cursor)
+	// An article's folder is its feed's, so a folder stream is the articles of
+	// the feeds filed in it. A folder holding none has no articles to read.
+	var folderFeeds []int64
+	if stream.FolderID != 0 {
+		query := `SELECT id FROM Feed WHERE userid = $1 AND folder = $2 AND deleted IS NULL`
+		rows, err := crdb.db.Query(query, u.UserId, stream.FolderID)
+		if err != nil {
+			return articles, fmt.Errorf("failed to find the folder's feeds: %w", err)
+		}
+		for rows.Next() {
+			var id int64
+			if err = rows.Scan(&id); err != nil {
+				closeSilent(rows)
+				return articles, err
+			}
+			folderFeeds = append(folderFeeds, id)
+		}
+		closeSilent(rows)
+		if err = rows.Err(); err != nil {
+			return articles, err
+		}
+		if len(folderFeeds) == 0 {
+			return articles, nil
+		}
+	}
+
+	conditions, bound, err := articleMetaConditions(stream, cursor, folderFeeds)
 	if err != nil {
 		return articles, err
 	}
@@ -2208,7 +2235,7 @@ func (crdb *Crdb) GetArticleMetaWithFilterForUser(u models.User, stream models.S
 	for rows.Next() {
 		a := models.ArticleMeta{}
 		if err = rows.Scan(
-			&a.ID, &a.FeedID, &a.FolderID, &a.Date); err != nil {
+			&a.ID, &a.FeedID, &a.Date); err != nil {
 			return articles, err
 		}
 		articles = append(articles, a)
@@ -2268,7 +2295,7 @@ func (crdb *Crdb) GetArticlesForUser(u models.User, ids []int64) ([]models.Artic
 	var err error
 
 	query := `
-		SELECT id, feed, folder, title, summary, content, parsed, link, date
+		SELECT id, feed, title, summary, content, parsed, link, date
 		FROM Article
 		WHERE userid = $1 AND id = ANY($2) AND ` + liveArticles
 	rows, err = crdb.db.Query(query, u.UserId, pq.Array(ids))
@@ -2281,7 +2308,7 @@ func (crdb *Crdb) GetArticlesForUser(u models.User, ids []int64) ([]models.Artic
 	for rows.Next() {
 		a := models.Article{}
 		if err = rows.Scan(
-			&a.ID, &a.FeedID, &a.FolderID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Date); err != nil {
+			&a.ID, &a.FeedID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Date); err != nil {
 			return articles, err
 		}
 		articles = append(articles, a)
@@ -2310,7 +2337,7 @@ func (crdb *Crdb) GetArticlesWithFilterForUser(u models.User, filter models.Stre
 		return articles, err
 	}
 	query := `
-		SELECT id, feed, folder, title, summary, content, parsed, link, date
+		SELECT id, feed, title, summary, content, parsed, link, date
 		FROM Article
 		WHERE userid = $1 AND id > $2 AND ` + fragments.Filter + ` AND ` + liveArticles + `
 		ORDER BY id LIMIT $3
@@ -2326,7 +2353,7 @@ func (crdb *Crdb) GetArticlesWithFilterForUser(u models.User, filter models.Stre
 	for rows.Next() {
 		a := models.Article{}
 		if err = rows.Scan(
-			&a.ID, &a.FeedID, &a.FolderID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Date); err != nil {
+			&a.ID, &a.FeedID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Date); err != nil {
 			return articles, err
 		}
 		articles = append(articles, a)
@@ -2344,7 +2371,7 @@ func (crdb *Crdb) GetArticlesForFeedForUser(u models.User, feedId int64) ([]mode
 	var err error
 
 	query := `
-		SELECT id, feed, folder, title, summary, content, parsed, link, read, saved, date
+		SELECT id, feed, title, summary, content, parsed, link, read, saved, date
 		FROM Article
 		WHERE userid = $1 AND feed = $2
 	`
@@ -2358,7 +2385,7 @@ func (crdb *Crdb) GetArticlesForFeedForUser(u models.User, feedId int64) ([]mode
 	for rows.Next() {
 		a := models.Article{}
 		if err = rows.Scan(
-			&a.ID, &a.FeedID, &a.FolderID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Read, &a.Saved, &a.Date); err != nil {
+			&a.ID, &a.FeedID, &a.Title, &a.Summary, &a.Content, &a.Parsed, &a.Link, &a.Read, &a.Saved, &a.Date); err != nil {
 			return articles, err
 		}
 		articles = append(articles, a)

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -84,10 +85,14 @@ func TestStreamScopesAgainstDatabase(t *testing.T) {
 		t.Errorf("feed stream without read items: %d items, %d of them the feed's; want %d", len(got), inFeed(got), unread)
 	}
 
+	perFolder, err := crdb.GetFeedsPerFolderForUser(u)
+	if err != nil {
+		t.Fatalf("GetFeedsPerFolderForUser: %v", err)
+	}
 	got = read(models.Stream{Filter: models.StreamFilterAll, FolderID: feed.FolderID}, models.StreamCursor{})
 	for _, m := range got {
-		if m.FolderID != feed.FolderID {
-			t.Errorf("folder stream holds article %d from folder %d, want only %d", m.ID, m.FolderID, feed.FolderID)
+		if !slices.Contains(perFolder[feed.FolderID], m.FeedID) {
+			t.Errorf("folder stream holds article %d of feed %d, which is not in folder %d", m.ID, m.FeedID, feed.FolderID)
 			break
 		}
 	}

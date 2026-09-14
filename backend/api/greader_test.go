@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -565,7 +566,7 @@ func TestStreamItemIdsReadStreamReturnsReadItems(t *testing.T) {
 	mockDB := &storage.MockDB{
 		OnGetArticleMetaWithFilterForUser: func(_ models.User, stream models.Stream, _ int, _ models.StreamCursor) ([]models.ArticleMeta, error) {
 			gotFilter = stream.Filter
-			return []models.ArticleMeta{{ID: 12345, FeedID: 7, FolderID: 3}}, nil
+			return []models.ArticleMeta{{ID: 12345, FeedID: 7}}, nil
 		},
 	}
 
@@ -589,6 +590,46 @@ func TestStreamItemIdsReadStreamReturnsReadItems(t *testing.T) {
 	}
 	if len(res.ItemRefs) != 1 || res.ItemRefs[0].Id != "12345" {
 		t.Errorf("itemRefs = %+v, want the one read article", res.ItemRefs)
+	}
+}
+
+// An item is labelled with the folder its feed is filed in now, which is not
+// stored with the article. An item whose feed has no folder to report, as one
+// unsubscribed from since the articles were read, is labelled with its feed
+// alone rather than with a folder that does not hold it.
+func TestStreamItemIdsLabelsItemsWithTheirFeedsFolder(t *testing.T) {
+	mockDB := &storage.MockDB{
+		OnGetArticleMetaWithFilterForUser: func(models.User, models.Stream, int, models.StreamCursor) ([]models.ArticleMeta, error) {
+			return []models.ArticleMeta{{ID: 1, FeedID: 7}, {ID: 2, FeedID: 8}}, nil
+		},
+		OnGetFeedsPerFolderForUser: func(models.User) (map[int64][]int64, error) {
+			return map[int64][]int64{3: {7}}, nil
+		},
+	}
+
+	w := httptest.NewRecorder()
+	GReader{d: mockDB}.handleStreamItemIds(w, streamItemIdsRequest(url.Values{
+		"s": {readingListStreamId},
+	}), models.User{UserId: "u"})
+
+	if got := w.Result().StatusCode; got != http.StatusOK {
+		t.Fatalf("status = %d, want %d", got, http.StatusOK)
+	}
+	var res greaderStreamItemIds
+	if err := json.Unmarshal(w.Body.Bytes(), &res); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	want := map[string][]string{
+		"1": {greaderFeedId(7), greaderFolderId(3)},
+		"2": {greaderFeedId(8)},
+	}
+	if len(res.ItemRefs) != len(want) {
+		t.Fatalf("itemRefs = %+v, want %d items", res.ItemRefs, len(want))
+	}
+	for _, ref := range res.ItemRefs {
+		if !slices.Equal(ref.DirectStreamIds, want[ref.Id]) {
+			t.Errorf("item %s is in %v, want %v", ref.Id, ref.DirectStreamIds, want[ref.Id])
+		}
 	}
 }
 

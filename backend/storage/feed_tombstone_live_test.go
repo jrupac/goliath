@@ -48,22 +48,21 @@ func TestFeedTombstoneAgainstDatabase(t *testing.T) {
 		t.Fatalf("InsertFeedForUser: %v", err)
 	}
 
-	article := func(n int, folder int64) models.Article {
+	article := func(n int) models.Article {
 		return models.Article{
 			FeedID:    id,
-			FolderID:  folder,
 			Title:     fmt.Sprintf("%s-%d", marker, n),
 			Link:      fmt.Sprintf("https://example.invalid/%s/%d", marker, n),
 			Date:      time.Now(),
 			Retrieved: time.Now(),
 		}
 	}
-	if _, err = crdb.InsertArticlesForUser(u, id, []models.Article{article(1, root.ID)}); err != nil {
+	if _, err = crdb.InsertArticlesForUser(u, id, []models.Article{article(1)}); err != nil {
 		t.Fatalf("InsertArticlesForUser: %v", err)
 	}
 
-	// A fetch that read the feed before it was moved still names the old
-	// folder. Its articles land in the new one.
+	// Moving the feed moves its articles, those it had and those a fetch
+	// writes afterwards.
 	folder, err := crdb.InsertFolderForUser(u, models.Folder{Name: marker}, 0)
 	if err != nil {
 		t.Fatalf("InsertFolderForUser: %v", err)
@@ -76,8 +75,8 @@ func TestFeedTombstoneAgainstDatabase(t *testing.T) {
 	if err = crdb.UpdateFolderForFeedForUser(u, id, folder); err != nil {
 		t.Fatalf("UpdateFolderForFeedForUser: %v", err)
 	}
-	if _, err = crdb.InsertArticlesForUser(u, id, []models.Article{article(2, root.ID)}); err != nil {
-		t.Fatalf("InsertArticlesForUser naming the folder the feed left: %v", err)
+	if _, err = crdb.InsertArticlesForUser(u, id, []models.Article{article(2)}); err != nil {
+		t.Fatalf("InsertArticlesForUser after the move: %v", err)
 	}
 	articles, err := crdb.GetArticlesForFeedForUser(u, id)
 	if err != nil || len(articles) != 2 {
@@ -86,8 +85,21 @@ func TestFeedTombstoneAgainstDatabase(t *testing.T) {
 	var ids []int64
 	for _, a := range articles {
 		ids = append(ids, a.ID)
-		if a.FolderID != folder {
-			t.Errorf("article %d is in folder %d, want the feed's folder %d", a.ID, a.FolderID, folder)
+	}
+	for name, in := range map[string]int64{"the folder it moved to": folder, "the root it left": root.ID} {
+		metas, err := crdb.GetArticleMetaWithFilterForUser(u,
+			models.Stream{Filter: models.StreamFilterAll, FolderID: in}, MaxFetchedRows, models.StreamCursor{})
+		if err != nil {
+			t.Fatalf("GetArticleMetaWithFilterForUser(folder %d): %v", in, err)
+		}
+		n := 0
+		for _, m := range metas {
+			if m.FeedID == id {
+				n++
+			}
+		}
+		if want := map[int64]int{folder: 2, root.ID: 0}[in]; n != want {
+			t.Errorf("the stream of %s holds %d of the feed's articles, want %d", name, n, want)
 		}
 	}
 
@@ -121,7 +133,7 @@ func TestFeedTombstoneAgainstDatabase(t *testing.T) {
 	checkGone(t, crdb, u, id, url, ids)
 
 	// A fetch still in flight writes nothing into it.
-	if _, err = crdb.InsertArticlesForUser(u, id, []models.Article{article(3, folder)}); !errors.Is(err, ErrFeedGone) {
+	if _, err = crdb.InsertArticlesForUser(u, id, []models.Article{article(3)}); !errors.Is(err, ErrFeedGone) {
 		t.Errorf("InsertArticlesForUser into a tombstoned feed: %v, want ErrFeedGone", err)
 	}
 	if err = crdb.InsertFaviconForUser(u, id, "image/png", []byte{1}); !errors.Is(err, ErrFeedGone) {

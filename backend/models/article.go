@@ -10,18 +10,16 @@ import (
 
 // ArticleMeta return only some metadata fields for a single article.
 type ArticleMeta struct {
-	ID       int64
-	FeedID   int64
-	FolderID int64
-	Date     time.Time
+	ID     int64
+	FeedID int64
+	Date   time.Time
 }
 
-// Article is a single fetched article.
+// Article is a single fetched article. Its folder is its feed's.
 type Article struct {
 	// Primary key
-	ID       int64
-	FeedID   int64
-	FolderID int64
+	ID     int64
+	FeedID int64
 	// Data fields
 	Title     string
 	Summary   string
@@ -70,6 +68,6 @@ func (a Article) String() string {
 	n := 100
 
 	return fmt.Sprintf(
-		"\nArticle{Folder:%d, Feed:%d, ID:%d, Link:\"%s\", Title:\"%s\"}",
-		a.FolderID, a.FeedID, a.ID, a.Link, utils.Substring(a.Title, n))
+		"\nArticle{Feed:%d, ID:%d, Link:\"%s\", Title:\"%s\"}",
+		a.FeedID, a.ID, a.Link, utils.Substring(a.Title, n))
 }

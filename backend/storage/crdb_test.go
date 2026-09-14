@@ -15,12 +15,13 @@ import (
 func TestArticleMetaQueryShapes(t *testing.T) {
 	since := time.Unix(1786146087, 0)
 	for _, tc := range []struct {
-		name    string
-		stream  models.Stream
-		cursor  models.StreamCursor
-		want    []string
-		notWant []string
-		binds   int
+		name        string
+		stream      models.Stream
+		cursor      models.StreamCursor
+		folderFeeds []int64
+		want        []string
+		notWant     []string
+		binds       int
 	}{
 		{
 			name:    "unbounded",
@@ -40,19 +41,20 @@ func TestArticleMetaQueryShapes(t *testing.T) {
 			stream:  models.Stream{Filter: models.StreamFilterAll, FeedID: 7, ExcludeRead: true},
 			cursor:  models.StreamCursor{Since: since},
 			want:    []string{"AND TRUE", "AND NOT read", "AND feed = $4", "AND date > $5"},
-			notWant: []string{"folder = "},
+			notWant: []string{"ANY("},
 			binds:   2,
 		},
 		{
-			name:    "one folder",
-			stream:  models.Stream{Filter: models.StreamFilterAll, FolderID: 3},
-			want:    []string{"AND folder = $4"},
-			notWant: []string{"$5", "NOT read", "feed = "},
-			binds:   1,
+			name:        "one folder",
+			stream:      models.Stream{Filter: models.StreamFilterAll, FolderID: 3},
+			folderFeeds: []int64{7, 8},
+			want:        []string{"AND feed = ANY($4)"},
+			notWant:     []string{"$5", "NOT read", "feed = $"},
+			binds:       1,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			conditions, binds, err := articleMetaConditions(tc.stream, tc.cursor)
+			conditions, binds, err := articleMetaConditions(tc.stream, tc.cursor, tc.folderFeeds)
 			if err != nil {
 				t.Fatalf("articleMetaConditions: %v", err)
 			}
