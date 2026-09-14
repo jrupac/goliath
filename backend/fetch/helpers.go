@@ -104,6 +104,11 @@ func (f Fetcher) updateFeedFaviconForUser(ctx context.Context, u models.User, fe
 	// Look in multiple URLs for a suitable icon
 	found := false
 	for _, path := range []string{fetch.Image.URL, fetch.Link, fetchHost, feedHost} {
+		// Each lookup is several requests, none of which follows the context,
+		// so it is checked between them.
+		if ctx.Err() != nil {
+			return
+		}
 		if i, decoded, err := f.tryIconFetch(path); err == nil {
 			found = true
 			icon = i

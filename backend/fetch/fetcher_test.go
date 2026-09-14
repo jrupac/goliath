@@ -18,7 +18,7 @@ import (
 )
 
 // mockFetchFunc is a mock implementation of rss.FetchFunc for testing.
-var mockFetchFunc = func(url string) (*http.Response, error) {
+var mockFetchFunc = func(_ context.Context, url string) (*http.Response, error) {
 	file, err := os.Open("testdata/sample_feed.xml")
 	if err != nil {
 		return nil, err
@@ -171,7 +171,7 @@ func TestFetchFeed(t *testing.T) {
 func TestFetchFeedDropsAFeedNoLongerSubscribedTo(t *testing.T) {
 	fetcher := Fetcher{
 		d: &storage.MockDB{},
-		fetchFunc: func(string) (*http.Response, error) {
+		fetchFunc: func(context.Context, string) (*http.Response, error) {
 			t.Error("fetched a feed no longer subscribed to")
 			return nil, errors.New("unreachable")
 		},
@@ -217,7 +217,7 @@ func TestFetchFeedBacksOffOnFailure(t *testing.T) {
 			return models.Feed{ID: feedID, URL: "http://example.com/feed"}, nil
 		},
 	}
-	fetcher := Fetcher{d: db, fetchFunc: func(string) (*http.Response, error) {
+	fetcher := Fetcher{d: db, fetchFunc: func(context.Context, string) (*http.Response, error) {
 		return nil, errors.New("connection refused")
 	}}
 
@@ -231,6 +231,36 @@ func TestFetchFeedBacksOffOnFailure(t *testing.T) {
 	}
 	if want := start.Add(fetcher.calculateFailureBackoff(3)); o.next.Before(want) {
 		t.Errorf("next fetch at %s, want no earlier than %s", o.next, want)
+	}
+}
+
+// A fetch in flight follows its task, so a worker is free as soon as the feed
+// is unscheduled or fetching stops, rather than once the request times out.
+func TestFetchFeedAbandonsARequestWhenItsTaskIsCancelled(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-time.After(5 * time.Second):
+		}
+	}))
+	defer server.Close()
+
+	db := &storage.MockDB{
+		OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+			return models.Feed{ID: feedID, URL: server.URL}, nil
+		},
+	}
+	fetcher := Fetcher{d: db, fetchFunc: fetchFuncWithClient(server.Client())}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	tk := fetchTask(models.User{UserId: "u"}, 1)
+	tk.ctx = ctx
+	time.AfterFunc(50*time.Millisecond, cancel)
+
+	start := time.Now()
+	fetcher.fetchFeed(tk)
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("fetch returned after %s, want it abandoned once its task was cancelled", elapsed)
 	}
 }
 
@@ -250,7 +280,7 @@ func TestUserAgentIsSentOnFeedFetches(t *testing.T) {
 		t.Fatalf("NewAddressAllowlist: %v", err)
 	}
 
-	resp, err := fetchFuncWithClient(newFeedClient(allowed))(server.URL)
+	resp, err := fetchFuncWithClient(newFeedClient(allowed))(context.Background(), server.URL)
 	if err != nil {
 		t.Fatalf("fetch: %v", err)
 	}

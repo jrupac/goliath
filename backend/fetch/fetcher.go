@@ -202,9 +202,21 @@ func (t userAgentTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	return t.next.RoundTrip(r)
 }
 
-func fetchFuncWithClient(client *http.Client) rss.FetchFunc {
+// feedFetchFunc fetches a feed's document. For a scheduled fetch the context is
+// its task's, so an unsubscribe or a shutdown abandons a request in flight
+// rather than waiting out its timeout.
+type feedFetchFunc func(ctx context.Context, url string) (*http.Response, error)
+
+// withContext binds a fetch to ctx, in the form the feed parser takes.
+func (f feedFetchFunc) withContext(ctx context.Context) rss.FetchFunc {
 	return func(url string) (*http.Response, error) {
-		req, err := http.NewRequest("GET", url, nil)
+		return f(ctx, url)
+	}
+}
+
+func fetchFuncWithClient(client *http.Client) feedFetchFunc {
+	return func(ctx context.Context, url string) (*http.Response, error) {
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -229,7 +241,7 @@ type Fetcher struct {
 	d         storage.Database
 	retCache  cache.RetrievalCache
 	finder    IconFinder
-	fetchFunc rss.FetchFunc
+	fetchFunc feedFetchFunc
 }
 
 func New(d storage.Database, retCache cache.RetrievalCache, allowed utils.AddressAllowlist) *Fetcher {
@@ -298,7 +310,7 @@ func (f Fetcher) fetchFeed(t task) outcome {
 	feedFetchAttemptsMetric.WithLabelValues(o.labels...).Inc()
 	log.Infof("Fetching %s %s", user, feed)
 
-	fetched, err := rss.FetchByFunc(f.fetchFunc, feed.URL)
+	fetched, err := rss.FetchByFunc(f.fetchFunc.withContext(t.ctx), feed.URL)
 	if err != nil {
 		log.Warningf("while fetching %s %s: %s", user, feed, err)
 		o.failures++

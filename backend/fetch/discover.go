@@ -1,6 +1,7 @@
 package fetch
 
 import (
+	"context"
 	"fmt"
 	"html"
 	"net/http"
@@ -57,7 +58,7 @@ func DiscoverFeed(feedURL string) (models.Feed, error) {
 		return feed, fmt.Errorf("no host in %q", feedURL)
 	}
 
-	fetched, err := rss.FetchByFunc(fetchFuncWithClient(discoverClient), feedURL)
+	fetched, err := rss.FetchByFunc(fetchFuncWithClient(discoverClient).withContext(context.Background()), feedURL)
 	if err != nil {
 		return feed, fmt.Errorf("could not read a feed at %s: %w", feedURL, err)
 	}
