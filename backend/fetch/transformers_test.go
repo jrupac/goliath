@@ -12,7 +12,7 @@ import (
 
 	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/models"
-	"github.com/jrupac/rss"
+	"github.com/jrupac/rss/v2"
 )
 
 func TestPrependMediaToHtml(t *testing.T) {
@@ -86,12 +86,11 @@ func TestProcessItem(t *testing.T) {
 
 	baseItem := func() *rss.Item {
 		return &rss.Item{
-			Title:     "Test Title",
-			Link:      "http://example.com/article",
-			Content:   "<p>Some content.</p>",
-			Summary:   "<p>Some summary.</p>",
-			Date:      time.Now(),
-			DateValid: true,
+			Title:   "Test Title",
+			Links:   []*rss.Link{{Href: "http://example.com/article"}},
+			Content: "<p>Some content.</p>",
+			Summary: "<p>Some summary.</p>",
+			Date:    time.Now(),
 		}
 	}
 
@@ -198,7 +197,6 @@ func TestProcessItem(t *testing.T) {
 	t.Run("with no date", func(t *testing.T) {
 		item := baseItem()
 		item.Date = time.Time{}
-		item.DateValid = false
 		article := processItem(feed, item)
 		if !article.SyntheticDate {
 			t.Error("expected SyntheticDate to be true")
@@ -235,59 +233,28 @@ func TestProcessItem(t *testing.T) {
 		}
 	})
 
-	t.Run("with relative link", func(t *testing.T) {
+	t.Run("with no link", func(t *testing.T) {
 		item := baseItem()
-		item.Link = "/relative/link"
+		item.Links = nil
+
+		if article := processItem(feed, item); article.Link != "" {
+			t.Errorf("article link = %q, want none rather than the site's", article.Link)
+		}
+	})
+
+	t.Run("resolves content against the item's base", func(t *testing.T) {
+		item := baseItem()
+		item.BaseURL = "https://example.com/blog/"
+		item.Content = `<p><img src="img/a.png"/><a href="post">x</a></p>`
 
 		article := processItem(feed, item)
 
-		if !strings.HasPrefix(article.Link, "http") {
-			t.Errorf("article link should be absolute, but was %q", article.Link)
+		for _, want := range []string{`src="https://example.com/blog/img/a.png"`, `href="https://example.com/blog/post"`} {
+			if !strings.Contains(article.Content, want) {
+				t.Errorf("content %q does not contain %s", article.Content, want)
+			}
 		}
 	})
-}
-
-func TestMaybeUnescapeHtml(t *testing.T) {
-	testCases := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "no escaping",
-			input:    "this is a test string",
-			expected: "this is a test string",
-		},
-		{
-			name:     "one escape sequence",
-			input:    "this is a &amp; test string",
-			expected: "this is a &amp; test string",
-		},
-		{
-			name:     "multiple escape sequences",
-			input:    "this is a &amp; test &lt; string &gt;",
-			expected: "this is a & test < string >",
-		},
-		{
-			name:     "quotes and apos",
-			input:    `&#34;hello&#34; &amp; &apos;world&apos;`,
-			expected: `"hello" & 'world'`,
-		},
-		{
-			name:     "empty string",
-			input:    "",
-			expected: "",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			result := maybeUnescapeHtml(tc.input)
-			if result != tc.expected {
-				t.Errorf("expected %q, got %q", tc.expected, result)
-			}
-		})
-	}
 }
 
 func TestProcessImageUrl(t *testing.T) {
@@ -668,4 +635,15 @@ func TestResignProxiedImageUrls(t *testing.T) {
 			t.Errorf("rewrote content with no key configured:\n%s", got)
 		}
 	})
+}
+
+// Articles are matched by link, so two without one never match each other.
+func TestSimilarArticlesNeedALink(t *testing.T) {
+	existing := []models.Article{{ID: 1, Title: "a"}, {ID: 2, Title: "b", Link: "https://example.com/p"}}
+	if unread, read := getSimilarExistingArticles(existing, models.Article{Title: "c"}); len(unread)+len(read) != 0 {
+		t.Errorf("an article without a link matched %v and %v", unread, read)
+	}
+	if unread, _ := getSimilarExistingArticles(existing, models.Article{Link: "https://example.com/p"}); len(unread) != 1 || unread[0] != 2 {
+		t.Errorf("matched %v, want the article with the same link", unread)
+	}
 }

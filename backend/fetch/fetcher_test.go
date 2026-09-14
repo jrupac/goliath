@@ -1,6 +1,7 @@
 package fetch
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"net/http"
@@ -12,18 +13,44 @@ import (
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
-	"github.com/jrupac/rss"
+	"github.com/jrupac/rss/v2"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 )
 
-// mockFetchFunc is a mock implementation of rss.FetchFunc for testing.
-var mockFetchFunc = func(_ context.Context, url string) (*http.Response, error) {
-	file, err := os.Open("testdata/sample_feed.xml")
+// roundTripFunc answers a client's requests without a network.
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// clientReader returns the feed reader a fetcher builds around client.
+func clientReader(t *testing.T, client *http.Client) *rss.Reader {
+	t.Helper()
+	r, err := newFeedReader(client)
 	if err != nil {
-		return nil, err
+		t.Fatalf("newFeedReader: %v", err)
 	}
-	return &http.Response{Body: file}, nil
+	return r
+}
+
+// stubReader returns a feed reader whose every request respond answers.
+func stubReader(t *testing.T, respond roundTripFunc) *rss.Reader {
+	t.Helper()
+	return clientReader(t, &http.Client{Transport: respond})
+}
+
+// sampleFeedReader returns a feed reader that answers every request with the
+// sample feed.
+func sampleFeedReader(t *testing.T) *rss.Reader {
+	t.Helper()
+	return stubReader(t, func(r *http.Request) (*http.Response, error) {
+		file, err := os.Open("testdata/sample_feed.xml")
+		if err != nil {
+			return nil, err
+		}
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{}, Body: file, Request: r}, nil
+	})
 }
 
 func loadTestData(t *testing.T) *rss.Feed {
@@ -33,16 +60,10 @@ func loadTestData(t *testing.T) *rss.Feed {
 		t.Fatalf("Failed to read test data: %v", err)
 	}
 
-	feed, err := rss.Parse(content)
+	feed, err := clientReader(t, http.DefaultClient).Parse("http://example.com/feed", bytes.NewReader(content))
 	if err != nil {
 		t.Fatalf("Failed to parse test data: %v", err)
 	}
-
-	// Manually set DateValid to true as rss.Parse does not do this.
-	for _, item := range feed.Items {
-		item.DateValid = true
-	}
-
 	return feed
 }
 
@@ -138,10 +159,10 @@ func TestFetchFeed(t *testing.T) {
 			},
 		}
 		fetcher := Fetcher{
-			d:         db,
-			retCache:  cache.NewMockRetrievalCache(),
-			finder:    &mockIconFinder{},
-			fetchFunc: mockFetchFunc,
+			d:        db,
+			retCache: cache.NewMockRetrievalCache(),
+			finder:   &mockIconFinder{},
+			reader:   sampleFeedReader(t),
 		}
 
 		tk := fetchTask(user, 1)
@@ -247,10 +268,10 @@ func TestProcessUserFeedItemsRetriesARefusedBatchOneAtATime(t *testing.T) {
 func TestFetchFeedDropsAFeedNoLongerSubscribedTo(t *testing.T) {
 	fetcher := Fetcher{
 		d: &storage.MockDB{},
-		fetchFunc: func(context.Context, string) (*http.Response, error) {
+		reader: stubReader(t, func(*http.Request) (*http.Response, error) {
 			t.Error("fetched a feed no longer subscribed to")
 			return nil, errors.New("unreachable")
-		},
+		}),
 	}
 
 	if o := fetcher.fetchFeed(fetchTask(models.User{UserId: "u"}, 1)); !o.gone {
@@ -277,7 +298,7 @@ func TestFetchFeedStopsWhenUnsubscribedFromMidFetch(t *testing.T) {
 			return nil
 		},
 	}
-	fetcher := Fetcher{d: db, retCache: cache.NewMockRetrievalCache(), finder: &mockIconFinder{}, fetchFunc: mockFetchFunc}
+	fetcher := Fetcher{d: db, retCache: cache.NewMockRetrievalCache(), finder: &mockIconFinder{}, reader: sampleFeedReader(t)}
 
 	if o := fetcher.fetchFeed(fetchTask(models.User{UserId: "u"}, 1)); !o.gone {
 		t.Errorf("outcome = %+v, want the feed reported gone", o)
@@ -293,9 +314,9 @@ func TestFetchFeedBacksOffOnFailure(t *testing.T) {
 			return models.Feed{ID: feedID, URL: "http://example.com/feed"}, nil
 		},
 	}
-	fetcher := Fetcher{d: db, fetchFunc: func(context.Context, string) (*http.Response, error) {
+	fetcher := Fetcher{d: db, reader: stubReader(t, func(*http.Request) (*http.Response, error) {
 		return nil, errors.New("connection refused")
-	}}
+	})}
 
 	tk := fetchTask(models.User{UserId: "u"}, 1)
 	tk.failures = 2
@@ -326,7 +347,7 @@ func TestFetchFeedAbandonsARequestWhenItsTaskIsCancelled(t *testing.T) {
 			return models.Feed{ID: feedID, URL: server.URL}, nil
 		},
 	}
-	fetcher := Fetcher{d: db, fetchFunc: fetchFuncWithClient(server.Client())}
+	fetcher := Fetcher{d: db, reader: clientReader(t, server.Client())}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	tk := fetchTask(models.User{UserId: "u"}, 1)
@@ -344,9 +365,10 @@ func TestFetchFeedAbandonsARequestWhenItsTaskIsCancelled(t *testing.T) {
 // deciding how to treat Goliath is deciding about one client. A second
 // hardcoded string somewhere would quietly split that in two.
 func TestUserAgentIsSentOnFeedFetches(t *testing.T) {
-	var got string
+	var got, accept string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		got = r.Header.Get("User-Agent")
+		accept = r.Header.Get("Accept")
 		_, _ = w.Write([]byte(`<rss version="2.0"><channel><title>t</title></channel></rss>`))
 	}))
 	defer server.Close()
@@ -356,11 +378,12 @@ func TestUserAgentIsSentOnFeedFetches(t *testing.T) {
 		t.Fatalf("NewAddressAllowlist: %v", err)
 	}
 
-	resp, err := fetchFuncWithClient(newFeedClient(allowed))(context.Background(), server.URL)
-	if err != nil {
+	if _, err = clientReader(t, newFeedClient(allowed)).Fetch(context.Background(), server.URL); err != nil {
 		t.Fatalf("fetch: %v", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
+	if !strings.Contains(accept, "application/rss+xml") {
+		t.Errorf("Accept = %q, which does not ask for a feed", accept)
+	}
 
 	if got != UserAgent() {
 		t.Errorf("User-Agent = %q, want %q", got, UserAgent())
@@ -378,7 +401,10 @@ func TestIconLookupsRefuseInternalAddresses(t *testing.T) {
 		t.Errorf("err = %v, want %v", err, utils.ErrBlockedAddress)
 	}
 
-	fetcher := New(&storage.MockDB{}, &cache.MockRetrievalCache{}, nil)
+	fetcher, err := New(&storage.MockDB{}, &cache.MockRetrievalCache{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if icons, _ := fetcher.finder.FetchIcons("http://169.254.169.254/"); len(icons) != 0 {
 		t.Errorf("found %d icons at a link-local address", len(icons))
 	}
@@ -416,5 +442,155 @@ func TestUserAgentIsSentOnIconFetches(t *testing.T) {
 func TestFullTextUserAgentDefaultsToTheSharedOne(t *testing.T) {
 	if *fullTextUserAgent != "" {
 		t.Errorf("fullTextUserAgent defaults to %q, want empty so it falls back to userAgent", *fullTextUserAgent)
+	}
+}
+
+// Dates in the looser formats feeds use are read, so that items carrying them
+// keep the date they were published rather than a made-up one.
+func TestFeedReaderReadsExtraDateFormats(t *testing.T) {
+	reader := clientReader(t, http.DefaultClient)
+	for _, date := range []string{
+		"2025-10-12",
+		"Sun, 12 Oct 2025",
+		"Sunday, 12 Oct 2025 10:00:00 UTC",
+		"Sun, 12 Oct 2025 10:00:00 UTC",
+		"Thu, 2 Oct 2025 10:00:00 UTC",
+	} {
+		doc := `<rss version="2.0"><channel><title>t</title><item><title>i</title>` +
+			`<link>http://example.com/i</link><pubDate>` + date + `</pubDate></item></channel></rss>`
+		feed, err := reader.Parse("http://example.com/feed", strings.NewReader(doc))
+		if err != nil {
+			t.Fatalf("%q: %v", date, err)
+		}
+		if len(feed.Items) != 1 || feed.Items[0].Date.IsZero() {
+			t.Errorf("%q was not read as a date", date)
+		}
+	}
+}
+
+// Only an interval the feed declared schedules its next fetch. A feed naming
+// none is left to the adaptive estimate, whatever the parser's default.
+func TestDeclaredNextFetchIsOnlyWhatTheFeedDeclared(t *testing.T) {
+	reader := clientReader(t, http.DefaultClient)
+	for _, tc := range []struct {
+		name     string
+		doc      string
+		declared bool
+	}{
+		{"nothing declared", `<rss version="2.0"><channel><title>t</title></channel></rss>`, false},
+		{"a ttl", `<rss version="2.0"><channel><title>t</title><ttl>60</ttl></channel></rss>`, true},
+		{"a syndication period", `<rss version="2.0" xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"><channel><title>t</title>` +
+			`<sy:updatePeriod>hourly</sy:updatePeriod><sy:updateFrequency>1</sy:updateFrequency></channel></rss>`, false},
+	} {
+		feed, err := reader.Parse("http://example.com/feed", strings.NewReader(tc.doc))
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if got := !declaredNextFetch(feed).IsZero(); got != tc.declared {
+			t.Errorf("%s: declared = %t, want %t", tc.name, got, tc.declared)
+		}
+	}
+}
+
+// A zone given by its abbreviation is read at its offset, whatever zone this
+// server runs in.
+func TestFeedReaderReadsZoneAbbreviations(t *testing.T) {
+	reader := clientReader(t, http.DefaultClient)
+	for date, want := range map[string]string{
+		"Sun, 12 Oct 2025 10:00:00 GMT": "2025-10-12T10:00:00Z",
+		"Sun, 12 Oct 2025 10:00:00 EDT": "2025-10-12T14:00:00Z",
+		"Sun, 12 Oct 2025 10:00:00 PDT": "2025-10-12T17:00:00Z",
+	} {
+		doc := `<rss version="2.0"><channel><title>t</title><item><title>i</title>` +
+			`<link>http://example.com/i</link><pubDate>` + date + `</pubDate></item></channel></rss>`
+		feed, err := reader.Parse("http://example.com/feed", strings.NewReader(doc))
+		if err != nil {
+			t.Fatalf("%q: %v", date, err)
+		}
+		if got := feed.Items[0].Date.UTC().Format(time.RFC3339); got != want {
+			t.Errorf("%q read as %s, want %s", date, got, want)
+		}
+	}
+}
+
+// A fetch sends the validators the last one got back, and a feed unchanged
+// since is a success that stores nothing and leaves its metadata due.
+func TestFetchFeedMakesConditionalRequests(t *testing.T) {
+	var requests, conditional atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		if r.Header.Get("If-None-Match") == `"v1"` {
+			conditional.Add(1)
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		body, err := os.ReadFile("testdata/sample_feed.xml")
+		if err != nil {
+			t.Error(err)
+		}
+		w.Header().Set("ETag", `"v1"`)
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+
+	pastTime, _ := time.Parse(time.RFC3339, "2025-01-01T00:00:00Z")
+	db := &storage.MockDB{
+		OnGetFeedForUser: func(_ models.User, feedID models.FeedId) (models.Feed, error) {
+			return models.Feed{ID: feedID, URL: server.URL, Latest: pastTime}, nil
+		},
+	}
+	fetcher := Fetcher{d: db, retCache: cache.NewMockRetrievalCache(), finder: &mockIconFinder{},
+		reader: clientReader(t, server.Client())}
+
+	first := fetcher.fetchFeed(fetchTask(models.User{UserId: "u"}, 1))
+	if first.failures != 0 || first.state.etag != `"v1"` {
+		t.Fatalf("first fetch: %+v, want a success carrying the ETag", first)
+	}
+
+	tk := fetchTask(models.User{UserId: "u"}, 1)
+	tk.state = first.state
+	tk.refreshMetadata = true
+	second := fetcher.fetchFeed(tk)
+
+	if requests.Load() != 2 || conditional.Load() != 1 {
+		t.Errorf("%d requests, %d conditional; want the second to be conditional", requests.Load(), conditional.Load())
+	}
+	if second.gone || second.failures != 0 || !second.next.After(time.Now()) {
+		t.Errorf("second fetch: %+v, want a success scheduled in the future", second)
+	}
+	if second.refreshedMetadata || db.UpdateFeedMetadataForUserCalled {
+		t.Error("refreshed metadata without a document to refresh it from")
+	}
+	if second.state != first.state {
+		t.Errorf("state after a 304 = %+v, want %+v kept", second.state, first.state)
+	}
+	if len(db.InsertedArticles) != 2 {
+		t.Errorf("stored %d articles, want only the first fetch's 2", len(db.InsertedArticles))
+	}
+}
+
+// A server that says when to come back is not asked again sooner.
+func TestFetchFeedWaitsAsLongAsTheServerAsks(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "7200")
+		w.WriteHeader(http.StatusTooManyRequests)
+	}))
+	defer server.Close()
+
+	db := &storage.MockDB{
+		OnGetFeedForUser: func(_ models.User, feedID models.FeedId) (models.Feed, error) {
+			return models.Feed{ID: feedID, URL: server.URL}, nil
+		},
+	}
+	fetcher := Fetcher{d: db, reader: clientReader(t, server.Client())}
+
+	start := time.Now()
+	o := fetcher.fetchFeed(fetchTask(models.User{UserId: "u"}, 1))
+
+	if o.gone || o.failures != 1 {
+		t.Fatalf("outcome = %+v, want a failure", o)
+	}
+	if want := start.Add(2 * time.Hour); o.next.Before(want) {
+		t.Errorf("next fetch at %s, want no earlier than %s", o.next, want)
 	}
 }

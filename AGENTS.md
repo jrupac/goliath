@@ -85,7 +85,7 @@ goliath/
 
 ### Notable dependencies
 
-- `github.com/jrupac/rss` — RSS parsing
+- `github.com/jrupac/rss/v2` — feed fetching and parsing (RSS, Atom, JSON Feed)
 - `github.com/PuerkitoBio/goquery` — HTML parsing
 - `github.com/microcosm-cc/bluemonday` — HTML sanitisation
 - `github.com/mat/besticon/v3` — favicon extraction

@@ -11,7 +11,6 @@ import (
 
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/utils"
-	"github.com/jrupac/rss"
 )
 
 // discoverTimeout bounds the check made before a subscription is created. It
@@ -58,7 +57,11 @@ func DiscoverFeed(feedURL string) (models.Feed, error) {
 		return feed, fmt.Errorf("no host in %q", feedURL)
 	}
 
-	fetched, err := rss.FetchByFunc(fetchFuncWithClient(discoverClient).withContext(context.Background()), feedURL)
+	reader, err := newFeedReader(discoverClient)
+	if err != nil {
+		return feed, err
+	}
+	fetched, err := reader.Fetch(context.Background(), feedURL)
 	if err != nil {
 		return feed, fmt.Errorf("could not read a feed at %s: %w", feedURL, err)
 	}
@@ -67,8 +70,8 @@ func DiscoverFeed(feedURL string) (models.Feed, error) {
 	// they are unescaped rather than parsed.
 	feed.Title = strings.TrimSpace(html.UnescapeString(fetched.Title))
 	feed.Description = strings.TrimSpace(html.UnescapeString(fetched.Description))
-	if isValidAbsoluteURL(fetched.Link) {
-		feed.Link = strings.TrimSpace(fetched.Link)
+	if link := alternateLink(fetched.Links); isValidAbsoluteURL(link) {
+		feed.Link = strings.TrimSpace(link)
 	}
 
 	// A feed that names no title of its own still has to be identifiable in a

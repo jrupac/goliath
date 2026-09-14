@@ -7,7 +7,7 @@ import (
 
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
-	"github.com/jrupac/rss"
+	"github.com/jrupac/rss/v2"
 )
 
 func TestCalculateFailureBackoff(t *testing.T) {
@@ -67,17 +67,18 @@ func TestCalculateNextInterval(t *testing.T) {
 	now := time.Now()
 	user := models.User{UserId: "test-user"}
 
-	t.Run("respects custom non-10m refresh directly", func(t *testing.T) {
+	t.Run("respects an interval the feed declared", func(t *testing.T) {
 		db := &storage.MockDB{}
 		f := Fetcher{d: db}
 		feed := models.Feed{ID: 123}
 
 		customRefresh := now.Add(3 * time.Hour)
 		rssFeed := &rss.Feed{
-			Refresh: customRefresh,
+			TTL:        3 * time.Hour,
+			NextUpdate: customRefresh,
 		}
 
-		got := f.calculateNextInterval(user, &feed, rssFeed, now)
+		got := f.calculateNextInterval(user, &feed, rssFeed.Items, declaredNextFetch(rssFeed), now)
 		if !got.Equal(customRefresh) {
 			t.Errorf("expected custom refresh %s to be respected, got %s", customRefresh, got)
 		}
@@ -94,16 +95,16 @@ func TestCalculateNextInterval(t *testing.T) {
 		feed := models.Feed{ID: 123, Latest: time.Time{}} // Latest is zero
 
 		rssFeed := &rss.Feed{
-			Refresh: now.Add(10 * time.Minute),
+			NextUpdate: now.Add(10 * time.Minute),
 			Items: []*rss.Item{
-				{Date: now.Add(-1 * time.Hour), DateValid: true},
-				{Date: now.Add(-3 * time.Hour), DateValid: true},
-				{Date: now.Add(-7 * time.Hour), DateValid: true},
-				{Date: now.Add(-15 * time.Hour), DateValid: true},
+				{Date: now.Add(-1 * time.Hour)},
+				{Date: now.Add(-3 * time.Hour)},
+				{Date: now.Add(-7 * time.Hour)},
+				{Date: now.Add(-15 * time.Hour)},
 			},
 		}
 
-		got := f.calculateNextInterval(user, &feed, rssFeed, now)
+		got := f.calculateNextInterval(user, &feed, rssFeed.Items, declaredNextFetch(rssFeed), now)
 
 		// Expected bootstrap (sorted oldest first: -15h, -7h, -3h, -1h):
 		// Step 1: ema = 8h (first gap initialised directly, no alpha)
@@ -142,13 +143,13 @@ func TestCalculateNextInterval(t *testing.T) {
 
 		// New item at now-1h: gap0 = (now-1h) - (now-6h) = 5h
 		rssFeed := &rss.Feed{
-			Refresh: now.Add(10 * time.Minute),
+			NextUpdate: now.Add(10 * time.Minute),
 			Items: []*rss.Item{
-				{Date: now.Add(-1 * time.Hour), DateValid: true},
+				{Date: now.Add(-1 * time.Hour)},
 			},
 		}
 
-		f.calculateNextInterval(user, &feed, rssFeed, now)
+		f.calculateNextInterval(user, &feed, rssFeed.Items, declaredNextFetch(rssFeed), now)
 
 		// gap0=5h > EMA=4h → alphaSlower=0.1; cap=12h (not hit)
 		// ema = 0.1*5h + 0.9*4h = 0.5h + 3.6h = 4.1h = 14760s
@@ -171,11 +172,11 @@ func TestCalculateNextInterval(t *testing.T) {
 
 		// No new items in fetch
 		rssFeed := &rss.Feed{
-			Refresh: now.Add(10 * time.Minute),
-			Items:   []*rss.Item{},
+			NextUpdate: now.Add(10 * time.Minute),
+			Items:      []*rss.Item{},
 		}
 
-		got := f.calculateNextInterval(user, &feed, rssFeed, now)
+		got := f.calculateNextInterval(user, &feed, rssFeed.Items, declaredNextFetch(rssFeed), now)
 
 		// EMA unchanged (no new items). timeSinceLatest=12h, cap=3×4h=12h (exactly at cap).
 		// interval = max(EMA=4h, silenceCapped=12h) = 12h.
@@ -197,11 +198,11 @@ func TestCalculateNextInterval(t *testing.T) {
 		}
 
 		rssFeed := &rss.Feed{
-			Refresh: now.Add(10 * time.Minute),
-			Items:   []*rss.Item{},
+			NextUpdate: now.Add(10 * time.Minute),
+			Items:      []*rss.Item{},
 		}
 
-		got := f.calculateNextInterval(user, &feed, rssFeed, now)
+		got := f.calculateNextInterval(user, &feed, rssFeed.Items, declaredNextFetch(rssFeed), now)
 
 		// timeSinceLatest=2h < EMA=4h → silence penalty does not dominate.
 		// interval = max(EMA=4h, silence=2h) = 4h.
@@ -223,11 +224,11 @@ func TestCalculateNextInterval(t *testing.T) {
 		}
 
 		rssFeed := &rss.Feed{
-			Refresh: now.Add(10 * time.Minute),
-			Items:   []*rss.Item{},
+			NextUpdate: now.Add(10 * time.Minute),
+			Items:      []*rss.Item{},
 		}
 
-		got := f.calculateNextInterval(user, &feed, rssFeed, now)
+		got := f.calculateNextInterval(user, &feed, rssFeed.Items, declaredNextFetch(rssFeed), now)
 
 		// timeSinceLatest=20h, cap=3×4h=12h → capped to 12h.
 		// interval = max(EMA=4h, silenceCapped=12h) = 12h.
@@ -248,11 +249,11 @@ func TestCalculateNextInterval(t *testing.T) {
 		}
 
 		rssFeed := &rss.Feed{
-			Refresh: now.Add(10 * time.Minute),
-			Items:   []*rss.Item{},
+			NextUpdate: now.Add(10 * time.Minute),
+			Items:      []*rss.Item{},
 		}
 
-		got := f.calculateNextInterval(user, &feed, rssFeed, now)
+		got := f.calculateNextInterval(user, &feed, rssFeed.Items, declaredNextFetch(rssFeed), now)
 
 		// No silence penalty (Latest is zero). EMA defaults to maxFetchInterval/2 = 12h.
 		expectedNext := now.Add(12 * time.Hour)
@@ -279,13 +280,13 @@ func TestCalculateNextInterval(t *testing.T) {
 
 		// New item at now-2h30m: gap0 = 30m, well below EMA of 2h.
 		rssFeed := &rss.Feed{
-			Refresh: now.Add(10 * time.Minute),
+			NextUpdate: now.Add(10 * time.Minute),
 			Items: []*rss.Item{
-				{Date: now.Add(-150 * time.Minute), DateValid: true},
+				{Date: now.Add(-150 * time.Minute)},
 			},
 		}
 
-		f.calculateNextInterval(user, &feed, rssFeed, now)
+		f.calculateNextInterval(user, &feed, rssFeed.Items, declaredNextFetch(rssFeed), now)
 
 		// gap0=30m < EMA=2h → alphaFaster=0.5; cap=6h (not hit)
 		// ema = 0.5*30m + 0.5*2h = 15m + 1h = 75m = 4500s
@@ -313,13 +314,13 @@ func TestCalculateNextInterval(t *testing.T) {
 
 		// New item at now-30m: gap0 = 9h30m = 570m, far exceeds EMA.
 		rssFeed := &rss.Feed{
-			Refresh: now.Add(10 * time.Minute),
+			NextUpdate: now.Add(10 * time.Minute),
 			Items: []*rss.Item{
-				{Date: now.Add(-30 * time.Minute), DateValid: true},
+				{Date: now.Add(-30 * time.Minute)},
 			},
 		}
 
-		f.calculateNextInterval(user, &feed, rssFeed, now)
+		f.calculateNextInterval(user, &feed, rssFeed.Items, declaredNextFetch(rssFeed), now)
 
 		// gap0=570m capped at 20m*3.0 = 60m; 60m > 20m → alphaSlower=0.1
 		// ema = 0.1*60m + 0.9*20m = 6m + 18m = 24m = 1440s

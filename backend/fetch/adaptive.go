@@ -1,17 +1,18 @@
 package fetch
 
 import (
-	"math"
 	"sort"
 	"time"
 
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
-	"github.com/jrupac/rss"
+	"github.com/jrupac/rss/v2"
 )
 
 // calculateNextInterval determines the absolute timestamp for the next fetch.
-// It uses an Online Exponential Moving Average (EMA) of publication gaps,
+// A feed that declared when it should be fetched next, given as declared, is
+// fetched then; declared is the zero time for a feed that declared nothing.
+// Otherwise it uses an Online Exponential Moving Average (EMA) of publication gaps,
 // persisted in the database, to adaptively schedule updates.
 //
 // Math & Logic:
@@ -32,18 +33,16 @@ import (
 //     the feedback loop for bursty feeds while still backing off truly silent ones.
 //     Feeds with no publication history (Latest is zero) skip the silence penalty.
 //     Feeds with no stored EMA default to maxFetchInterval/2 as a conservative start.
-func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetch *rss.Feed, fetchTime time.Time) time.Time {
-	// First, check if the feed provided a custom non-default interval (like a TTL).
-	d := fetch.Refresh.Sub(fetchTime)
-	if math.Abs(d.Seconds()-600.0) > 5.0 {
-		log.V(2).Infof("Feed %s %s specifies non-default refresh interval: %s. Respecting it.", user, feed, d)
-		return fetch.Refresh
+func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, items []*rss.Item, declared, fetchTime time.Time) time.Time {
+	if !declared.IsZero() {
+		log.V(2).Infof("Feed %s %s declares its next fetch at %s. Respecting it.", user, feed, declared)
+		return declared
 	}
 
 	// 1. Identify new items since the feed's last known latest article
 	var newItems []*rss.Item
-	for _, item := range fetch.Items {
-		if item.DateValid && !item.Date.IsZero() && !item.Date.After(fetchTime) {
+	for _, item := range items {
+		if !item.Date.IsZero() && !item.Date.After(fetchTime) {
 			// If feed.Latest is zero, all valid items are considered "new" for bootstrapping
 			if feed.Latest.IsZero() || item.Date.After(feed.Latest) {
 				newItems = append(newItems, item)
@@ -160,6 +159,19 @@ func (f Fetcher) calculateNextInterval(user models.User, feed *models.Feed, fetc
 	}
 
 	return fetchTime.Add(interval)
+}
+
+// declaredNextFetch returns when a fetched feed asked to be fetched next, from
+// the refresh interval it declared, or the zero time if it declared none.
+//
+// Only an RSS <ttl> counts. The syndication module's update period is not
+// taken as one: publishing tools write the same default into every feed they
+// produce, so it says little about how often a given feed changes.
+func declaredNextFetch(fetched *rss.Feed) time.Time {
+	if fetched.TTL <= 0 {
+		return time.Time{}
+	}
+	return fetched.NextUpdate
 }
 
 // calculateFailureBackoff computes retry duration on fetch failure.

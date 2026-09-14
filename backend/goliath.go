@@ -109,7 +109,11 @@ func main() {
 		log.Fatalf("Invalid feed address allowlist: %s", err)
 	}
 
-	scheduler := fetch.NewScheduler(fetch.New(d, retrievalCache, feedAllowlist), d)
+	fetcher, err := fetch.New(d, retrievalCache, feedAllowlist)
+	if err != nil {
+		log.Fatalf("Invalid feed fetcher configuration: %s", err)
+	}
+	scheduler := fetch.NewScheduler(fetcher, d)
 
 	fetching := make(chan struct{})
 	go func() {

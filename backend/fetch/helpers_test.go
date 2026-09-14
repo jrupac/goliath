@@ -8,7 +8,7 @@ import (
 	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
-	"github.com/jrupac/rss"
+	"github.com/jrupac/rss/v2"
 	"github.com/mat/besticon/v3/besticon"
 )
 
@@ -36,7 +36,7 @@ func TestUpdateFeedMetadataForUser(t *testing.T) {
 		rssFeed := &rss.Feed{
 			Title:       "Test Title",
 			Description: "Test Description",
-			Link:        "http://example.com",
+			Links:       []*rss.Link{{Href: "http://example.com"}},
 		}
 
 		fetcher.updateFeedMetadataForUser(context.Background(), user, modelFeed, rssFeed)
@@ -60,7 +60,7 @@ func TestUpdateFeedMetadataForUser(t *testing.T) {
 		rssFeed := &rss.Feed{
 			Title:       "Test Title",
 			Description: "Test Description",
-			Link:        "/",
+			Links:       []*rss.Link{{Href: "/"}},
 		}
 
 		fetcher.updateFeedMetadataForUser(context.Background(), user, modelFeed, rssFeed)
@@ -84,7 +84,7 @@ func TestUpdateFeedMetadataForUser(t *testing.T) {
 		rssFeed := &rss.Feed{
 			Title:       " <antirez> ",
 			Description: "A <description> with tags",
-			Link:        "http://example.com",
+			Links:       []*rss.Link{{Href: "http://example.com"}},
 		}
 
 		fetcher.updateFeedMetadataForUser(context.Background(), user, modelFeed, rssFeed)
@@ -102,7 +102,7 @@ func TestUpdateFeedMetadataForUser(t *testing.T) {
 		rssFeed := &rss.Feed{
 			Title:       "\n<antirez>\n",
 			Description: "\nA <desc>\n",
-			Link:        "http://example.com",
+			Links:       []*rss.Link{{Href: "http://example.com"}},
 		}
 
 		fetcher.updateFeedMetadataForUser(context.Background(), user, modelFeed, rssFeed)
@@ -120,7 +120,7 @@ func TestUpdateFeedMetadataForUser(t *testing.T) {
 		rssFeed := &rss.Feed{
 			Title:       "My &amp; Feed",
 			Description: "A &lt;description&gt; &amp; more",
-			Link:        "http://example.com",
+			Links:       []*rss.Link{{Href: "http://example.com"}},
 		}
 
 		fetcher.updateFeedMetadataForUser(context.Background(), user, modelFeed, rssFeed)
@@ -194,7 +194,7 @@ func TestTryIconFetch(t *testing.T) {
 func TestUpdateFeedFaviconForUser(t *testing.T) {
 	user := models.User{UserId: "test-user"}
 	feed := &models.Feed{ID: 1, Link: "http://example.com"}
-	rssFeed := &rss.Feed{Link: "http://example.com", Image: &rss.Image{}}
+	rssFeed := &rss.Feed{Links: []*rss.Link{{Href: "http://example.com"}}, Image: &rss.Image{}}
 
 	t.Run("no icon found", func(t *testing.T) {
 		db := &storage.MockDB{}
@@ -220,6 +220,40 @@ func TestUpdateFeedFaviconForUser(t *testing.T) {
 			t.Error("expected InsertFaviconForUser to be called")
 		}
 	})
+
+	t.Run("feed naming no image", func(t *testing.T) {
+		db := &storage.MockDB{}
+		icons := []besticon.Icon{{URL: "http://example.com/icon.png", Format: "png", ImageData: png1x1}}
+		fetcher := Fetcher{d: db, finder: &mockIconFinder{icons: icons}}
+
+		fetcher.updateFeedFaviconForUser(context.Background(), user, feed,
+			&rss.Feed{Links: []*rss.Link{{Href: "http://example.com"}}})
+
+		if !db.InsertFaviconForUserCalled {
+			t.Error("expected the icon to be found from the feed's links")
+		}
+	})
+}
+
+// A feed's or an item's own address is the first link that stands for it,
+// rather than for the feed document or something related to it.
+func TestAlternateLink(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		links []*rss.Link
+		want  string
+	}{
+		{"no relation", []*rss.Link{{Href: "http://example.com/"}}, "http://example.com/"},
+		{"self before alternate", []*rss.Link{{Href: "http://example.com/feed.xml", Rel: "self"}, {Href: "http://example.com/", Rel: "alternate"}}, "http://example.com/"},
+		{"only related links", []*rss.Link{{Href: "http://example.com/hub", Rel: "hub"}}, ""},
+		{"no links", nil, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := alternateLink(tc.links); got != tc.want {
+				t.Errorf("alternateLink = %q, want %q", got, tc.want)
+			}
+		})
+	}
 }
 
 // Feed markup routinely puts an element's text on its own line, so the URL
@@ -258,7 +292,10 @@ func TestUpdateFeedMetadataRespectsAUserSetTitle(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			db := &storage.MockDB{}
-			fetcher := New(db, &cache.MockRetrievalCache{}, nil)
+			fetcher, err := New(db, &cache.MockRetrievalCache{}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
 			feed := &models.Feed{
 				ID: 7, Title: "My Name For It", TitleOverridden: tc.overridden,
 			}

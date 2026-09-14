@@ -142,6 +142,8 @@ type job struct {
 	// index is the job's position in the queue, or -1 while it is not queued.
 	index    int
 	failures int
+	// state is what the feed's last fetch left for its next one.
+	state fetchState
 	// metadataRefreshed is when the feed's own metadata was last refreshed.
 	metadataRefreshed time.Time
 	// labels are those its per-feed metrics were last written under.
@@ -331,6 +333,7 @@ func (s *Scheduler) taskFor(ctx context.Context, j *job) task {
 		key:             j.key,
 		user:            j.user,
 		failures:        j.failures,
+		state:           j.state,
 		refreshMetadata: s.now().Sub(j.metadataRefreshed) >= s.metadataInterval,
 	}
 }
@@ -358,6 +361,7 @@ func (s *Scheduler) finish(o outcome) {
 		j.labels = o.labels
 	}
 	j.failures = o.failures
+	j.state = o.state
 	if o.refreshedMetadata {
 		j.metadataRefreshed = s.now()
 	}

@@ -18,7 +18,7 @@ import (
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
-	"github.com/jrupac/rss"
+	"github.com/jrupac/rss/v2"
 	"github.com/mat/besticon/v3/besticon"
 	"github.com/microcosm-cc/bluemonday"
 	"github.com/prometheus/client_golang/prometheus"
@@ -103,15 +103,6 @@ func init() {
 	prometheus.MustRegister(feedFetchErrorsMetric)
 	prometheus.MustRegister(feedFetchAttemptsMetric)
 	prometheus.MustRegister(feedFetchStatsMetric)
-
-	// Additional time layouts that sometimes appear in feeds.
-	rss.TimeLayouts = append(rss.TimeLayouts,
-		"2006-01-02",
-		"Monday, 02 Jan 2006 15:04:05 MST",
-		"Mon, 02 Jan 2006 15:04:05 MST",
-		"Mon, 2 Jan 2006 15:04:05 MST",
-		"Mon, 02 Jan 2006",
-	)
 }
 
 type imagePair struct {
@@ -202,28 +193,18 @@ func (t userAgentTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	return t.next.RoundTrip(r)
 }
 
-// feedFetchFunc fetches a feed's document. For a scheduled fetch the context is
-// its task's, so an unsubscribe or a shutdown abandons a request in flight
-// rather than waiting out its timeout.
-type feedFetchFunc func(ctx context.Context, url string) (*http.Response, error)
+// feedMaxBodySize is the largest feed document read. A subscription's URL
+// comes from whoever added it, and a fetch's timeout bounds how long a response
+// takes but not how large it is.
+const feedMaxBodySize = 16 << 20
 
-// withContext binds a fetch to ctx, in the form the feed parser takes.
-func (f feedFetchFunc) withContext(ctx context.Context) rss.FetchFunc {
-	return func(url string) (*http.Response, error) {
-		return f(ctx, url)
-	}
-}
-
-func fetchFuncWithClient(client *http.Client) feedFetchFunc {
-	return func(ctx context.Context, url string) (*http.Response, error) {
-		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("Accept", "application/rss+xml,application/atom+xml;q=0.9,application/xml;q=0.8,*/*;q=0.7")
-		req.Header.Set("User-Agent", UserAgent())
-		return client.Do(req)
-	}
+// newFeedReader returns a reader that fetches feeds with client.
+func newFeedReader(client *http.Client) (*rss.Reader, error) {
+	return rss.NewReader(
+		rss.WithHTTPClient(client),
+		rss.WithUserAgent(UserAgent()),
+		rss.WithMaxBodySize(feedMaxBodySize),
+	)
 }
 
 // iconFinder looks up icons with a besticon finder of its own for each lookup.
@@ -238,24 +219,34 @@ func (f iconFinder) FetchIcons(url string) ([]besticon.Icon, error) {
 }
 
 type Fetcher struct {
-	d         storage.Database
-	retCache  cache.RetrievalCache
-	finder    IconFinder
-	fetchFunc feedFetchFunc
+	d        storage.Database
+	retCache cache.RetrievalCache
+	finder   IconFinder
+	// reader fetches and parses feeds. A scheduled fetch passes it its task's
+	// context, so an unsubscribe or a shutdown abandons a request in flight
+	// rather than waiting out its timeout.
+	reader *rss.Reader
 }
 
-func New(d storage.Database, retCache cache.RetrievalCache, allowed utils.AddressAllowlist) *Fetcher {
+// New returns a fetcher that stores what it fetches in d. It fails only if the
+// feed parser refuses its configuration.
+func New(d storage.Database, retCache cache.RetrievalCache, allowed utils.AddressAllowlist) (*Fetcher, error) {
+	reader, err := newFeedReader(newFeedClient(allowed))
+	if err != nil {
+		return nil, err
+	}
+
 	b := besticon.New(
 		besticon.WithHTTPClient(newIconClient()),
 		// Turn off logging of HTTP icon requests.
 		besticon.WithLogger(besticon.NewDefaultLogger(io.Discard)))
 
 	return &Fetcher{
-		d:         d,
-		retCache:  retCache,
-		finder:    iconFinder{b},
-		fetchFunc: fetchFuncWithClient(newFeedClient(allowed)),
-	}
+		d:        d,
+		retCache: retCache,
+		finder:   iconFinder{b},
+		reader:   reader,
+	}, nil
 }
 
 // task is one fetch of one feed for one user, as the scheduler hands it to a
@@ -269,6 +260,17 @@ type task struct {
 	user            models.User
 	failures        int
 	refreshMetadata bool
+	// state is what the feed's previous fetch left for this one.
+	state fetchState
+}
+
+// fetchState is what one fetch of a feed leaves for the next: the validators
+// that make the next a conditional request, and the refresh interval the feed
+// declared, which an answer of "not modified" does not repeat.
+type fetchState struct {
+	etag         string
+	lastModified string
+	ttl          time.Duration
 }
 
 // outcome is what a worker reports about a task once it is done.
@@ -285,6 +287,8 @@ type outcome struct {
 	// labels are the per-feed metric labels this fetch wrote under, so that
 	// the series can be deleted once the feed goes or its labels change.
 	labels []string
+	// state is what this fetch leaves for the feed's next one.
+	state fetchState
 }
 
 // fetchFeed fetches one feed and stores whatever is new in it.
@@ -310,13 +314,42 @@ func (f Fetcher) fetchFeed(t task) outcome {
 	feedFetchAttemptsMetric.WithLabelValues(o.labels...).Inc()
 	log.Infof("Fetching %s %s", user, feed)
 
-	fetched, err := rss.FetchByFunc(f.fetchFunc.withContext(t.ctx), feed.URL)
-	if err != nil {
+	// What a fetch does not replace carries over, so that a failed fetch does
+	// not cost the next one its conditional request.
+	o.state = t.state
+	resp, err := f.reader.FetchWithOptions(t.ctx, feed.URL,
+		rss.FetchOptions{ETag: t.state.etag, LastModified: t.state.lastModified})
+	switch {
+	case err != nil:
 		log.Warningf("while fetching %s %s: %s", user, feed, err)
 		o.failures++
 		o.next = fetchTime.Add(f.calculateFailureBackoff(o.failures))
+		// A server that says when to come back is not asked again sooner,
+		// though never later than the longest interval between fetches.
+		var httpErr *rss.HTTPError
+		if errors.As(err, &httpErr) && httpErr.RetryAfter.After(o.next) {
+			o.next = httpErr.RetryAfter
+			if longest := fetchTime.Add(*maxFetchInterval); o.next.After(longest) {
+				o.next = longest
+			}
+		}
 		feedFetchErrorsMetric.WithLabelValues(o.labels...).Inc()
-	} else {
+	case resp.NotModified:
+		// The document is as it was, and so is any interval it declared.
+		// Metadata is left due, to be refreshed from the next document.
+		log.Infof("Not modified since the last fetch: %s %s", user, feed)
+		var declared time.Time
+		if t.state.ttl > 0 {
+			declared = fetchTime.Add(t.state.ttl)
+		}
+		o.failures = 0
+		o.next = f.calculateNextInterval(user, &feed, nil, declared, fetchTime)
+	default:
+		fetched := resp.Feed
+		if resp.Permanent {
+			log.Infof("%s %s has moved permanently to %s", user, feed, resp.FinalURL)
+		}
+
 		if t.refreshMetadata {
 			f.updateFeedMetadataForUser(t.ctx, user, &feed, fetched)
 			f.updateFeedFaviconForUser(t.ctx, user, &feed, fetched)
@@ -333,7 +366,8 @@ func (f Fetcher) fetchFeed(t task) outcome {
 			return o
 		}
 		o.failures = 0
-		o.next = f.calculateNextInterval(user, &feed, fetched, fetchTime)
+		o.state = fetchState{etag: resp.ETag, lastModified: resp.LastModified, ttl: fetched.TTL}
+		o.next = f.calculateNextInterval(user, &feed, fetched.Items, declaredNextFetch(fetched), fetchTime)
 	}
 
 	interval := o.next.Sub(fetchTime)

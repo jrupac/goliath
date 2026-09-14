@@ -202,7 +202,11 @@ func startE2E(t *testing.T) *e2eEnv {
 	if err != nil {
 		t.Fatalf("allowlist: %v", err)
 	}
-	sched := fetch.NewScheduler(fetch.New(d, retCache, allowed), d)
+	fetcher, err := fetch.New(d, retCache, allowed)
+	if err != nil {
+		t.Fatalf("fetcher: %v", err)
+	}
+	sched := fetch.NewScheduler(fetcher, d)
 	fetch.SetDiscoverClientForTesting(&http.Client{Timeout: 10 * time.Second})
 	api.InitPostTokenKey()
 

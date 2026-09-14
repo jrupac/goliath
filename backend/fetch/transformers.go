@@ -15,7 +15,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/models"
-	"github.com/jrupac/rss"
+	"github.com/jrupac/rss/v2"
 	"github.com/kljensen/snowball"
 	"github.com/mat/besticon/v3/besticon"
 	"golang.org/x/image/draw"
@@ -53,18 +53,19 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 		contents = item.Summary
 	}
 
-	// Some feeds give back content that is HTML-escaped. When this happens,
-	// sanitization makes the content appear as raw, escaped text. There's not
-	// a canonical way of determining if the content is given here as escaped
-	// or not, so we use a heuristic.
-	contents = maybeUnescapeHtml(contents)
-
 	parsed := ""
+
+	// Relative references in the content resolve against the item's own base,
+	// which the feed may set per item, and failing that against the site.
+	base := item.BaseURL
+	if base == "" {
+		base = feed.Link
+	}
 
 	if item.Enclosures != nil {
 		for _, enc := range item.Enclosures {
 			if strings.HasPrefix(enc.Type, "image") && enc.URL != "" {
-				finalEncUrl := processImageUrl(feed.Link, enc.URL)
+				finalEncUrl := processImageUrl(base, enc.URL)
 				contents = prependMediaToHtml(finalEncUrl, contents)
 			}
 		}
@@ -76,12 +77,12 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 		parsed = bluemondayBodyPolicy.Sanitize(parsed)
 	}
 
-	contents = ProcessHTMLContent(feed.Link, contents)
+	contents = ProcessHTMLContent(base, contents)
 
 	syntheticDate := false
 	retrieved := time.Now()
 	var date time.Time
-	if item.DateValid && !item.Date.IsZero() {
+	if !item.Date.IsZero() {
 		date = item.Date
 	} else {
 		log.Warningf("could not find date for item in %s", feed)
@@ -89,13 +90,15 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 		syntheticDate = true
 	}
 
+	// The item's link is already absolute, and empty for an item that names
+	// none.
 	return models.Article{
 		FeedID:        feed.ID,
 		Title:         title,
 		Summary:       contents,
 		Content:       contents,
 		Parsed:        parsed,
-		Link:          getAbsoluteUrl(feed.Link, item.Link),
+		Link:          alternateLink(item.Links),
 		Date:          date,
 		Read:          item.Read,
 		Saved:         false,
@@ -126,25 +129,6 @@ func maybeResizeImage(feedId models.FeedId, bi besticon.Icon, i *image.Image) (i
 	}
 
 	return
-}
-
-// maybeUnescapeHtml looks for occurrences of escaped HTML characters. If more
-// than one is found in the given string, an HTML-unescaped string is returned.
-// Otherwise, the given input is unmodified.
-func maybeUnescapeHtml(content string) string {
-	occLimit := 1
-	occ := 0
-	// The HTML standard defines escape sequences for &, <, and >.
-	escapes := []string{"&amp;", "&lt;", "&gt;", "&#34;", "&apos;"}
-
-	for _, seq := range escapes {
-		occ += strings.Count(content, seq)
-	}
-
-	if occ > occLimit {
-		return html.UnescapeString(content)
-	}
-	return content
 }
 
 // getAbsoluteUrl takes a feed link and an input URL string, and returns an
@@ -384,7 +368,9 @@ func getSimilarExistingArticles(articles []models.Article, a models.Article) ([]
 	var unreadIds, readIds []models.ArticleId
 
 	isSimilar := func(o models.Article, n models.Article) bool {
-		if o.Link != n.Link {
+		// Articles are matched by link, which an item need not have. Two that
+		// lack one are not the same article for lacking it.
+		if o.Link == "" || o.Link != n.Link {
 			return false
 		}
 

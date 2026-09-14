@@ -12,7 +12,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/utils"
-	"github.com/jrupac/rss"
+	"github.com/jrupac/rss/v2"
 	"github.com/mat/besticon/v3/besticon"
 )
 
@@ -32,6 +32,18 @@ func isValidAbsoluteURL(s string) bool {
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
+// alternateLink returns the first of links that stands for the thing itself
+// -- an "alternate" link, or one naming no relation, which means the same --
+// rather than for the feed document or something related to it.
+func alternateLink(links []*rss.Link) string {
+	for _, l := range links {
+		if l != nil && (l.Rel == "" || l.Rel == "alternate") {
+			return l.Href
+		}
+	}
+	return ""
+}
+
 func (f Fetcher) updateFeedMetadataForUser(ctx context.Context, u models.User, mFeed *models.Feed, rFeed *rss.Feed) {
 	// A title the user set is theirs to keep. The statement keeps it as well,
 	// since this copy of the feed may have been read before the rename.
@@ -44,8 +56,8 @@ func (f Fetcher) updateFeedMetadataForUser(ctx context.Context, u models.User, m
 	if rFeed.Description != "" {
 		mFeed.Description = strings.TrimSpace(html.UnescapeString(rFeed.Description))
 	}
-	if isValidAbsoluteURL(rFeed.Link) {
-		mFeed.Link = strings.TrimSpace(rFeed.Link)
+	if link := alternateLink(rFeed.Links); isValidAbsoluteURL(link) {
+		mFeed.Link = strings.TrimSpace(link)
 	}
 
 	// Check if the context is canceled. If not, updated the feed metadata.
@@ -91,7 +103,8 @@ func (f Fetcher) updateFeedFaviconForUser(ctx context.Context, u models.User, fe
 	var img *image.Image
 	var fetchHost, feedHost string
 
-	parsedUrl, err := url.Parse(fetch.Link)
+	fetchLink := alternateLink(fetch.Links)
+	parsedUrl, err := url.Parse(fetchLink)
 	if err == nil {
 		fetchHost = parsedUrl.Hostname()
 	}
@@ -101,9 +114,15 @@ func (f Fetcher) updateFeedFaviconForUser(ctx context.Context, u models.User, fe
 		feedHost = parsedUrl.Hostname()
 	}
 
+	// A feed need not name an image.
+	var imageURL string
+	if fetch.Image != nil {
+		imageURL = fetch.Image.URL
+	}
+
 	// Look in multiple URLs for a suitable icon
 	found := false
-	for _, path := range []string{fetch.Image.URL, fetch.Link, fetchHost, feedHost} {
+	for _, path := range []string{imageURL, fetchLink, fetchHost, feedHost} {
 		// Each lookup is several requests, none of which follows the context,
 		// so it is checked between them.
 		if ctx.Err() != nil {
