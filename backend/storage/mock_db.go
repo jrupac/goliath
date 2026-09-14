@@ -37,6 +37,7 @@ type MockDB struct {
 	OnGetAllFeedsForUser                           func(u models.User) ([]models.Feed, error)
 	OnGetAllRetrievalCaches                        func() (map[UserFeedKey]string, error)
 	OnGetActiveFeedKeys                            func() (map[UserFeedKey]bool, error)
+	OnPersistAllRetrievalCaches                    func(entries map[UserFeedKey][]byte) error
 	OnGetLiveFeedKeys                              func() (map[UserFeedKey]bool, error)
 	OnInsertArticleForUser                         func(u models.User, a models.Article) error
 	OnUpdateEstimatedRefreshIntervalForFeedForUser func(u models.User, id int64, interval int) error
@@ -204,7 +205,12 @@ func (m *MockDB) GetAllRetrievalCaches() (map[UserFeedKey]string, error) {
 	}
 	return nil, nil
 }
-func (m *MockDB) PersistAllRetrievalCaches(map[UserFeedKey][]byte) error { return nil }
+func (m *MockDB) PersistAllRetrievalCaches(entries map[UserFeedKey][]byte) error {
+	if m.OnPersistAllRetrievalCaches != nil {
+		return m.OnPersistAllRetrievalCaches(entries)
+	}
+	return nil
+}
 func (m *MockDB) InsertFeedForUser(u models.User, f models.Feed, folderID int64) (int64, error) {
 	if m.OnInsertFeedForUser != nil {
 		return m.OnInsertFeedForUser(u, f, folderID)

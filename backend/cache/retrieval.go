@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"context"
 	"encoding/base64"
 	"flag"
 	"sync"
@@ -23,18 +22,35 @@ type CuckooFilterRetrievalCache struct {
 	caches map[storage.UserFeedKey]*cuckoo.ScalableCuckooFilter
 	lock   sync.Mutex
 	ready  atomic.Value
+
+	d       storage.Database
+	stop    chan struct{}
+	stopped chan struct{}
 }
 
-// StartRetrievalCache creates a new CuckooFilterRetrievalCache and starts background processing.
-func StartRetrievalCache(ctx context.Context, d storage.Database) (RetrievalCache, error) {
-	r := CuckooFilterRetrievalCache{}
-	err := r.loadCache(d)
-	if err != nil {
+// StartRetrievalCache loads the retrieval cache and starts writing it to the
+// database periodically. Close stops the writes and makes a last one.
+func StartRetrievalCache(d storage.Database) (*CuckooFilterRetrievalCache, error) {
+	r := &CuckooFilterRetrievalCache{d: d, stop: make(chan struct{}), stopped: make(chan struct{})}
+	if err := r.loadCache(d); err != nil {
 		return nil, err
 	}
 
-	go r.startPeriodicWriter(ctx, d)
-	return &r, nil
+	go r.writePeriodically()
+	return r, nil
+}
+
+// Close stops the periodic writes and writes the cache a last time, so that
+// what was added since the last write survives a restart.
+//
+// It is the caller's to sequence, rather than following the context the rest
+// of the process stops on: the last write has to come after whatever adds to
+// the cache has stopped, or it misses their additions, and before the
+// database closes, or it fails.
+func (r *CuckooFilterRetrievalCache) Close() {
+	close(r.stop)
+	<-r.stopped
+	r.persistCache()
 }
 
 // Add adds a new entry into the retrieval cache for the specified user and feed.
@@ -116,27 +132,27 @@ func (r *CuckooFilterRetrievalCache) loadCache(d storage.Database) error {
 	return nil
 }
 
-func (r *CuckooFilterRetrievalCache) startPeriodicWriter(ctx context.Context, d storage.Database) {
+func (r *CuckooFilterRetrievalCache) writePeriodically() {
+	defer close(r.stopped)
 	tick := time.After(*retrievalCacheWriteInterval)
 
 	for {
 		select {
 		case <-tick:
-			r.persistCache(d)
+			r.persistCache()
 			tick = time.After(*retrievalCacheWriteInterval)
-		case <-ctx.Done():
-			r.persistCache(d)
+		case <-r.stop:
 			return
 		}
 	}
 }
 
-func (r *CuckooFilterRetrievalCache) persistCache(d storage.Database) {
+func (r *CuckooFilterRetrievalCache) persistCache() {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 	log.Infof("Persisting retrieval cache.")
 
-	activeKeys, err := d.GetActiveFeedKeys()
+	activeKeys, err := r.d.GetActiveFeedKeys()
 	if err != nil {
 		log.Errorf("failed to prune cache: could not get active feed keys: %s", err)
 		return
@@ -153,8 +169,9 @@ func (r *CuckooFilterRetrievalCache) persistCache(d storage.Database) {
 		entries[key] = cache.Encode()
 	}
 
-	err = d.PersistAllRetrievalCaches(entries)
-	if err != nil {
+	if err = r.d.PersistAllRetrievalCaches(entries); err != nil {
 		log.Errorf("failed to persist retrieval cache: %s", err)
+		return
 	}
+	log.Infof("Persisted retrieval cache for %d feeds.", len(entries))
 }

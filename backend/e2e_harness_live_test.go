@@ -194,7 +194,7 @@ func startE2E(t *testing.T) *e2eEnv {
 	}
 
 	runCtx, cancel := context.WithCancel(ctx)
-	retCache, err := cache.StartRetrievalCache(runCtx, d)
+	retCache, err := cache.StartRetrievalCache(d)
 	if err != nil {
 		t.Fatalf("starting retrieval cache: %v", err)
 	}
@@ -225,6 +225,7 @@ func startE2E(t *testing.T) *e2eEnv {
 		web.Close()
 		cancel()
 		wg.Wait()
+		retCache.Close()
 		_ = raw.Close()
 		_ = d.Close()
 	})

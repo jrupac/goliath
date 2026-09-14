@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -95,7 +96,7 @@ func main() {
 	ctx, cancel := context.WithCancel(ctx)
 	installSignalHandler(cancel)
 
-	retrievalCache, err := cache.StartRetrievalCache(ctx, d)
+	retrievalCache, err := cache.StartRetrievalCache(d)
 	if err != nil {
 		log.Fatalf("Fatal error while starting retrieval cache: %s", err)
 	}
@@ -110,7 +111,11 @@ func main() {
 
 	scheduler := fetch.NewScheduler(fetch.New(d, retrievalCache, feedAllowlist), d)
 
-	go scheduler.Run(ctx)
+	fetching := make(chan struct{})
+	go func() {
+		defer close(fetching)
+		scheduler.Run(ctx)
+	}()
 	go storage.StartGC(ctx, d)
 	go admin.Start(ctx, d, scheduler)
 	go serveMetrics(ctx)
@@ -126,6 +131,46 @@ func main() {
 
 	if err = serve(ctx, d, scheduler); err != nil {
 		log.Infof("%s", err)
+	}
+	// A signal is what normally stops the server; if anything else did, the
+	// rest has to be told.
+	cancel()
+	shutDown(fetching, retrievalCache)
+}
+
+const (
+	// httpDrainTimeout bounds how long an HTTP server waits for requests in
+	// flight once told to stop.
+	httpDrainTimeout = 5 * time.Second
+	// fetchStopTimeout bounds how long shutting down then waits for fetches
+	// still in flight. With the drain and the retrieval cache's last write, it
+	// has to fit in the time a container is given to stop before it is killed.
+	fetchStopTimeout = 3 * time.Second
+)
+
+// shutDown stops what writes to the database, in order, before main closes it.
+//
+// Fetching stops first, since the retrieval cache's last write would otherwise
+// miss what the last fetches added to it. Fetching has been stopping since the
+// signal, alongside the HTTP drain, so this usually does not wait at all.
+func shutDown(fetching <-chan struct{}, retrievalCache *cache.CuckooFilterRetrievalCache) {
+	select {
+	case <-fetching:
+	case <-time.After(fetchStopTimeout):
+		log.Warningf("Fetching has not stopped after %s; writing the retrieval cache regardless.", fetchStopTimeout)
+	}
+	retrievalCache.Close()
+	log.Infof("Stopped; closing the database.")
+}
+
+// shutdownServer stops srv, giving the requests in flight httpDrainTimeout to
+// finish. It takes a fresh context: the one the process stops on is already
+// cancelled, and Shutdown given that returns without waiting for any.
+func shutdownServer(srv *http.Server, name string) {
+	ctx, cancel := context.WithTimeout(context.Background(), httpDrainTimeout)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Infof("Failed to cleanly shut down %s: %s", name, err)
 	}
 }
 
@@ -212,13 +257,11 @@ func serveMetrics(ctx context.Context) {
 		Handler:        mux,
 	}
 
-	go func(srv *http.Server) {
+	go func() {
 		<-ctx.Done()
 		log.Infof("Shutting down metrics server.")
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Infof("Failed to cleanly shutdown metrics server: %s", err)
-		}
-	}(srv)
+		shutdownServer(srv, "metrics server")
+	}()
 
 	mux.Handle("/metrics", promhttp.Handler())
 	log.Infof("Starting metrics server on %s", srv.Addr)
@@ -237,16 +280,22 @@ func serve(ctx context.Context, d storage.Database, subs fetch.Subscriptions) er
 		Handler:        newMux(d, subs),
 	}
 
-	go func(srv *http.Server) {
+	drained := make(chan struct{})
+	go func() {
+		defer close(drained)
 		<-ctx.Done()
 		log.Infof("Shutting down HTTP server.")
-		if err := srv.Shutdown(ctx); err != nil {
-			log.Infof("Failed to cleanly shutdown HTTP server: %s", err)
-		}
-	}(srv)
+		shutdownServer(srv, "HTTP server")
+	}()
 
 	log.Infof("Starting HTTP server on %s", srv.Addr)
-	return srv.ListenAndServe()
+	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	// ListenAndServe returns as soon as shutting down begins. Waiting for the
+	// requests in flight to finish keeps the database open under them.
+	<-drained
+	return nil
 }
 
 // newMux routes every path the HTTP server answers.

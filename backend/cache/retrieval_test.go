@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"context"
 	"encoding/base64"
 	"testing"
 
@@ -17,7 +16,7 @@ func TestAddAndLookup(t *testing.T) {
 		return map[storage.UserFeedKey]string{}, nil
 	}
 
-	cache, err := StartRetrievalCache(context.Background(), db)
+	cache, err := StartRetrievalCache(db)
 	if err != nil {
 		t.Fatalf("Failed to start retrieval cache: %v", err)
 	}
@@ -40,6 +39,42 @@ func TestAddAndLookup(t *testing.T) {
 	}
 }
 
+// The last write is made on Close, which the caller makes once whatever adds
+// to the cache has stopped, so an entry added just before it is written.
+func TestCloseWritesTheCacheALastTime(t *testing.T) {
+	user := models.User{UserId: "test-user"}
+	key := storage.UserFeedKey{UserID: user.UserId, FeedID: 123}
+	var written map[storage.UserFeedKey][]byte
+	db := &storage.MockDB{
+		OnGetActiveFeedKeys: func() (map[storage.UserFeedKey]bool, error) {
+			return map[storage.UserFeedKey]bool{key: true}, nil
+		},
+		OnPersistAllRetrievalCaches: func(entries map[storage.UserFeedKey][]byte) error {
+			written = entries
+			return nil
+		},
+	}
+
+	cache, err := StartRetrievalCache(db)
+	if err != nil {
+		t.Fatalf("Failed to start retrieval cache: %v", err)
+	}
+	cache.Add(user, 123, "added-before-close")
+	cache.Close()
+
+	encoded, ok := written[key]
+	if !ok {
+		t.Fatalf("Close wrote %v, want the added feed's filter", written)
+	}
+	cf, err := cuckoo.DecodeScalableFilter(encoded)
+	if err != nil {
+		t.Fatalf("decoding the written filter: %v", err)
+	}
+	if !cf.Lookup([]byte("added-before-close")) {
+		t.Error("the last write does not hold the entry added before Close")
+	}
+}
+
 func TestLoadCache(t *testing.T) {
 	user := models.User{UserId: "test-user"}
 
@@ -49,7 +84,7 @@ func TestLoadCache(t *testing.T) {
 			return map[storage.UserFeedKey]string{}, nil
 		}
 
-		cache, err := StartRetrievalCache(context.Background(), db)
+		cache, err := StartRetrievalCache(db)
 		if err != nil {
 			t.Fatalf("Failed to start retrieval cache: %v", err)
 		}
@@ -71,7 +106,7 @@ func TestLoadCache(t *testing.T) {
 			return map[storage.UserFeedKey]string{key: encoded}, nil
 		}
 
-		cache, err := StartRetrievalCache(context.Background(), db)
+		cache, err := StartRetrievalCache(db)
 		if err != nil {
 			t.Fatalf("Failed to start retrieval cache: %v", err)
 		}
