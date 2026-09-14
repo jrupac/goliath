@@ -168,6 +168,40 @@ func newFeedClient(allowed utils.AddressAllowlist) *http.Client {
 	}
 }
 
+// iconFetchTimeout bounds each request a favicon lookup makes. A lookup makes
+// several, and runs inside a feed's fetch, holding its worker until it ends.
+const iconFetchTimeout = 5 * time.Second
+
+// newIconClient returns the client favicons are looked up with.
+//
+// Guarded, with no allowlist. Where a lookup goes is decided by the feed: its
+// image and site link, then whatever the site's page names as its icons and
+// wherever those redirect, so every request is to a URL this process did not
+// choose. The finder refuses private addresses itself before making a request,
+// which leaves an allowlisted bridge unreachable whatever this client permits;
+// the guard covers what that check does not: link-local addresses, other
+// ports, redirects, and a name that resolves somewhere else by the time it is
+// dialed.
+func newIconClient() *http.Client {
+	return &http.Client{
+		Timeout:   iconFetchTimeout,
+		Transport: userAgentTransport{utils.GuardedTransport("Favicon fetch", iconFetchTimeout, nil)},
+	}
+}
+
+// userAgentTransport sends UserAgent on every request, for a client whose
+// requests are built by a library that sets none of its own.
+type userAgentTransport struct {
+	next http.RoundTripper
+}
+
+func (t userAgentTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	// A RoundTripper must not modify the request it is given.
+	r = r.Clone(r.Context())
+	r.Header.Set("User-Agent", UserAgent())
+	return t.next.RoundTrip(r)
+}
+
 func fetchFuncWithClient(client *http.Client) rss.FetchFunc {
 	return func(url string) (*http.Response, error) {
 		req, err := http.NewRequest("GET", url, nil)
@@ -199,8 +233,10 @@ type Fetcher struct {
 }
 
 func New(d storage.Database, retCache cache.RetrievalCache, allowed utils.AddressAllowlist) *Fetcher {
-	// Turn off logging of HTTP icon requests.
-	b := besticon.New(besticon.WithLogger(besticon.NewDefaultLogger(io.Discard)))
+	b := besticon.New(
+		besticon.WithHTTPClient(newIconClient()),
+		// Turn off logging of HTTP icon requests.
+		besticon.WithLogger(besticon.NewDefaultLogger(io.Discard)))
 
 	return &Fetcher{
 		d:         d,

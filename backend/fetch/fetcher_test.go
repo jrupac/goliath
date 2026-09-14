@@ -264,6 +264,46 @@ func TestUserAgentIsSentOnFeedFetches(t *testing.T) {
 	}
 }
 
+// A favicon lookup goes wherever the feed's document points, so it is guarded
+// like a feed fetch. The refusal happens in the dialer, so nothing is sent.
+func TestIconLookupsRefuseInternalAddresses(t *testing.T) {
+	_, err := newIconClient().Get("http://169.254.169.254/latest/meta-data/")
+	if !errors.Is(err, utils.ErrBlockedAddress) {
+		t.Errorf("err = %v, want %v", err, utils.ErrBlockedAddress)
+	}
+
+	fetcher := New(&storage.MockDB{}, &cache.MockRetrievalCache{}, nil)
+	if icons, _ := fetcher.finder.FetchIcons("http://169.254.169.254/"); len(icons) != 0 {
+		t.Errorf("found %d icons at a link-local address", len(icons))
+	}
+}
+
+func TestUserAgentIsSentOnIconFetches(t *testing.T) {
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get("User-Agent")
+	}))
+	defer server.Close()
+
+	req, err := http.NewRequest("GET", server.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Transport: userAgentTransport{http.DefaultTransport}}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	_ = resp.Body.Close()
+
+	if got != UserAgent() {
+		t.Errorf("User-Agent = %q, want %q", got, UserAgent())
+	}
+	if ua := req.Header.Get("User-Agent"); ua != "" {
+		t.Errorf("the caller's request was modified: User-Agent %q", ua)
+	}
+}
+
 // Full-text extraction may need a different identity for sites that vary
 // content by client, but says so explicitly rather than by carrying its own
 // copy of the default.
