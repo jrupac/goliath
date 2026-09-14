@@ -21,7 +21,7 @@ func NewMockRetrievalCache() *MockRetrievalCache {
 }
 
 // Add adds a new entry into the mock cache.
-func (m *MockRetrievalCache) Add(u models.User, feedId int64, entry string) {
+func (m *MockRetrievalCache) Add(u models.User, feedId models.FeedId, entry string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	key := fmt.Sprintf("%s:%d:%s", u.UserId, feedId, entry)
@@ -29,7 +29,7 @@ func (m *MockRetrievalCache) Add(u models.User, feedId int64, entry string) {
 }
 
 // Lookup returns whether the specified entry is present in the mock cache.
-func (m *MockRetrievalCache) Lookup(u models.User, feedId int64, entry string) bool {
+func (m *MockRetrievalCache) Lookup(u models.User, feedId models.FeedId, entry string) bool {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	key := fmt.Sprintf("%s:%d:%s", u.UserId, feedId, entry)

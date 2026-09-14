@@ -152,7 +152,7 @@ func TestFolderLifecycleAgainstDatabase(t *testing.T) {
 	}
 }
 
-func countOf(ids []int64, id int64) int {
+func countOf(ids []models.FolderId, id models.FolderId) int {
 	n := 0
 	for _, x := range ids {
 		if x == id {
@@ -164,7 +164,7 @@ func countOf(ids []int64, id int64) int {
 
 // otherFolderName returns the name of one of the user's folders that is neither
 // the root nor the one given.
-func otherFolderName(t *testing.T, crdb *Crdb, u models.User, not int64) string {
+func otherFolderName(t *testing.T, crdb *Crdb, u models.User, not models.FolderId) string {
 	t.Helper()
 	folders, err := crdb.GetAllFoldersForUser(u)
 	if err != nil {

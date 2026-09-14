@@ -235,7 +235,7 @@ func (a GReader) handleSubscriptionList(w http.ResponseWriter, _ *http.Request, 
 		return
 	}
 
-	folderMap := map[int64]string{}
+	folderMap := map[models.FolderId]string{}
 	for _, folder := range folders {
 		folderMap[folder.ID] = folder.Name
 	}
@@ -309,12 +309,13 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 	cursor := models.StreamCursor{}
 	if c := r.Form.Get("c"); c != "" {
 		// Note: This is parsing the continuation token as hex.
-		cursor.SinceID, err = strconv.ParseInt(c, 16, 64)
+		since, err := strconv.ParseInt(c, 16, 64)
 		if err != nil {
 			log.Warningf("Invalid continuation token: %s", c)
 			a.returnError(w, http.StatusBadRequest)
 			return
 		}
+		cursor.SinceID = models.ArticleId(since)
 	}
 
 	// "xt" excludes the items carrying a tag. Read is the tag clients exclude,
@@ -410,12 +411,12 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 	}
 
 	streamItemIds := greaderStreamItemIds{}
-	contToken := int64(0)
+	var contToken models.ArticleId
 
 	for _, article := range articles {
 		streamItemIds.ItemRefs = append(streamItemIds.ItemRefs, greaderItemRef{
 			// Note: This is writing the article ID as decimal in this one case.
-			Id:              strconv.FormatInt(article.ID, 10),
+			Id:              strconv.FormatInt(int64(article.ID), 10),
 			DirectStreamIds: itemStreamIds(article.FeedID, folders),
 			TimestampUsec:   strconv.FormatInt(article.Date.UnixMicro(), 10),
 		})
@@ -465,10 +466,9 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 	}
 
 	articleIdsValue := r.Form["i"]
-	var articleIds []int64
+	var articleIds []models.ArticleId
 	for _, articleIdStr := range articleIdsValue {
-		// Note: This is parsing the article ID as hex.
-		id, err := strconv.ParseInt(articleIdStr, 16, 64)
+		id, err := parseArticleId(articleIdStr)
 		if err != nil {
 			log.Warningf("Invalid article ID: %s", err)
 			a.returnError(w, http.StatusBadRequest)
@@ -534,10 +534,9 @@ func (a GReader) handleEditTag(w http.ResponseWriter, r *http.Request, user mode
 	}
 
 	articleIdsValue := r.Form["i"]
-	var articleIds []int64
+	var articleIds []models.ArticleId
 	for _, articleIdStr := range articleIdsValue {
-		// Note: This is parsing the article ID as hex.
-		id, err := strconv.ParseInt(articleIdStr, 16, 64)
+		id, err := parseArticleId(articleIdStr)
 		if err != nil {
 			log.Warningf("Invalid article ID: %s", err)
 			a.returnError(w, http.StatusBadRequest)
@@ -808,7 +807,7 @@ func (a GReader) editSubscription(w http.ResponseWriter, r *http.Request, user m
 // client saying the feed should no longer be filed anywhere, which is the root
 // folder: the place a feed lives when it is in none of the user's own.
 func (a GReader) destinationFolder(
-	w http.ResponseWriter, user models.User, feed models.Feed, addLabel, removeLabel string) (int64, bool) {
+	w http.ResponseWriter, user models.User, feed models.Feed, addLabel, removeLabel string) (models.FolderId, bool) {
 
 	if addLabel == "" {
 		if from, err := parseFolderId(removeLabel); err != nil {
@@ -865,7 +864,8 @@ func (a GReader) folderForLabel(
 		return models.Folder{}, false
 	}
 
-	if id, err := strconv.ParseInt(tail, 10, 64); err == nil {
+	if n, err := strconv.ParseInt(tail, 10, 64); err == nil {
+		id := models.FolderId(n)
 		folder, err := a.d.GetFolderForUser(user, id)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -1254,34 +1254,43 @@ const (
 // took: subscription editing is given a stream ID, marking a feed read a bare
 // number. Accepting both everywhere settles it without making one existing
 // client's requests invalid.
-func parseFeedId(s string) (int64, error) {
-	return strconv.ParseInt(strings.TrimPrefix(s, feedStreamPrefix), 10, 64)
+func parseFeedId(s string) (models.FeedId, error) {
+	id, err := strconv.ParseInt(strings.TrimPrefix(s, feedStreamPrefix), 10, 64)
+	return models.FeedId(id), err
 }
 
 // parseFolderId reads a folder identifier, accepting either the
 // `user/-/label/<id>` stream form or a bare decimal ID.
-func parseFolderId(s string) (int64, error) {
-	return strconv.ParseInt(strings.TrimPrefix(s, folderStreamPrefix), 10, 64)
+func parseFolderId(s string) (models.FolderId, error) {
+	id, err := strconv.ParseInt(strings.TrimPrefix(s, folderStreamPrefix), 10, 64)
+	return models.FolderId(id), err
 }
 
-func greaderArticleId(articleId int64) string {
+// parseArticleId reads an item identifier from a request, which carries it as
+// bare hex: the digits greaderArticleId writes at the end of the long form.
+func parseArticleId(s string) (models.ArticleId, error) {
+	id, err := strconv.ParseInt(s, 16, 64)
+	return models.ArticleId(id), err
+}
+
+func greaderArticleId(articleId models.ArticleId) string {
 	// Note: This is writing the article ID as hex.
 	return fmt.Sprintf("tag:google.com,2005:reader/item/%x", articleId)
 }
 
-func greaderFeedId(feedId int64) string {
-	return feedStreamPrefix + strconv.FormatInt(feedId, 10)
+func greaderFeedId(feedId models.FeedId) string {
+	return feedStreamPrefix + strconv.FormatInt(int64(feedId), 10)
 }
 
-func greaderFolderId(folderId int64) string {
-	return folderStreamPrefix + strconv.FormatInt(folderId, 10)
+func greaderFolderId(folderId models.FolderId) string {
+	return folderStreamPrefix + strconv.FormatInt(int64(folderId), 10)
 }
 
 // feedFolders maps each of the user's feeds to the folder it is filed in, for
 // labelling items: an article's folder is its feed's, and is not stored with
 // the article. A response with no items has nothing to label, so asks nothing.
-func (a GReader) feedFolders(user models.User, items int) (map[int64]int64, error) {
-	folders := map[int64]int64{}
+func (a GReader) feedFolders(user models.User, items int) (map[models.FeedId]models.FolderId, error) {
+	folders := map[models.FeedId]models.FolderId{}
 	if items == 0 {
 		return folders, nil
 	}
@@ -1301,7 +1310,7 @@ func (a GReader) feedFolders(user models.User, items int) (map[int64]int64, erro
 // folder that feed is filed in. A feed unsubscribed from since its articles
 // were read has no folder to report, and its items are labelled with the feed
 // alone.
-func itemStreamIds(feedId int64, folders map[int64]int64) []string {
+func itemStreamIds(feedId models.FeedId, folders map[models.FeedId]models.FolderId) []string {
 	ids := []string{greaderFeedId(feedId)}
 	if folder, ok := folders[feedId]; ok {
 		ids = append(ids, greaderFolderId(folder))
@@ -1391,14 +1400,14 @@ func (a GReader) handleParseFullArticle(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 
-	id, err := strconv.ParseInt(articleIDStr, 16, 64)
+	id, err := parseArticleId(articleIDStr)
 	if err != nil {
 		log.Warningf("Invalid article ID: %s", articleIDStr)
 		a.returnError(w, http.StatusBadRequest)
 		return
 	}
 
-	articles, err := a.d.GetArticlesForUser(user, []int64{id})
+	articles, err := a.d.GetArticlesForUser(user, []models.ArticleId{id})
 	if err != nil {
 		log.Warningf("Failed to retrieve article: %s", err)
 		a.returnError(w, http.StatusInternalServerError)

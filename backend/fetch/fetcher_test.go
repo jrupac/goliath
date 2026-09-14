@@ -88,7 +88,7 @@ func TestProcessUserFeedItems(t *testing.T) {
 		// Override GetArticlesForFeedForUser to return a similar, read article
 		*strictDedup = true
 		defer func() { *strictDedup = true }() // Restore
-		db.OnGetArticlesForFeedForUser = func(u models.User, feedID int64) ([]models.Article, error) {
+		db.OnGetArticlesForFeedForUser = func(u models.User, feedID models.FeedId) ([]models.Article, error) {
 			return []models.Article{{
 				Link: "http://example.com/article1", // Same link as first test article
 				Read: true,
@@ -119,7 +119,7 @@ func TestProcessUserFeedItems(t *testing.T) {
 	})
 }
 
-func fetchTask(user models.User, feedID int64) task {
+func fetchTask(user models.User, feedID models.FeedId) task {
 	return task{
 		ctx:  context.Background(),
 		key:  storage.UserFeedKey{UserID: user.UserId, FeedID: feedID},
@@ -133,7 +133,7 @@ func TestFetchFeed(t *testing.T) {
 
 	for _, refresh := range []bool{true, false} {
 		db := &storage.MockDB{
-			OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+			OnGetFeedForUser: func(_ models.User, feedID models.FeedId) (models.Feed, error) {
 				return models.Feed{ID: feedID, URL: "http://example.com/feed", Latest: pastTime}, nil
 			},
 		}
@@ -174,11 +174,11 @@ func TestProcessUserFeedItemsStoresTogether(t *testing.T) {
 	var calls int
 	var latest []time.Time
 	db := &storage.MockDB{
-		OnInsertArticlesForUser: func(_ models.User, _ int64, articles []models.Article) (int, error) {
+		OnInsertArticlesForUser: func(_ models.User, _ models.FeedId, articles []models.Article) (int, error) {
 			calls++
 			return len(articles), nil
 		},
-		OnUpdateLatestTimeForFeedForUser: func(_ models.User, _ int64, l time.Time) error {
+		OnUpdateLatestTimeForFeedForUser: func(_ models.User, _ models.FeedId, l time.Time) error {
 			latest = append(latest, l)
 			return nil
 		},
@@ -207,7 +207,7 @@ func TestProcessUserFeedItemsRetriesARefusedBatchOneAtATime(t *testing.T) {
 	user := models.User{UserId: "u"}
 	var latest []time.Time
 	db := &storage.MockDB{
-		OnInsertArticlesForUser: func(_ models.User, _ int64, articles []models.Article) (int, error) {
+		OnInsertArticlesForUser: func(_ models.User, _ models.FeedId, articles []models.Article) (int, error) {
 			for _, a := range articles {
 				if a.Title == "Test Article 2" {
 					return 0, errors.New("refused")
@@ -215,7 +215,7 @@ func TestProcessUserFeedItemsRetriesARefusedBatchOneAtATime(t *testing.T) {
 			}
 			return len(articles), nil
 		},
-		OnUpdateLatestTimeForFeedForUser: func(_ models.User, _ int64, l time.Time) error {
+		OnUpdateLatestTimeForFeedForUser: func(_ models.User, _ models.FeedId, l time.Time) error {
 			latest = append(latest, l)
 			return nil
 		},
@@ -265,14 +265,14 @@ func TestFetchFeedStopsWhenUnsubscribedFromMidFetch(t *testing.T) {
 	pastTime, _ := time.Parse(time.RFC3339, "2025-01-01T00:00:00Z")
 	var inserts int
 	db := &storage.MockDB{
-		OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+		OnGetFeedForUser: func(_ models.User, feedID models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: feedID, URL: "http://example.com/feed", Latest: pastTime}, nil
 		},
-		OnInsertArticlesForUser: func(models.User, int64, []models.Article) (int, error) {
+		OnInsertArticlesForUser: func(models.User, models.FeedId, []models.Article) (int, error) {
 			inserts++
 			return 0, storage.ErrFeedGone
 		},
-		OnUpdateEstimatedRefreshIntervalForFeedForUser: func(models.User, int64, int) error {
+		OnUpdateEstimatedRefreshIntervalForFeedForUser: func(models.User, models.FeedId, int) error {
 			t.Error("rescheduled a feed that is gone")
 			return nil
 		},
@@ -289,7 +289,7 @@ func TestFetchFeedStopsWhenUnsubscribedFromMidFetch(t *testing.T) {
 
 func TestFetchFeedBacksOffOnFailure(t *testing.T) {
 	db := &storage.MockDB{
-		OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+		OnGetFeedForUser: func(_ models.User, feedID models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: feedID, URL: "http://example.com/feed"}, nil
 		},
 	}
@@ -322,7 +322,7 @@ func TestFetchFeedAbandonsARequestWhenItsTaskIsCancelled(t *testing.T) {
 	defer server.Close()
 
 	db := &storage.MockDB{
-		OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+		OnGetFeedForUser: func(_ models.User, feedID models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: feedID, URL: server.URL}, nil
 		},
 	}

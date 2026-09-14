@@ -30,40 +30,40 @@ var (
 )
 
 type itemType struct {
-	ID          int64  `json:"id"`
-	FeedID      int64  `json:"feed_id"`
-	Title       string `json:"title"`
-	Author      string `json:"author"`
-	HTML        string `json:"html"`
-	URL         string `json:"url"`
-	IsSaved     int64  `json:"is_saved"`
-	IsRead      int64  `json:"is_read"`
-	CreatedTime int64  `json:"created_on_time"`
+	ID          models.ArticleId `json:"id"`
+	FeedID      models.FeedId    `json:"feed_id"`
+	Title       string           `json:"title"`
+	Author      string           `json:"author"`
+	HTML        string           `json:"html"`
+	URL         string           `json:"url"`
+	IsSaved     int64            `json:"is_saved"`
+	IsRead      int64            `json:"is_read"`
+	CreatedTime int64            `json:"created_on_time"`
 }
 
 type feedType struct {
-	ID          int64  `json:"id"`
-	FaviconID   int64  `json:"favicon_id"`
-	Title       string `json:"title"`
-	URL         string `json:"url"`
-	SiteURL     string `json:"site_url"`
-	IsSpark     int64  `json:"is_spark"`
-	LastUpdated int64  `json:"last_updated_on_time"`
+	ID          models.FeedId `json:"id"`
+	FaviconID   models.FeedId `json:"favicon_id"`
+	Title       string        `json:"title"`
+	URL         string        `json:"url"`
+	SiteURL     string        `json:"site_url"`
+	IsSpark     int64         `json:"is_spark"`
+	LastUpdated int64         `json:"last_updated_on_time"`
 }
 
 type groupType struct {
-	ID    int64  `json:"id"`
-	Title string `json:"title"`
+	ID    models.FolderId `json:"id"`
+	Title string          `json:"title"`
 }
 
 type faviconType struct {
-	ID   int64  `json:"id"`
-	Data string `json:"data"`
+	ID   models.FeedId `json:"id"`
+	Data string        `json:"data"`
 }
 
 type feedsGroupType struct {
-	GroupID int64  `json:"group_id"`
-	FeedIDs string `json:"feed_ids"`
+	GroupID models.FolderId `json:"group_id"`
+	FeedIDs string          `json:"feed_ids"`
 }
 
 type responseType map[string]interface{}
@@ -305,14 +305,14 @@ func (a Fever) handleItems(d storage.Database, u models.User, resp *responseType
 	defer a.recordLatency(time.Now(), "items")
 
 	// TODO: support "max_id" and "with_ids".
-	sinceID := int64(-1)
-	var err error
+	sinceID := models.ArticleId(-1)
 
 	if _, ok := r.Form["since_id"]; ok {
-		sinceID, err = strconv.ParseInt(r.FormValue("since_id"), 10, 64)
+		id, err := strconv.ParseInt(r.FormValue("since_id"), 10, 64)
 		if err != nil {
 			return &apiError{err, false}
 		}
+		sinceID = models.ArticleId(id)
 	}
 
 	articles, err := d.GetArticlesWithFilterForUser(u, models.StreamFilterUnread, 50, sinceID)
@@ -356,7 +356,7 @@ func (a Fever) handleUnreadItemIDs(d storage.Database, u models.User, resp *resp
 	}
 	var unreadItemIds []string
 	for _, a := range articles {
-		unreadItemIds = append(unreadItemIds, strconv.FormatInt(a.ID, 10))
+		unreadItemIds = append(unreadItemIds, strconv.FormatInt(int64(a.ID), 10))
 	}
 	(*resp)["unread_item_ids"] = strings.Join(unreadItemIds, ",")
 	return nil
@@ -388,6 +388,8 @@ func (a Fever) handleMark(d storage.Database, u models.User, _ *responseType, r 
 		return &apiError{fmt.Errorf("unknown 'as' value: %s", r.FormValue("as")), false}
 	}
 
+	// One parameter carries the ID of an item, a feed or a group, and "mark"
+	// says which, so the number only becomes an ID of a kind once that is read.
 	id, err := strconv.ParseInt(r.FormValue("id"), 10, 64)
 	if err != nil {
 		return err
@@ -395,15 +397,15 @@ func (a Fever) handleMark(d storage.Database, u models.User, _ *responseType, r 
 
 	switch r.FormValue("mark") {
 	case "item":
-		if err = d.MarkArticleForUser(u, id, as); err != nil {
+		if err = d.MarkArticleForUser(u, models.ArticleId(id), as); err != nil {
 			return &apiError{err, true}
 		}
 	case "feed":
-		if _, err = d.MarkFeedForUser(u, id, as); err != nil {
+		if _, err = d.MarkFeedForUser(u, models.FeedId(id), as); err != nil {
 			return &apiError{err, true}
 		}
 	case "group":
-		if _, err = d.MarkFolderForUser(u, id, as); err != nil {
+		if _, err = d.MarkFolderForUser(u, models.FolderId(id), as); err != nil {
 			return &apiError{err, true}
 		}
 	default:
@@ -422,7 +424,7 @@ func (a Fever) constructFeedsGroups(d storage.Database, u models.User) ([]feedsG
 	for k, v := range feedsPerFolder {
 		var feedIds []string
 		for _, i := range v {
-			feedIds = append(feedIds, strconv.FormatInt(i, 10))
+			feedIds = append(feedIds, strconv.FormatInt(int64(i), 10))
 		}
 
 		feedGroup := feedsGroupType{

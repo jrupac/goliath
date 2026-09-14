@@ -67,14 +67,14 @@ type Database interface {
 	UpdateMuteWordsForUser(models.User, []string) error
 	DeleteMuteWordsForUser(models.User, []string) error
 
-	GetUnmuteFeedsForUser(models.User) ([]int64, error)
-	UpdateUnmuteFeedsForUser(models.User, []int64) error
-	DeleteUnmuteFeedsForUser(models.User, []int64) error
+	GetUnmuteFeedsForUser(models.User) ([]models.FeedId, error)
+	UpdateUnmuteFeedsForUser(models.User, []models.FeedId) error
+	DeleteUnmuteFeedsForUser(models.User, []models.FeedId) error
 
-	GetFeedMuteRegexesForUser(models.User) (map[int64][]string, error)
-	GetMuteRegexesForFeedForUser(models.User, int64) ([]string, error)
-	AddMuteRegexForFeedForUser(models.User, int64, string) error
-	DeleteMuteRegexForFeedForUser(models.User, int64, string) error
+	GetFeedMuteRegexesForUser(models.User) (map[models.FeedId][]string, error)
+	GetMuteRegexesForFeedForUser(models.User, models.FeedId) ([]string, error)
+	AddMuteRegexForFeedForUser(models.User, models.FeedId, string) error
+	DeleteMuteRegexForFeedForUser(models.User, models.FeedId, string) error
 
 	// Retrieval cache
 
@@ -85,57 +85,57 @@ type Database interface {
 
 	// Content insertion
 
-	InsertArticlesForUser(models.User, int64, []models.Article) (int, error)
-	InsertFaviconForUser(models.User, int64, string, []byte) error
-	InsertFeedForUser(models.User, models.Feed, int64) (int64, error)
-	InsertFolderForUser(models.User, models.Folder, int64) (int64, error)
+	InsertArticlesForUser(models.User, models.FeedId, []models.Article) (int, error)
+	InsertFaviconForUser(models.User, models.FeedId, string, []byte) error
+	InsertFeedForUser(models.User, models.Feed, models.FolderId) (models.FeedId, error)
+	InsertFolderForUser(models.User, models.Folder, models.FolderId) (models.FolderId, error)
 
 	// Content deletion
 
 	DeleteArticlesForUser(models.User, time.Time) (int64, error)
-	DeleteArticlesByIdForUser(models.User, []int64) error
-	TombstoneFeedForUser(models.User, int64) error
+	DeleteArticlesByIdForUser(models.User, []models.ArticleId) error
+	TombstoneFeedForUser(models.User, models.FeedId) error
 	RestoreFeedByUrlForUser(models.User, string) (models.Feed, error)
 	PurgeDeletedFeeds(time.Time) (int64, int64, error)
-	DeleteFolderForUser(models.User, int64) (int64, error)
+	DeleteFolderForUser(models.User, models.FolderId) (int64, error)
 
 	// Marking
 
-	MarkArticleForUser(models.User, int64, models.MarkAction) error
-	MarkArticlesForUser(models.User, []int64, models.MarkAction) (int64, error)
-	MarkFeedForUser(models.User, int64, models.MarkAction) (int64, error)
-	MarkFolderForUser(models.User, int64, models.MarkAction) (int64, error)
+	MarkArticleForUser(models.User, models.ArticleId, models.MarkAction) error
+	MarkArticlesForUser(models.User, []models.ArticleId, models.MarkAction) (int64, error)
+	MarkFeedForUser(models.User, models.FeedId, models.MarkAction) (int64, error)
+	MarkFolderForUser(models.User, models.FolderId, models.MarkAction) (int64, error)
 
 	// Metadata update
 
 	UpdateFeedMetadataForUser(models.User, models.Feed) error
 	RenameFeedForUser(models.User, models.Feed) error
-	UpdateLatestTimeForFeedForUser(models.User, int64, time.Time) error
-	UpdateEstimatedRefreshIntervalForFeedForUser(models.User, int64, int) error
-	UpdateFolderForFeedForUser(models.User, int64, int64) error
-	RenameFolderForUser(models.User, int64, string) error
-	UpdateArticleParsedContentForUser(models.User, int64, string) error
-	UpdateArticleContentForUser(models.User, int64, string, string) error
+	UpdateLatestTimeForFeedForUser(models.User, models.FeedId, time.Time) error
+	UpdateEstimatedRefreshIntervalForFeedForUser(models.User, models.FeedId, int) error
+	UpdateFolderForFeedForUser(models.User, models.FeedId, models.FolderId) error
+	RenameFolderForUser(models.User, models.FolderId, string) error
+	UpdateArticleParsedContentForUser(models.User, models.ArticleId, string) error
+	UpdateArticleContentForUser(models.User, models.ArticleId, string, string) error
 
 	// Content retrieval
 
-	GetFolderChildrenForUser(models.User, int64) ([]int64, error)
+	GetFolderChildrenForUser(models.User, models.FolderId) ([]models.FolderId, error)
 	GetAllFoldersForUser(models.User) ([]models.Folder, error)
 	GetAllFeedsForUser(models.User) ([]models.Feed, error)
-	GetFeedForUser(models.User, int64) (models.Feed, error)
+	GetFeedForUser(models.User, models.FeedId) (models.Feed, error)
 	GetFeedByUrlForUser(models.User, string) (models.Feed, error)
-	GetFolderForUser(models.User, int64) (models.Folder, error)
+	GetFolderForUser(models.User, models.FolderId) (models.Folder, error)
 	GetRootFolderForUser(models.User) (models.Folder, error)
-	GetFeedsInFolderForUser(models.User, int64) ([]models.Feed, error)
-	GetFeedsPerFolderForUser(models.User) (map[int64][]int64, error)
+	GetFeedsInFolderForUser(models.User, models.FolderId) ([]models.Feed, error)
+	GetFeedsPerFolderForUser(models.User) (map[models.FolderId][]models.FeedId, error)
 	GetFolderFeedTreeForUser(models.User) (*models.Folder, error)
-	GetAllFaviconsForUser(models.User) (map[int64]string, error)
+	GetAllFaviconsForUser(models.User) (map[models.FeedId]string, error)
 
 	GetArticleMetaWithFilterForUser(models.User, models.Stream, int, models.StreamCursor) ([]models.ArticleMeta, error)
-	GetArticleContentsForUser(models.User, int64, int) ([]models.Article, error)
-	GetArticlesForUser(models.User, []int64) ([]models.Article, error)
-	GetArticlesWithFilterForUser(models.User, models.StreamFilter, int, int64) ([]models.Article, error)
-	GetArticlesForFeedForUser(models.User, int64) ([]models.Article, error)
+	GetArticleContentsForUser(models.User, models.ArticleId, int) ([]models.Article, error)
+	GetArticlesForUser(models.User, []models.ArticleId) ([]models.Article, error)
+	GetArticlesWithFilterForUser(models.User, models.StreamFilter, int, models.ArticleId) ([]models.Article, error)
+	GetArticlesForFeedForUser(models.User, models.FeedId) ([]models.Article, error)
 
 	// OPML
 
@@ -152,7 +152,17 @@ func Open(dbPath string) (Database, error) {
 // UserFeedKey is a composite key identifying a specific feed for a specific user.
 type UserFeedKey struct {
 	UserID models.UserId
-	FeedID int64
+	FeedID models.FeedId
+}
+
+// int64s converts typed IDs for a driver helper that accepts []int64 but not a
+// named integer type, pq.Array among them.
+func int64s[T ~int64](ids []T) []int64 {
+	out := make([]int64, len(ids))
+	for i, id := range ids {
+		out[i] = int64(id)
+	}
+	return out
 }
 
 /*******************************************************************************

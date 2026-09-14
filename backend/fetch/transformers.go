@@ -107,7 +107,7 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 // maybeResizeImage converts the provided besticon.Icon to a 256x256 PNG image
 // and returns an imagePair struct containing the base64-encoded image and
 // metadata.
-func maybeResizeImage(feedId int64, bi besticon.Icon, i *image.Image) (ip imagePair) {
+func maybeResizeImage(feedId models.FeedId, bi besticon.Icon, i *image.Image) (ip imagePair) {
 	ip = imagePair{feedId, "image/" + bi.Format, bi.ImageData}
 
 	if *normalizeFavicons {
@@ -329,7 +329,7 @@ func stemWord(s string) string {
 
 // maybeMuteArticle returns true if any of the article's title or contents
 // match any of the muted words.
-func maybeMuteArticle(a models.Article, muteWords []string, unmuteFeeds []int64) bool {
+func maybeMuteArticle(a models.Article, muteWords []string, unmuteFeeds []models.FeedId) bool {
 	muteWordMap := make(map[string]string)
 
 	// If the feed of the article is an unmuted feed, never mute it.
@@ -380,8 +380,8 @@ func maybeMuteArticleByRegex(a models.Article, regexes []*regexp.Regexp) bool {
 	return false
 }
 
-func getSimilarExistingArticles(articles []models.Article, a models.Article) ([]int64, []int64) {
-	var unreadIds, readIds []int64
+func getSimilarExistingArticles(articles []models.Article, a models.Article) ([]models.ArticleId, []models.ArticleId) {
+	var unreadIds, readIds []models.ArticleId
 
 	isSimilar := func(o models.Article, n models.Article) bool {
 		if o.Link != n.Link {

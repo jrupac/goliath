@@ -56,7 +56,7 @@ func TestReadAtAgainstDatabase(t *testing.T) {
 		t.Fatalf("InsertArticlesForUser: %d inserted, %v; want %d", n, err, count)
 	}
 
-	var ids []int64
+	var ids []models.ArticleId
 	articles, err := crdb.GetArticlesForFeedForUser(u, feed.ID)
 	if err != nil {
 		t.Fatalf("GetArticlesForFeedForUser: %v", err)
@@ -77,7 +77,7 @@ func TestReadAtAgainstDatabase(t *testing.T) {
 
 	// readAt reports the recorded read time of one article, or the zero time
 	// if it has none.
-	readAt := func(id int64) time.Time {
+	readAt := func(id models.ArticleId) time.Time {
 		var at *time.Time
 		if err := crdb.db.QueryRow(
 			`SELECT readat FROM Article WHERE userid = $1 AND id = $2`, u.UserId, id).Scan(&at); err != nil {
@@ -90,7 +90,7 @@ func TestReadAtAgainstDatabase(t *testing.T) {
 	}
 	// inCursor reports whether the article is in the read stream bounded by
 	// `since`.
-	inCursor := func(id int64, since time.Time) bool {
+	inCursor := func(id models.ArticleId, since time.Time) bool {
 		metas, err := crdb.GetArticleMetaWithFilterForUser(
 			u, models.Stream{Filter: models.StreamFilterRead}, MaxFetchedRows, models.StreamCursor{Since: since})
 		if err != nil {

@@ -10,16 +10,16 @@ import (
 
 // ArticleMeta return only some metadata fields for a single article.
 type ArticleMeta struct {
-	ID     int64
-	FeedID int64
+	ID     ArticleId
+	FeedID FeedId
 	Date   time.Time
 }
 
 // Article is a single fetched article. Its folder is its feed's.
 type Article struct {
 	// Primary key
-	ID     int64
-	FeedID int64
+	ID     ArticleId
+	FeedID FeedId
 	// Data fields
 	Title     string
 	Summary   string

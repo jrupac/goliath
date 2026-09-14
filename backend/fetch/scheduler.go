@@ -53,10 +53,10 @@ func init() {
 // Neither method blocks.
 type Subscriptions interface {
 	// Schedule makes a feed due now, adding it if it is not already fetched.
-	Schedule(u models.User, feedID int64)
+	Schedule(u models.User, feedID models.FeedId)
 	// Unschedule stops fetching a feed. A fetch of it in flight is cancelled,
 	// and it is not fetched again.
-	Unschedule(u models.User, feedID int64)
+	Unschedule(u models.User, feedID models.FeedId)
 }
 
 // Scheduler fetches every feed every user subscribes to, each when it is due,
@@ -204,11 +204,11 @@ type snapshot struct {
 	err     error
 }
 
-func (s *Scheduler) Schedule(u models.User, feedID int64) {
+func (s *Scheduler) Schedule(u models.User, feedID models.FeedId) {
 	s.enqueue(command{key: storage.UserFeedKey{UserID: u.UserId, FeedID: feedID}, user: u, schedule: true})
 }
 
-func (s *Scheduler) Unschedule(u models.User, feedID int64) {
+func (s *Scheduler) Unschedule(u models.User, feedID models.FeedId) {
 	s.enqueue(command{key: storage.UserFeedKey{UserID: u.UserId, FeedID: feedID}, user: u})
 }
 

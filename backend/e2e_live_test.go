@@ -605,12 +605,12 @@ func runWorkload(t *testing.T, env *e2eEnv, users []*tester) {
 	shared = shared[:min(len(shared), 5)]
 	const waves, perWave = 3, 3
 
-	models := make([]*workloadModel, len(users))
+	workloads := make([]*workloadModel, len(users))
 	for i, u := range users {
-		models[i] = &workloadModel{read: map[int64]bool{}, star: map[int64]bool{},
+		workloads[i] = &workloadModel{read: map[int64]bool{}, star: map[int64]bool{},
 			feeds: env.liveFeeds(t, u.user.UserId)}
 		if len(u.pool) > 0 {
-			models[i].markAll = u.pool[len(u.pool)-1].feedID
+			workloads[i].markAll = u.pool[len(u.pool)-1].feedID
 		}
 	}
 
@@ -622,14 +622,14 @@ func runWorkload(t *testing.T, env *e2eEnv, users []*tester) {
 			for _, p := range shared {
 				_ = env.feeds.Publish(poolPath(p), perWave)
 				for _, s := range subscribers[p] {
-					env.sched.Schedule(s.u.user, s.feed)
+					env.sched.Schedule(s.u.user, models.FeedId(s.feed))
 				}
 			}
 			time.Sleep(250 * time.Millisecond)
 		}
 	})
 	for i, u := range users {
-		wg.Go(func() { workload(env, u, models[i], errs) })
+		wg.Go(func() { workload(env, u, workloads[i], errs) })
 	}
 	wg.Wait()
 	end()
@@ -649,7 +649,7 @@ func runWorkload(t *testing.T, env *e2eEnv, users []*tester) {
 	})
 
 	for i, u := range users {
-		m := models[i]
+		m := workloads[i]
 		for column, wantState := range map[string]map[int64]bool{"read": m.read, "saved": m.star} {
 			ids := make([]int64, 0, len(wantState))
 			for id := range wantState {
@@ -782,8 +782,8 @@ func unsubscribeShared(t *testing.T, env *e2eEnv, users []*tester) {
 	// Updated while a is away: b gets the new items and a does not, even
 	// when a fetch for a's copy is asked for, as a stale one would be.
 	_ = env.feeds.Publish(poolPath(sa.index), 2)
-	env.sched.Schedule(a.user, sa.feedID)
-	env.sched.Schedule(b.user, sb.feedID)
+	env.sched.Schedule(a.user, models.FeedId(sa.feedID))
+	env.sched.Schedule(b.user, models.FeedId(sb.feedID))
 	env.waitFor(t, "update reaches the subscriber who stayed", func() (bool, string) {
 		if n := len(env.feedArticleIDs(t, b.user.UserId, sb.feedID)); n != bBefore+2 {
 			return false, fmt.Sprintf("%s has %d, want %d", b.name, n, bBefore+2)
@@ -967,7 +967,7 @@ func deleteUnderLoad(t *testing.T, env *e2eEnv, users []*tester) {
 	wg.Go(func() {
 		for !stopped() && deletedAt.Load() == 0 {
 			for feed := range feeds {
-				env.sched.Schedule(victim.user, feed)
+				env.sched.Schedule(victim.user, models.FeedId(feed))
 			}
 			time.Sleep(20 * time.Millisecond)
 		}
@@ -1068,7 +1068,7 @@ func deleteUnderLoad(t *testing.T, env *e2eEnv, users []*tester) {
 	otherHad := len(env.feedArticleIDs(t, others[0].u.user.UserId, others[0].feed))
 	_ = env.feeds.Publish(poolPath(sub.index), 2)
 	for _, o := range others {
-		env.sched.Schedule(o.u.user, o.feed)
+		env.sched.Schedule(o.u.user, models.FeedId(o.feed))
 	}
 	env.waitFor(t, "update reaches the subscribers still here", func() (bool, string) {
 		if n := len(env.feedArticleIDs(t, others[0].u.user.UserId, others[0].feed)); n != otherHad+2 {

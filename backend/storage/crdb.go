@@ -800,10 +800,10 @@ func (crdb *Crdb) DeleteMuteWordsForUser(u models.User, words []string) error {
 }
 
 // GetUnmuteFeedsForUser returns a list of unmuted feed IDs for the given user.
-func (crdb *Crdb) GetUnmuteFeedsForUser(u models.User) ([]int64, error) {
+func (crdb *Crdb) GetUnmuteFeedsForUser(u models.User) ([]models.FeedId, error) {
 	defer logElapsedTime(time.Now(), "GetUnmuteFeedsForUser")
 
-	var feedIds []int64
+	var feedIds []models.FeedId
 
 	query := `SELECT feedid FROM UserUnmuteFeeds WHERE userid = $1`
 	rows, err := crdb.db.Query(query, u.UserId)
@@ -813,7 +813,7 @@ func (crdb *Crdb) GetUnmuteFeedsForUser(u models.User) ([]int64, error) {
 	}
 
 	for rows.Next() {
-		var feedId int64
+		var feedId models.FeedId
 		if err = rows.Scan(&feedId); err != nil {
 			return feedIds, err
 		}
@@ -823,7 +823,7 @@ func (crdb *Crdb) GetUnmuteFeedsForUser(u models.User) ([]int64, error) {
 }
 
 // UpdateUnmuteFeedsForUser inserts unmute feed IDs for the given user.
-func (crdb *Crdb) UpdateUnmuteFeedsForUser(u models.User, feedIds []int64) error {
+func (crdb *Crdb) UpdateUnmuteFeedsForUser(u models.User, feedIds []models.FeedId) error {
 	defer logElapsedTime(time.Now(), "UpdateUnmuteFeedsForUser")
 
 	for _, feedId := range feedIds {
@@ -837,7 +837,7 @@ func (crdb *Crdb) UpdateUnmuteFeedsForUser(u models.User, feedIds []int64) error
 }
 
 // DeleteUnmuteFeedsForUser deletes unmute feed IDs for a given user.
-func (crdb *Crdb) DeleteUnmuteFeedsForUser(u models.User, feedIds []int64) error {
+func (crdb *Crdb) DeleteUnmuteFeedsForUser(u models.User, feedIds []models.FeedId) error {
 	defer logElapsedTime(time.Now(), "DeleteUnmuteFeedsForUser")
 
 	if len(feedIds) == 0 {
@@ -846,17 +846,17 @@ func (crdb *Crdb) DeleteUnmuteFeedsForUser(u models.User, feedIds []int64) error
 
 	query := `DELETE FROM UserUnmuteFeeds WHERE userid = $1 AND feedid = ANY($2)`
 
-	_, err := crdb.db.Exec(query, u.UserId, pq.Array(feedIds))
+	_, err := crdb.db.Exec(query, u.UserId, pq.Array(int64s(feedIds)))
 
 	return err
 
 }
 
 // GetFeedMuteRegexesForUser returns all feed mute regexes for a given user.
-func (crdb *Crdb) GetFeedMuteRegexesForUser(u models.User) (map[int64][]string, error) {
+func (crdb *Crdb) GetFeedMuteRegexesForUser(u models.User) (map[models.FeedId][]string, error) {
 	defer logElapsedTime(time.Now(), "GetFeedMuteRegexesForUser")
 
-	ret := make(map[int64][]string)
+	ret := make(map[models.FeedId][]string)
 
 	query := `SELECT feedid, regex FROM UserFeedMuteRegexes WHERE userid = $1`
 	rows, err := crdb.db.Query(query, u.UserId)
@@ -866,7 +866,7 @@ func (crdb *Crdb) GetFeedMuteRegexesForUser(u models.User) (map[int64][]string, 
 	}
 
 	for rows.Next() {
-		var feedId int64
+		var feedId models.FeedId
 		var regex string
 		if err = rows.Scan(&feedId, &regex); err != nil {
 			return nil, err
@@ -878,7 +878,7 @@ func (crdb *Crdb) GetFeedMuteRegexesForUser(u models.User) (map[int64][]string, 
 }
 
 // GetMuteRegexesForFeedForUser returns the mute regexes for a specific user and feed.
-func (crdb *Crdb) GetMuteRegexesForFeedForUser(u models.User, feedId int64) ([]string, error) {
+func (crdb *Crdb) GetMuteRegexesForFeedForUser(u models.User, feedId models.FeedId) ([]string, error) {
 	defer logElapsedTime(time.Now(), "GetMuteRegexesForFeedForUser")
 
 	var regexes []string
@@ -902,7 +902,7 @@ func (crdb *Crdb) GetMuteRegexesForFeedForUser(u models.User, feedId int64) ([]s
 }
 
 // AddMuteRegexForFeedForUser adds a feed mute regex for a given user and feed.
-func (crdb *Crdb) AddMuteRegexForFeedForUser(u models.User, feedId int64, regex string) error {
+func (crdb *Crdb) AddMuteRegexForFeedForUser(u models.User, feedId models.FeedId, regex string) error {
 	defer logElapsedTime(time.Now(), "AddMuteRegexForFeedForUser")
 
 	query := `INSERT INTO UserFeedMuteRegexes (userid, feedid, regex) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`
@@ -912,7 +912,7 @@ func (crdb *Crdb) AddMuteRegexForFeedForUser(u models.User, feedId int64, regex 
 }
 
 // DeleteMuteRegexForFeedForUser deletes a specific feed mute regex for a given user and feed.
-func (crdb *Crdb) DeleteMuteRegexForFeedForUser(u models.User, feedId int64, regex string) error {
+func (crdb *Crdb) DeleteMuteRegexForFeedForUser(u models.User, feedId models.FeedId, regex string) error {
 	defer logElapsedTime(time.Now(), "DeleteMuteRegexForFeedForUser")
 
 	query := `DELETE FROM UserFeedMuteRegexes WHERE userid = $1 AND feedid = $2 AND regex = $3`
@@ -952,7 +952,7 @@ func (crdb *Crdb) feedKeys(query string) (map[UserFeedKey]bool, error) {
 
 	for rows.Next() {
 		var userID models.UserId
-		var feedID int64
+		var feedID models.FeedId
 		if err = rows.Scan(&userID, &feedID); err != nil {
 			return nil, err
 		}
@@ -982,7 +982,7 @@ func (crdb *Crdb) GetAllRetrievalCaches() (map[UserFeedKey]string, error) {
 
 	for rows.Next() {
 		var userID models.UserId
-		var feedID int64
+		var feedID models.FeedId
 		var cache string
 		if err = rows.Scan(&userID, &feedID, &cache); err != nil {
 			return nil, err
@@ -1056,7 +1056,7 @@ const (
 // The articles are written in as few statements as their size allows, each
 // atomic on its own: if one fails, those before it are stored and it and
 // those after it are not.
-func (crdb *Crdb) InsertArticlesForUser(u models.User, feedID int64, articles []models.Article) (int, error) {
+func (crdb *Crdb) InsertArticlesForUser(u models.User, feedID models.FeedId, articles []models.Article) (int, error) {
 	defer logElapsedTime(time.Now(), "InsertArticlesForUser")
 
 	inserted := 0
@@ -1085,7 +1085,7 @@ func articleBytes(a models.Article) int {
 
 // insertArticleBatch inserts articles in one statement. They are passed as
 // one array per column, so the statement is the same whatever the count.
-func (crdb *Crdb) insertArticleBatch(u models.User, feedID int64, articles []models.Article) (int, error) {
+func (crdb *Crdb) insertArticleBatch(u models.User, feedID models.FeedId, articles []models.Article) (int, error) {
 	n := len(articles)
 	hashes, titles, summaries := make([]string, n), make([]string, n), make([]string, n)
 	contents, parsed, links := make([]string, n), make([]string, n), make([]string, n)
@@ -1135,7 +1135,7 @@ func (crdb *Crdb) insertArticleBatch(u models.User, feedID int64, articles []mod
 
 // InsertFaviconForUser inserts the given favicon and associated metadata into
 // the database.
-func (crdb *Crdb) InsertFaviconForUser(u models.User, feedId int64, mime string, img []byte) error {
+func (crdb *Crdb) InsertFaviconForUser(u models.User, feedId models.FeedId, mime string, img []byte) error {
 	defer logElapsedTime(time.Now(), "InsertFaviconForUser")
 
 	// TODO: Consider wrapping this into a Favicon model type.
@@ -1171,10 +1171,10 @@ func (crdb *Crdb) InsertFaviconForUser(u models.User, feedId int64, mime string,
 //
 // A feed that collides with one the user unsubscribed from is that feed
 // restored, rather than a live ID for a row every read leaves out.
-func (crdb *Crdb) InsertFeedForUser(u models.User, f models.Feed, folderId int64) (int64, error) {
+func (crdb *Crdb) InsertFeedForUser(u models.User, f models.Feed, folderId models.FolderId) (models.FeedId, error) {
 	defer logElapsedTime(time.Now(), "InsertFeedForUser")
 
-	var feedID int64
+	var feedID models.FeedId
 
 	// If the feed is assumed to be a top-level entry, determine the ID of the
 	// root folder that it actually is under.
@@ -1209,10 +1209,10 @@ func (crdb *Crdb) InsertFeedForUser(u models.User, f models.Feed, folderId int64
 // folder with ID `parentId`. A `parentId` of 0 files it under the root folder,
 // or, for the root folder itself, under nothing. On error, -1 is returned for
 // the folder ID.
-func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId int64) (int64, error) {
+func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId models.FolderId) (models.FolderId, error) {
 	defer logElapsedTime(time.Now(), "InsertFolderForUser")
 
-	errFolderId := int64(-1)
+	errFolderId := models.FolderId(-1)
 
 	// Checked here rather than at each caller, so that no path to creating a
 	// folder can miss it: feeds arrive from OPML files, the admin service and
@@ -1223,7 +1223,7 @@ func (crdb *Crdb) InsertFolderForUser(u models.User, f models.Folder, parentId i
 
 	// Retried, since creating two folders at once for one user conflicts: each
 	// reads the user's folder links to see whether its own folder is filed.
-	var folderID int64
+	var folderID models.FolderId
 	err := crdb.inTx(func(ctx context.Context, tx *sql.Tx) error {
 		query := `
 			INSERT INTO Folder(userid, name) VALUES($1, $2)
@@ -1300,11 +1300,11 @@ func (crdb *Crdb) DeleteArticlesForUser(u models.User, minTimestamp time.Time) (
 }
 
 // DeleteArticlesByIdForUser deletes articles in the given list of IDs for the given user.
-func (crdb *Crdb) DeleteArticlesByIdForUser(u models.User, ids []int64) error {
+func (crdb *Crdb) DeleteArticlesByIdForUser(u models.User, ids []models.ArticleId) error {
 	defer logElapsedTime(time.Now(), "DeleteArticlesByIdForUser")
 
 	query := `DELETE FROM Article WHERE userid = $1 AND id = ANY($2)`
-	_, err := crdb.db.Exec(query, u.UserId, pq.Array(ids))
+	_, err := crdb.db.Exec(query, u.UserId, pq.Array(int64s(ids)))
 	return err
 }
 
@@ -1316,7 +1316,7 @@ func (crdb *Crdb) DeleteArticlesByIdForUser(u models.User, ids []int64) error {
 // already in flight would be racing the delete. Marked, the feed and its
 // articles drop out of every read a client can make, the fetcher's writes into
 // it do nothing, and the garbage collector removes it on its next run.
-func (crdb *Crdb) TombstoneFeedForUser(u models.User, feedId int64) error {
+func (crdb *Crdb) TombstoneFeedForUser(u models.User, feedId models.FeedId) error {
 	defer logElapsedTime(time.Now(), "TombstoneFeedForUser")
 
 	query := `UPDATE Feed SET deleted = now() WHERE userid = $1 AND id = $2 AND deleted IS NULL`
@@ -1422,7 +1422,7 @@ var ErrRootFolder = errors.New("the root folder cannot be removed")
 // rather than half emptied, and retried, since it reads and rewrites the user's
 // folder links and feeds, which anything else changing their folders conflicts
 // with.
-func (crdb *Crdb) DeleteFolderForUser(u models.User, folderId int64) (int64, error) {
+func (crdb *Crdb) DeleteFolderForUser(u models.User, folderId models.FolderId) (int64, error) {
 	defer logElapsedTime(time.Now(), "DeleteFolderForUser")
 
 	var moved int64
@@ -1436,7 +1436,7 @@ func (crdb *Crdb) DeleteFolderForUser(u models.User, folderId int64) (int64, err
 			return ErrRootFolder
 		}
 
-		var rootId int64
+		var rootId models.FolderId
 		query = `SELECT id FROM Folder WHERE userid = $1 AND name = $2`
 		if err := tx.QueryRowContext(ctx, query, u.UserId, models.RootFolder).Scan(&rootId); err != nil {
 			return fmt.Errorf("failed to find the root folder: %w", err)
@@ -1492,7 +1492,7 @@ func (crdb *Crdb) DeleteFolderForUser(u models.User, folderId int64) (int64, err
 // with the one exception of an article read before the column existed.
 
 // MarkArticleForUser sets the mark status of `articleId` to `mark`.
-func (crdb *Crdb) MarkArticleForUser(u models.User, articleId int64, mark models.MarkAction) error {
+func (crdb *Crdb) MarkArticleForUser(u models.User, articleId models.ArticleId, mark models.MarkAction) error {
 	defer logElapsedTime(time.Now(), "MarkArticleForUser")
 
 	markType, value, err := mark.Parse()
@@ -1521,7 +1521,7 @@ func (crdb *Crdb) MarkArticleForUser(u models.User, articleId int64, mark models
 // Clients mark in bulk, batching hundreds of IDs into a single request, so
 // marking per ID costs that many sequential round trips and leaves a failure
 // partway through half-applied.
-func (crdb *Crdb) MarkArticlesForUser(u models.User, articleIds []int64, mark models.MarkAction) (int64, error) {
+func (crdb *Crdb) MarkArticlesForUser(u models.User, articleIds []models.ArticleId, mark models.MarkAction) (int64, error) {
 	defer logElapsedTime(time.Now(), "MarkArticlesForUser")
 
 	if len(articleIds) == 0 {
@@ -1543,7 +1543,7 @@ func (crdb *Crdb) MarkArticlesForUser(u models.User, articleIds []int64, mark mo
 		return 0, fmt.Errorf("invalid mark type: %+v", mark)
 	}
 
-	result, err := crdb.db.Exec(query, value, u.UserId, pq.Array(articleIds))
+	result, err := crdb.db.Exec(query, value, u.UserId, pq.Array(int64s(articleIds)))
 	if err != nil {
 		return 0, err
 	}
@@ -1553,7 +1553,7 @@ func (crdb *Crdb) MarkArticlesForUser(u models.User, articleIds []int64, mark mo
 
 // MarkFeedForUser sets the mark status of all articles in `feedId` to `mark`.
 // Returns the number of articles whose state was changed.
-func (crdb *Crdb) MarkFeedForUser(u models.User, feedId int64, mark models.MarkAction) (int64, error) {
+func (crdb *Crdb) MarkFeedForUser(u models.User, feedId models.FeedId, mark models.MarkAction) (int64, error) {
 	defer logElapsedTime(time.Now(), "MarkFeedForUser")
 
 	if mark != models.MarkActionRead {
@@ -1577,7 +1577,7 @@ func (crdb *Crdb) MarkFeedForUser(u models.User, feedId int64, mark models.MarkA
 // MarkFolderForUser sets the mark status of all articles in `folderId` to
 // `mark`. An ID of 0 will mark all articles in all folders to the given status.
 // Returns the number of articles whose state was changed.
-func (crdb *Crdb) MarkFolderForUser(u models.User, folderId int64, mark models.MarkAction) (int64, error) {
+func (crdb *Crdb) MarkFolderForUser(u models.User, folderId models.FolderId, mark models.MarkAction) (int64, error) {
 	defer logElapsedTime(time.Now(), "MarkFolderForUser")
 
 	if mark != models.MarkActionRead {
@@ -1675,7 +1675,7 @@ func (crdb *Crdb) RenameFeedForUser(u models.User, f models.Feed) error {
 
 // UpdateLatestTimeForFeedForUser sets the latest retrieval time for the given
 // feed to the given timestamp.
-func (crdb *Crdb) UpdateLatestTimeForFeedForUser(u models.User, id int64, latest time.Time) error {
+func (crdb *Crdb) UpdateLatestTimeForFeedForUser(u models.User, id models.FeedId, latest time.Time) error {
 	defer logElapsedTime(time.Now(), "UpdateLatestTimeForFeedForUser")
 
 	query := `
@@ -1688,7 +1688,7 @@ func (crdb *Crdb) UpdateLatestTimeForFeedForUser(u models.User, id int64, latest
 }
 
 // UpdateEstimatedRefreshIntervalForFeedForUser sets the estimated refresh interval (in seconds) for the given feed.
-func (crdb *Crdb) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, id int64, interval int) error {
+func (crdb *Crdb) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, id models.FeedId, interval int) error {
 	defer logElapsedTime(time.Now(), "UpdateEstimatedRefreshIntervalForFeedForUser")
 
 	query := `
@@ -1704,7 +1704,7 @@ func (crdb *Crdb) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, id
 // The new `folderId` must already exist and is enforced by a foreign key
 // constraint on the `Feed` folder. The feed's articles are not touched: their
 // folder is the feed's.
-func (crdb *Crdb) UpdateFolderForFeedForUser(u models.User, feedId int64, folderId int64) error {
+func (crdb *Crdb) UpdateFolderForFeedForUser(u models.User, feedId models.FeedId, folderId models.FolderId) error {
 	defer logElapsedTime(time.Now(), "UpdateFolderForFeedForUser")
 
 	query := `UPDATE Feed SET folder = $1 WHERE userid = $2 and id = $3`
@@ -1723,7 +1723,7 @@ var ErrFolderNameTaken = errors.New("folder name is already taken")
 // The root is excluded by the statement itself rather than left to callers:
 // its stored name is how it is found, so renaming it would leave the user with
 // no root at all.
-func (crdb *Crdb) RenameFolderForUser(u models.User, folderId int64, name string) error {
+func (crdb *Crdb) RenameFolderForUser(u models.User, folderId models.FolderId, name string) error {
 	defer logElapsedTime(time.Now(), "RenameFolderForUser")
 
 	if err := models.ValidateFolderName(name); err != nil {
@@ -1750,7 +1750,7 @@ func (crdb *Crdb) RenameFolderForUser(u models.User, folderId int64, name string
 }
 
 // UpdateArticleParsedContentForUser updates the parsed content column of the article.
-func (crdb *Crdb) UpdateArticleParsedContentForUser(u models.User, articleID int64, parsed string) error {
+func (crdb *Crdb) UpdateArticleParsedContentForUser(u models.User, articleID models.ArticleId, parsed string) error {
 	defer logElapsedTime(time.Now(), "UpdateArticleParsedContentForUser")
 
 	query := `UPDATE Article SET parsed = $1 WHERE userid = $2 AND id = $3`
@@ -1764,10 +1764,10 @@ func (crdb *Crdb) UpdateArticleParsedContentForUser(u models.User, articleID int
 
 // GetFolderChildrenForUser returns a list of IDs corresponding to folders
 // under the given folder ID.
-func (crdb *Crdb) GetFolderChildrenForUser(u models.User, id int64) ([]int64, error) {
+func (crdb *Crdb) GetFolderChildrenForUser(u models.User, id models.FolderId) ([]models.FolderId, error) {
 	defer logElapsedTime(time.Now(), "GetFolderChildrenForUser")
 
-	var children []int64
+	var children []models.FolderId
 
 	query := `SELECT child FROM FolderChildren WHERE userid = $1 AND parent = $2`
 	rows, err := crdb.db.Query(query, u.UserId, id)
@@ -1777,7 +1777,7 @@ func (crdb *Crdb) GetFolderChildrenForUser(u models.User, id int64) ([]int64, er
 		return children, err
 	}
 
-	var childID int64
+	var childID models.FolderId
 	for rows.Next() {
 		if err = rows.Scan(&childID); err != nil {
 			return children, err
@@ -1792,7 +1792,7 @@ func (crdb *Crdb) GetFolderChildrenForUser(u models.User, id int64) ([]int64, er
 func (crdb *Crdb) GetAllFoldersForUser(u models.User) ([]models.Folder, error) {
 	defer logElapsedTime(time.Now(), "GetAllFoldersForUser")
 
-	// TODO: Consider returning a map[int64]models.Folder instead.
+	// TODO: Consider returning a map[models.FolderId]models.Folder instead.
 	var folders []models.Folder
 
 	query := `SELECT id, name FROM Folder WHERE userid = $1`
@@ -1822,7 +1822,7 @@ func (crdb *Crdb) GetAllFoldersForUser(u models.User) ([]models.Folder, error) {
 // belonging to somebody else is reported the same way as one that does not
 // exist: sql.ErrNoRows. That distinction is not the caller's to make, and an
 // endpoint that could make it would answer whether an ID is in use.
-func (crdb *Crdb) GetFeedForUser(u models.User, feedId int64) (models.Feed, error) {
+func (crdb *Crdb) GetFeedForUser(u models.User, feedId models.FeedId) (models.Feed, error) {
 	defer logElapsedTime(time.Now(), "GetFeedForUser")
 
 	var f models.Feed
@@ -1889,7 +1889,7 @@ func (crdb *Crdb) GetFeedByUrlForUser(u models.User, url string) (models.Feed, e
 // GetFolderForUser returns a single folder belonging to the user, reporting a
 // folder that is not theirs as sql.ErrNoRows for the same reason as
 // GetFeedForUser.
-func (crdb *Crdb) GetFolderForUser(u models.User, folderId int64) (models.Folder, error) {
+func (crdb *Crdb) GetFolderForUser(u models.User, folderId models.FolderId) (models.Folder, error) {
 	defer logElapsedTime(time.Now(), "GetFolderForUser")
 
 	var f models.Folder
@@ -1930,7 +1930,7 @@ func (crdb *Crdb) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
 
 // GetFeedsInFolderForUser returns a list of feeds directly under the given
 // folder for the given user.
-func (crdb *Crdb) GetFeedsInFolderForUser(u models.User, folderId int64) ([]models.Feed, error) {
+func (crdb *Crdb) GetFeedsInFolderForUser(u models.User, folderId models.FolderId) ([]models.Feed, error) {
 	defer logElapsedTime(time.Now(), "GetFeedsInFolderForUser")
 
 	var feeds []models.Feed
@@ -1954,10 +1954,10 @@ func (crdb *Crdb) GetFeedsInFolderForUser(u models.User, folderId int64) ([]mode
 }
 
 // GetFeedsPerFolderForUser returns a map of folder ID to an array of feed IDs.
-func (crdb *Crdb) GetFeedsPerFolderForUser(u models.User) (map[int64][]int64, error) {
+func (crdb *Crdb) GetFeedsPerFolderForUser(u models.User) (map[models.FolderId][]models.FeedId, error) {
 	defer logElapsedTime(time.Now(), "GetFeedsPerFolderForUser")
 
-	resp := map[int64][]int64{}
+	resp := map[models.FolderId][]models.FeedId{}
 
 	query := `SELECT folder, id FROM Feed WHERE userid = $1 AND deleted IS NULL`
 	rows, err := crdb.db.Query(query, u.UserId)
@@ -1967,7 +1967,8 @@ func (crdb *Crdb) GetFeedsPerFolderForUser(u models.User) (map[int64][]int64, er
 		return resp, err
 	}
 
-	var folderID, feedID int64
+	var folderID models.FolderId
+	var feedID models.FeedId
 	for rows.Next() {
 		if err = rows.Scan(&folderID, &feedID); err != nil {
 			return resp, err
@@ -1998,7 +1999,7 @@ func (crdb *Crdb) GetFolderFeedTreeForUser(u models.User) (*models.Folder, error
 		return nil, fmt.Errorf("error getting all folder for user: %w", err)
 	}
 
-	folderMap := make(map[int64]*models.Folder)
+	folderMap := make(map[models.FolderId]*models.Folder)
 	for id := range folders {
 		folderMap[folders[id].ID] = &folders[id]
 	}
@@ -2013,7 +2014,7 @@ func (crdb *Crdb) GetFolderFeedTreeForUser(u models.User) (*models.Folder, error
 	}
 
 	for folderChildren.Next() {
-		var parentID, childID int64
+		var parentID, childID models.FolderId
 		if err := folderChildren.Scan(&parentID, &childID); err != nil {
 			return nil, fmt.Errorf("failed to scan folder child relationship: %w", err)
 		}
@@ -2049,11 +2050,11 @@ func (crdb *Crdb) GetFolderFeedTreeForUser(u models.User) (*models.Folder, error
 
 // GetAllFaviconsForUser returns a map of feed ID to a base64 representation of
 // its favicon. Feeds with no favicons are not part of the returned map.
-func (crdb *Crdb) GetAllFaviconsForUser(u models.User) (map[int64]string, error) {
+func (crdb *Crdb) GetAllFaviconsForUser(u models.User) (map[models.FeedId]string, error) {
 	defer logElapsedTime(time.Now(), "GetAllFaviconsForUser")
 
 	// TODO: Consider returning a Favicon model type.
-	favicons := map[int64]string{}
+	favicons := map[models.FeedId]string{}
 
 	query := `
 		SELECT id, mime, favicon
@@ -2067,7 +2068,7 @@ func (crdb *Crdb) GetAllFaviconsForUser(u models.User) (map[int64]string, error)
 		return favicons, err
 	}
 
-	var id int64
+	var id models.FeedId
 	var mime string
 	var favicon string
 	for rows.Next() {
@@ -2110,7 +2111,7 @@ var articleMetaQuery = template.Must(template.New("articleMeta").Parse(`
 // articles, or the user's; with a subquery it estimates how many feeds it
 // will find, and when it guesses none, reads every user's articles in ID
 // order looking for the few it wants.
-func articleMetaConditions(stream models.Stream, cursor models.StreamCursor, folderFeeds []int64) ([]string, []any, error) {
+func articleMetaConditions(stream models.Stream, cursor models.StreamCursor, folderFeeds []models.FeedId) ([]string, []any, error) {
 	fragments, err := articleMetaFragments(stream.Filter)
 	if err != nil {
 		return nil, nil, err
@@ -2130,7 +2131,7 @@ func articleMetaConditions(stream models.Stream, cursor models.StreamCursor, fol
 		conditions = append(conditions, "feed = "+bind(stream.FeedID))
 	}
 	if stream.FolderID != 0 {
-		conditions = append(conditions, "feed = ANY("+bind(pq.Array(folderFeeds))+")")
+		conditions = append(conditions, "feed = ANY("+bind(pq.Array(int64s(folderFeeds)))+")")
 	}
 	if !cursor.Since.IsZero() {
 		conditions = append(conditions, fragments.SinceColumn+" > "+bind(cursor.Since))
@@ -2190,7 +2191,7 @@ func (crdb *Crdb) GetArticleMetaWithFilterForUser(u models.User, stream models.S
 
 	// An article's folder is its feed's, so a folder stream is the articles of
 	// the feeds filed in it. A folder holding none has no articles to read.
-	var folderFeeds []int64
+	var folderFeeds []models.FeedId
 	if stream.FolderID != 0 {
 		query := `SELECT id FROM Feed WHERE userid = $1 AND folder = $2 AND deleted IS NULL`
 		rows, err := crdb.db.Query(query, u.UserId, stream.FolderID)
@@ -2198,7 +2199,7 @@ func (crdb *Crdb) GetArticleMetaWithFilterForUser(u models.User, stream models.S
 			return articles, fmt.Errorf("failed to find the folder's feeds: %w", err)
 		}
 		for rows.Next() {
-			var id int64
+			var id models.FeedId
 			if err = rows.Scan(&id); err != nil {
 				closeSilent(rows)
 				return articles, err
@@ -2249,7 +2250,7 @@ func (crdb *Crdb) GetArticleMetaWithFilterForUser(u models.User, stream models.S
 //
 // Paged rather than returned whole because the content of every article at once
 // is far more than needs to be held to rewrite one.
-func (crdb *Crdb) GetArticleContentsForUser(u models.User, afterID int64, limit int) ([]models.Article, error) {
+func (crdb *Crdb) GetArticleContentsForUser(u models.User, afterID models.ArticleId, limit int) ([]models.Article, error) {
 	defer logElapsedTime(time.Now(), "GetArticleContentsForUser")
 
 	var articles []models.Article
@@ -2278,7 +2279,7 @@ func (crdb *Crdb) GetArticleContentsForUser(u models.User, afterID int64, limit 
 }
 
 // UpdateArticleContentForUser replaces the text of a single article.
-func (crdb *Crdb) UpdateArticleContentForUser(u models.User, id int64, summary string, content string) error {
+func (crdb *Crdb) UpdateArticleContentForUser(u models.User, id models.ArticleId, summary string, content string) error {
 	defer logElapsedTime(time.Now(), "UpdateArticleContentForUser")
 
 	query := `UPDATE Article SET summary = $1, content = $2 WHERE userid = $3 AND id = $4`
@@ -2287,7 +2288,7 @@ func (crdb *Crdb) UpdateArticleContentForUser(u models.User, id int64, summary s
 }
 
 // GetArticlesForUser returns articles from the specified list.
-func (crdb *Crdb) GetArticlesForUser(u models.User, ids []int64) ([]models.Article, error) {
+func (crdb *Crdb) GetArticlesForUser(u models.User, ids []models.ArticleId) ([]models.Article, error) {
 	defer logElapsedTime(time.Now(), "GetArticlesForUser")
 
 	var articles []models.Article
@@ -2298,7 +2299,7 @@ func (crdb *Crdb) GetArticlesForUser(u models.User, ids []int64) ([]models.Artic
 		SELECT id, feed, title, summary, content, parsed, link, date
 		FROM Article
 		WHERE userid = $1 AND id = ANY($2) AND ` + liveArticles
-	rows, err = crdb.db.Query(query, u.UserId, pq.Array(ids))
+	rows, err = crdb.db.Query(query, u.UserId, pq.Array(int64s(ids)))
 	defer closeSilent(rows)
 
 	if err != nil {
@@ -2318,7 +2319,7 @@ func (crdb *Crdb) GetArticlesForUser(u models.User, ids []int64) ([]models.Artic
 
 // GetArticlesWithFilterForUser returns a list of <=`limit` articles with
 // `filter` after `sinceId`.
-func (crdb *Crdb) GetArticlesWithFilterForUser(u models.User, filter models.StreamFilter, limit int, sinceID int64) ([]models.Article, error) {
+func (crdb *Crdb) GetArticlesWithFilterForUser(u models.User, filter models.StreamFilter, limit int, sinceID models.ArticleId) ([]models.Article, error) {
 	defer logElapsedTime(time.Now(), "GetUnreadArticlesForUser")
 
 	var articles []models.Article
@@ -2363,7 +2364,7 @@ func (crdb *Crdb) GetArticlesWithFilterForUser(u models.User, filter models.Stre
 
 // GetArticlesForFeedForUser returns a list of articles for the
 // given feed ID and user.
-func (crdb *Crdb) GetArticlesForFeedForUser(u models.User, feedId int64) ([]models.Article, error) {
+func (crdb *Crdb) GetArticlesForFeedForUser(u models.User, feedId models.FeedId) ([]models.Article, error) {
 	defer logElapsedTime(time.Now(), "GetUnreadArticlesForFeedForUser")
 
 	var articles []models.Article

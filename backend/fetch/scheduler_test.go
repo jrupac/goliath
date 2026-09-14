@@ -14,11 +14,11 @@ import (
 
 var testUser = models.User{UserId: "test-user", Username: "test"}
 
-func key(feedID int64) storage.UserFeedKey {
+func key(feedID models.FeedId) storage.UserFeedKey {
 	return storage.UserFeedKey{UserID: testUser.UserId, FeedID: feedID}
 }
 
-func feedsOf(ids ...int64) map[storage.UserFeedKey]models.User {
+func feedsOf(ids ...models.FeedId) map[storage.UserFeedKey]models.User {
 	feeds := map[storage.UserFeedKey]models.User{}
 	for _, id := range ids {
 		feeds[key(id)] = testUser
@@ -31,7 +31,7 @@ type clock struct{ t time.Time }
 
 func (c *clock) now() time.Time          { return c.t }
 func (c *clock) advance(d time.Duration) { c.t = c.t.Add(d) }
-func (c *clock) snapshot(ids ...int64) snapshot {
+func (c *clock) snapshot(ids ...models.FeedId) snapshot {
 	return snapshot{started: c.t, feeds: feedsOf(ids...)}
 }
 
@@ -73,15 +73,15 @@ func runningScheduler(t *testing.T, workers int, feeds map[storage.UserFeedKey]m
 	return s
 }
 
-func queued(s *Scheduler) []int64 {
-	var ids []int64
+func queued(s *Scheduler) []models.FeedId {
+	var ids []models.FeedId
 	for _, j := range s.queue {
 		ids = append(ids, j.key.FeedID)
 	}
 	return ids
 }
 
-func waitFor(t *testing.T, what string, ch <-chan int64) int64 {
+func waitFor(t *testing.T, what string, ch <-chan models.FeedId) models.FeedId {
 	t.Helper()
 	select {
 	case id := <-ch:
@@ -96,11 +96,11 @@ func waitFor(t *testing.T, what string, ch <-chan int64) int64 {
 func TestSchedulerFetchesEveryFeedWithBoundedConcurrency(t *testing.T) {
 	const feeds, workers = 20, 3
 	var inFlight, most atomic.Int32
-	fetched := make(chan int64, feeds)
+	fetched := make(chan models.FeedId, feeds)
 
-	ids := make([]int64, feeds)
+	ids := make([]models.FeedId, feeds)
 	for i := range ids {
-		ids[i] = int64(i + 1)
+		ids[i] = models.FeedId(i + 1)
 	}
 	runningScheduler(t, workers, feedsOf(ids...), func(tk task) outcome {
 		n := inFlight.Add(1)
@@ -116,7 +116,7 @@ func TestSchedulerFetchesEveryFeedWithBoundedConcurrency(t *testing.T) {
 		return outcome{key: tk.key, next: time.Now().Add(time.Hour)}
 	})
 
-	seen := map[int64]bool{}
+	seen := map[models.FeedId]bool{}
 	for range feeds {
 		id := waitFor(t, "every feed to be fetched", fetched)
 		if seen[id] {
@@ -131,7 +131,7 @@ func TestSchedulerFetchesEveryFeedWithBoundedConcurrency(t *testing.T) {
 
 // A feed is fetched again when the worker said it would next be due.
 func TestSchedulerRequeuesAtTheReportedTime(t *testing.T) {
-	fetched := make(chan int64, 10)
+	fetched := make(chan models.FeedId, 10)
 	runningScheduler(t, 1, feedsOf(1), func(tk task) outcome {
 		fetched <- tk.key.FeedID
 		return outcome{key: tk.key, next: time.Now().Add(20 * time.Millisecond)}
@@ -145,7 +145,7 @@ func TestSchedulerRequeuesAtTheReportedTime(t *testing.T) {
 // A feed added while fetching runs is fetched at once, not at the next
 // reconcile.
 func TestScheduleFetchesANewFeedAtOnce(t *testing.T) {
-	fetched := make(chan int64, 1)
+	fetched := make(chan models.FeedId, 1)
 	s := runningScheduler(t, 1, feedsOf(), func(tk task) outcome {
 		fetched <- tk.key.FeedID
 		return outcome{key: tk.key, next: time.Now().Add(time.Hour)}
@@ -160,8 +160,8 @@ func TestScheduleFetchesANewFeedAtOnce(t *testing.T) {
 // Unsubscribing from a feed mid-fetch cancels the fetch without waiting for
 // it, and the feed is not fetched again, however soon it said it was due.
 func TestUnscheduleCancelsAFetchInFlightAndDoesNotRequeueIt(t *testing.T) {
-	started := make(chan int64, 10)
-	cancelled := make(chan int64, 1)
+	started := make(chan models.FeedId, 10)
+	cancelled := make(chan models.FeedId, 1)
 	s := runningScheduler(t, 1, feedsOf(1), func(tk task) outcome {
 		started <- tk.key.FeedID
 		select {
@@ -190,7 +190,7 @@ func TestScheduleAndUnscheduleDoNotBlockWithoutAScheduler(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		for i := range int64(100) {
+		for i := range models.FeedId(100) {
 			s.Schedule(testUser, i)
 			s.Unschedule(testUser, i)
 		}
@@ -248,7 +248,7 @@ func TestReconcileAddsAndDropsFeeds(t *testing.T) {
 	c.advance(time.Second)
 	s.reconcile(c.snapshot(2, 3), false)
 
-	for id, want := range map[int64]bool{1: false, 2: true, 3: true} {
+	for id, want := range map[models.FeedId]bool{1: false, 2: true, 3: true} {
 		if _, ok := s.jobs[key(id)]; ok != want {
 			t.Errorf("feed %d known = %t, want %t", id, ok, want)
 		}
@@ -407,7 +407,7 @@ func TestFeedMetricsFollowTheFeed(t *testing.T) {
 func TestRunStopsItsWorkers(t *testing.T) {
 	var running sync.WaitGroup
 	running.Add(1)
-	started := make(chan int64, 1)
+	started := make(chan models.FeedId, 1)
 	s := &Scheduler{
 		workers:           2,
 		metadataInterval:  time.Hour,

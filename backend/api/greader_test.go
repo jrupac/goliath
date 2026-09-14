@@ -64,7 +64,7 @@ func TestHandleParseFullArticle(t *testing.T) {
 
 	// Configure mock database
 	mockDB := &storage.MockDB{
-		OnGetArticlesForUser: func(u models.User, ids []int64) ([]models.Article, error) {
+		OnGetArticlesForUser: func(u models.User, ids []models.ArticleId) ([]models.Article, error) {
 			if len(ids) == 1 && ids[0] == 12345 {
 				return []models.Article{
 					{
@@ -80,7 +80,7 @@ func TestHandleParseFullArticle(t *testing.T) {
 	}
 
 	var savedParsedContent string
-	mockDB.OnUpdateArticleParsedContentForUser = func(u models.User, articleID int64, parsed string) error {
+	mockDB.OnUpdateArticleParsedContentForUser = func(u models.User, articleID models.ArticleId, parsed string) error {
 		if articleID == 12345 {
 			savedParsedContent = parsed
 		}
@@ -148,11 +148,11 @@ func editTagRequest(user models.User, tag string, addTag bool, hexIds ...string)
 // issue a single bulk mark rather than one call per ID.
 func TestHandleEditTagMarksAllIdsInOneCall(t *testing.T) {
 	var calls int
-	var gotIds []int64
+	var gotIds []models.ArticleId
 	var gotMark models.MarkAction
 
 	mockDB := &storage.MockDB{
-		OnMarkArticlesForUser: func(_ models.User, ids []int64, mark models.MarkAction) (int64, error) {
+		OnMarkArticlesForUser: func(_ models.User, ids []models.ArticleId, mark models.MarkAction) (int64, error) {
 			calls++
 			gotIds = ids
 			gotMark = mark
@@ -173,7 +173,7 @@ func TestHandleEditTagMarksAllIdsInOneCall(t *testing.T) {
 		t.Errorf("MarkArticlesForUser called %d times, want exactly 1", calls)
 	}
 	// Article IDs are hex on the wire.
-	want := []int64{12345, 1, 1207726252529385473}
+	want := []models.ArticleId{12345, 1, 1207726252529385473}
 	if len(gotIds) != len(want) {
 		t.Fatalf("marked %v, want %v", gotIds, want)
 	}
@@ -192,7 +192,7 @@ func TestHandleEditTagMarksAllIdsInOneCall(t *testing.T) {
 func TestHandleEditTagRemoveReadMarksUnread(t *testing.T) {
 	var gotMark models.MarkAction
 	mockDB := &storage.MockDB{
-		OnMarkArticlesForUser: func(_ models.User, ids []int64, mark models.MarkAction) (int64, error) {
+		OnMarkArticlesForUser: func(_ models.User, ids []models.ArticleId, mark models.MarkAction) (int64, error) {
 			gotMark = mark
 			return int64(len(ids)), nil
 		},
@@ -526,7 +526,7 @@ func TestEditTagRejectsPostTokenFromAnotherSession(t *testing.T) {
 	other := models.Session{SessionId: "session-2", UserId: user.UserId}
 
 	greader := GReader{d: &storage.MockDB{
-		OnMarkArticlesForUser: func(models.User, []int64, models.MarkAction) (int64, error) {
+		OnMarkArticlesForUser: func(models.User, []models.ArticleId, models.MarkAction) (int64, error) {
 			t.Error("articles were marked despite a post token from another session")
 			return 0, nil
 		},
@@ -602,8 +602,8 @@ func TestStreamItemIdsLabelsItemsWithTheirFeedsFolder(t *testing.T) {
 		OnGetArticleMetaWithFilterForUser: func(models.User, models.Stream, int, models.StreamCursor) ([]models.ArticleMeta, error) {
 			return []models.ArticleMeta{{ID: 1, FeedID: 7}, {ID: 2, FeedID: 8}}, nil
 		},
-		OnGetFeedsPerFolderForUser: func(models.User) (map[int64][]int64, error) {
-			return map[int64][]int64{3: {7}}, nil
+		OnGetFeedsPerFolderForUser: func(models.User) (map[models.FolderId][]models.FeedId, error) {
+			return map[models.FolderId][]models.FeedId{3: {7}}, nil
 		},
 	}
 
@@ -746,7 +746,7 @@ func streamFor(t *testing.T, mockDB *storage.MockDB, params url.Values) (models.
 // unread part, as clients expect of any stream but the reading list.
 func TestStreamItemIdsFeedStreamHoldsEverythingInTheFeed(t *testing.T) {
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+		OnGetFeedForUser: func(_ models.User, feedID models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: feedID}, nil
 		},
 	}
@@ -766,7 +766,7 @@ func TestStreamItemIdsFeedStreamHoldsEverythingInTheFeed(t *testing.T) {
 // every other label is.
 func TestStreamItemIdsFolderStream(t *testing.T) {
 	mockDB := &storage.MockDB{
-		OnGetFolderForUser: func(_ models.User, folderID int64) (models.Folder, error) {
+		OnGetFolderForUser: func(_ models.User, folderID models.FolderId) (models.Folder, error) {
 			return models.Folder{ID: folderID, Name: "Comics"}, nil
 		},
 		OnGetAllFoldersForUser: func(models.User) ([]models.Folder, error) {
@@ -870,13 +870,13 @@ func editRequest(user models.User, form url.Values) *http.Request {
 // exist, or the endpoint answers whether an ID is in use.
 func TestSubscriptionEditRefusesAnotherUsersFeed(t *testing.T) {
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+		OnGetFeedForUser: func(_ models.User, feedID models.FeedId) (models.Feed, error) {
 			if feedID == 1 {
 				return models.Feed{ID: 1, FolderID: 9}, nil
 			}
 			return models.Feed{}, sql.ErrNoRows
 		},
-		OnTombstoneFeedForUser: func(models.User, int64) error {
+		OnTombstoneFeedForUser: func(models.User, models.FeedId) error {
 			t.Error("deleted a feed the user does not own")
 			return nil
 		},
@@ -904,9 +904,9 @@ func TestSubscriptionEditRefusesAnotherUsersFeed(t *testing.T) {
 // convention.
 func TestSubscriptionEditAcceptsBothFeedIdForms(t *testing.T) {
 	for _, s := range []string{"feed/12345", "12345"} {
-		var renamed int64
+		var renamed models.FeedId
 		mockDB := &storage.MockDB{
-			OnGetFeedForUser: func(_ models.User, feedID int64) (models.Feed, error) {
+			OnGetFeedForUser: func(_ models.User, feedID models.FeedId) (models.Feed, error) {
 				return models.Feed{ID: feedID, FolderID: 9}, nil
 			},
 			OnRenameFeedForUser: func(_ models.User, f models.Feed) error {
@@ -931,7 +931,7 @@ func TestSubscriptionEditAcceptsBothFeedIdForms(t *testing.T) {
 func TestSubscriptionEditRenames(t *testing.T) {
 	var got models.Feed
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3, Title: "Old", URL: "https://e.invalid/f"}, nil
 		},
 		OnRenameFeedForUser: func(_ models.User, f models.Feed) error {
@@ -956,15 +956,15 @@ func TestSubscriptionEditRenames(t *testing.T) {
 // A move names its destination folder in `a`, mirroring edit-tag's add-label
 // convention.
 func TestSubscriptionEditMovesBetweenFolders(t *testing.T) {
-	var toFolder int64
+	var toFolder models.FolderId
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3}, nil
 		},
-		OnGetFolderForUser: func(_ models.User, folderID int64) (models.Folder, error) {
+		OnGetFolderForUser: func(_ models.User, folderID models.FolderId) (models.Folder, error) {
 			return models.Folder{ID: folderID}, nil
 		},
-		OnUpdateFolderForFeedForUser: func(_ models.User, _, folderID int64) error {
+		OnUpdateFolderForFeedForUser: func(_ models.User, _ models.FeedId, folderID models.FolderId) error {
 			toFolder = folderID
 			return nil
 		},
@@ -988,10 +988,10 @@ func TestSubscriptionEditMovesBetweenFolders(t *testing.T) {
 // somebody else's folder would file the feed where the requester cannot see it.
 func TestSubscriptionEditRefusesAnotherUsersFolder(t *testing.T) {
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3}, nil
 		},
-		OnUpdateFolderForFeedForUser: func(models.User, int64, int64) error {
+		OnUpdateFolderForFeedForUser: func(models.User, models.FeedId, models.FolderId) error {
 			t.Error("moved a feed into a folder the user does not own")
 			return nil
 		},
@@ -1011,7 +1011,7 @@ func TestSubscriptionEditRefusesAnotherUsersFolder(t *testing.T) {
 // into a folder it did not move to.
 func TestSubscriptionEditDoesNotRenameWhenTheMoveFails(t *testing.T) {
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3}, nil
 		},
 		OnRenameFeedForUser: func(models.User, models.Feed) error {
@@ -1032,30 +1032,30 @@ func TestSubscriptionEditDoesNotRenameWhenTheMoveFails(t *testing.T) {
 
 // recordingSubscriptions records what a handler told the fetcher.
 type recordingSubscriptions struct {
-	scheduled, unscheduled []int64
+	scheduled, unscheduled []models.FeedId
 }
 
-func (r *recordingSubscriptions) Schedule(_ models.User, feedID int64) {
+func (r *recordingSubscriptions) Schedule(_ models.User, feedID models.FeedId) {
 	r.scheduled = append(r.scheduled, feedID)
 }
 
-func (r *recordingSubscriptions) Unschedule(_ models.User, feedID int64) {
+func (r *recordingSubscriptions) Unschedule(_ models.User, feedID models.FeedId) {
 	r.unscheduled = append(r.unscheduled, feedID)
 }
 
 // Unsubscribing tombstones the feed and stops fetching it, in that order: a
 // fetch that starts in between finds the feed gone and drops it.
 func TestSubscriptionEditUnsubscribes(t *testing.T) {
-	var tombstoned int64
+	var tombstoned models.FeedId
 	subs := &recordingSubscriptions{}
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3, Title: "Doomed"}, nil
 		},
-		OnGetArticlesForFeedForUser: func(models.User, int64) ([]models.Article, error) {
+		OnGetArticlesForFeedForUser: func(models.User, models.FeedId) ([]models.Article, error) {
 			return []models.Article{{ID: 1}, {ID: 2}}, nil
 		},
-		OnTombstoneFeedForUser: func(_ models.User, feedID int64) error {
+		OnTombstoneFeedForUser: func(_ models.User, feedID models.FeedId) error {
 			if len(subs.unscheduled) != 0 {
 				t.Error("unscheduled the feed before tombstoning it")
 			}
@@ -1084,10 +1084,10 @@ func TestSubscriptionEditUnsubscribes(t *testing.T) {
 func TestSubscriptionEditUnsubscribeOfAFeedAlreadyGone(t *testing.T) {
 	subs := &recordingSubscriptions{}
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3}, nil
 		},
-		OnTombstoneFeedForUser: func(models.User, int64) error {
+		OnTombstoneFeedForUser: func(models.User, models.FeedId) error {
 			return sql.ErrNoRows
 		},
 	}
@@ -1112,7 +1112,7 @@ func TestQuickAddRestoresAFeedUnsubscribedFrom(t *testing.T) {
 			}
 			return models.Feed{}, sql.ErrNoRows
 		},
-		OnInsertFeedForUser: func(models.User, models.Feed, int64) (int64, error) {
+		OnInsertFeedForUser: func(models.User, models.Feed, models.FolderId) (models.FeedId, error) {
 			t.Error("subscribed afresh to a feed that could be restored")
 			return 0, nil
 		},
@@ -1146,7 +1146,7 @@ func TestQuickAddReportsRestoreFailureRatherThanAddingAgain(t *testing.T) {
 		OnRestoreFeedByUrlForUser: func(models.User, string) (models.Feed, error) {
 			return models.Feed{}, errors.New("connection refused")
 		},
-		OnInsertFeedForUser: func(models.User, models.Feed, int64) (int64, error) {
+		OnInsertFeedForUser: func(models.User, models.Feed, models.FolderId) (models.FeedId, error) {
 			t.Error("added a feed although the restore check failed")
 			return 0, nil
 		},
@@ -1166,10 +1166,10 @@ func TestQuickAddReportsRestoreFailureRatherThanAddingAgain(t *testing.T) {
 // changes something.
 func TestSubscriptionEditRefusesUnknownAction(t *testing.T) {
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7}, nil
 		},
-		OnTombstoneFeedForUser: func(models.User, int64) error {
+		OnTombstoneFeedForUser: func(models.User, models.FeedId) error {
 			t.Error("an unknown action deleted a feed")
 			return nil
 		},
@@ -1188,14 +1188,14 @@ func TestSubscriptionEditRefusesUnknownAction(t *testing.T) {
 // unsigned request.
 func TestSubscriptionEndpointsRequireAPostToken(t *testing.T) {
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7}, nil
 		},
-		OnTombstoneFeedForUser: func(models.User, int64) error {
+		OnTombstoneFeedForUser: func(models.User, models.FeedId) error {
 			t.Error("deleted a feed without a post token")
 			return nil
 		},
-		OnInsertFeedForUser: func(models.User, models.Feed, int64) (int64, error) {
+		OnInsertFeedForUser: func(models.User, models.Feed, models.FolderId) (models.FeedId, error) {
 			t.Error("added a feed without a post token")
 			return 0, nil
 		},
@@ -1239,7 +1239,7 @@ func TestQuickAddIsIdempotentForAnExistingFeed(t *testing.T) {
 			}
 			return models.Feed{}, sql.ErrNoRows
 		},
-		OnInsertFeedForUser: func(models.User, models.Feed, int64) (int64, error) {
+		OnInsertFeedForUser: func(models.User, models.Feed, models.FolderId) (models.FeedId, error) {
 			t.Error("inserted a feed that was already subscribed to")
 			return 0, nil
 		},
@@ -1277,7 +1277,7 @@ func TestQuickAddRequiresAUrl(t *testing.T) {
 // stored as a subscription that would fail on every cycle afterwards.
 func TestQuickAddRefusesSomethingThatIsNotAFeed(t *testing.T) {
 	mockDB := &storage.MockDB{
-		OnInsertFeedForUser: func(models.User, models.Feed, int64) (int64, error) {
+		OnInsertFeedForUser: func(models.User, models.Feed, models.FolderId) (models.FeedId, error) {
 			t.Error("stored a subscription for a URL that is not a feed")
 			return 0, nil
 		},
@@ -1334,7 +1334,7 @@ func TestSubscriptionListIncludesTheFeedUrl(t *testing.T) {
 func TestSubscriptionEditMarksARenamedTitleAsTheUsers(t *testing.T) {
 	var got models.Feed
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3, Title: "From The Feed"}, nil
 		},
 		OnRenameFeedForUser: func(_ models.User, f models.Feed) error {
@@ -1356,10 +1356,10 @@ func TestSubscriptionEditMarksARenamedTitleAsTheUsers(t *testing.T) {
 // free to update it.
 func TestSubscriptionEditMoveDoesNotClaimTheTitle(t *testing.T) {
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3, Title: "From The Feed"}, nil
 		},
-		OnGetFolderForUser: func(_ models.User, folderID int64) (models.Folder, error) {
+		OnGetFolderForUser: func(_ models.User, folderID models.FolderId) (models.Folder, error) {
 			return models.Folder{ID: folderID}, nil
 		},
 		OnRenameFeedForUser: func(_ models.User, f models.Feed) error {
@@ -1383,7 +1383,7 @@ func TestSubscriptionEditMoveDoesNotClaimTheTitle(t *testing.T) {
 // something that is not wrong.
 func TestSubscriptionEditReportsLookupFailureAsServerError(t *testing.T) {
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{}, errors.New("connection refused")
 		},
 	}
@@ -1402,14 +1402,14 @@ func TestSubscriptionEditReportsLookupFailureAsServerError(t *testing.T) {
 // unsubscribing. Refusing a request that asks for no change destroys the feed.
 func TestSubscriptionEditWithNothingToChangeSucceeds(t *testing.T) {
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: 3, Title: "Just Added"}, nil
 		},
 		OnRenameFeedForUser: func(models.User, models.Feed) error {
 			t.Error("a no-op edit rewrote the feed")
 			return nil
 		},
-		OnUpdateFolderForFeedForUser: func(models.User, int64, int64) error {
+		OnUpdateFolderForFeedForUser: func(models.User, models.FeedId, models.FolderId) error {
 			t.Error("a no-op edit moved the feed")
 			return nil
 		},
@@ -1435,7 +1435,7 @@ func TestQuickAddReportsLookupFailureRatherThanAddingAgain(t *testing.T) {
 		OnGetFeedByUrlForUser: func(models.User, string) (models.Feed, error) {
 			return models.Feed{}, errors.New("connection refused")
 		},
-		OnInsertFeedForUser: func(models.User, models.Feed, int64) (int64, error) {
+		OnInsertFeedForUser: func(models.User, models.Feed, models.FolderId) (models.FeedId, error) {
 			t.Error("added a feed although the existing-subscription check failed")
 			return 0, nil
 		},
@@ -1455,7 +1455,7 @@ func TestQuickAddReportsLookupFailureRatherThanAddingAgain(t *testing.T) {
 // in it are the ones filed nowhere else, so it is presented under a name meant
 // for people.
 func TestSubscriptionListPresentsTheRootFolderUnderAReadableName(t *testing.T) {
-	const rootId, comicsId = int64(1), int64(2)
+	const rootId, comicsId = models.FolderId(1), models.FolderId(2)
 	mockDB := &storage.MockDB{
 		OnGetRootFolderForUser: func(models.User) (models.Folder, error) {
 			return models.Folder{ID: rootId, Name: models.RootFolder}, nil
@@ -1499,16 +1499,16 @@ func TestSubscriptionListPresentsTheRootFolderUnderAReadableName(t *testing.T) {
 // saying the feed should no longer be filed anywhere, which is the folder
 // unfiled feeds live in.
 func TestSubscriptionEditRemovingTheOnlyLabelMovesToTheRoot(t *testing.T) {
-	const rootId, comicsId = int64(1), int64(2)
-	var movedTo int64
+	const rootId, comicsId = models.FolderId(1), models.FolderId(2)
+	var movedTo models.FolderId
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: comicsId}, nil
 		},
 		OnGetRootFolderForUser: func(models.User) (models.Folder, error) {
 			return models.Folder{ID: rootId, Name: models.RootFolder}, nil
 		},
-		OnUpdateFolderForFeedForUser: func(_ models.User, _, folderID int64) error {
+		OnUpdateFolderForFeedForUser: func(_ models.User, _ models.FeedId, folderID models.FolderId) error {
 			movedTo = folderID
 			return nil
 		},
@@ -1530,15 +1530,15 @@ func TestSubscriptionEditRemovingTheOnlyLabelMovesToTheRoot(t *testing.T) {
 // Removing a label from a feed already unfiled asks for no change, so nothing
 // is written.
 func TestSubscriptionEditRemovingALabelFromAnUnfiledFeedDoesNothing(t *testing.T) {
-	const rootId = int64(1)
+	const rootId = models.FolderId(1)
 	mockDB := &storage.MockDB{
-		OnGetFeedForUser: func(models.User, int64) (models.Feed, error) {
+		OnGetFeedForUser: func(models.User, models.FeedId) (models.Feed, error) {
 			return models.Feed{ID: 7, FolderID: rootId}, nil
 		},
 		OnGetRootFolderForUser: func(models.User) (models.Folder, error) {
 			return models.Folder{ID: rootId, Name: models.RootFolder}, nil
 		},
-		OnUpdateFolderForFeedForUser: func(models.User, int64, int64) error {
+		OnUpdateFolderForFeedForUser: func(models.User, models.FeedId, models.FolderId) error {
 			t.Error("moved a feed that was already unfiled")
 			return nil
 		},

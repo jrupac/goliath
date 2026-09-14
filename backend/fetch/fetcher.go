@@ -115,7 +115,7 @@ func init() {
 }
 
 type imagePair struct {
-	id      int64
+	id      models.FeedId
 	mime    string
 	favicon []byte
 }
@@ -306,7 +306,7 @@ func (f Fetcher) fetchFeed(t task) outcome {
 		return o
 	}
 
-	o.labels = []string{user.Username, strconv.FormatInt(feed.ID, 10), feed.Title, feed.URL}
+	o.labels = []string{user.Username, strconv.FormatInt(int64(feed.ID), 10), feed.Title, feed.URL}
 	feedFetchAttemptsMetric.WithLabelValues(o.labels...).Inc()
 	log.Infof("Fetching %s %s", user, feed)
 
@@ -400,7 +400,7 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 	// Accepted articles are stored together once every item has been looked
 	// at, rather than each as it is accepted.
 	var accepted []models.Article
-	var similarUnread []int64
+	var similarUnread []models.ArticleId
 	acceptedHashes := map[string]bool{}
 
 	for _, item := range items {
@@ -480,7 +480,7 @@ func (f Fetcher) processUserFeedItems(ctx context.Context, user models.User, fee
 		"Fetch stats:\n\t%s %s\n\ttotal=%d, inserted=%d (marked read=%d, updated existing=%d, existing removed=%d), too old=%d, retrieval cache=%d, muted=%d",
 		user, feed, numTotal, numInserted, numMarkedRead, numUpdatedExisting, numExistingRemoved, numTooOld, numRetrievalCache, numMuted)
 
-	feedIDStr := strconv.FormatInt(feed.ID, 10)
+	feedIDStr := strconv.FormatInt(int64(feed.ID), 10)
 	statCounts := []int{numTotal, numInserted, numMarkedRead, numUpdatedExisting, numExistingRemoved, numTooOld, numRetrievalCache, numMuted}
 	for i, stat := range feedFetchStatKeys {
 		if statCounts[i] > 0 {

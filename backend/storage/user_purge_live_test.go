@@ -51,7 +51,7 @@ func TestUserDeletionAgainstDatabase(t *testing.T) {
 
 	// Articles are made in the database, which is far quicker than inserting
 	// them one by one and makes no difference to what is being measured.
-	fill := func(u models.User, n int) int64 {
+	fill := func(u models.User, n int) models.FeedId {
 		feed, err := crdb.InsertFeedForUser(u, models.Feed{Title: "t", URL: "http://example.invalid/" + suffix,
 			Link: "http://example.invalid"}, 0)
 		if err != nil {

@@ -25,7 +25,7 @@ func folderDB(folders ...models.Folder) *storage.MockDB {
 		OnGetAllFoldersForUser: func(models.User) ([]models.Folder, error) {
 			return slices.Clone(folders), nil
 		},
-		OnGetFolderForUser: func(_ models.User, id int64) (models.Folder, error) {
+		OnGetFolderForUser: func(_ models.User, id models.FolderId) (models.Folder, error) {
 			for _, f := range folders {
 				if f.ID == id {
 					return f, nil
@@ -69,17 +69,17 @@ func TestTagListPresentsTheRootUnderItsDisplayName(t *testing.T) {
 
 // moveDB is a folder mock holding feed 7 in folder 3, recording where a move
 // sends it and what folder, if any, is created on the way.
-func moveDB(t *testing.T, toFolder *int64, created *models.Folder, folders ...models.Folder) *storage.MockDB {
+func moveDB(t *testing.T, toFolder *models.FolderId, created *models.Folder, folders ...models.Folder) *storage.MockDB {
 	t.Helper()
 	mockDB := folderDB(folders...)
-	mockDB.OnGetFeedForUser = func(models.User, int64) (models.Feed, error) {
+	mockDB.OnGetFeedForUser = func(models.User, models.FeedId) (models.Feed, error) {
 		return models.Feed{ID: 7, FolderID: 3}, nil
 	}
-	mockDB.OnUpdateFolderForFeedForUser = func(_ models.User, _, folderID int64) error {
+	mockDB.OnUpdateFolderForFeedForUser = func(_ models.User, _ models.FeedId, folderID models.FolderId) error {
 		*toFolder = folderID
 		return nil
 	}
-	mockDB.OnInsertFolderForUser = func(_ models.User, f models.Folder, parentID int64) (int64, error) {
+	mockDB.OnInsertFolderForUser = func(_ models.User, f models.Folder, parentID models.FolderId) (models.FolderId, error) {
 		if created == nil {
 			t.Errorf("created folder %q, which already exists", f.Name)
 			return 0, nil
@@ -96,7 +96,7 @@ func moveDB(t *testing.T, toFolder *int64, created *models.Folder, folders ...mo
 // A client makes a folder by filing a feed under a label that does not exist
 // yet; there is no request that only creates one.
 func TestSubscriptionEditCreatesAFolderNamedByLabel(t *testing.T) {
-	var toFolder int64
+	var toFolder models.FolderId
 	var created models.Folder
 	mockDB := moveDB(t, &toFolder, &created, testRoot, testOld)
 	user := models.User{UserId: "u", Username: "u"}
@@ -117,7 +117,7 @@ func TestSubscriptionEditCreatesAFolderNamedByLabel(t *testing.T) {
 }
 
 func TestSubscriptionEditFilesUnderAnExistingFolderByName(t *testing.T) {
-	var toFolder int64
+	var toFolder models.FolderId
 	mockDB := moveDB(t, &toFolder, nil, testRoot, testOld, testTech)
 	user := models.User{UserId: "u", Username: "u"}
 	w := httptest.NewRecorder()
@@ -137,7 +137,7 @@ func TestSubscriptionEditFilesUnderAnExistingFolderByName(t *testing.T) {
 // name is asking for the root, not for a new folder that the name is reserved
 // against anyway.
 func TestSubscriptionEditUncategorizedMeansTheRoot(t *testing.T) {
-	var toFolder int64
+	var toFolder models.FolderId
 	mockDB := moveDB(t, &toFolder, nil, testRoot, testOld)
 	user := models.User{UserId: "u", Username: "u"}
 	w := httptest.NewRecorder()
@@ -156,7 +156,7 @@ func TestSubscriptionEditUncategorizedMeansTheRoot(t *testing.T) {
 // Taken as a name, another kind of stream ID would make a folder called
 // "user/-/state/...".
 func TestSubscriptionEditRefusesAStateAsAFolder(t *testing.T) {
-	var toFolder int64
+	var toFolder models.FolderId
 	mockDB := moveDB(t, &toFolder, nil, testRoot, testOld)
 	user := models.User{UserId: "u", Username: "u"}
 	w := httptest.NewRecorder()
@@ -175,7 +175,7 @@ func TestSubscriptionEditRefusesAStateAsAFolder(t *testing.T) {
 // renameDB is a folder mock recording what a rename asked for.
 func renameDB(renamed *models.Folder, folders ...models.Folder) *storage.MockDB {
 	mockDB := folderDB(folders...)
-	mockDB.OnRenameFolderForUser = func(_ models.User, id int64, name string) error {
+	mockDB.OnRenameFolderForUser = func(_ models.User, id models.FolderId, name string) error {
 		*renamed = models.Folder{ID: id, Name: name}
 		return nil
 	}
@@ -220,7 +220,7 @@ func TestRenameTagRefusals(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			mockDB := folderDB(testRoot, testTech)
-			mockDB.OnRenameFolderForUser = func(models.User, int64, string) error {
+			mockDB.OnRenameFolderForUser = func(models.User, models.FolderId, string) error {
 				t.Error("renamed a folder")
 				return nil
 			}
@@ -239,7 +239,7 @@ func TestRenameTagRefusals(t *testing.T) {
 // since checking first would race another rename.
 func TestRenameTagReportsATakenNameAsAConflict(t *testing.T) {
 	mockDB := folderDB(testRoot, testOld, testTech)
-	mockDB.OnRenameFolderForUser = func(models.User, int64, string) error {
+	mockDB.OnRenameFolderForUser = func(models.User, models.FolderId, string) error {
 		return storage.ErrFolderNameTaken
 	}
 	user := models.User{UserId: "u", Username: "u"}
@@ -253,10 +253,10 @@ func TestRenameTagReportsATakenNameAsAConflict(t *testing.T) {
 }
 
 // disableDB is a folder mock recording which folders were removed.
-func disableDB(t *testing.T, removed *[]int64, folders ...models.Folder) *storage.MockDB {
+func disableDB(t *testing.T, removed *[]models.FolderId, folders ...models.Folder) *storage.MockDB {
 	t.Helper()
 	mockDB := folderDB(folders...)
-	mockDB.OnDeleteFolderForUser = func(_ models.User, id int64) (int64, error) {
+	mockDB.OnDeleteFolderForUser = func(_ models.User, id models.FolderId) (int64, error) {
 		if removed == nil {
 			t.Errorf("removed folder %d", id)
 			return 0, nil
@@ -268,7 +268,7 @@ func disableDB(t *testing.T, removed *[]int64, folders ...models.Folder) *storag
 }
 
 func TestDisableTagRemovesEveryFolderNamed(t *testing.T) {
-	var removed []int64
+	var removed []models.FolderId
 	mockDB := disableDB(t, &removed, testRoot, testOld, testTech)
 	user := models.User{UserId: "u", Username: "u"}
 	w := httptest.NewRecorder()
@@ -279,7 +279,7 @@ func TestDisableTagRemovesEveryFolderNamed(t *testing.T) {
 		t.Fatalf("status = %d, want %d", got, http.StatusOK)
 	}
 	// Folder 3 was named twice, and is removed once.
-	if want := []int64{3, 4}; !slices.Equal(removed, want) {
+	if want := []models.FolderId{3, 4}; !slices.Equal(removed, want) {
 		t.Errorf("removed %v, want %v", removed, want)
 	}
 }
@@ -313,7 +313,7 @@ func TestDisableTagRefusals(t *testing.T) {
 // Both change or destroy folders, so neither may run on an unsigned request.
 func TestFolderEndpointsRequireAPostToken(t *testing.T) {
 	mockDB := disableDB(t, nil, testRoot, testOld)
-	mockDB.OnRenameFolderForUser = func(models.User, int64, string) error {
+	mockDB.OnRenameFolderForUser = func(models.User, models.FolderId, string) error {
 		t.Error("renamed a folder without a post token")
 		return nil
 	}

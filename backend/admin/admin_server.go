@@ -309,7 +309,7 @@ func (s *server) ResignProxiedImages(_ context.Context, req *ResignProxiedImages
 
 	// Walked in ID order rather than selected by pattern, so that the decision
 	// about what needs signing is made by the same code that does the signing.
-	var afterID int64
+	var afterID models.ArticleId
 	for {
 		articles, err := s.db.GetArticleContentsForUser(user, afterID, resignBatchSize)
 		if err != nil {
@@ -468,7 +468,7 @@ func (s *server) GetUnmutedFeeds(_ context.Context, req *GetUnmutedFeedsRequest)
 	}
 
 	for _, m := range unmutedFeeds {
-		resp.UnmutedFeedId = append(resp.UnmutedFeedId, m)
+		resp.UnmutedFeedId = append(resp.UnmutedFeedId, int64(m))
 	}
 
 	return resp, nil
@@ -492,11 +492,11 @@ func (s *server) AddUnmutedFeed(_ context.Context, req *AddUnmutedFeedRequest) (
 	}
 
 	// Make a unique list from the input
-	uniqueMap := make(map[int64]bool)
+	uniqueMap := make(map[models.FeedId]bool)
 	for _, id := range req.GetUnmutedFeedId() {
-		uniqueMap[id] = true
+		uniqueMap[models.FeedId(id)] = true
 	}
-	unmutedFeeds := make([]int64, 0, len(uniqueMap))
+	unmutedFeeds := make([]models.FeedId, 0, len(uniqueMap))
 	for id := range uniqueMap {
 		unmutedFeeds = append(unmutedFeeds, id)
 	}
@@ -528,11 +528,11 @@ func (s *server) DeleteUnmutedFeed(_ context.Context, req *DeleteUnmutedFeedRequ
 	}
 
 	// Make a unique list from the input
-	uniqueMap := make(map[int64]bool)
+	uniqueMap := make(map[models.FeedId]bool)
 	for _, id := range req.GetUnmutedFeedId() {
-		uniqueMap[id] = true
+		uniqueMap[models.FeedId(id)] = true
 	}
-	unmutedFeeds := make([]int64, 0, len(uniqueMap))
+	unmutedFeeds := make([]models.FeedId, 0, len(uniqueMap))
 	for id := range uniqueMap {
 		unmutedFeeds = append(unmutedFeeds, id)
 	}
@@ -549,7 +549,7 @@ func (s *server) DeleteUnmutedFeed(_ context.Context, req *DeleteUnmutedFeedRequ
 // AddFeed adds the specified feed into the database.
 func (s *server) AddFeed(_ context.Context, req *AddFeedRequest) (*AddFeedResponse, error) {
 	resp := &AddFeedResponse{}
-	folderID := int64(-1)
+	folderID := models.FolderId(-1)
 
 	if req.Title == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "must specify Title")
@@ -610,7 +610,7 @@ func (s *server) AddFeed(_ context.Context, req *AddFeedRequest) (*AddFeedRespon
 	}
 	s.subs.Schedule(user, feedID)
 
-	resp.Id = feedID
+	resp.Id = int64(feedID)
 
 	// TODO: Indicate if feed already existed.
 	return resp, nil
@@ -635,7 +635,7 @@ func (s *server) GetFeeds(_ context.Context, req *GetFeedsRequest) (*GetFeedsRes
 	}
 
 	for _, f := range feeds {
-		resp.Feeds = append(resp.Feeds, &GetFeedsResponse_Feed{Id: f.ID, Title: f.Title})
+		resp.Feeds = append(resp.Feeds, &GetFeedsResponse_Feed{Id: int64(f.ID), Title: f.Title})
 	}
 
 	return resp, nil
@@ -659,14 +659,14 @@ func (s *server) RemoveFeed(_ context.Context, req *RemoveFeedRequest) (*RemoveF
 		return nil, status.Error(codes.NotFound, "could not find user")
 	}
 
-	switch err = s.db.TombstoneFeedForUser(user, req.Id); {
+	switch err = s.db.TombstoneFeedForUser(user, models.FeedId(req.Id)); {
 	case err == nil:
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, status.Error(codes.InvalidArgument, "could not find feed")
 	default:
 		return nil, status.Error(codes.Internal, "internal error")
 	}
-	s.subs.Unschedule(user, req.Id)
+	s.subs.Unschedule(user, models.FeedId(req.Id))
 
 	return resp, nil
 }
@@ -692,7 +692,7 @@ func (s *server) EditFeed(_ context.Context, req *EditFeedRequest) (*EditFeedRes
 		return nil, status.Error(codes.Internal, "internal error")
 	}
 
-	var folderId int64 = -1
+	var folderId models.FolderId = -1
 	for _, f := range folders {
 		if f.Name == req.Folder {
 			folderId = f.ID
@@ -703,7 +703,7 @@ func (s *server) EditFeed(_ context.Context, req *EditFeedRequest) (*EditFeedRes
 		return nil, status.Error(codes.InvalidArgument, "could not find folder")
 	}
 
-	err = s.db.UpdateFolderForFeedForUser(user, req.Id, folderId)
+	err = s.db.UpdateFolderForFeedForUser(user, models.FeedId(req.Id), folderId)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "internal error")
 	}
@@ -733,7 +733,7 @@ func (s *server) GetFeedMuteRegexes(_ context.Context, req *GetFeedMuteRegexesRe
 	for feedId, regexes := range rulesMap {
 		for _, r := range regexes {
 			resp.Rules = append(resp.Rules, &FeedMuteRegexRule{
-				FeedId: feedId,
+				FeedId: int64(feedId),
 				Regex:  r,
 			})
 		}
@@ -773,7 +773,7 @@ func (s *server) AddFeedMuteRegex(_ context.Context, req *AddFeedMuteRegexReques
 	}
 	feedExists := false
 	for _, f := range feeds {
-		if f.ID == req.FeedId {
+		if f.ID == models.FeedId(req.FeedId) {
 			feedExists = true
 			break
 		}
@@ -782,7 +782,7 @@ func (s *server) AddFeedMuteRegex(_ context.Context, req *AddFeedMuteRegexReques
 		return nil, status.Errorf(codes.NotFound, "could not find feed with ID %d for user", req.FeedId)
 	}
 
-	err = s.db.AddMuteRegexForFeedForUser(user, req.FeedId, req.Regex)
+	err = s.db.AddMuteRegexForFeedForUser(user, models.FeedId(req.FeedId), req.Regex)
 	if err != nil {
 		log.Warningf("while adding feed mute regex: %+v", err)
 		return nil, status.Errorf(codes.Internal, "could not insert feed mute regex")
@@ -810,7 +810,7 @@ func (s *server) DeleteFeedMuteRegex(_ context.Context, req *DeleteFeedMuteRegex
 		return nil, status.Errorf(codes.NotFound, "could not find user")
 	}
 
-	err = s.db.DeleteMuteRegexForFeedForUser(user, req.FeedId, req.Regex)
+	err = s.db.DeleteMuteRegexForFeedForUser(user, models.FeedId(req.FeedId), req.Regex)
 	if err != nil {
 		log.Warningf("while deleting feed mute regex: %+v", err)
 		return nil, status.Errorf(codes.Internal, "could not delete feed mute regex")

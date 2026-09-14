@@ -18,7 +18,7 @@ func TestArticleMetaQueryShapes(t *testing.T) {
 		name        string
 		stream      models.Stream
 		cursor      models.StreamCursor
-		folderFeeds []int64
+		folderFeeds []models.FeedId
 		want        []string
 		notWant     []string
 		binds       int
@@ -47,7 +47,7 @@ func TestArticleMetaQueryShapes(t *testing.T) {
 		{
 			name:        "one folder",
 			stream:      models.Stream{Filter: models.StreamFilterAll, FolderID: 3},
-			folderFeeds: []int64{7, 8},
+			folderFeeds: []models.FeedId{7, 8},
 			want:        []string{"AND feed = ANY($4)"},
 			notWant:     []string{"$5", "NOT read", "feed = $"},
 			binds:       1,

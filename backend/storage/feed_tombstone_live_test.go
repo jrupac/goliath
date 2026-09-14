@@ -82,11 +82,11 @@ func TestFeedTombstoneAgainstDatabase(t *testing.T) {
 	if err != nil || len(articles) != 2 {
 		t.Fatalf("GetArticlesForFeedForUser: %d articles, %v; want 2", len(articles), err)
 	}
-	var ids []int64
+	var ids []models.ArticleId
 	for _, a := range articles {
 		ids = append(ids, a.ID)
 	}
-	for name, in := range map[string]int64{"the folder it moved to": folder, "the root it left": root.ID} {
+	for name, in := range map[string]models.FolderId{"the folder it moved to": folder, "the root it left": root.ID} {
 		metas, err := crdb.GetArticleMetaWithFilterForUser(u,
 			models.Stream{Filter: models.StreamFilterAll, FolderID: in}, MaxFetchedRows, models.StreamCursor{})
 		if err != nil {
@@ -98,7 +98,7 @@ func TestFeedTombstoneAgainstDatabase(t *testing.T) {
 				n++
 			}
 		}
-		if want := map[int64]int{folder: 2, root.ID: 0}[in]; n != want {
+		if want := map[models.FolderId]int{folder: 2, root.ID: 0}[in]; n != want {
 			t.Errorf("the stream of %s holds %d of the feed's articles, want %d", name, n, want)
 		}
 	}
@@ -208,7 +208,7 @@ func TestFeedTombstoneAgainstDatabase(t *testing.T) {
 
 // checkGone asserts that a feed and its articles are absent from every read a
 // client can make.
-func checkGone(t *testing.T, crdb *Crdb, u models.User, id int64, url string, articles []int64) {
+func checkGone(t *testing.T, crdb *Crdb, u models.User, id models.FeedId, url string, articles []models.ArticleId) {
 	t.Helper()
 	if _, err := crdb.GetFeedForUser(u, id); !errors.Is(err, sql.ErrNoRows) {
 		t.Errorf("GetFeedForUser: %v, want sql.ErrNoRows", err)
@@ -238,7 +238,7 @@ func checkGone(t *testing.T, crdb *Crdb, u models.User, id int64, url string, ar
 }
 
 // checkVisible asserts that a feed and all its articles are visible.
-func checkVisible(t *testing.T, crdb *Crdb, u models.User, id int64, articles []int64) {
+func checkVisible(t *testing.T, crdb *Crdb, u models.User, id models.FeedId, articles []models.ArticleId) {
 	t.Helper()
 	if _, err := crdb.GetFeedForUser(u, id); err != nil {
 		t.Errorf("GetFeedForUser: %v", err)
@@ -250,7 +250,7 @@ func checkVisible(t *testing.T, crdb *Crdb, u models.User, id int64, articles []
 
 // visibleArticles counts sightings of the given articles across the three
 // ways a client reads articles: stream metadata, stream contents, and by ID.
-func visibleArticles(t *testing.T, crdb *Crdb, u models.User, feedID int64, ids []int64) int {
+func visibleArticles(t *testing.T, crdb *Crdb, u models.User, feedID models.FeedId, ids []models.ArticleId) int {
 	t.Helper()
 	n := 0
 	meta, err := crdb.GetArticleMetaWithFilterForUser(u, models.Stream{Filter: models.StreamFilterUnread}, -1, models.StreamCursor{SinceID: -1})
@@ -278,7 +278,7 @@ func visibleArticles(t *testing.T, crdb *Crdb, u models.User, feedID int64, ids 
 	return n + len(byId)
 }
 
-func treeHasFeed(f models.Folder, id int64) bool {
+func treeHasFeed(f models.Folder, id models.FeedId) bool {
 	if slices.ContainsFunc(f.Feed, func(feed models.Feed) bool { return feed.ID == id }) {
 		return true
 	}

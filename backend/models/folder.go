@@ -42,7 +42,7 @@ func ValidateFolderName(name string) error {
 // Folder is a collection of feeds and subfolders.
 type Folder struct {
 	// Primary key
-	ID int64
+	ID FolderId
 	// Data fields
 	Name    string
 	Feed    []Feed

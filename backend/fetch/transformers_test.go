@@ -499,7 +499,7 @@ func TestMaybeMuteArticle(t *testing.T) {
 	})
 
 	t.Run("does not mute for unmuted feed", func(t *testing.T) {
-		if maybeMuteArticle(article, []string{"article"}, []int64{1}) {
+		if maybeMuteArticle(article, []string{"article"}, []models.FeedId{1}) {
 			t.Error("did not expect to mute article from unmuted feed")
 		}
 	})

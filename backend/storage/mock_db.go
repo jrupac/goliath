@@ -22,49 +22,49 @@ type MockDB struct {
 	InsertFaviconForUserCalled      bool
 	UpdateFeedMetadataForUserCalled bool
 	InsertedArticles                []models.Article
-	MarkedArticleIds                []int64
+	MarkedArticleIds                []models.ArticleId
 
 	// Sync channels
 	GetAllUsersCalled  chan bool
 	ProcessItemsCalled chan bool
 
 	// Function overrides
-	OnGetArticlesForFeedForUser                    func(u models.User, feedID int64) ([]models.Article, error)
-	OnGetArticlesForUser                           func(u models.User, ids []int64) ([]models.Article, error)
-	OnMarkArticlesForUser                          func(u models.User, ids []int64, mark models.MarkAction) (int64, error)
-	OnUpdateArticleParsedContentForUser            func(u models.User, articleID int64, parsed string) error
+	OnGetArticlesForFeedForUser                    func(u models.User, feedID models.FeedId) ([]models.Article, error)
+	OnGetArticlesForUser                           func(u models.User, ids []models.ArticleId) ([]models.Article, error)
+	OnMarkArticlesForUser                          func(u models.User, ids []models.ArticleId, mark models.MarkAction) (int64, error)
+	OnUpdateArticleParsedContentForUser            func(u models.User, articleID models.ArticleId, parsed string) error
 	OnGetAllUsers                                  func() ([]models.User, error)
 	OnGetAllFeedsForUser                           func(u models.User) ([]models.Feed, error)
-	OnGetFeedsPerFolderForUser                     func(u models.User) (map[int64][]int64, error)
+	OnGetFeedsPerFolderForUser                     func(u models.User) (map[models.FolderId][]models.FeedId, error)
 	OnGetAllRetrievalCaches                        func() (map[UserFeedKey]string, error)
 	OnGetActiveFeedKeys                            func() (map[UserFeedKey]bool, error)
 	OnPersistAllRetrievalCaches                    func(entries map[UserFeedKey][]byte) error
 	OnGetLiveFeedKeys                              func() (map[UserFeedKey]bool, error)
-	OnInsertArticlesForUser                        func(u models.User, feedID int64, articles []models.Article) (int, error)
-	OnUpdateLatestTimeForFeedForUser               func(u models.User, feedID int64, latest time.Time) error
-	OnUpdateEstimatedRefreshIntervalForFeedForUser func(u models.User, id int64, interval int) error
+	OnInsertArticlesForUser                        func(u models.User, feedID models.FeedId, articles []models.Article) (int, error)
+	OnUpdateLatestTimeForFeedForUser               func(u models.User, feedID models.FeedId, latest time.Time) error
+	OnUpdateEstimatedRefreshIntervalForFeedForUser func(u models.User, id models.FeedId, interval int) error
 	OnGetUserByUsername                            func(username string) (models.User, error)
 	OnUpdateUserCredentials                        func(u models.User, hashPass, key models.Secret) error
-	OnGetArticleContentsForUser                    func(u models.User, afterID int64, limit int) ([]models.Article, error)
-	OnUpdateArticleContentForUser                  func(u models.User, id int64, summary, content string) error
+	OnGetArticleContentsForUser                    func(u models.User, afterID models.ArticleId, limit int) ([]models.Article, error)
+	OnUpdateArticleContentForUser                  func(u models.User, id models.ArticleId, summary, content string) error
 	OnCreateSession                                func(u models.User, scheme models.AuthScheme, userAgent string) (models.Secret, error)
 	OnLookupSession                                func(token models.Secret) (models.User, models.Session, error)
 	OnDeleteSessionForUser                         func(u models.User, id models.SessionId) (int64, error)
 	OnGetArticleMetaWithFilterForUser              func(u models.User, stream models.Stream, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error)
 	OnGetAllFoldersForUser                         func(u models.User) ([]models.Folder, error)
-	OnGetFeedForUser                               func(u models.User, feedID int64) (models.Feed, error)
+	OnGetFeedForUser                               func(u models.User, feedID models.FeedId) (models.Feed, error)
 	OnGetFeedByUrlForUser                          func(u models.User, url string) (models.Feed, error)
-	OnGetFolderForUser                             func(u models.User, folderID int64) (models.Folder, error)
+	OnGetFolderForUser                             func(u models.User, folderID models.FolderId) (models.Folder, error)
 	OnGetRootFolderForUser                         func(u models.User) (models.Folder, error)
-	OnInsertFeedForUser                            func(u models.User, f models.Feed, folderID int64) (int64, error)
-	OnUpdateFolderForFeedForUser                   func(u models.User, feedID, folderID int64) error
+	OnInsertFeedForUser                            func(u models.User, f models.Feed, folderID models.FolderId) (models.FeedId, error)
+	OnUpdateFolderForFeedForUser                   func(u models.User, feedID models.FeedId, folderID models.FolderId) error
 	OnUpdateFeedMetadataForUser                    func(u models.User, f models.Feed) error
 	OnRenameFeedForUser                            func(u models.User, f models.Feed) error
-	OnTombstoneFeedForUser                         func(u models.User, feedID int64) error
+	OnTombstoneFeedForUser                         func(u models.User, feedID models.FeedId) error
 	OnRestoreFeedByUrlForUser                      func(u models.User, url string) (models.Feed, error)
-	OnInsertFolderForUser                          func(u models.User, f models.Folder, parentID int64) (int64, error)
-	OnRenameFolderForUser                          func(u models.User, folderID int64, name string) error
-	OnDeleteFolderForUser                          func(u models.User, folderID int64) (int64, error)
+	OnInsertFolderForUser                          func(u models.User, f models.Folder, parentID models.FolderId) (models.FolderId, error)
+	OnRenameFolderForUser                          func(u models.User, folderID models.FolderId, name string) error
+	OnDeleteFolderForUser                          func(u models.User, folderID models.FolderId) (int64, error)
 	OnInsertUser                                   func(u models.User) (models.User, error)
 	OnTombstoneUser                                func(u models.User) (models.UserDeletion, error)
 	OnRestoreUser                                  func(username string, cutoff time.Time) (models.User, error)
@@ -152,14 +152,14 @@ func (m *MockDB) LookupSession(token models.Secret) (models.User, models.Session
 	return models.User{}, models.Session{}, errors.New("no such session")
 }
 
-func (m *MockDB) GetArticleContentsForUser(u models.User, afterID int64, limit int) ([]models.Article, error) {
+func (m *MockDB) GetArticleContentsForUser(u models.User, afterID models.ArticleId, limit int) ([]models.Article, error) {
 	if m.OnGetArticleContentsForUser != nil {
 		return m.OnGetArticleContentsForUser(u, afterID, limit)
 	}
 	return nil, nil
 }
 
-func (m *MockDB) UpdateArticleContentForUser(u models.User, id int64, summary, content string) error {
+func (m *MockDB) UpdateArticleContentForUser(u models.User, id models.ArticleId, summary, content string) error {
 	if m.OnUpdateArticleContentForUser != nil {
 		return m.OnUpdateArticleContentForUser(u, id, summary, content)
 	}
@@ -175,19 +175,23 @@ func (m *MockDB) DeleteSessionForUser(u models.User, id models.SessionId) (int64
 	return 0, nil
 }
 
-func (m *MockDB) DeleteSessionsForUser(models.User) (int64, error)    { return 0, nil }
-func (m *MockDB) DeleteExpiredSessions(time.Time) (int64, error)      { return 0, nil }
-func (m *MockDB) GetMuteWordsForUser(models.User) ([]string, error)   { return nil, nil }
-func (m *MockDB) UpdateMuteWordsForUser(models.User, []string) error  { return nil }
-func (m *MockDB) DeleteMuteWordsForUser(models.User, []string) error  { return nil }
-func (m *MockDB) GetUnmuteFeedsForUser(models.User) ([]int64, error)  { return nil, nil }
-func (m *MockDB) UpdateUnmuteFeedsForUser(models.User, []int64) error { return nil }
-func (m *MockDB) DeleteUnmuteFeedsForUser(models.User, []int64) error { return nil }
+func (m *MockDB) DeleteSessionsForUser(models.User) (int64, error)            { return 0, nil }
+func (m *MockDB) DeleteExpiredSessions(time.Time) (int64, error)              { return 0, nil }
+func (m *MockDB) GetMuteWordsForUser(models.User) ([]string, error)           { return nil, nil }
+func (m *MockDB) UpdateMuteWordsForUser(models.User, []string) error          { return nil }
+func (m *MockDB) DeleteMuteWordsForUser(models.User, []string) error          { return nil }
+func (m *MockDB) GetUnmuteFeedsForUser(models.User) ([]models.FeedId, error)  { return nil, nil }
+func (m *MockDB) UpdateUnmuteFeedsForUser(models.User, []models.FeedId) error { return nil }
+func (m *MockDB) DeleteUnmuteFeedsForUser(models.User, []models.FeedId) error { return nil }
 
-func (m *MockDB) GetFeedMuteRegexesForUser(models.User) (map[int64][]string, error) { return nil, nil }
-func (m *MockDB) GetMuteRegexesForFeedForUser(models.User, int64) ([]string, error) { return nil, nil }
-func (m *MockDB) AddMuteRegexForFeedForUser(models.User, int64, string) error       { return nil }
-func (m *MockDB) DeleteMuteRegexForFeedForUser(models.User, int64, string) error    { return nil }
+func (m *MockDB) GetFeedMuteRegexesForUser(models.User) (map[models.FeedId][]string, error) {
+	return nil, nil
+}
+func (m *MockDB) GetMuteRegexesForFeedForUser(models.User, models.FeedId) ([]string, error) {
+	return nil, nil
+}
+func (m *MockDB) AddMuteRegexForFeedForUser(models.User, models.FeedId, string) error    { return nil }
+func (m *MockDB) DeleteMuteRegexForFeedForUser(models.User, models.FeedId, string) error { return nil }
 
 func (m *MockDB) GetActiveFeedKeys() (map[UserFeedKey]bool, error) {
 	if m.OnGetActiveFeedKeys != nil {
@@ -213,33 +217,33 @@ func (m *MockDB) PersistAllRetrievalCaches(entries map[UserFeedKey][]byte) error
 	}
 	return nil
 }
-func (m *MockDB) InsertFeedForUser(u models.User, f models.Feed, folderID int64) (int64, error) {
+func (m *MockDB) InsertFeedForUser(u models.User, f models.Feed, folderID models.FolderId) (models.FeedId, error) {
 	if m.OnInsertFeedForUser != nil {
 		return m.OnInsertFeedForUser(u, f, folderID)
 	}
 	return 0, nil
 }
-func (m *MockDB) InsertFolderForUser(u models.User, f models.Folder, parentID int64) (int64, error) {
+func (m *MockDB) InsertFolderForUser(u models.User, f models.Folder, parentID models.FolderId) (models.FolderId, error) {
 	if m.OnInsertFolderForUser != nil {
 		return m.OnInsertFolderForUser(u, f, parentID)
 	}
 	return 0, nil
 }
-func (m *MockDB) RenameFolderForUser(u models.User, folderID int64, name string) error {
+func (m *MockDB) RenameFolderForUser(u models.User, folderID models.FolderId, name string) error {
 	if m.OnRenameFolderForUser != nil {
 		return m.OnRenameFolderForUser(u, folderID, name)
 	}
 	return nil
 }
-func (m *MockDB) DeleteFolderForUser(u models.User, folderID int64) (int64, error) {
+func (m *MockDB) DeleteFolderForUser(u models.User, folderID models.FolderId) (int64, error) {
 	if m.OnDeleteFolderForUser != nil {
 		return m.OnDeleteFolderForUser(u, folderID)
 	}
 	return 0, nil
 }
-func (m *MockDB) DeleteArticlesForUser(models.User, time.Time) (int64, error) { return 0, nil }
-func (m *MockDB) DeleteArticlesByIdForUser(models.User, []int64) error        { return nil }
-func (m *MockDB) TombstoneFeedForUser(u models.User, feedID int64) error {
+func (m *MockDB) DeleteArticlesForUser(models.User, time.Time) (int64, error)     { return 0, nil }
+func (m *MockDB) DeleteArticlesByIdForUser(models.User, []models.ArticleId) error { return nil }
+func (m *MockDB) TombstoneFeedForUser(u models.User, feedID models.FeedId) error {
 	if m.OnTombstoneFeedForUser != nil {
 		return m.OnTombstoneFeedForUser(u, feedID)
 	}
@@ -252,29 +256,29 @@ func (m *MockDB) RestoreFeedByUrlForUser(u models.User, url string) (models.Feed
 	return models.Feed{}, sql.ErrNoRows
 }
 func (m *MockDB) PurgeDeletedFeeds(time.Time) (int64, int64, error) { return 0, 0, nil }
-func (m *MockDB) MarkArticleForUser(models.User, int64, models.MarkAction) error {
+func (m *MockDB) MarkArticleForUser(models.User, models.ArticleId, models.MarkAction) error {
 	return nil
 }
-func (m *MockDB) MarkArticlesForUser(u models.User, ids []int64, mark models.MarkAction) (int64, error) {
+func (m *MockDB) MarkArticlesForUser(u models.User, ids []models.ArticleId, mark models.MarkAction) (int64, error) {
 	if m.OnMarkArticlesForUser != nil {
 		return m.OnMarkArticlesForUser(u, ids, mark)
 	}
 	m.MarkedArticleIds = append(m.MarkedArticleIds, ids...)
 	return int64(len(ids)), nil
 }
-func (m *MockDB) MarkFeedForUser(models.User, int64, models.MarkAction) (int64, error) {
+func (m *MockDB) MarkFeedForUser(models.User, models.FeedId, models.MarkAction) (int64, error) {
 	return 0, nil
 }
-func (m *MockDB) MarkFolderForUser(models.User, int64, models.MarkAction) (int64, error) {
+func (m *MockDB) MarkFolderForUser(models.User, models.FolderId, models.MarkAction) (int64, error) {
 	return 0, nil
 }
-func (m *MockDB) UpdateLatestTimeForFeedForUser(u models.User, feedID int64, latest time.Time) error {
+func (m *MockDB) UpdateLatestTimeForFeedForUser(u models.User, feedID models.FeedId, latest time.Time) error {
 	if m.OnUpdateLatestTimeForFeedForUser != nil {
 		return m.OnUpdateLatestTimeForFeedForUser(u, feedID, latest)
 	}
 	return nil
 }
-func (m *MockDB) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, id int64, interval int) error {
+func (m *MockDB) UpdateEstimatedRefreshIntervalForFeedForUser(u models.User, id models.FeedId, interval int) error {
 	if m.OnUpdateEstimatedRefreshIntervalForFeedForUser != nil {
 		return m.OnUpdateEstimatedRefreshIntervalForFeedForUser(u, id, interval)
 	}
@@ -286,13 +290,13 @@ func (m *MockDB) RenameFeedForUser(u models.User, f models.Feed) error {
 	}
 	return nil
 }
-func (m *MockDB) UpdateFolderForFeedForUser(u models.User, feedID, folderID int64) error {
+func (m *MockDB) UpdateFolderForFeedForUser(u models.User, feedID models.FeedId, folderID models.FolderId) error {
 	if m.OnUpdateFolderForFeedForUser != nil {
 		return m.OnUpdateFolderForFeedForUser(u, feedID, folderID)
 	}
 	return nil
 }
-func (m *MockDB) GetFolderChildrenForUser(models.User, int64) ([]int64, error) {
+func (m *MockDB) GetFolderChildrenForUser(models.User, models.FolderId) ([]models.FolderId, error) {
 	return nil, nil
 }
 func (m *MockDB) GetAllFoldersForUser(u models.User) ([]models.Folder, error) {
@@ -302,7 +306,7 @@ func (m *MockDB) GetAllFoldersForUser(u models.User) ([]models.Folder, error) {
 	return nil, nil
 }
 
-func (m *MockDB) GetFeedForUser(u models.User, feedID int64) (models.Feed, error) {
+func (m *MockDB) GetFeedForUser(u models.User, feedID models.FeedId) (models.Feed, error) {
 	if m.OnGetFeedForUser != nil {
 		return m.OnGetFeedForUser(u, feedID)
 	}
@@ -316,7 +320,7 @@ func (m *MockDB) GetFeedByUrlForUser(u models.User, url string) (models.Feed, er
 	return models.Feed{}, sql.ErrNoRows
 }
 
-func (m *MockDB) GetFolderForUser(u models.User, folderID int64) (models.Folder, error) {
+func (m *MockDB) GetFolderForUser(u models.User, folderID models.FolderId) (models.Folder, error) {
 	if m.OnGetFolderForUser != nil {
 		return m.OnGetFolderForUser(u, folderID)
 	}
@@ -337,10 +341,10 @@ func (m *MockDB) GetAllFeedsForUser(u models.User) ([]models.Feed, error) {
 	return nil, nil
 }
 
-func (m *MockDB) GetFeedsInFolderForUser(models.User, int64) ([]models.Feed, error) {
+func (m *MockDB) GetFeedsInFolderForUser(models.User, models.FolderId) ([]models.Feed, error) {
 	return nil, nil
 }
-func (m *MockDB) GetFeedsPerFolderForUser(u models.User) (map[int64][]int64, error) {
+func (m *MockDB) GetFeedsPerFolderForUser(u models.User) (map[models.FolderId][]models.FeedId, error) {
 	if m.OnGetFeedsPerFolderForUser != nil {
 		return m.OnGetFeedsPerFolderForUser(u)
 	}
@@ -349,7 +353,7 @@ func (m *MockDB) GetFeedsPerFolderForUser(u models.User) (map[int64][]int64, err
 func (m *MockDB) GetFolderFeedTreeForUser(models.User) (*models.Folder, error) {
 	return nil, nil
 }
-func (m *MockDB) GetAllFaviconsForUser(models.User) (map[int64]string, error) {
+func (m *MockDB) GetAllFaviconsForUser(models.User) (map[models.FeedId]string, error) {
 	return nil, nil
 }
 func (m *MockDB) GetArticleMetaWithFilterForUser(u models.User, stream models.Stream, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
@@ -358,13 +362,13 @@ func (m *MockDB) GetArticleMetaWithFilterForUser(u models.User, stream models.St
 	}
 	return nil, nil
 }
-func (m *MockDB) GetArticlesForUser(u models.User, ids []int64) ([]models.Article, error) {
+func (m *MockDB) GetArticlesForUser(u models.User, ids []models.ArticleId) ([]models.Article, error) {
 	if m.OnGetArticlesForUser != nil {
 		return m.OnGetArticlesForUser(u, ids)
 	}
 	return nil, nil
 }
-func (m *MockDB) GetArticlesWithFilterForUser(models.User, models.StreamFilter, int, int64) ([]models.Article, error) {
+func (m *MockDB) GetArticlesWithFilterForUser(models.User, models.StreamFilter, int, models.ArticleId) ([]models.Article, error) {
 	return nil, nil
 }
 func (m *MockDB) ImportOpmlForUser(models.User, *opml.Opml) error { return nil }
@@ -379,12 +383,12 @@ func (m *MockDB) UpdateFeedMetadataForUser(u models.User, feed models.Feed) erro
 	return m.UpdateFeedMetadataForUserErr
 }
 
-func (m *MockDB) InsertFaviconForUser(u models.User, id int64, mime string, favicon []byte) error {
+func (m *MockDB) InsertFaviconForUser(u models.User, id models.FeedId, mime string, favicon []byte) error {
 	m.InsertFaviconForUserCalled = true
 	return m.InsertFaviconForUserErr
 }
 
-func (m *MockDB) InsertArticlesForUser(u models.User, feedID int64, articles []models.Article) (int, error) {
+func (m *MockDB) InsertArticlesForUser(u models.User, feedID models.FeedId, articles []models.Article) (int, error) {
 	if m.OnInsertArticlesForUser != nil {
 		if n, err := m.OnInsertArticlesForUser(u, feedID, articles); err != nil {
 			return n, err
@@ -399,14 +403,14 @@ func (m *MockDB) InsertArticlesForUser(u models.User, feedID int64, articles []m
 	return len(articles), nil
 }
 
-func (m *MockDB) GetArticlesForFeedForUser(u models.User, feedID int64) ([]models.Article, error) {
+func (m *MockDB) GetArticlesForFeedForUser(u models.User, feedID models.FeedId) ([]models.Article, error) {
 	if m.OnGetArticlesForFeedForUser != nil {
 		return m.OnGetArticlesForFeedForUser(u, feedID)
 	}
 	return []models.Article{}, nil
 }
 
-func (m *MockDB) UpdateArticleParsedContentForUser(u models.User, articleID int64, parsed string) error {
+func (m *MockDB) UpdateArticleParsedContentForUser(u models.User, articleID models.ArticleId, parsed string) error {
 	if m.OnUpdateArticleParsedContentForUser != nil {
 		return m.OnUpdateArticleParsedContentForUser(u, articleID, parsed)
 	}

@@ -54,7 +54,7 @@ func (r *CuckooFilterRetrievalCache) Close() {
 }
 
 // Add adds a new entry into the retrieval cache for the specified user and feed.
-func (r *CuckooFilterRetrievalCache) Add(u models.User, feedId int64, entry string) {
+func (r *CuckooFilterRetrievalCache) Add(u models.User, feedId models.FeedId, entry string) {
 	if r.ready.Load() == nil {
 		log.Errorf("retrieval cache not ready: %s", entry)
 		return
@@ -73,7 +73,7 @@ func (r *CuckooFilterRetrievalCache) Add(u models.User, feedId int64, entry stri
 }
 
 // Lookup returns whether the specified entry is present in the retrieval cache for the specified user and feed.
-func (r *CuckooFilterRetrievalCache) Lookup(u models.User, feedId int64, entry string) bool {
+func (r *CuckooFilterRetrievalCache) Lookup(u models.User, feedId models.FeedId, entry string) bool {
 	if r.ready.Load() == nil {
 		log.Errorf("retrieval cache not ready: %s", entry)
 		return false
