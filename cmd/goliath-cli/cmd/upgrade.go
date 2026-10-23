@@ -99,7 +99,9 @@ func prepareUpgrade(noPull bool) {
 	}
 
 	fmt.Println("Building goliath-cli from the checkout...")
-	if err = runCommand(nil, "docker", "build", "--target", "cli", "--output", "type=local,dest=./dist", "."); err != nil {
+	// --pull: the Go images never step over go.mod's toolchain floor
+	// themselves, so a stale cached one fails this build.
+	if err = runCommand(nil, "docker", "build", "--pull", "--target", "cli", "--output", "type=local,dest=./dist", "."); err != nil {
 		exitWith("building goliath-cli: %v. The checkout is updated; nothing else has changed.", err)
 	}
 	exe, err := filepath.Abs(filepath.Join("dist", "goliath-cli"))
@@ -233,7 +235,9 @@ func runUpgrade(o upgradeOptions) {
 		}
 	}
 	buildEnv := []string{"BUILD_HASH=" + hash, "BUILD_TIMESTAMP=" + strconv.FormatInt(time.Now().Unix(), 10)}
-	if err = runCommand(buildEnv, "docker", "compose", "--profile", o.env, "build", appService); err != nil {
+	// --pull: the Go images never step over go.mod's toolchain floor
+	// themselves, so a stale cached one fails this build.
+	if err = runCommand(buildEnv, "docker", "compose", "--profile", o.env, "build", "--pull", appService); err != nil {
 		exitWith("building the image: %v. Nothing else has changed; the application is still running.", err)
 	}
 	newImage, err := imageID(repo + ":latest")

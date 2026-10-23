@@ -3,7 +3,12 @@
 # =============================================================================
 # Shared base stage: Go + protoc tools
 # =============================================================================
-FROM golang:1.25 AS go_base
+# The go lines in go.mod and go.work are a floor on the patch release, set
+# where a release fixes certificate verification. This image never downloads a
+# newer toolchain (GOTOOLCHAIN=local), so a cached copy older than that floor
+# fails the build rather than quietly producing a binary without the fix.
+# `goliath-cli upgrade` builds with --pull for that reason.
+FROM golang:1.27 AS go_base
 
 RUN DEBIAN_FRONTEND=noninteractive \
     apt-get update \

@@ -1,6 +1,6 @@
 module github.com/jrupac/goliath
 
-go 1.25.0
+go 1.27.3
 
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.1

@@ -1,6 +1,6 @@
 module github.com/jrupac/goliath/cmd/goliath-cli
 
-go 1.25.0
+go 1.27.3
 
 // Workaround since the module path for the backend is "github.com/jrupac/goliath" while it should be "github.com/jrupac/goliath/backend".
 // TODO: Remove when the module naming of the backend library is corrected.

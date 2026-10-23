@@ -15,7 +15,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: "1.21"
+          go-version: "1.27.3"
 
       # Pinned to match the Dockerfile. The distribution's protoc is too old for
       # field options the admin proto uses, such as debug_redact.
