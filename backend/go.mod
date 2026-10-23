@@ -16,7 +16,7 @@ require (
 	github.com/seiflotfy/cuckoofilter v0.0.0-20240715131351-a2f2c23f1771
 	github.com/vharitonsky/iniflags v0.0.0-20180513140207-a33cd0b5f3de
 	golang.org/x/crypto v0.58.0
-	golang.org/x/image v0.41.0
+	golang.org/x/image v0.47.0
 	golang.org/x/net v0.61.0
 	google.golang.org/grpc v1.83.2
 	google.golang.org/protobuf v1.36.11
