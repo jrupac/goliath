@@ -106,7 +106,9 @@ describe('ArticleCard', () => {
       />
     );
 
-    expect(screen.getByRole('img', { name: '' })).toHaveAttribute(
+    // The byline favicon is decorative, so it carries an empty alt and is
+    // exposed as presentational rather than as an image.
+    expect(screen.getByRole('presentation')).toHaveAttribute(
       'src',
       testFaviconData
     );
