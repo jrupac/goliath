@@ -13,6 +13,14 @@ import ImagePreview, { previewCache } from '../ImagePreview';
 import * as helpers from '../../utils/helpers';
 import { ArticleView } from '../../models/article';
 
+vi.mock('../../utils/helpers', async (importOriginal) => {
+  const actual = await importOriginal<typeof helpers>();
+  return {
+    ...actual,
+    getPreviewImage: vi.fn(),
+  };
+});
+
 describe('ImagePreview', () => {
   const mockArticle: ArticleView = {
     folderId: '1',
@@ -29,26 +37,22 @@ describe('ImagePreview', () => {
   };
 
   // Mock the IntersectionObserver
-  const mockIntersectionObserver = vi.fn((callback) => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-    // Expose the callback to trigger it manually in tests
-    trigger: (entries: IntersectionObserverEntry[]) => {
-      callback(entries, mockIntersectionObserver as any);
-    },
-  }));
+  const mockIntersectionObserver = vi.fn(function (
+    callback: IntersectionObserverCallback
+  ) {
+    return {
+      observe: vi.fn(),
+      unobserve: vi.fn(),
+      disconnect: vi.fn(),
+      // Expose the callback to trigger it manually in tests
+      trigger: (entries: IntersectionObserverEntry[]) => {
+        callback(entries, mockIntersectionObserver as any);
+      },
+    };
+  });
 
   beforeAll(() => {
     vi.stubGlobal('IntersectionObserver', mockIntersectionObserver);
-    // Mock getPreviewImage from helpers
-    vi.mock('../../utils/helpers', async (importOriginal) => {
-      const actual = await importOriginal<typeof helpers>();
-      return {
-        ...actual,
-        getPreviewImage: vi.fn(),
-      };
-    });
   });
 
   beforeEach(() => {
@@ -60,7 +64,6 @@ describe('ImagePreview', () => {
 
   afterAll(() => {
     vi.unstubAllGlobals();
-    vi.doUnmock('../../utils/helpers');
   });
 
   it('should render no skeleton initially and not fetch image', () => {
