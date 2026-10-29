@@ -115,6 +115,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       maxWidth="md"
       fullWidth
       fullScreen={isMobile}
+      // Named by the heading it points at, rather than left unnamed.
+      aria-labelledby="goliath-settings-title"
       slotProps={{
         backdrop: { className: 'GoliathModalOverlay' },
         paper: { className: 'GoliathModalPaper GoliathSettingsPaper' },
@@ -124,7 +126,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       }}
     >
       <Box className="GoliathDialogHeader">
-        <Typography component="h2" className="GoliathDialogHeading">
+        <Typography
+          component="h2"
+          id="goliath-settings-title"
+          className="GoliathDialogHeading"
+        >
           Settings
         </Typography>
         <IconButton

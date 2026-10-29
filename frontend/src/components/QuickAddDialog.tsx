@@ -396,6 +396,8 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
       onClose={handleCancel}
       maxWidth="xs"
       fullWidth
+      // Named by the heading it points at, rather than left unnamed.
+      aria-labelledby="goliath-quickadd-title"
       slotProps={{
         backdrop: { className: 'GoliathModalOverlay' },
         paper: { className: 'GoliathModalPaper' },
@@ -403,7 +405,11 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
       }}
     >
       <Box className="GoliathDialogHeader">
-        <Typography component="h2" className="GoliathDialogHeading">
+        <Typography
+          component="h2"
+          id="goliath-quickadd-title"
+          className="GoliathDialogHeading"
+        >
           Add feed
         </Typography>
         <IconButton

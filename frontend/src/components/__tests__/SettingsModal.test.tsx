@@ -61,6 +61,15 @@ describe('SettingsModal folders', () => {
     await waitFor(() => expect(props.listFolders).toHaveBeenCalled());
   };
 
+  // A dialog names itself by pointing at its heading, and a reference that
+  // resolves to nothing leaves it unnamed while looking correct in the markup.
+  // Querying by name is what distinguishes the two.
+  it('announces itself by its heading', () => {
+    render(<SettingsModal {...makeProps()} />);
+
+    expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
+  });
+
   // The view is built from subscriptions, so a folder with no feeds is known
   // only from the server's list.
   it('shows a folder that holds no feeds', async () => {

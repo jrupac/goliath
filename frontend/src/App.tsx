@@ -716,18 +716,27 @@ export default class App extends React.Component<AppProps, AppState> {
           onClose={() => this.setState({ showLogoutConfirm: false })}
           maxWidth="xs"
           fullWidth
+          // A dialog takes its name from the heading it points at, and its
+          // description from the question it asks, so that it is announced as
+          // something other than an unnamed dialog.
+          aria-labelledby="goliath-logout-title"
+          aria-describedby="goliath-logout-text"
           slotProps={{
             backdrop: { className: 'GoliathModalOverlay' },
             paper: { className: 'GoliathModalPaper' },
           }}
         >
           <Box className="GoliathDialogHeader">
-            <Typography component="h2" className="GoliathDialogHeading">
+            <Typography
+              component="h2"
+              id="goliath-logout-title"
+              className="GoliathDialogHeading"
+            >
               Log out
             </Typography>
           </Box>
           <Box className="GoliathDialogContent">
-            <Typography className="GoliathDialogText">
+            <Typography id="goliath-logout-text" className="GoliathDialogText">
               Are you sure you want to log out?
             </Typography>
           </Box>

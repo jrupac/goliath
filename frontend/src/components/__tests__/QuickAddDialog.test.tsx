@@ -38,6 +38,16 @@ describe('QuickAddDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add' }));
   };
 
+  // A dialog names itself by pointing at its heading, and a reference that
+  // resolves to nothing leaves it unnamed while looking correct in the markup.
+  it('announces itself by its heading', () => {
+    render(<QuickAddDialog {...makeProps()} />);
+
+    expect(
+      screen.getByRole('dialog', { name: 'Add feed' })
+    ).toBeInTheDocument();
+  });
+
   it('subscribes, then moves to the chosen folder', async () => {
     const props = makeProps();
     render(<QuickAddDialog {...props} />);
