@@ -142,7 +142,7 @@ describe('ArticleCard', () => {
         {...makeProps({ isSelected: true, article: { isRead: true } })}
       />
     );
-    expect(screen.getByTestId('CheckCircleOutlineIcon')).toBeInTheDocument();
+    expect(screen.getByTestId('CheckCircleOutlinedIcon')).toBeInTheDocument();
   });
 
   it('toggles reader mode on "m" shortcut', async () => {

@@ -15,7 +15,7 @@ import { keybindRegistry } from '../utils/keybindRegistry';
 import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import { SelectionType } from '../utils/types';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import CheckCircleTwoToneIcon from '@mui/icons-material/CheckCircleTwoTone';
 import ChromeReaderModeOutlinedIcon from '@mui/icons-material/ChromeReaderModeOutlined';
 import ChromeReaderModeIcon from '@mui/icons-material/ChromeReaderMode';
@@ -346,7 +346,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
                 size="small"
               >
                 {props.article.isRead ? (
-                  <CheckCircleOutlineIcon />
+                  <CheckCircleOutlinedIcon />
                 ) : (
                   <CheckCircleTwoToneIcon />
                 )}
@@ -456,7 +456,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
               size="small"
             >
               {props.article.isRead ? (
-                <CheckCircleOutlineIcon />
+                <CheckCircleOutlinedIcon />
               ) : (
                 <CheckCircleTwoToneIcon />
               )}

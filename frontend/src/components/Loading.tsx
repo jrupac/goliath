@@ -9,10 +9,13 @@ export interface LoadingProps {
 const Loading: React.FC<LoadingProps> = ({ status }) => {
   const progress =
     status / (Status.Folder | Status.Feed | Status.Article | Status.Favicon);
+  // Rounded here because the value is also what gets announced, and a long
+  // fraction is read out in full. The width it sets is visually unchanged.
+  const percent = Math.round(100 * progress);
   return (
     <Box className="GoliathLoadingPageContainer">
       <LinearProgress
-        value={100 * progress}
+        value={percent}
         className="GoliathLoadingProgress"
         variant="determinate"
         data-testid="loading-progress"
