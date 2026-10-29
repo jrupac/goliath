@@ -351,7 +351,7 @@
   height: 100%;
 }
 
-/* Reduce default padding in v7 TreeItem */
+/* The default item padding is too loose for a list this dense. */
 .GoliathFolderFeedList .MuiTreeItem-root {
   padding-top: 0;
   padding-bottom: 0;
@@ -370,17 +370,20 @@
   align-items: center;
 }
 
+/* Selection and focus are published as attributes rather than classes, and
+   are matched that way so the row keeps the sidebar's own colours instead of
+   falling back to the component library's. */
 .GoliathFolderFeedList .MuiTreeItem-content:hover,
-.GoliathFolderFeedList .MuiTreeItem-content.Mui-selected:hover {
+.GoliathFolderFeedList .MuiTreeItem-content[data-selected]:hover {
   background-color: var(--nav-row-hover-color);
 }
 
-.GoliathFolderFeedList .MuiTreeItem-content.Mui-selected,
-.GoliathFolderFeedList .MuiTreeItem-content.Mui-selected.Mui-focused {
+.GoliathFolderFeedList .MuiTreeItem-content[data-selected],
+.GoliathFolderFeedList .MuiTreeItem-content[data-selected][data-focused] {
   background-color: var(--nav-row-selected-color);
 }
 
-/* v7 uses groupTransition instead of group for children container */
+/* Feeds sit indented under their folder, against a guide line. */
 .GoliathFolderFeedList .MuiTreeItem-groupTransition {
   margin-left: 20px;
   padding-left: 12px;

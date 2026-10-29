@@ -62,6 +62,37 @@ describe('FolderFeedList', () => {
     expect(screen.getByText('Test Folder 2')).toBeInTheDocument();
   });
 
+  it('marks the selected row with the attribute the stylesheet keys off', () => {
+    // Selection reaches the stylesheet as an attribute on the row rather than
+    // a class. Nothing else asserts it, and a row that stops carrying it still
+    // renders and still behaves -- it just quietly loses the sidebar's own
+    // highlight and takes the component library's instead.
+    const folder: FolderView = { id: '1', title: 'Folder', unread_count: 1 };
+    const feed: FeedView = {
+      id: '2',
+      title: 'Feed',
+      favicon: null,
+      folder_id: '1',
+      unread_count: 1,
+    };
+
+    const { container } = render(
+      <FolderFeedList
+        folderFeedView={new Map([[folder, [feed]]])}
+        unreadCount={1}
+        selectedKey="2"
+        selectionType={SelectionType.Feed}
+        handleSelect={vi.fn()}
+      />
+    );
+
+    const selected = container.querySelectorAll(
+      '.MuiTreeItem-content[data-selected]'
+    );
+    expect(selected).toHaveLength(1);
+    expect(selected[0]).toHaveTextContent('Feed');
+  });
+
   it('renders favicon image with correct src when favicon is provided', () => {
     // 1x1 transparent GIF as a full data URL
     const testFaviconData =
