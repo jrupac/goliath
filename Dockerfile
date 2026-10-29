@@ -27,7 +27,7 @@ RUN curl -sSL -o /tmp/protoc.zip \
     && rm /tmp/protoc.zip
 
 # Download pre-built protoc plugins
-ARG PROTOC_GEN_GO_VERSION=1.36.11
+ARG PROTOC_GEN_GO_VERSION=1.36.12
 ARG PROTOC_GEN_GO_GRPC_VERSION=1.5.1
 RUN curl -sSL \
     "https://github.com/protocolbuffers/protobuf-go/releases/download/v${PROTOC_GEN_GO_VERSION}/protoc-gen-go.v${PROTOC_GEN_GO_VERSION}.linux.amd64.tar.gz" \

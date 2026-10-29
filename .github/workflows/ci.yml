@@ -32,7 +32,7 @@ jobs:
 
       - name: Install Go protobuf plugins
         run: |
-          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 
       - name: Set up buf
