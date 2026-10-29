@@ -43,9 +43,7 @@ export default defineConfig(() => {
       inconsistentCjsInterop: true,
     },
     plugins: [
-      react({
-        jsxImportSource: '@emotion/react',
-      }),
+      react(),
 
       VitePWA({
         registerType: 'autoUpdate',
