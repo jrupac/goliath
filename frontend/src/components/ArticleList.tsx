@@ -20,7 +20,6 @@ import {
   SelectionType,
 } from '../utils/types';
 import {
-  Box,
   Container,
   Grid,
   IconButton,
@@ -498,24 +497,24 @@ const ArticleList: React.FC<ArticleListProps> = ({
   const renderEmpty = () => (
     <Container fixed className="GoliathArticleListContainer">
       {showListMobileLayout && (
-        <Box className="GoliathSplitViewArticleListActionBar">
+        <div className="GoliathSplitViewArticleListActionBar">
           {renderMobileListBar()}
-        </Box>
+        </div>
       )}
-      <Box className="GoliathArticleListEmpty">
+      <div className="GoliathArticleListEmpty">
         {selectionType === SelectionType.Saved ? (
           <HotelClassRounded className="GoliathArticleListEmptyIcon" />
         ) : (
           <DoneAllRounded className="GoliathArticleListEmptyIcon" />
         )}
-        <Box className="GoliathFooter">
+        <div className="GoliathFooter">
           Goliath RSS
           <br />
           Built at: {buildTimestamp}
           <br />
           {buildHash}
-        </Box>
-      </Box>
+        </div>
+      </div>
     </Container>
   );
 
@@ -539,7 +538,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
       >
         <Grid container wrap="nowrap" size="grow">
           <Stack className={articleListColumnClasses}>
-            <Box className="GoliathSplitViewArticleListActionBar">
+            <div className="GoliathSplitViewArticleListActionBar">
               {showListMobileLayout ? (
                 renderMobileListBar()
               ) : (
@@ -596,8 +595,8 @@ const ArticleList: React.FC<ArticleListProps> = ({
                   </Tooltip>
                 </>
               )}
-            </Box>
-            <Box className="GoliathSplitViewArticleListBox">
+            </div>
+            <div className="GoliathSplitViewArticleListBox">
               <ReactList
                 key={reactListKey}
                 ref={handleMounted}
@@ -607,9 +606,9 @@ const ArticleList: React.FC<ArticleListProps> = ({
                 useStaticSize={true}
                 type="uniform"
               />
-            </Box>
+            </div>
             {showListMobileLayout && (
-              <Box className="GoliathMobileBottomBar">
+              <div className="GoliathMobileBottomBar">
                 {selectionType !== SelectionType.Saved && (
                   <Tooltip title="Mark all as read">
                     <IconButton
@@ -642,11 +641,11 @@ const ArticleList: React.FC<ArticleListProps> = ({
                     <ExpandMoreTwoToneIcon />
                   </IconButton>
                 </Tooltip>
-              </Box>
+              </div>
             )}
           </Stack>
           <Grid className={articleOuterClasses} size="grow">
-            <Box className="GoliathSplitViewArticleInner">
+            <div className="GoliathSplitViewArticleInner">
               {/* Deliberately not keyed by article id: that remounted the
                   entire card on every keypress. ArticleCard resets its own
                   per-article state instead. */}
@@ -686,7 +685,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
                   isMobile || (isTabletPortrait && !tabletShowFeedList)
                 }
               />
-            </Box>
+            </div>
           </Grid>
         </Grid>
       </Container>

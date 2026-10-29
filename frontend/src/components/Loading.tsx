@@ -1,6 +1,6 @@
 import React from 'react';
 import { Status } from '../utils/types';
-import { Box, LinearProgress } from '@mui/material';
+import { LinearProgress } from '@mui/material';
 
 export interface LoadingProps {
   status: Status;
@@ -13,14 +13,14 @@ const Loading: React.FC<LoadingProps> = ({ status }) => {
   // fraction is read out in full. The width it sets is visually unchanged.
   const percent = Math.round(100 * progress);
   return (
-    <Box className="GoliathLoadingPageContainer">
+    <div className="GoliathLoadingPageContainer">
       <LinearProgress
         value={percent}
         className="GoliathLoadingProgress"
         variant="determinate"
         data-testid="loading-progress"
       />
-    </Box>
+    </div>
   );
 };
 

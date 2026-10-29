@@ -1,6 +1,5 @@
 import React, { FormEvent, ReactNode, useEffect, useState } from 'react';
 import {
-  Box,
   Button,
   CircularProgress,
   Dialog,
@@ -125,7 +124,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         transition: { onExited: () => setSection('general') },
       }}
     >
-      <Box className="GoliathDialogHeader">
+      <div className="GoliathDialogHeader">
         <Typography
           component="h2"
           id="goliath-settings-title"
@@ -141,7 +140,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         >
           <CloseTwoToneIcon fontSize="small" />
         </IconButton>
-      </Box>
+      </div>
       {reloading && (
         <LinearProgress
           className="GoliathReloadProgress"
@@ -149,12 +148,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         />
       )}
 
-      <Box className="GoliathSettingsBody">
-        <Box component="nav" className="GoliathSettingsNav">
+      <div className="GoliathSettingsBody">
+        <nav className="GoliathSettingsNav">
           {sections.map((s) => (
-            <Box
+            <button
               key={s.id}
-              component="button"
               type="button"
               className={
                 s.id === section
@@ -165,11 +163,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             >
               {s.icon}
               <span>{s.label}</span>
-            </Box>
+            </button>
           ))}
-        </Box>
+        </nav>
 
-        <Box className="GoliathSettingsContent">
+        <div className="GoliathSettingsContent">
           {section === 'general' ? (
             <GeneralSettings
               theme={theme}
@@ -195,10 +193,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               onFeedsChanged={onFeedsChanged}
             />
           )}
-        </Box>
-      </Box>
+        </div>
+      </div>
 
-      <Box className="GoliathDialogFooter">
+      <div className="GoliathDialogFooter">
         <Button
           variant="contained"
           className="GoliathAccentButton"
@@ -206,7 +204,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         >
           Done
         </Button>
-      </Box>
+      </div>
     </Dialog>
   );
 };
@@ -216,10 +214,10 @@ const SettingsGroup: React.FC<{ title: string; children: ReactNode }> = ({
   title,
   children,
 }) => (
-  <Box className="GoliathSettingsGroup">
+  <div className="GoliathSettingsGroup">
     <Typography className="GoliathSettingsGroupTitle">{title}</Typography>
-    <Box className="GoliathSettingsCard">{children}</Box>
-  </Box>
+    <div className="GoliathSettingsCard">{children}</div>
+  </div>
 );
 
 /** One row in a settings card: a label and description with a control. */
@@ -228,26 +226,30 @@ const SettingsRow: React.FC<{
   description?: string;
   control: ReactNode;
   onClick?: () => void;
-}> = ({ label, description, control, onClick }) => (
-  <Box
-    component={onClick ? 'button' : 'div'}
-    type={onClick ? 'button' : undefined}
-    className={
-      onClick
-        ? 'GoliathSettingsCardRow GoliathSettingsCardRowClickable'
-        : 'GoliathSettingsCardRow'
-    }
-    onClick={onClick}
-  >
-    <Box className="GoliathSettingsRowText">
-      <span className="GoliathSettingsRowLabel">{label}</span>
-      {description && (
-        <span className="GoliathSettingsRowDescription">{description}</span>
-      )}
-    </Box>
-    <Box className="GoliathSettingsRowControl">{control}</Box>
-  </Box>
-);
+}> = ({ label, description, control, onClick }) => {
+  // A row that does something is a button; one that only shows something is
+  // not, so that only the former is reachable and announced as actionable.
+  const Row = onClick ? 'button' : 'div';
+  return (
+    <Row
+      type={onClick ? 'button' : undefined}
+      className={
+        onClick
+          ? 'GoliathSettingsCardRow GoliathSettingsCardRowClickable'
+          : 'GoliathSettingsCardRow'
+      }
+      onClick={onClick}
+    >
+      <div className="GoliathSettingsRowText">
+        <span className="GoliathSettingsRowLabel">{label}</span>
+        {description && (
+          <span className="GoliathSettingsRowDescription">{description}</span>
+        )}
+      </div>
+      <div className="GoliathSettingsRowControl">{control}</div>
+    </Row>
+  );
+};
 
 interface GeneralSettingsProps {
   theme: GoliathTheme;
@@ -309,14 +311,14 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
       />
     </SettingsGroup>
 
-    <Box className="GoliathSettingsAbout">
+    <div className="GoliathSettingsAbout">
       <span>Goliath RSS</span>
       <span>
         Built at {buildTimestamp} &middot;{' '}
         <span className="GoliathSettingsBuildHash">{buildHash}</span>
       </span>
       <span>Schema {schemaVersion}</span>
-    </Box>
+    </div>
   </>
 );
 
@@ -449,7 +451,7 @@ const FeedSettings: React.FC<FeedSettingsProps> = ({
 
   return (
     <>
-      <Box className="GoliathSettingsFeedsHeader">
+      <div className="GoliathSettingsFeedsHeader">
         <Typography className="GoliathSettingsGroupTitle">
           Subscriptions
           <span className="GoliathSettingsCount">{feedCount}</span>
@@ -463,7 +465,7 @@ const FeedSettings: React.FC<FeedSettingsProps> = ({
         >
           Add feed
         </Button>
-      </Box>
+      </div>
       {Array.from(folderFeedView, ([folder, feeds]) =>
         renderFolder(folder, feeds)
       )}
@@ -577,10 +579,10 @@ const FolderGroup: React.FC<FolderGroupProps> = ({
         : `Remove this folder? Its ${feedCount} feeds move to ${UnfiledFolderTitle}.`;
 
   return (
-    <Box className="GoliathSettingsGroup">
-      <Box className="GoliathSettingsFolderHeader">
+    <div className="GoliathSettingsGroup">
+      <div className="GoliathSettingsFolderHeader">
         {mode === 'rename' ? (
-          <Box className="GoliathSettingsFeedEditing">
+          <div className="GoliathSettingsFeedEditing">
             <form onSubmit={handleRename} className="GoliathSettingsFeedEditor">
               <TextField
                 autoFocus
@@ -605,14 +607,14 @@ const FolderGroup: React.FC<FolderGroupProps> = ({
               {cancelButton}
             </form>
             {errorText}
-          </Box>
+          </div>
         ) : (
           <>
             <Typography className="GoliathSettingsGroupTitle">
               {folder.title}
             </Typography>
             {editable && (
-              <Box className="GoliathSettingsFeedActions">
+              <div className="GoliathSettingsFeedActions">
                 <Tooltip title="Rename folder">
                   <IconButton
                     size="small"
@@ -632,16 +634,16 @@ const FolderGroup: React.FC<FolderGroupProps> = ({
                     <DeleteTwoToneIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-              </Box>
+              </div>
             )}
           </>
         )}
-      </Box>
-      <Box className="GoliathSettingsCard">
+      </div>
+      <div className="GoliathSettingsCard">
         {mode === 'delete' && (
-          <Box className="GoliathSettingsCardRow GoliathSettingsFeedRow">
-            <Box className="GoliathSettingsFeedEditing">
-              <Box className="GoliathSettingsFeedEditor">
+          <div className="GoliathSettingsCardRow GoliathSettingsFeedRow">
+            <div className="GoliathSettingsFeedEditing">
+              <div className="GoliathSettingsFeedEditor">
                 <Typography className="GoliathSettingsConfirmText">
                   {deleteQuestion}
                 </Typography>
@@ -656,22 +658,22 @@ const FolderGroup: React.FC<FolderGroupProps> = ({
                   Remove
                 </Button>
                 {cancelButton}
-              </Box>
+              </div>
               {errorText}
-            </Box>
-          </Box>
+            </div>
+          </div>
         )}
         {feedCount === 0 ? (
-          <Box className="GoliathSettingsCardRow GoliathSettingsFeedRow">
+          <div className="GoliathSettingsCardRow GoliathSettingsFeedRow">
             <Typography className="GoliathSettingsFolderEmpty">
               No feeds in this folder.
             </Typography>
-          </Box>
+          </div>
         ) : (
           children
         )}
-      </Box>
-    </Box>
+      </div>
+    </div>
   );
 };
 
@@ -824,8 +826,8 @@ const FeedRow: React.FC<FeedRowProps> = ({
         );
       case 'move':
         return (
-          <Box className="GoliathSettingsFeedEditor">
-            <Box className="GoliathSettingsMoveTargets">
+          <div className="GoliathSettingsFeedEditor">
+            <div className="GoliathSettingsMoveTargets">
               <Select
                 size="small"
                 fullWidth
@@ -869,14 +871,14 @@ const FeedRow: React.FC<FeedRowProps> = ({
                   slotProps={{ htmlInput: { 'aria-label': 'New folder name' } }}
                 />
               )}
-            </Box>
+            </div>
             {confirmButton('Move', handleMove)}
             {cancelButton}
-          </Box>
+          </div>
         );
       case 'unsubscribe':
         return (
-          <Box className="GoliathSettingsFeedEditor">
+          <div className="GoliathSettingsFeedEditor">
             <Typography className="GoliathSettingsConfirmText">
               Unsubscribe and delete its articles?
             </Typography>
@@ -891,7 +893,7 @@ const FeedRow: React.FC<FeedRowProps> = ({
               Unsubscribe
             </Button>
             {cancelButton}
-          </Box>
+          </div>
         );
       default:
         return null;
@@ -899,7 +901,7 @@ const FeedRow: React.FC<FeedRowProps> = ({
   };
 
   return (
-    <Box className="GoliathSettingsCardRow GoliathSettingsFeedRow">
+    <div className="GoliathSettingsCardRow GoliathSettingsFeedRow">
       <FeedIcon
         favicon={feed.favicon?.GetFavicon() || ''}
         feedTitle={feed.title}
@@ -914,7 +916,7 @@ const FeedRow: React.FC<FeedRowProps> = ({
               {plainTitle}
             </Typography>
           </Tooltip>
-          <Box className="GoliathSettingsFeedActions">
+          <div className="GoliathSettingsFeedActions">
             <Tooltip title="Rename">
               <IconButton
                 size="small"
@@ -943,17 +945,17 @@ const FeedRow: React.FC<FeedRowProps> = ({
                 <DeleteTwoToneIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-          </Box>
+          </div>
         </>
       ) : (
-        <Box className="GoliathSettingsFeedEditing">
+        <div className="GoliathSettingsFeedEditing">
           {renderEditor()}
           {error && (
             <Typography className="GoliathDialogError">{error}</Typography>
           )}
-        </Box>
+        </div>
       )}
-    </Box>
+    </div>
   );
 };
 

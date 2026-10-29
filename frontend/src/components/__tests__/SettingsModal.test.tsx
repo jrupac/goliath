@@ -67,7 +67,9 @@ describe('SettingsModal folders', () => {
   it('announces itself by its heading', () => {
     render(<SettingsModal {...makeProps()} />);
 
-    expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('dialog', { name: 'Settings' })
+    ).toBeInTheDocument();
   });
 
   // The view is built from subscriptions, so a folder with no feeds is known

@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Box, IconButton, Skeleton, Stack, Tooltip } from '@mui/material';
+import { IconButton, Skeleton, Stack, Tooltip } from '@mui/material';
 import { formatFriendly, formatFull } from '../utils/dates';
 import { scopeArticleHtml } from '../utils/helpers';
 import FeedIcon from './FeedIcon';
@@ -235,11 +235,11 @@ const ArticleCard: React.FC<ArticleProps> = ({
   const renderContent = (): ReactNode => {
     if (state.loading) {
       return (
-        <Box>
+        <div>
           <Skeleton variant="text" animation="wave" />
           <Skeleton variant="text" animation="wave" />
           <Skeleton variant="text" animation="wave" />
-        </Box>
+        </div>
       );
     } else {
       return (
@@ -254,8 +254,8 @@ const ArticleCard: React.FC<ArticleProps> = ({
   return (
     <Stack className="GoliathArticleCardColumn">
       {/* Topmost bar (feed name, date, buttons) */}
-      <Box className="GoliathArticleByline">
-        <Box className="GoliathArticleBylineInfo">
+      <div className="GoliathArticleByline">
+        <div className="GoliathArticleBylineInfo">
           {!useMobileLayout && onBack && (
             <IconButton
               aria-label="back to list"
@@ -279,8 +279,8 @@ const ArticleCard: React.FC<ArticleProps> = ({
               {formatFriendly(date)}
             </span>
           </Tooltip>
-        </Box>
-        <Box className="GoliathArticleBylineActions">
+        </div>
+        <div className="GoliathArticleBylineActions">
           {!useMobileLayout && onPrev && (
             <Tooltip title="Scroll up / Previous article">
               <IconButton
@@ -353,15 +353,15 @@ const ArticleCard: React.FC<ArticleProps> = ({
               </IconButton>
             </Tooltip>
           )}
-        </Box>
-      </Box>
+        </div>
+      </div>
 
       {/* Article scroll area */}
-      <Box className="GoliathSplitViewArticleContainer" ref={contentScrollRef}>
+      <div className="GoliathSplitViewArticleContainer" ref={contentScrollRef}>
         {/* Frosted title bar. It lives inside the scroller and sticks to its
             top, so content scrolls under it and is blurred by it while the
             scrollbar, which is outside the content box, stays crisp. */}
-        <Box className="GoliathArticleTitleBar" ref={titleBarRef}>
+        <div className="GoliathArticleTitleBar" ref={titleBarRef}>
           <h1 className="GoliathArticleTitle">
             <a
               target="_blank"
@@ -371,7 +371,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
               <span dangerouslySetInnerHTML={{ __html: props.article.title }} />
             </a>
           </h1>
-        </Box>
+        </div>
 
         {/* Article content */}
         <div
@@ -380,28 +380,28 @@ const ArticleCard: React.FC<ArticleProps> = ({
         >
           {renderContent()}
         </div>
-      </Box>
+      </div>
 
       {/* Scrollbar for the container above. The rail spans the whole scroller,
           but its track starts below the title bar — see useOverlayScrollbar.
           Hidden until the first sync finds something to scroll. */}
-      <Box
+      <div
         className="GoliathArticleScrollbar"
         ref={railRef}
         onPointerDown={onRailPointerDown}
         aria-hidden="true"
         hidden
       >
-        <Box
+        <div
           className="GoliathArticleScrollbarThumb"
           ref={thumbRef}
           onPointerDown={onThumbPointerDown}
         />
-      </Box>
+      </div>
 
       {/* Mobile Bottom Navigation Bar */}
       {useMobileLayout && (
-        <Box className="GoliathMobileBottomBar">
+        <div className="GoliathMobileBottomBar">
           <IconButton
             aria-label="back to list"
             onClick={onBack}
@@ -462,7 +462,7 @@ const ArticleCard: React.FC<ArticleProps> = ({
               )}
             </IconButton>
           )}
-        </Box>
+        </div>
       )}
     </Stack>
   );

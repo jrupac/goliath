@@ -9,7 +9,7 @@ import {
   SelectionKey,
   SelectionType,
 } from '../utils/types';
-import { Box, IconButton, Tooltip } from '@mui/material';
+import { IconButton, Tooltip } from '@mui/material';
 import InboxTwoToneIcon from '@mui/icons-material/InboxTwoTone';
 import ListTwoToneIcon from '@mui/icons-material/ListTwoTone';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
@@ -103,12 +103,12 @@ const FeedTreeItem = React.memo(function FeedTreeItem({
               : 'GoliathFeedTitle'
           }
         >
-          <Box className="GoliathFeedTitleRow">
+          <div className="GoliathFeedTitleRow">
             <Tooltip title={plainTitle}>
-              <Box className="GoliathFeedTitleText">{plainTitle}</Box>
+              <div className="GoliathFeedTitleText">{plainTitle}</div>
             </Tooltip>
-            <Box className={pillClass}>{hasUnread && unreadCount}</Box>
-          </Box>
+            <div className={pillClass}>{hasUnread && unreadCount}</div>
+          </div>
         </span>
       }
       className="GoliathFeedRow"
@@ -239,29 +239,29 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
 
   const renderUnreadTitle = () => {
     return (
-      <Box className="GoliathStreamContent">
+      <div className="GoliathStreamContent">
         <span>Unread items</span>
         {unreadCount > 0 && (
-          <Box className="GoliathSidebarPill">{unreadCount}</Box>
+          <div className="GoliathSidebarPill">{unreadCount}</div>
         )}
-      </Box>
+      </div>
     );
   };
 
   const renderAllTitle = () => {
     return (
-      <Box className="GoliathStreamContent">
+      <div className="GoliathStreamContent">
         <span>All items</span>
-      </Box>
+      </div>
     );
   };
 
   const renderSavedItemsTitle = () => {
     // TODO: Support showing number of saved items.
     return (
-      <Box className="GoliathStreamContent">
+      <div className="GoliathStreamContent">
         <span>Saved items</span>
-      </Box>
+      </div>
     );
   };
 
@@ -270,7 +270,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
     const hasUnread = folderView.unread_count > 0;
 
     return (
-      <Box className="GoliathFolderRowContent">
+      <div className="GoliathFolderRowContent">
         <span
           className={
             hasUnread
@@ -279,22 +279,20 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
           }
         >
           <Tooltip title={folderView.title}>
-            <Box component="span" className="GoliathFolderTitleText">
-              {folderView.title}
-            </Box>
+            <span className="GoliathFolderTitleText">{folderView.title}</span>
           </Tooltip>
           {hasUnread && (
-            <Box
+            <div
               className={
                 isSelected ? 'GoliathSidebarPill' : 'GoliathSidebarPillPlain'
               }
             >
               {folderView.unread_count}
-            </Box>
+            </div>
           )}
         </span>
-        {!hasUnread && <Box className="GoliathSidebarPillPlaceholder" />}
-      </Box>
+        {!hasUnread && <div className="GoliathSidebarPillPlaceholder" />}
+      </div>
     );
   };
 
@@ -337,35 +335,35 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
 
   return (
     <>
-      <Box className="GoliathFolderFeedHeader">
+      <div className="GoliathFolderFeedHeader">
         <p className="GoliathFolderFeedTitle">streams</p>
-      </Box>
+      </div>
 
-      <Box
+      <div
         onClick={(e) => handleItemSelect(e, KeyUnread)}
         className={unreadSelectedClass}
       >
         <InboxTwoToneIcon fontSize="small" />
         {renderUnreadTitle()}
-      </Box>
+      </div>
 
-      <Box
+      <div
         onClick={(e) => handleItemSelect(e, KeyAllItems)}
         className={allSelectedClass}
       >
         <ListTwoToneIcon fontSize="small" />
         {renderAllTitle()}
-      </Box>
+      </div>
 
-      <Box
+      <div
         onClick={(e) => handleItemSelect(e, KeySaved)}
         className={savedSelectedClass}
       >
         <StarTwoToneIcon fontSize="small" />
         {renderSavedItemsTitle()}
-      </Box>
+      </div>
 
-      <Box className={`${scrolledClass} GoliathFolderFeedHeader `}>
+      <div className={`${scrolledClass} GoliathFolderFeedHeader `}>
         <p className="GoliathFolderFeedTitle">feeds</p>
         <Tooltip title="Add feed">
           <IconButton
@@ -377,7 +375,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
             <AddTwoToneIcon />
           </IconButton>
         </Tooltip>
-      </Box>
+      </div>
 
       <SimpleTreeView
         ref={treeViewRef}

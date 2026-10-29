@@ -1,12 +1,6 @@
 import React, { FormEvent, ReactNode, useState } from 'react';
 import { Navigate } from 'react-router';
-import {
-  Box,
-  Button,
-  CssBaseline,
-  TextField,
-  ThemeProvider,
-} from '@mui/material';
+import { Button, CssBaseline, TextField, ThemeProvider } from '@mui/material';
 import { FetchAPI, FetchAPIFactory, LoginInfo } from '../api/interface';
 import { GoliathPath, ThemeInfo } from '../utils/types';
 import { populateThemeInfo } from '../utils/helpers';
@@ -26,9 +20,9 @@ const Login: React.FC<LoginProps> = () => {
   const showLoginFailedMessage = (): ReactNode => {
     if (loginAttempted && !loginSuccess) {
       return (
-        <Box className="GoliathLoginFailedMessage">
+        <div className="GoliathLoginFailedMessage">
           Invalid username or password.
-        </Box>
+        </div>
       );
     } else {
       return null;
@@ -82,10 +76,10 @@ const Login: React.FC<LoginProps> = () => {
   return (
     <ThemeProvider theme={themeInfo.theme}>
       <CssBaseline />
-      <Box className={`GoliathLoginPage ${themeInfo.themeClasses}`}>
-        <Box className="GoliathLoginPageLogo">Goliath</Box>
-        <Box className="GoliathLoginPageSecondary">
-          <Box className="GoliathLoginPageForm">
+      <div className={`GoliathLoginPage ${themeInfo.themeClasses}`}>
+        <div className="GoliathLoginPageLogo">Goliath</div>
+        <div className="GoliathLoginPageSecondary">
+          <div className="GoliathLoginPageForm">
             {showLoginFailedMessage()}
             <form onSubmit={handleSubmit} className="login-page-form">
               <TextField
@@ -116,9 +110,9 @@ const Login: React.FC<LoginProps> = () => {
                 Log in
               </Button>
             </form>
-          </Box>
-        </Box>
-      </Box>
+          </div>
+        </div>
+      </div>
     </ThemeProvider>
   );
 };

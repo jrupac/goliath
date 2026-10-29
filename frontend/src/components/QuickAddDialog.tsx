@@ -1,6 +1,5 @@
 import React, { FormEvent, useMemo, useState } from 'react';
 import {
-  Box,
   Button,
   CircularProgress,
   Dialog,
@@ -261,7 +260,7 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
 
   const renderUrlStep = () => (
     <form onSubmit={handleSubmitUrl} className="GoliathQuickAddForm">
-      <Box className="GoliathDialogContent">
+      <div className="GoliathDialogContent">
         <TextField
           autoFocus
           fullWidth
@@ -276,8 +275,8 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
           className="GoliathAccentField GoliathDialogField"
           slotProps={{ htmlInput: { inputMode: 'url', spellCheck: false } }}
         />
-      </Box>
-      <Box className="GoliathDialogFooter">
+      </div>
+      <div className="GoliathDialogFooter">
         <Button
           className="GoliathQuietButton"
           onClick={handleCancel}
@@ -296,13 +295,13 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
         >
           {busy ? 'Checking' : 'Add'}
         </Button>
-      </Box>
+      </div>
     </form>
   );
 
   const renderFolderStep = () => (
     <>
-      <Box className="GoliathDialogContent">
+      <div className="GoliathDialogContent">
         <Typography className="GoliathDialogText">
           {alreadySubscribed ? 'Already subscribed to ' : 'Subscribed to '}
           <strong>{added?.title}</strong>.
@@ -366,8 +365,8 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
         {error && (
           <Typography className="GoliathDialogError">{error}</Typography>
         )}
-      </Box>
-      <Box className="GoliathDialogFooter">
+      </div>
+      <div className="GoliathDialogFooter">
         <Button
           className="GoliathQuietButton"
           onClick={handleCancel}
@@ -386,7 +385,7 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
         >
           Done
         </Button>
-      </Box>
+      </div>
     </>
   );
 
@@ -404,7 +403,7 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
         transition: { onExited: reset },
       }}
     >
-      <Box className="GoliathDialogHeader">
+      <div className="GoliathDialogHeader">
         <Typography
           component="h2"
           id="goliath-quickadd-title"
@@ -421,7 +420,7 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
         >
           <CloseTwoToneIcon fontSize="small" />
         </IconButton>
-      </Box>
+      </div>
       {step === 'url' ? renderUrlStep() : renderFolderStep()}
     </Dialog>
   );

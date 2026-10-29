@@ -1,11 +1,5 @@
 import React from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  Box,
-  Typography,
-} from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, Typography } from '@mui/material';
 import { Keybindings, Keybinding } from '../utils/keybindings';
 
 interface KeybindingsModalProps {
@@ -58,15 +52,15 @@ const KeybindingSection: React.FC<KeybindingSectionProps> = ({
   if (bindings.length === 0) return null;
 
   return (
-    <Box className="GoliathKeybindingSection">
+    <div className="GoliathKeybindingSection">
       <Typography variant="subtitle2" className="GoliathKeybindingSectionTitle">
         {title}
       </Typography>
       {bindings
         .filter((kb) => kb.display.length > 0)
         .map((kb, idx) => (
-          <Box key={kb.handlerKey + idx} className="GoliathKeybindingRow">
-            <Box className="GoliathKeybindingKeyGroup">
+          <div key={kb.handlerKey + idx} className="GoliathKeybindingRow">
+            <div className="GoliathKeybindingKeyGroup">
               {kb.display.map((chip, chipIdx) => (
                 <React.Fragment key={chipIdx}>
                   {chipIdx > 0 && (
@@ -74,16 +68,16 @@ const KeybindingSection: React.FC<KeybindingSectionProps> = ({
                       {kb.isSequential ? '⭢' : kb.isChord ? '+' : '/'}
                     </span>
                   )}
-                  <Box className="GoliathKeybindingKey">{chip}</Box>
+                  <div className="GoliathKeybindingKey">{chip}</div>
                 </React.Fragment>
               ))}
-            </Box>
+            </div>
             <Typography className="GoliathKeybindingLabel">
               {kb.label}
             </Typography>
-          </Box>
+          </div>
         ))}
-    </Box>
+    </div>
   );
 };
 

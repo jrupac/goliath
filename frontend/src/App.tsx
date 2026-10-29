@@ -22,7 +22,6 @@ import {
 import './themes/default.css';
 import './themes/dark.css';
 import {
-  Box,
   Button,
   CssBaseline,
   Dialog,
@@ -549,7 +548,7 @@ export default class App extends React.Component<AppProps, AppState> {
       <ThemeProvider theme={this.state.themeInfo.theme}>
         {/* TODO: Is there a better way to inject overrides than this? */}
         <CssBaseline />
-        <Box className={`GoliathAppShell ${this.state.themeInfo.themeClasses}`}>
+        <div className={`GoliathAppShell ${this.state.themeInfo.themeClasses}`}>
           <Drawer
             variant={this.state.isMobile ? 'temporary' : 'permanent'}
             open={this.state.isMobile ? this.state.drawerOpen : undefined}
@@ -565,7 +564,7 @@ export default class App extends React.Component<AppProps, AppState> {
                 : 'GoliathDrawer'
             }
           >
-            <Box className="GoliathDrawerActionBar">
+            <div className="GoliathDrawerActionBar">
               {this.state.isMobile && (
                 <IconButton
                   aria-label="Hide feed list"
@@ -594,14 +593,14 @@ export default class App extends React.Component<AppProps, AppState> {
               >
                 <MenuTwoToneIcon />
               </IconButton>
-            </Box>
+            </div>
             {this.state.reloading && (
               <LinearProgress
                 className="GoliathReloadProgress"
                 aria-label="Refreshing subscriptions"
               />
             )}
-            <Box className="GoliathLogo">Goliath</Box>
+            <div className="GoliathLogo">Goliath</div>
             <FolderFeedList
               folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
               unreadCount={unreadCount}
@@ -612,7 +611,7 @@ export default class App extends React.Component<AppProps, AppState> {
               onAddFeed={() => this.setState({ showQuickAdd: true })}
             />
           </Drawer>
-          <Box component="main" className="GoliathMainContainer">
+          <main className="GoliathMainContainer">
             <ArticleList
               fetchApi={this.fetchApi}
               handleUpdateArticleParsed={this.handleUpdateArticleParsed}
@@ -665,8 +664,8 @@ export default class App extends React.Component<AppProps, AppState> {
                 }
               }}
             />
-          </Box>
-        </Box>
+          </main>
+        </div>
         <Menu
           open={this.state.menuAnchor !== null}
           anchorEl={this.state.menuAnchor}
@@ -726,7 +725,7 @@ export default class App extends React.Component<AppProps, AppState> {
             paper: { className: 'GoliathModalPaper' },
           }}
         >
-          <Box className="GoliathDialogHeader">
+          <div className="GoliathDialogHeader">
             <Typography
               component="h2"
               id="goliath-logout-title"
@@ -734,13 +733,13 @@ export default class App extends React.Component<AppProps, AppState> {
             >
               Log out
             </Typography>
-          </Box>
-          <Box className="GoliathDialogContent">
+          </div>
+          <div className="GoliathDialogContent">
             <Typography id="goliath-logout-text" className="GoliathDialogText">
               Are you sure you want to log out?
             </Typography>
-          </Box>
-          <Box className="GoliathDialogFooter">
+          </div>
+          <div className="GoliathDialogFooter">
             <Button
               className="GoliathQuietButton"
               onClick={() => this.setState({ showLogoutConfirm: false })}
@@ -755,7 +754,7 @@ export default class App extends React.Component<AppProps, AppState> {
             >
               Log out
             </Button>
-          </Box>
+          </div>
         </Dialog>
         <KeybindingsModal
           open={this.state.showKeybindingsModal}

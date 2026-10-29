@@ -187,8 +187,8 @@
   padding-top: 24px;
 }
 
-.GoliathStreamSelector.MuiBox-root,
-.GoliathStreamSelectorSelected.MuiBox-root {
+.GoliathStreamSelector,
+.GoliathStreamSelectorSelected {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -203,8 +203,8 @@
   cursor: pointer;
 }
 
-.GoliathStreamSelector.MuiBox-root:hover,
-.GoliathStreamSelectorSelected.MuiBox-root {
+.GoliathStreamSelector:hover,
+.GoliathStreamSelectorSelected {
   background-color: var(--primary-selected-color);
 }
 
@@ -314,8 +314,8 @@
 }
 
 /* Feed/folder title text — truncates with ellipsis */
-.GoliathFeedTitleText.MuiBox-root,
-.GoliathFolderTitleText.MuiBox-root {
+.GoliathFeedTitleText,
+.GoliathFolderTitleText {
   min-width: 0;
   flex: 1;
   overflow-x: clip;
@@ -827,7 +827,7 @@
   box-sizing: border-box;
 }
 
-.GoliathArticleListBox.MuiBox-root {
+.GoliathArticleListBox {
   height: 100vh;
   padding: 0 24px;
   overflow-y: auto;
@@ -1387,7 +1387,7 @@
 /* Dialog content. Padded on top as well, so a floating field label that
    rises above its input is not cut off at the edge. */
 .GoliathDialogContent.MuiDialogContent-root,
-.GoliathDialogContent.MuiBox-root {
+.GoliathDialogContent {
   padding: 20px 24px 16px;
 }
 
