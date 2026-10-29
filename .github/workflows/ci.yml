@@ -64,6 +64,13 @@ jobs:
         run: go test ./...
         working-directory: cmd/goliath-cli
 
+      # Covers oxlint, the formatter and tsc. The test run does not typecheck:
+      # the transform strips annotations without reading them, so a type error
+      # reaches the suite as working code and passes it.
+      - name: Lint and typecheck frontend
+        run: bun run lint
+        working-directory: frontend
+
       - name: Run frontend tests
         run: bun run test
         working-directory: frontend
