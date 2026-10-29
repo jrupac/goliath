@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom';
 
+import { expect } from 'vitest';
 import { within, Screen } from '@testing-library/react';
 
 export const expectTextInElement = (
