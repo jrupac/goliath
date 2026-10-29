@@ -10,12 +10,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v7
         with:
           go-version: "1.27.3"
+          # The modules sit under a workspace with nothing at the root, so the
+          # dependency files the build cache keys on have to be named here.
+          cache-dependency-path: |
+            backend/go.sum
+            cmd/goliath-cli/go.sum
 
       # Pinned to match the Dockerfile. The distribution's protoc is too old for
       # field options the admin proto uses, such as debug_redact.
