@@ -4,7 +4,7 @@
 import * as momentModule from 'moment';
 const moment = momentModule.default || momentModule;
 import { Decimal } from 'decimal.js-light';
-import * as LosslessJSON from 'lossless-json';
+import { isLosslessNumber, parse as parseLossless } from 'lossless-json';
 
 import { ArticleId, ArticleView } from '../models/article';
 import { FeedId, FeedView } from '../models/feed';
@@ -59,8 +59,8 @@ export function maxDecimal(
 export function parseJson(text: string): any {
   // Parse as Lossless numbers since values from the server are 64-bit
   // Integer, but then convert back to String for use going forward.
-  return LosslessJSON.parse(text, (_: string, v: any) => {
-    if (v && v.isLosslessNumber) {
+  return parseLossless(text, (_: string, v: unknown) => {
+    if (isLosslessNumber(v)) {
       return String(v);
     }
     return v;
