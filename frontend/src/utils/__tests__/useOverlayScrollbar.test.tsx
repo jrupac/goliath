@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useOverlayScrollbar } from '../useOverlayScrollbar';
@@ -17,7 +17,7 @@ const stubGeometry = (el: Element, props: Record<string, number>) => {
   }
 };
 
-const Harness: React.FC = () => {
+const Harness = () => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);

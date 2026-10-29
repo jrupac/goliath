@@ -127,7 +127,7 @@ export interface FolderFeedListProps {
   onAddFeed?: () => void;
 }
 
-const FolderFeedList: React.FC<FolderFeedListProps> = ({
+const FolderFeedList = ({
   folderFeedView,
   unreadCount,
   selectedKey,
@@ -135,7 +135,7 @@ const FolderFeedList: React.FC<FolderFeedListProps> = ({
   handleSelect,
   hideEmpty = false,
   onAddFeed,
-}) => {
+}: FolderFeedListProps) => {
   // Derived from folderFeedView, so it is memoized rather than held in state
   // and synced by an effect. The effect version re-rendered the whole sidebar a
   // second time on every change, and folderFeedView gets a new identity on

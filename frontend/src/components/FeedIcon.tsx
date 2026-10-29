@@ -1,4 +1,3 @@
-import React from 'react';
 import { getFeedInitials, hashToSwatchIndex } from '../utils/helpers';
 
 interface FeedIconProps {
@@ -9,13 +8,13 @@ interface FeedIconProps {
   alt?: string;
 }
 
-const FeedIcon: React.FC<FeedIconProps> = ({
+const FeedIcon = ({
   favicon,
   feedTitle,
   feedId,
   size = 16,
   alt = '',
-}) => {
+}: FeedIconProps) => {
   if (favicon) {
     return (
       <img

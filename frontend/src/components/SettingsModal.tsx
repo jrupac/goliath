@@ -1,4 +1,4 @@
-import React, { FormEvent, ReactNode, useEffect, useState } from 'react';
+import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import {
   Button,
   CircularProgress,
@@ -81,7 +81,7 @@ const sections: { id: SettingsSection; label: string; icon: ReactNode }[] = [
   { id: 'feeds', label: 'Feeds', icon: <RssFeedTwoToneIcon /> },
 ];
 
-const SettingsModal: React.FC<SettingsModalProps> = ({
+const SettingsModal = ({
   open,
   onClose,
   isMobile,
@@ -104,7 +104,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   renameFolder,
   deleteFolder,
   onFeedsChanged,
-}) => {
+}: SettingsModalProps) => {
   const [section, setSection] = useState<SettingsSection>('general');
 
   return (
@@ -210,9 +210,12 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 };
 
 /** A titled group of settings, drawn as one card. */
-const SettingsGroup: React.FC<{ title: string; children: ReactNode }> = ({
+const SettingsGroup = ({
   title,
   children,
+}: {
+  title: string;
+  children: ReactNode;
 }) => (
   <div className="GoliathSettingsGroup">
     <Typography className="GoliathSettingsGroupTitle">{title}</Typography>
@@ -221,12 +224,17 @@ const SettingsGroup: React.FC<{ title: string; children: ReactNode }> = ({
 );
 
 /** One row in a settings card: a label and description with a control. */
-const SettingsRow: React.FC<{
+const SettingsRow = ({
+  label,
+  description,
+  control,
+  onClick,
+}: {
   label: string;
   description?: string;
   control: ReactNode;
   onClick?: () => void;
-}> = ({ label, description, control, onClick }) => {
+}) => {
   // A row that does something is a button; one that only shows something is
   // not, so that only the former is reachable and announced as actionable.
   const Row = onClick ? 'button' : 'div';
@@ -262,7 +270,7 @@ interface GeneralSettingsProps {
   schemaVersion: string;
 }
 
-const GeneralSettings: React.FC<GeneralSettingsProps> = ({
+const GeneralSettings = ({
   theme,
   onToggleTheme,
   hideEmpty,
@@ -271,7 +279,7 @@ const GeneralSettings: React.FC<GeneralSettingsProps> = ({
   buildTimestamp,
   buildHash,
   schemaVersion,
-}) => (
+}: GeneralSettingsProps) => (
   <>
     <SettingsGroup title="Appearance">
       <SettingsRow
@@ -357,7 +365,7 @@ interface FeedSettingsProps {
  * on each row and rename and remove on each folder. One thing is editable at
  * a time; the rest stay as they are until it is saved or abandoned.
  */
-const FeedSettings: React.FC<FeedSettingsProps> = ({
+const FeedSettings = ({
   folderFeedView,
   onAddFeed,
   renameFeed,
@@ -368,7 +376,7 @@ const FeedSettings: React.FC<FeedSettingsProps> = ({
   renameFolder,
   deleteFolder,
   onFeedsChanged,
-}) => {
+}: FeedSettingsProps) => {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [listed, setListed] = useState<FolderSummary[]>([]);
 
@@ -496,7 +504,7 @@ interface FolderGroupProps {
  * other folder rather than a folder the user made, and removing a folder is
  * what sends feeds there.
  */
-const FolderGroup: React.FC<FolderGroupProps> = ({
+const FolderGroup = ({
   folder,
   feedCount,
   mode,
@@ -505,7 +513,7 @@ const FolderGroup: React.FC<FolderGroupProps> = ({
   deleteFolder,
   onFeedsChanged,
   children,
-}) => {
+}: FolderGroupProps) => {
   const [name, setName] = useState(folder.title);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -697,7 +705,7 @@ interface FeedRowProps {
   onFeedsChanged: () => void;
 }
 
-const FeedRow: React.FC<FeedRowProps> = ({
+const FeedRow = ({
   feed,
   folders,
   mode,
@@ -707,7 +715,7 @@ const FeedRow: React.FC<FeedRowProps> = ({
   moveFeedToNewFolder,
   unsubscribeFeed,
   onFeedsChanged,
-}) => {
+}: FeedRowProps) => {
   const plainTitle = extractText(feed.title) || feed.title;
   const [title, setTitle] = useState(plainTitle);
   const [folderId, setFolderId] = useState<FolderId>(feed.folder_id);

@@ -1,4 +1,4 @@
-import React, { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import {
   Button,
   CircularProgress,
@@ -79,7 +79,7 @@ type Step = 'url' | 'folder';
  * unfiled one for a new subscription, but not for an address already
  * subscribed, nor for a feed the user had removed and got back.
  */
-const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
+const QuickAddDialog = ({
   open,
   onClose,
   folderFeedView,
@@ -89,7 +89,7 @@ const QuickAddDialog: React.FC<QuickAddDialogProps> = ({
   moveFeedToNewFolder,
   unsubscribeFeed,
   onChanged,
-}) => {
+}: QuickAddDialogProps) => {
   const [step, setStep] = useState<Step>('url');
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);

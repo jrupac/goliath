@@ -1,4 +1,4 @@
-import React, {
+import {
   ReactElement,
   useCallback,
   useEffect,
@@ -81,7 +81,7 @@ export interface ArticleListProps {
   selectionTitle: string;
 }
 
-const ArticleList: React.FC<ArticleListProps> = ({
+const ArticleList = ({
   fetchApi,
   handleUpdateArticleParsed,
   articleEntriesCls,
@@ -106,7 +106,7 @@ const ArticleList: React.FC<ArticleListProps> = ({
   onArticleSelect,
   openDrawer,
   selectionTitle,
-}) => {
+}: ArticleListProps) => {
   const showListMobileLayout =
     isMobile || (isTabletPortrait && !tabletShowFeedList);
 

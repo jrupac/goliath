@@ -1,13 +1,11 @@
-import React, { FormEvent, ReactNode, useState } from 'react';
+import { FormEvent, ReactNode, useState } from 'react';
 import { Navigate } from 'react-router';
 import { Button, CssBaseline, TextField, ThemeProvider } from '@mui/material';
 import { FetchAPI, FetchAPIFactory, LoginInfo } from '../api/interface';
 import { GoliathPath, ThemeInfo } from '../utils/types';
 import { populateThemeInfo } from '../utils/helpers';
 
-export interface LoginProps {}
-
-const Login: React.FC<LoginProps> = () => {
+const Login = () => {
   const [loginAttempted, setLoginAttempted] = useState<boolean>(false);
   const [loginSuccess, setLoginSuccess] = useState<boolean>(false);
   const [usernameMissing, setUsernameMissing] = useState<boolean>(false);

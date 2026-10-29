@@ -67,7 +67,7 @@ const useOnScreen = (ref: React.RefObject<HTMLElement | null>) => {
   return isIntersecting;
 };
 
-const ImagePreview: React.FC<ImagePreviewProps> = ({ article }) => {
+const ImagePreview = ({ article }: ImagePreviewProps) => {
   const ref = useRef<HTMLDivElement>(null);
   const onScreen = useOnScreen(ref);
   const [imgSrc, setImgSrc] = useState<string | null | undefined>(undefined);

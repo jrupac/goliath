@@ -1,4 +1,3 @@
-import React from 'react';
 import { Status } from '../utils/types';
 import { LinearProgress } from '@mui/material';
 
@@ -6,7 +5,7 @@ export interface LoadingProps {
   status: Status;
 }
 
-const Loading: React.FC<LoadingProps> = ({ status }) => {
+const Loading = ({ status }: LoadingProps) => {
   const progress =
     status / (Status.Folder | Status.Feed | Status.Article | Status.Favicon);
   // Rounded here because the value is also what gets announced, and a long

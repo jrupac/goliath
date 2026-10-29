@@ -57,10 +57,7 @@ interface ArticleState {
   loading: boolean;
 }
 
-const ArticleCard: React.FC<ArticleProps> = ({
-  modalOpen = false,
-  ...props
-}: ArticleProps) => {
+const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
   const {
     fetchApi,
     handleUpdateArticleParsed,

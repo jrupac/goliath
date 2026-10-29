@@ -7,10 +7,7 @@ interface KeybindingsModalProps {
   onClose: () => void;
 }
 
-const KeybindingsModal: React.FC<KeybindingsModalProps> = ({
-  open,
-  onClose,
-}) => {
+const KeybindingsModal = ({ open, onClose }: KeybindingsModalProps) => {
   return (
     <Dialog
       open={open}
@@ -45,10 +42,7 @@ interface KeybindingSectionProps {
   bindings: Keybinding[];
 }
 
-const KeybindingSection: React.FC<KeybindingSectionProps> = ({
-  title,
-  bindings,
-}) => {
+const KeybindingSection = ({ title, bindings }: KeybindingSectionProps) => {
   if (bindings.length === 0) return null;
 
   return (
