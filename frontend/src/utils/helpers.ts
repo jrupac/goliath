@@ -1,4 +1,3 @@
-import { Decimal } from 'decimal.js-light';
 import { isLosslessNumber, parse as parseLossless } from 'lossless-json';
 
 import { ArticleId, ArticleView } from '../models/article';
@@ -23,15 +22,6 @@ export function makeAbsolute(url: string): string {
   const a = document.createElement('a');
   a.href = url;
   return a.href;
-}
-
-export function maxDecimal(
-  a: Decimal | ArticleId,
-  b: Decimal | ArticleId
-): Decimal {
-  a = new Decimal(a.toString());
-  b = new Decimal(b.toString());
-  return a.greaterThan(b) ? a : b;
 }
 
 export function parseJson(text: string): any {
