@@ -158,7 +158,7 @@ describe('ArticleList', () => {
     expectArticleSelected(container, 'Test Article 1', true);
 
     // Simulate scroll down
-    fireEvent.keyDown(window, { key: 'j' });
+    fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' });
 
     // Check that handleMark was called for the first article
     expect(mockHandleMark).toHaveBeenCalledWith(
@@ -179,7 +179,7 @@ describe('ArticleList', () => {
     expectArticleSelected(container, 'Test Article 1', true);
 
     // Simulate scroll down with ArrowDown key
-    fireEvent.keyDown(window, { key: 'ArrowDown' });
+    fireEvent.keyDown(window, { key: 'ArrowDown', code: 'ArrowDown' });
 
     // Check that handleMark was NOT called
     expect(mockHandleMark).not.toHaveBeenCalled();
@@ -193,11 +193,11 @@ describe('ArticleList', () => {
     const { container } = render(<ArticleList {...getMockProps()} />);
 
     // First scroll down with ArrowDown to select Article 2
-    fireEvent.keyDown(window, { key: 'ArrowDown' });
+    fireEvent.keyDown(window, { key: 'ArrowDown', code: 'ArrowDown' });
     expectArticleSelected(container, 'Test Article 2', true);
 
     // Simulate scroll up with ArrowUp key
-    fireEvent.keyDown(window, { key: 'ArrowUp' });
+    fireEvent.keyDown(window, { key: 'ArrowUp', code: 'ArrowUp' });
 
     // Check that handleMark was NOT called
     expect(mockHandleMark).not.toHaveBeenCalled();
@@ -215,7 +215,7 @@ describe('ArticleList', () => {
     const scrollUpButton = screen.getByLabelText('scroll up');
 
     // First, scroll down to select the second article (keyboard)
-    fireEvent.keyDown(window, { key: 'j' });
+    fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' });
 
     // Simulate the parent component updating the props after the article is marked read
     const updatedArticles = mockArticles.map((a, i) =>
@@ -230,7 +230,7 @@ describe('ArticleList', () => {
     expectArticleSelected(container, 'Test Article 2', true);
 
     // Simulate scroll up (keyboard)
-    fireEvent.keyDown(window, { key: 'k' });
+    fireEvent.keyDown(window, { key: 'k', code: 'KeyK' });
 
     // Check that handleMark was NOT called again.
     // It should have been called once for marking the first article as read
@@ -293,7 +293,7 @@ describe('ArticleList', () => {
     expectArticleSelected(container, 'Test Article 2', false);
 
     // Simulate scroll down
-    fireEvent.keyDown(window, { key: 'j' });
+    fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' });
 
     // After scroll, Article 2 should be selected
     expectArticleSelected(container, 'Test Article 1', false);
@@ -317,10 +317,10 @@ describe('ArticleList', () => {
     );
 
     // Scroll to the last article first
-    fireEvent.keyDown(window, { key: 'j' });
+    fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' });
 
     // Now at the last article (index 1); pressing j again should invoke the callback
-    fireEvent.keyDown(window, { key: 'j' });
+    fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' });
 
     expect(mockNavigateToAdjacentEntry).toHaveBeenCalledWith(
       NavigationDirection.Next
@@ -339,10 +339,12 @@ describe('ArticleList', () => {
     );
 
     // Scroll to the last article first
-    fireEvent.keyDown(window, { key: 'j' });
+    fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' });
 
     // At the last article; pressing j should not throw or navigate
-    expect(() => fireEvent.keyDown(window, { key: 'j' })).not.toThrow();
+    expect(() =>
+      fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' })
+    ).not.toThrow();
   });
 
   it('does not navigate when pressing k at start of list without navigateToAdjacentEntry prop (All stream)', () => {
@@ -355,7 +357,7 @@ describe('ArticleList', () => {
     );
 
     // Already at the first article (index 0); pressing k should NOT invoke navigation
-    fireEvent.keyDown(window, { key: 'k' });
+    fireEvent.keyDown(window, { key: 'k', code: 'KeyK' });
 
     expect(mockNavigateToAdjacentEntry).not.toHaveBeenCalled();
   });
@@ -464,7 +466,7 @@ describe('ArticleList', () => {
     );
 
     // Press j once — moves from article 0 to 1, not at the end (3 articles)
-    fireEvent.keyDown(window, { key: 'j' });
+    fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' });
 
     expect(mockNavigateToAdjacentEntry).not.toHaveBeenCalled();
   });
@@ -479,7 +481,7 @@ describe('ArticleList', () => {
     );
 
     // Already at the first article (index 0); pressing k should invoke the callback
-    fireEvent.keyDown(window, { key: 'k' });
+    fireEvent.keyDown(window, { key: 'k', code: 'KeyK' });
 
     expect(mockNavigateToAdjacentEntry).toHaveBeenCalledWith(
       NavigationDirection.Prev
@@ -497,11 +499,11 @@ describe('ArticleList', () => {
     );
 
     // Move to the second article first
-    fireEvent.keyDown(window, { key: 'j' });
+    fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' });
     mockNavigateToAdjacentEntry.mockClear();
 
     // Press k — should go back to first article, not invoke the callback
-    fireEvent.keyDown(window, { key: 'k' });
+    fireEvent.keyDown(window, { key: 'k', code: 'KeyK' });
 
     expect(mockNavigateToAdjacentEntry).not.toHaveBeenCalled();
   });
@@ -510,9 +512,13 @@ describe('ArticleList', () => {
     // No navigateToAdjacentEntry prop — pressing j at the last article should not throw
     render(<ArticleList {...getMockProps()} />);
 
-    fireEvent.keyDown(window, { key: 'j' }); // go to last
-    expect(() => fireEvent.keyDown(window, { key: 'j' })).not.toThrow();
-    expect(() => fireEvent.keyDown(window, { key: 'k' })).not.toThrow();
+    fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' }); // go to last
+    expect(() =>
+      fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' })
+    ).not.toThrow();
+    expect(() =>
+      fireEvent.keyDown(window, { key: 'k', code: 'KeyK' })
+    ).not.toThrow();
   });
 
   it('maintains scroll position with stable sort', () => {
@@ -551,14 +557,14 @@ describe('ArticleList', () => {
     // Scroll down and verify selection
     expectArticleSelected(container, 'Test Article 0', true);
     for (let i = 0; i < numArticles - 1; i++) {
-      fireEvent.keyDown(window, { key: 'j' });
+      fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' });
       expectArticleSelected(container, `Test Article ${i}`, false);
       expectArticleSelected(container, `Test Article ${i + 1}`, true);
     }
 
     // Scroll back up and verify selection
     for (let i = numArticles - 1; i > 0; i--) {
-      fireEvent.keyDown(window, { key: 'k' });
+      fireEvent.keyDown(window, { key: 'k', code: 'KeyK' });
       expectArticleSelected(container, `Test Article ${i}`, false);
       expectArticleSelected(container, `Test Article ${i - 1}`, true);
     }
@@ -652,8 +658,8 @@ describe('ArticleList', () => {
     render(<ArticleList {...getMockProps()} />);
 
     // Press 'g' then 'u'
-    fireEvent.keyDown(window, { key: 'g' });
-    fireEvent.keyDown(window, { key: 'u' });
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
+    fireEvent.keyDown(window, { key: 'u', code: 'KeyU' });
 
     expect(mockSelectUnreadCallback).toHaveBeenCalledTimes(1);
   });
@@ -662,8 +668,8 @@ describe('ArticleList', () => {
     render(<ArticleList {...getMockProps()} />);
 
     // Press 'g' then 'a'
-    fireEvent.keyDown(window, { key: 'g' });
-    fireEvent.keyDown(window, { key: 'a' });
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
+    fireEvent.keyDown(window, { key: 'a', code: 'KeyA' });
 
     expect(mockSelectAllCallback).toHaveBeenCalledTimes(1);
   });
@@ -672,8 +678,8 @@ describe('ArticleList', () => {
     render(<ArticleList {...getMockProps()} />);
 
     // Press Shift then I
-    fireEvent.keyDown(window, { key: 'Shift' });
-    fireEvent.keyDown(window, { key: 'I', shiftKey: true });
+    fireEvent.keyDown(window, { key: 'Shift', code: 'ShiftLeft' });
+    fireEvent.keyDown(window, { key: 'I', code: 'KeyI', shiftKey: true });
 
     expect(mockHandleMark).toHaveBeenCalledWith(
       MarkState.Read,
@@ -691,7 +697,7 @@ describe('ArticleList', () => {
     expect(body?.childNodes.length).toBe(2);
 
     // Trigger 'p'
-    fireEvent.keyDown(window, { key: 'p' });
+    fireEvent.keyDown(window, { key: 'p', code: 'KeyP' });
 
     // After toggling, ImagePreview is unmounted, leaving only the text child
     expect(body?.childNodes.length).toBe(1);
@@ -704,7 +710,7 @@ describe('ArticleList', () => {
     render(<ArticleList {...getMockProps()} />);
 
     // Trigger 'v'
-    fireEvent.keyDown(window, { key: 'v' });
+    fireEvent.keyDown(window, { key: 'v', code: 'KeyV' });
 
     expect(window.open).toHaveBeenCalledWith('https://example.com/1', '_blank');
     expect(mockHandleMark).toHaveBeenCalledTimes(1);
@@ -724,7 +730,7 @@ describe('ArticleList', () => {
     );
 
     // Trigger 'c'
-    fireEvent.keyDown(window, { key: 'c' });
+    fireEvent.keyDown(window, { key: 'c', code: 'KeyC' });
 
     expect(mockClearReadCallback).toHaveBeenCalledTimes(1);
     expect(mockClearReadCallback).toHaveBeenCalledWith('1'); // ID of the first article
@@ -742,7 +748,7 @@ describe('ArticleList', () => {
     );
 
     // Trigger 'c'
-    fireEvent.keyDown(window, { key: 'c' });
+    fireEvent.keyDown(window, { key: 'c', code: 'KeyC' });
 
     expect(mockClearReadCallback).not.toHaveBeenCalled();
   });
@@ -788,7 +794,7 @@ describe('ArticleList', () => {
     render(<ArticleList {...getMockProps()} />);
 
     // Trigger 's'
-    fireEvent.keyDown(window, { key: 's' });
+    fireEvent.keyDown(window, { key: 's', code: 'KeyS' });
 
     expect(mockHandleMark).toHaveBeenCalledTimes(1);
     expect(mockHandleMark).toHaveBeenCalledWith(
@@ -816,7 +822,7 @@ describe('ArticleList', () => {
     );
 
     // Trigger 's'
-    fireEvent.keyDown(window, { key: 's' });
+    fireEvent.keyDown(window, { key: 's', code: 'KeyS' });
 
     expect(mockHandleMark).toHaveBeenCalledTimes(1);
     expect(mockHandleMark).toHaveBeenCalledWith(
@@ -838,9 +844,9 @@ describe('ArticleList', () => {
     );
 
     // Trigger 'g' then 's' quickly
-    fireEvent.keyDown(window, { key: 'g' });
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
     vi.advanceTimersByTime(100);
-    fireEvent.keyDown(window, { key: 's' });
+    fireEvent.keyDown(window, { key: 's', code: 'KeyS' });
 
     expect(mockSelectSavedCallback).toHaveBeenCalledTimes(1);
     // Standalone toggleSave handler should be skipped because of suffix collision
@@ -854,9 +860,9 @@ describe('ArticleList', () => {
     render(<ArticleList {...getMockProps()} />);
 
     // Trigger 'g' then wait 1500ms and trigger 's'
-    fireEvent.keyDown(window, { key: 'g' });
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
     vi.advanceTimersByTime(1500);
-    fireEvent.keyDown(window, { key: 's' });
+    fireEvent.keyDown(window, { key: 's', code: 'KeyS' });
 
     // Standalone toggleSave handler should execute because timing gap > 1000ms
     expect(mockHandleMark).toHaveBeenCalledTimes(1);

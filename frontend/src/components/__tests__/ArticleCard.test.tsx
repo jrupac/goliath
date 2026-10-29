@@ -152,7 +152,7 @@ describe('ArticleCard', () => {
     const readerButton = screen.getByLabelText('reader mode');
     expect(readerButton).not.toHaveClass('GoliathReaderModeActive');
 
-    fireEvent.keyDown(window, { key: 'm' });
+    fireEvent.keyDown(window, { key: 'm', code: 'KeyM' });
 
     await waitFor(() => {
       expect(readerButton).toHaveClass('GoliathReaderModeActive');

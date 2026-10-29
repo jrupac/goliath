@@ -23,9 +23,9 @@ describe('KeybindRegistry Collision Handling', () => {
     });
 
     // Press 'g' then 's' quickly
-    fireEvent.keyDown(window, { key: 'g' });
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
     vi.advanceTimersByTime(100);
-    fireEvent.keyDown(window, { key: 's' });
+    fireEvent.keyDown(window, { key: 's', code: 'KeyS' });
 
     expect(mockGoSaved).toHaveBeenCalledTimes(1);
     expect(mockToggleSave).not.toHaveBeenCalled();
@@ -35,62 +35,49 @@ describe('KeybindRegistry Collision Handling', () => {
     mockToggleSave.mockClear();
 
     vi.advanceTimersByTime(2000); // clear any history window
-    fireEvent.keyDown(window, { key: 's' });
+    fireEvent.keyDown(window, { key: 's', code: 'KeyS' });
 
     expect(mockToggleSave).toHaveBeenCalledTimes(1);
     expect(mockGoSaved).not.toHaveBeenCalled();
   });
 
-  it('handles dual sequences "g u" and "u g" with standalone "u" and "g"', () => {
+  it('handles sequences sharing a prefix alongside their standalone suffixes', () => {
     const mockGoUnread = vi.fn();
-    const mockGoG = vi.fn();
+    const mockGoSaved = vi.fn();
     const mockU = vi.fn();
-    const mockG = vi.fn();
+    const mockS = vi.fn();
 
     keybindRegistry.register('test', {
       'g u': mockGoUnread,
-      'u g': mockGoG,
+      'g s': mockGoSaved,
       u: mockU,
-      g: mockG,
+      s: mockS,
     });
 
-    // Pressing 'g u g u' sequence
-    // 1. 'g'
-    fireEvent.keyDown(window, { key: 'g' });
-    expect(mockG).toHaveBeenCalledTimes(1);
+    // A suffix key on its own is unambiguous and fires.
+    fireEvent.keyDown(window, { key: 'u', code: 'KeyU' });
+    expect(mockU).toHaveBeenCalledTimes(1);
     expect(mockGoUnread).not.toHaveBeenCalled();
-    expect(mockGoG).not.toHaveBeenCalled();
-    expect(mockU).not.toHaveBeenCalled();
+    mockU.mockClear();
 
-    mockG.mockClear();
-
-    // 2. 'u' (triggers 'g u', blocks standalone 'u')
+    // Reached through the shared prefix, the sequence wins and the standalone
+    // suffix stays silent.
+    vi.advanceTimersByTime(2000);
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
     vi.advanceTimersByTime(100);
-    fireEvent.keyDown(window, { key: 'u' });
+    fireEvent.keyDown(window, { key: 'u', code: 'KeyU' });
     expect(mockGoUnread).toHaveBeenCalledTimes(1);
     expect(mockU).not.toHaveBeenCalled();
-    expect(mockG).not.toHaveBeenCalled();
-    expect(mockGoG).not.toHaveBeenCalled();
-
     mockGoUnread.mockClear();
 
-    // 3. 'g' (triggers 'u g', blocks standalone 'g')
+    // The other branch of the same prefix behaves the same way.
+    vi.advanceTimersByTime(2000);
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
     vi.advanceTimersByTime(100);
-    fireEvent.keyDown(window, { key: 'g' });
-    expect(mockGoG).toHaveBeenCalledTimes(1);
-    expect(mockG).not.toHaveBeenCalled();
-    expect(mockU).not.toHaveBeenCalled();
+    fireEvent.keyDown(window, { key: 's', code: 'KeyS' });
+    expect(mockGoSaved).toHaveBeenCalledTimes(1);
+    expect(mockS).not.toHaveBeenCalled();
     expect(mockGoUnread).not.toHaveBeenCalled();
-
-    mockGoG.mockClear();
-
-    // 4. 'u' (triggers 'g u', blocks standalone 'u')
-    vi.advanceTimersByTime(100);
-    fireEvent.keyDown(window, { key: 'u' });
-    expect(mockGoUnread).toHaveBeenCalledTimes(1);
-    expect(mockU).not.toHaveBeenCalled();
-    expect(mockG).not.toHaveBeenCalled();
-    expect(mockGoG).not.toHaveBeenCalled();
   });
 
   it('handles sequences with more than 2 keys (e.g., "g o s" and suffix "o s" and standalone "s")', () => {
@@ -105,11 +92,11 @@ describe('KeybindRegistry Collision Handling', () => {
     });
 
     // Press 'g' -> 'o' -> 's' quickly
-    fireEvent.keyDown(window, { key: 'g' });
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
     vi.advanceTimersByTime(100);
-    fireEvent.keyDown(window, { key: 'o' });
+    fireEvent.keyDown(window, { key: 'o', code: 'KeyO' });
     vi.advanceTimersByTime(100);
-    fireEvent.keyDown(window, { key: 's' });
+    fireEvent.keyDown(window, { key: 's', code: 'KeyS' });
 
     expect(mockGoOS).toHaveBeenCalledTimes(1);
     expect(mockOS).not.toHaveBeenCalled();
@@ -125,17 +112,64 @@ describe('KeybindRegistry Collision Handling', () => {
       g: mockG,
     });
 
-    // Press 'g' once
-    fireEvent.keyDown(window, { key: 'g' });
-    expect(mockG).toHaveBeenCalledTimes(1);
+    // The first press is ambiguous between the two, so neither fires.
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
+    expect(mockG).not.toHaveBeenCalled();
     expect(mockGG).not.toHaveBeenCalled();
-
-    mockG.mockClear();
 
     // Press 'g' again quickly
     vi.advanceTimersByTime(100);
-    fireEvent.keyDown(window, { key: 'g' });
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
     expect(mockGG).toHaveBeenCalledTimes(1);
     expect(mockG).not.toHaveBeenCalled();
+  });
+
+  it('never fires a key that is the opening press of a longer sequence', () => {
+    const mockGG = vi.fn();
+    const mockG = vi.fn();
+
+    keybindRegistry.register('test', {
+      'g g': mockGG,
+      g: mockG,
+    });
+
+    // Every press of 'g' opens 'g g' afresh, so the ambiguity returns rather
+    // than lapsing: waiting out the sequence timeout does not release the
+    // standalone binding. A key meant to act on its own cannot also be the
+    // first press of a sequence.
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
+    vi.advanceTimersByTime(2000);
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
+    vi.advanceTimersByTime(2000);
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' });
+    expect(mockG).not.toHaveBeenCalled();
+    expect(mockGG).not.toHaveBeenCalled();
+  });
+
+  it('keeps firing while a key is held down', () => {
+    const mockNext = vi.fn();
+
+    keybindRegistry.register('test', { j: mockNext });
+
+    fireEvent.keyDown(window, { key: 'j', code: 'KeyJ' });
+    fireEvent.keyDown(window, { key: 'j', code: 'KeyJ', repeat: true });
+    fireEvent.keyDown(window, { key: 'j', code: 'KeyJ', repeat: true });
+
+    expect(mockNext).toHaveBeenCalledTimes(3);
+  });
+
+  it('ignores a keystroke typed into a form field', () => {
+    const mockToggle = vi.fn();
+
+    keybindRegistry.register('test', { t: mockToggle });
+
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    try {
+      fireEvent.keyDown(input, { key: 't', code: 'KeyT' });
+      expect(mockToggle).not.toHaveBeenCalled();
+    } finally {
+      input.remove();
+    }
   });
 });

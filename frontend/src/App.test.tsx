@@ -57,7 +57,7 @@ describe('App', () => {
     const initialClasses = mainContainer?.className;
 
     // Trigger 't'
-    fireEvent.keyDown(window, { key: 't' });
+    fireEvent.keyDown(window, { key: 't', code: 'KeyT' });
 
     // Classes should have updated (switched theme)
     expect(mainContainer?.className).not.toEqual(initialClasses);
@@ -75,7 +75,10 @@ describe('App', () => {
     const initiallyChecked = toggle.checked;
 
     // Shortcuts are suspended while a dialog is open, so close it first.
-    fireEvent.keyDown(document.activeElement || window, { key: 'Escape' });
+    fireEvent.keyDown(document.activeElement || window, {
+      key: 'Escape',
+      code: 'Escape',
+    });
     await waitFor(() => {
       expect(
         screen.queryByLabelText('Hide feeds with no unread items')
@@ -83,7 +86,7 @@ describe('App', () => {
     });
 
     // Trigger 'f'
-    fireEvent.keyDown(window, { key: 'f' });
+    fireEvent.keyDown(window, { key: 'f', code: 'KeyF' });
 
     await openMenuItem('Settings');
     const updated = (await screen.findByLabelText(
@@ -97,7 +100,7 @@ describe('App', () => {
     await screen.findByText('Goliath');
 
     expect(screen.queryByText('Subscriptions')).toBeNull();
-    fireEvent.keyDown(window, { key: ',' });
+    fireEvent.keyDown(window, { key: ',', code: 'Comma' });
     expect(await screen.findByText('Dark theme')).toBeInTheDocument();
   });
 
@@ -109,15 +112,15 @@ describe('App', () => {
     expect(screen.queryByText('Keyboard Shortcuts')).toBeNull();
 
     // Trigger Shift+?
-    fireEvent.keyDown(window, { key: 'Shift' });
-    fireEvent.keyDown(window, { key: '?', shiftKey: true });
+    fireEvent.keyDown(window, { key: 'Shift', code: 'ShiftLeft' });
+    fireEvent.keyDown(window, { key: '?', code: 'Slash', shiftKey: true });
 
     // Modal should be visible now
     expect(await screen.findByText('Keyboard Shortcuts')).toBeInTheDocument();
 
     // Trigger Shift+? again to close
-    fireEvent.keyDown(window, { key: 'Shift' });
-    fireEvent.keyDown(window, { key: '?', shiftKey: true });
+    fireEvent.keyDown(window, { key: 'Shift', code: 'ShiftLeft' });
+    fireEvent.keyDown(window, { key: '?', code: 'Slash', shiftKey: true });
 
     // Modal should be gone/closed (wrapped in waitFor to allow transition animation to finish)
     await waitFor(() => {

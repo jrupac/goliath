@@ -18,7 +18,7 @@
         "react-list": "^0.8.19",
         "react-router-dom": "^6.30.6",
         "react-scroll": "^1.9.3",
-        "tinykeys": "^2.1.0",
+        "tinykeys": "^4.0.1",
         "typescript": "^5.9.3",
       },
       "devDependencies": {
@@ -1083,7 +1083,7 @@
 
     "tinyglobby": ["tinyglobby@0.2.17", "", { "dependencies": { "fdir": "^6.5.0", "picomatch": "^4.0.4" } }, "sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g=="],
 
-    "tinykeys": ["tinykeys@2.1.0", "", {}, "sha512-/MESnqBD1xItZJn5oGQ4OsNORQgJfPP96XSGoyu4eLpwpL0ifO0SYR5OD76u0YMhMXsqkb0UqvI9+yXTh4xv8Q=="],
+    "tinykeys": ["tinykeys@4.0.1", "", {}, "sha512-rClxhLQl+I5UMB5Ny7sfnZqDNa51u7h7h4gJV2UWslwADHEw75IuVPCnWrpO/otM7jHrHpwcZdRHd+//SiI55A=="],
 
     "tinyrainbow": ["tinyrainbow@3.2.0", "", {}, "sha512-LgO3D9yZJjApUiuUfl9iFAwrtaX4+lok3wJIqttGoKCHlWUqHqbQpnxCf82L8FjgKsh4iGo78hqJwgL8F6To2A=="],
 

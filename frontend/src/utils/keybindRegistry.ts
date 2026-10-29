@@ -123,9 +123,18 @@ class KeybindRegistry {
       }
     }
 
-    // Wrap handlers that have potential collision prefixes
+    // Wrap handlers that have potential collision prefixes.
+    //
+    // Longest sequence first: only the first binding a press completes is
+    // fired, so where one sequence ends with another -- "g s" against a bare
+    // "s" -- the longer one has to be offered first or the press is taken as
+    // the shorter one and the sequence never resolves.
     const finalMap: KeyMap = {};
-    for (const [seq, originalHandler] of Object.entries(combinedMap)) {
+    const byLengthDesc = Object.entries(combinedMap).sort(
+      (a, b) =>
+        b[0].trim().split(/\s+/).length - a[0].trim().split(/\s+/).length
+    );
+    for (const [seq, originalHandler] of byLengthDesc) {
       const prefixes = collisions.get(seq);
       if (prefixes && prefixes.length > 0) {
         const tParts = seq.trim().toLowerCase().split(/\s+/);
@@ -146,7 +155,24 @@ class KeybindRegistry {
     }
 
     if (Object.keys(finalMap).length > 0) {
-      this.unsubscribe = tinykeys(window, finalMap);
+      // Auto-repeat from a held key is ignored by default, but holding a
+      // navigation key to walk down a long list is worth keeping. This filter
+      // drops only what is never meant as a shortcut: a keystroke that belongs
+      // to text composition, and one typed into a field rather than at the
+      // listener itself.
+      this.unsubscribe = tinykeys(window, finalMap, {
+        ignore: (event: KeyboardEvent) => {
+          if (event.isComposing) {
+            return true;
+          }
+          const target = event.target;
+          return (
+            target !== event.currentTarget &&
+            target instanceof Element &&
+            target.matches('[contenteditable],input,select,textarea')
+          );
+        },
+      });
     }
   }
 }

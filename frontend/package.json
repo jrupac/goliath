@@ -16,7 +16,7 @@
     "react-list": "^0.8.19",
     "react-router-dom": "^6.30.6",
     "react-scroll": "^1.9.3",
-    "tinykeys": "^2.1.0",
+    "tinykeys": "^4.0.1",
     "typescript": "^5.9.3"
   },
   "scripts": {
