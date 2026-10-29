@@ -4,7 +4,6 @@
     "lib": ["dom", "dom.iterable", "webworker", "esnext"],
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
-    "downlevelIteration": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedModules": true,

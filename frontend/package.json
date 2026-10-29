@@ -14,8 +14,7 @@
     "react-list": "^0.8.19",
     "react-router-dom": "^6.30.6",
     "react-scroll": "^1.9.3",
-    "tinykeys": "^4.0.1",
-    "typescript": "^5.9.3"
+    "tinykeys": "^4.0.1"
   },
   "scripts": {
     "start": "vite --host",
@@ -40,6 +39,7 @@
     "happy-dom": "21.0.4",
     "oxlint": "^1.90.0",
     "prettier": "^3.9.10",
+    "typescript": "^7.0.2",
     "vite": "^8.3.5",
     "vite-plugin-pwa": "^2.0.0",
     "vitest": "^4.1.12"
