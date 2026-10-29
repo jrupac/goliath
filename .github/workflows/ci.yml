@@ -48,6 +48,10 @@ jobs:
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@v2
+        with:
+          # Pinned to match the Dockerfile, so what CI tests and what the
+          # image builds are the same toolchain.
+          bun-version: 1.4.4
 
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile

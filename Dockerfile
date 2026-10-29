@@ -119,7 +119,7 @@ RUN cd cmd/goliath-cli && CGO_ENABLED=0 GOOS=linux go build -o /goliath-cli .
 # =============================================================================
 # Frontend build: production
 # =============================================================================
-FROM oven/bun AS frontend_builder
+FROM oven/bun:1.4.4 AS frontend_builder
 
 WORKDIR /app
 
@@ -134,7 +134,7 @@ RUN bun run build
 # =============================================================================
 # Frontend: development (dev server, sources mounted as volume)
 # =============================================================================
-FROM oven/bun AS frontend-dev
+FROM oven/bun:1.4.4 AS frontend-dev
 
 ENV NODE_ENV=development
 WORKDIR /frontend
