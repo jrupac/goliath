@@ -74,7 +74,7 @@ export default defineConfig(() => {
         usePolling: true,
       },
       proxy: {
-        '^(/auth|/fever|/greader|/version)': {
+        '^(/auth|/fever|/greader|/logout|/version)': {
           target: 'http://goliath-dev:9999',
           changeOrigin: true,
           secure: false,
@@ -89,7 +89,7 @@ export default defineConfig(() => {
       allowedHosts: true,
       headers: profilingHeaders,
       proxy: {
-        '^(/auth|/fever|/greader|/version)': {
+        '^(/auth|/fever|/greader|/logout|/version)': {
           target: 'http://goliath-dev:9999',
           changeOrigin: true,
           secure: false,
