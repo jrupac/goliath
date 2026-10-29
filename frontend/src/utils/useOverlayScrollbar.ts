@@ -32,8 +32,8 @@ import React, { RefObject, useCallback, useEffect, useRef } from 'react';
 const MIN_THUMB_HEIGHT = 24;
 
 export interface OverlayScrollbar {
-  railRef: RefObject<HTMLDivElement>;
-  thumbRef: RefObject<HTMLDivElement>;
+  railRef: RefObject<HTMLDivElement | null>;
+  thumbRef: RefObject<HTMLDivElement | null>;
   /** Redraws the thumb from the scroller's current geometry. */
   sync: () => void;
   onRailPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;

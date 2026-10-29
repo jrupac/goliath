@@ -39,7 +39,7 @@ function getCachedPreview(
 }
 
 // Custom hook to use IntersectionObserver
-const useOnScreen = (ref: React.RefObject<HTMLElement>) => {
+const useOnScreen = (ref: React.RefObject<HTMLElement | null>) => {
   const [isIntersecting, setIntersecting] = useState(false);
 
   useEffect(() => {

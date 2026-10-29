@@ -9,8 +9,8 @@
     "@mui/material": "^9.5.0",
     "@mui/x-tree-view": "^9.16.0",
     "lossless-json": "^4.3.3",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "react-list": "^0.8.19",
     "react-router": "^7.18.5",
     "react-scroll": "^1.9.3",
@@ -30,7 +30,7 @@
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
     "@types/node": "^26.6.6",
-    "@types/react": "^18.3.31",
+    "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/react-list": "^0.8.12",
     "@types/react-scroll": "^1.8.10",
@@ -49,8 +49,5 @@
       "bun run test"
     ]
   },
-  "type": "module",
-  "overrides": {
-    "@types/react": "^18.3.31"
-  }
+  "type": "module"
 }
