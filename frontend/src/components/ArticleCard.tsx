@@ -7,7 +7,8 @@ import React, {
   useState,
 } from 'react';
 import { Box, IconButton, Skeleton, Stack, Tooltip } from '@mui/material';
-import { formatFriendly, formatFull, scopeArticleHtml } from '../utils/helpers';
+import { formatFriendly, formatFull } from '../utils/dates';
+import { scopeArticleHtml } from '../utils/helpers';
 import FeedIcon from './FeedIcon';
 import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
 import { keybindRegistry } from '../utils/keybindRegistry';

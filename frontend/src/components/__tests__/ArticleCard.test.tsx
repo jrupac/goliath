@@ -4,7 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ArticleCard from '../ArticleCard';
 import { ArticleView } from '../../models/article';
 import { FaviconCls } from '../../models/feed';
-import { formatFriendly } from '../../utils/helpers';
+import { formatFriendly } from '../../utils/dates';
 import { SelectionType } from '../../utils/types';
 
 describe('ArticleCard', () => {

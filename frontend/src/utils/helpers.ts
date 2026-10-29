@@ -1,8 +1,3 @@
-// Import CJS package with a fallback for Vite 8's stricter CJS interop.
-// When the `legacy.inconsistentCjsInterop` flag is eventually removed,
-// this pattern continues to work without changes.
-import * as momentModule from 'moment';
-const moment = momentModule.default || momentModule;
 import { Decimal } from 'decimal.js-light';
 import { isLosslessNumber, parse as parseLossless } from 'lossless-json';
 
@@ -28,23 +23,6 @@ export function makeAbsolute(url: string): string {
   const a = document.createElement('a');
   a.href = url;
   return a.href;
-}
-
-export function formatFull(date: Date) {
-  return moment(date).format('dddd, MMMM Do YYYY, h:mm:ss A');
-}
-
-export function formatFriendly(date: Date) {
-  const now = moment();
-  const before = moment(now).subtract(1, 'days');
-  const then = moment(date);
-  if (then.isBetween(before, now)) {
-    return then.fromNow();
-  } else if (then.year() !== now.year()) {
-    return then.format('MMM D, YYYY');
-  } else {
-    return then.format('ddd, MMM D, h:mm A');
-  }
 }
 
 export function maxDecimal(
