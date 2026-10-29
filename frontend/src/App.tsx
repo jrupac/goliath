@@ -39,7 +39,7 @@ import {
 } from '@mui/material';
 import { FetchAPI, FetchAPIFactory } from './api/interface';
 import { GetVersion, VersionData } from './api/goliath';
-import { Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router';
 import { ContentTreeCls } from './models/contentTree';
 import { ArticleId } from './models/article';
 import { FeedId } from './models/feed';
