@@ -20,6 +20,7 @@ import { FolderView } from '../models/folder';
 import { FeedId, FeedTitle, FeedView } from '../models/feed';
 import StarTwoToneIcon from '@mui/icons-material/StarTwoTone';
 import FeedIcon from './FeedIcon';
+import NewArticlePill from './NewArticlePill';
 
 function precomputeIdToSelectionKey(
   folderFeedView: Map<FolderView, FeedView[]>
@@ -120,6 +121,10 @@ const FeedTreeItem = React.memo(function FeedTreeItem({
 export interface FolderFeedListProps {
   folderFeedView: Map<FolderView, FeedView[]>;
   unreadCount: number;
+  // How many articles the last refresh brought in, or null when no refresh is
+  // recent enough to report. Zero is not null: a refresh that found nothing is
+  // the answer to having asked, and saying so is the point.
+  newArticleCount?: number | null;
   selectedKey: SelectionKey;
   selectionType: SelectionType;
   handleSelect: (type: SelectionType, key: SelectionKey) => void;
@@ -130,6 +135,7 @@ export interface FolderFeedListProps {
 const FolderFeedList = ({
   folderFeedView,
   unreadCount,
+  newArticleCount = null,
   selectedKey,
   selectionType,
   handleSelect,
@@ -241,9 +247,14 @@ const FolderFeedList = ({
     return (
       <div className="GoliathStreamContent">
         <span>Unread items</span>
-        {unreadCount > 0 && (
-          <div className="GoliathSidebarPill">{unreadCount}</div>
-        )}
+        <div className="GoliathStreamPills">
+          {unreadCount > 0 && (
+            <div className="GoliathSidebarPill">{unreadCount}</div>
+          )}
+          {newArticleCount !== null && (
+            <NewArticlePill count={newArticleCount} />
+          )}
+        </div>
       </div>
     );
   };

@@ -247,6 +247,22 @@ export class ContentTreeCls {
     return views;
   }
 
+  // The ID of every article the tree holds.
+  //
+  // Comparing two of these across a reload is what says how many articles the
+  // reload brought in. The unread count cannot answer that on its own, since
+  // reading an article moves it too, and a reload that arrives after some
+  // reading would report the difference between the two as its yield.
+  public ArticleIds(): Set<ArticleId> {
+    const ids: Set<ArticleId> = new Set();
+    this.tree.forEach((f: FolderCls): void => {
+      f.GetArticleView().forEach((v: ArticleView): void => {
+        ids.add(v.id);
+      });
+    });
+    return ids;
+  }
+
   public GetFolderFeedView(): Map<FolderView, FeedView[]> {
     if (this.cachedFolderFeedView !== null) {
       return this.cachedFolderFeedView;

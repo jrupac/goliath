@@ -95,6 +95,8 @@ export interface AppState {
   showLogoutConfirm: boolean;
   menuAnchor: HTMLElement | null;
   reloading: boolean;
+  refreshNonce: number;
+  newArticleCount: number | null;
   isMobile: boolean;
   isTabletPortrait: boolean;
   isTabletLandscape: boolean;
@@ -107,6 +109,7 @@ export default class App extends React.Component<AppProps, AppState> {
   private fetchApi: FetchAPI;
   private globalHandlers: Record<string, () => void>;
   private resizeListener?: () => void;
+  private newArticleTimer?: ReturnType<typeof setTimeout>;
 
   constructor(props: AppProps) {
     super(props);
@@ -137,6 +140,8 @@ export default class App extends React.Component<AppProps, AppState> {
       showLogoutConfirm: false,
       menuAnchor: null,
       reloading: false,
+      refreshNonce: 0,
+      newArticleCount: null,
       isMobile: metrics.isMobile,
       isTabletPortrait: metrics.isTabletPortrait,
       isTabletLandscape: metrics.isTabletLandscape,
@@ -183,6 +188,7 @@ export default class App extends React.Component<AppProps, AppState> {
           };
         });
       },
+      refreshFeeds: () => this.handleRefresh(),
     };
   }
 
@@ -226,6 +232,9 @@ export default class App extends React.Component<AppProps, AppState> {
     keybindRegistry.unregister('global');
     if (this.resizeListener) {
       window.removeEventListener('resize', this.resizeListener);
+    }
+    if (this.newArticleTimer !== undefined) {
+      clearTimeout(this.newArticleTimer);
     }
   }
 
@@ -431,6 +440,63 @@ export default class App extends React.Component<AppProps, AppState> {
     console.log('Reloaded content.');
   };
 
+  // How long the count of articles a refresh brought in stays on screen. Long
+  // enough to notice after the eye has gone back to the list, short enough not
+  // to be mistaken for part of the unread count.
+  private static newArticleBadgeMs = 5000;
+
+  // Re-reads everything from the server and lands at the top of the unread
+  // stream.
+  //
+  // Articles read before the refresh drop out of that stream: the rebuilt tree
+  // carries none of the pins that hold a just-read article in place, and a
+  // stream asked for fresh is expected to show what is still unread rather
+  // than where the reader had got to. How many articles the refresh brought in
+  // is published for a few seconds, since the unread count alone cannot be
+  // read as a yield.
+  handleRefresh = (): void => {
+    if (this.state.reloading) {
+      return;
+    }
+
+    const before: Set<ArticleId> = this.state.contentTreeCls.ArticleIds();
+    if (this.newArticleTimer !== undefined) {
+      clearTimeout(this.newArticleTimer);
+      this.newArticleTimer = undefined;
+    }
+    this.setState({ reloading: true, newArticleCount: null });
+
+    this.fetchApi
+      .InitializeContent(() => {})
+      .then((treeCls: ContentTreeCls): void => {
+        let added = 0;
+        treeCls.ArticleIds().forEach((id: ArticleId): void => {
+          if (!before.has(id)) {
+            added++;
+          }
+        });
+
+        this.setState((prevState: AppState): AppState => ({
+          ...prevState,
+          contentTreeCls: treeCls,
+          selectionKey: KeyUnread,
+          selectionType: SelectionType.Unread,
+          refreshNonce: prevState.refreshNonce + 1,
+          newArticleCount: added,
+          mobilePane: 'list',
+        }));
+
+        this.newArticleTimer = setTimeout((): void => {
+          this.newArticleTimer = undefined;
+          this.setState({ newArticleCount: null });
+        }, App.newArticleBadgeMs);
+      })
+      .catch((err: Error) => {
+        console.error(`Failed to refresh content: ${err}`);
+      })
+      .finally(() => this.setState({ reloading: false }));
+  };
+
   handleFeedsChanged = () => {
     this.setState({ reloading: true });
     this.reloadContent()
@@ -604,6 +670,7 @@ export default class App extends React.Component<AppProps, AppState> {
             <FolderFeedList
               folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
               unreadCount={unreadCount}
+              newArticleCount={this.state.newArticleCount}
               selectedKey={selectionKey}
               selectionType={selectionType}
               handleSelect={this.handleSelect}
@@ -623,6 +690,8 @@ export default class App extends React.Component<AppProps, AppState> {
               faviconMap={this.state.contentTreeCls.GetFaviconMap()}
               selectionKey={selectionKey}
               selectionType={selectionType}
+              refreshNonce={this.state.refreshNonce}
+              newArticleCount={this.state.newArticleCount}
               handleMark={this.handleMark}
               clearReadCallback={this.handleClearRead}
               selectAllCallback={() =>

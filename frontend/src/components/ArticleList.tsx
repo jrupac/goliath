@@ -29,6 +29,7 @@ import {
 } from '@mui/material';
 import ArticleCard from './ArticleCard';
 import ArticleListEntry from './ArticleListEntry';
+import NewArticlePill from './NewArticlePill';
 import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
 import { keybindRegistry } from '../utils/keybindRegistry';
 import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
@@ -56,6 +57,13 @@ export interface ArticleListProps {
   faviconMap: Map<FeedId, FaviconCls>;
   selectionKey: SelectionKey;
   selectionType: SelectionType;
+  // Bumped by each refresh. The stream it lands on is often the one already
+  // shown, so the selection key alone cannot say that the list should go back
+  // to the top of a rebuilt stream.
+  refreshNonce?: number;
+  // How many articles the last refresh brought in, or null when there is
+  // nothing recent to report.
+  newArticleCount?: number | null;
   selectAllCallback: () => void;
   selectUnreadCallback: () => void;
   handleMark: (
@@ -88,6 +96,8 @@ const ArticleList = ({
   faviconMap,
   selectionKey,
   selectionType,
+  refreshNonce = 0,
+  newArticleCount = null,
   selectAllCallback,
   selectUnreadCallback,
   selectSavedCallback,
@@ -139,11 +149,12 @@ const ArticleList = ({
   const [showPreviews, setShowPreviews] = useState<boolean>(true);
   const [smoothScroll, setSmoothScroll] = useState<boolean>(true);
 
-  // Unique key for ReactList so it remounts on selection change,
+  // Unique key for ReactList so it remounts on selection change -- and on a
+  // refresh, which rebuilds the stream under an unchanged selection --
   // resetting its internal scroll position.
   const reactListKey = `${selectionType}-${
     Array.isArray(selectionKey) ? selectionKey.join('-') : selectionKey
-  }`;
+  }-${refreshNonce}`;
 
   const scrollIndex = useMemo(() => {
     // If no article is selected, or the list is empty, default to the top.
@@ -374,8 +385,11 @@ const ArticleList = ({
   // behaviour.
   const [prevSelectionKey, setPrevSelectionKey] =
     useState<SelectionKey>(selectionKey);
-  if (selectionKey !== prevSelectionKey) {
+  const [prevRefreshNonce, setPrevRefreshNonce] =
+    useState<number>(refreshNonce);
+  if (selectionKey !== prevSelectionKey || refreshNonce !== prevRefreshNonce) {
     setPrevSelectionKey(selectionKey);
+    setPrevRefreshNonce(refreshNonce);
 
     let nextSelectedId: ArticleId | null = null;
     if (selectionType === SelectionType.All) {
@@ -491,6 +505,7 @@ const ArticleList = ({
       <Typography variant="subtitle1" className="GoliathArticleListTitleText">
         {selectionTitle}
       </Typography>
+      {newArticleCount !== null && <NewArticlePill count={newArticleCount} />}
     </>
   );
 

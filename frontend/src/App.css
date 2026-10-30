@@ -10,6 +10,20 @@
   padding: 3px;
 }
 
+/* Text for assistive technology only. Clipped rather than hidden, since
+   display: none and visibility: hidden are not announced either. */
+.GoliathVisuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* The window: a row of sidebar and main pane, neither of which scrolls the
    page itself. */
 .GoliathAppShell {
@@ -277,6 +291,56 @@
   border-radius: 99px;
   text-box-trim: trim-both;
   text-box-edge: cap alphabetic;
+}
+
+/* The stream row's badges, as one group pushed to the end of the row. The
+   pills inside carry their own margin-left: auto for use on a folder or feed
+   row, where they are the only badge; here the group places them instead. */
+.GoliathStreamPills {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.GoliathStreamPills > div {
+  margin-left: 0;
+}
+
+/* How many articles the last refresh brought in. Outlined rather than filled,
+   so that it reads as a note on the unread count beside it rather than as a
+   second count. */
+.GoliathSidebarPillNew {
+  background-color: var(--accent-color-subtle);
+  border: 1px solid var(--accent-color);
+  color: var(--primary-font-color);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 5px;
+  border-radius: 99px;
+  white-space: nowrap;
+  line-height: 1;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
+  animation: GoliathPillAppear 160ms ease-out;
+}
+
+/* Drawn on the chrome of a narrow layout's list, where there is no sidebar to
+   put it beside. */
+.GoliathSplitViewArticleListActionBar .GoliathSidebarPillNew {
+  color: var(--bar-font-color);
+  margin-right: 4px;
+}
+
+@keyframes GoliathPillAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 /* Invisible placeholder — reserves space matching pill dimensions */

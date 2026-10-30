@@ -46,6 +46,28 @@ function buildTree(): ContentTreeCls {
   return tree;
 }
 
+describe('ContentTreeCls.ArticleIds', () => {
+  it('reports every article the tree holds, read or not', () => {
+    const tree = buildTree();
+
+    expect(tree.ArticleIds()).toEqual(new Set(['art1', 'art2']));
+
+    tree.Mark(
+      MarkState.Read,
+      ['art1', 'feed1', 'folder1'],
+      SelectionType.Article
+    );
+
+    // Reading an article does not take it out of the tree, so the difference
+    // between two of these sets stays a count of what arrived.
+    expect(tree.ArticleIds()).toEqual(new Set(['art1', 'art2']));
+  });
+
+  it('is empty for a tree with no folders', () => {
+    expect(ContentTreeCls.new().ArticleIds().size).toBe(0);
+  });
+});
+
 describe('ContentTreeCls article mark/display', () => {
   it('reflects isRead:true immediately after marking an article as read', () => {
     const tree = buildTree();

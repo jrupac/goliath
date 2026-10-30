@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import FolderFeedList from '../FolderFeedList';
 import { FolderView } from '../../models/folder';
 import { FaviconCls, FeedView } from '../../models/feed';
-import { SelectionType } from '../../utils/types';
+import { KeyUnread, SelectionType } from '../../utils/types';
 import { expectPartialText } from './helpers';
 
 describe('FolderFeedList', () => {
@@ -215,5 +215,40 @@ describe('FolderFeedList', () => {
       expectPartialText(screen, 'Full Folder');
       expectPartialText(screen, 'Full Feed');
     });
+  });
+
+  it('shows how many articles the last refresh brought in', () => {
+    const props = {
+      folderFeedView: new Map<FolderView, FeedView[]>(),
+      unreadCount: 12,
+      selectedKey: KeyUnread,
+      selectionType: SelectionType.Unread,
+      handleSelect: vi.fn(),
+      newArticleCount: 10,
+    };
+    render(<FolderFeedList {...props} />);
+
+    expect(screen.getByText('+10')).toBeInTheDocument();
+    // Announced too, since the badge comes and goes on its own.
+    expect(screen.getByRole('status')).toHaveTextContent('10 new articles');
+  });
+
+  it('says so when a refresh found nothing, and says nothing without one', () => {
+    const props = {
+      folderFeedView: new Map<FolderView, FeedView[]>(),
+      unreadCount: 12,
+      selectedKey: KeyUnread,
+      selectionType: SelectionType.Unread,
+      handleSelect: vi.fn(),
+    };
+
+    const { rerender } = render(
+      <FolderFeedList {...props} newArticleCount={0} />
+    );
+    expect(screen.getByText('+0')).toBeInTheDocument();
+
+    rerender(<FolderFeedList {...props} newArticleCount={null} />);
+    expect(screen.queryByText('+0')).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
   });
 });

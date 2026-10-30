@@ -1,6 +1,12 @@
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import App from './App';
 import { ContentTreeCls } from './models/contentTree';
@@ -189,6 +195,49 @@ describe('App', () => {
     const about = await screen.findByText('Goliath RSS');
     expect(about.parentElement?.textContent).toContain('Built at test');
     expect(about.parentElement?.textContent).toContain('test');
+  });
+
+  it('refreshes and returns to the unread stream on "r" shortcut', async () => {
+    const { container } = render(<App />);
+    await screen.findByText('Goliath');
+
+    // Somewhere other than the unread stream, so that landing back on it is
+    // visible rather than a no-op.
+    fireEvent.click(screen.getByText('All items'));
+    await waitFor(() => {
+      expect(
+        container.querySelector('.GoliathStreamSelectorSelected')?.textContent
+      ).toContain('All items');
+    });
+
+    fireEvent.keyDown(window, { key: 'r', code: 'KeyR' });
+
+    await waitFor(() => {
+      expect(
+        container.querySelector('.GoliathStreamSelectorSelected')?.textContent
+      ).toContain('Unread items');
+    });
+    // The mocked server has nothing to hand over, which the badge reports as
+    // such rather than by staying away.
+    expect(await screen.findByText('+0')).toBeInTheDocument();
+  });
+
+  it('withdraws the refresh badge after a few seconds', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(<App />);
+      await screen.findByText('Goliath');
+
+      fireEvent.keyDown(window, { key: 'r', code: 'KeyR' });
+      await screen.findByText('+0');
+
+      await act(async () => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(screen.queryByText('+0')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('updates isMobile, isTabletPortrait, and isTabletLandscape state on window resize', async () => {

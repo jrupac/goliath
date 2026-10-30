@@ -4,6 +4,7 @@ export type HandlerKey =
   | 'toggleHideEmpty'
   | 'toggleKeybindingsModal'
   | 'toggleSettingsModal'
+  | 'refreshFeeds'
   | 'scrollDown'
   | 'scrollUp'
   | 'scrollDownNoRead'
@@ -49,6 +50,14 @@ export const Keybindings: {
       label: 'Open settings',
       description: 'Open the settings dialog',
       handlerKey: 'toggleSettingsModal',
+    },
+    {
+      key: 'r',
+      display: ['r'],
+      label: 'Refresh feeds',
+      description:
+        'Pull in new articles and go to the top of the unread stream',
+      handlerKey: 'refreshFeeds',
     },
     {
       key: 't',
