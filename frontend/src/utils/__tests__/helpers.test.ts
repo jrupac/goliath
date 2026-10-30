@@ -1,11 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getAdjacentFeed,
   getAdjacentFolder,
   getFeedInitials,
+  getPreviewImage,
   hashToSwatchIndex,
   scopeArticleHtml,
 } from '../helpers';
+import { ArticleView } from '../../models/article';
 import { NavigationDirection } from '../types';
 import { FeedView } from '../../models/feed';
 import { FolderView } from '../../models/folder';
@@ -356,5 +358,93 @@ describe('scopeArticleHtml', () => {
 
   it('handles empty input gracefully', () => {
     expect(scopeArticleHtml('', '12345')).toBe('');
+  });
+});
+
+describe('getPreviewImage', () => {
+  // Stands in for the browser's image loading, recording which sources were
+  // actually asked for. Natural sizes come from the map; anything missing
+  // from it fails to load.
+  const stubImages = (sizes: Record<string, [number, number]>) => {
+    const requested: string[] = [];
+    class FakeImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      naturalWidth = 0;
+      naturalHeight = 0;
+      set src(value: string) {
+        requested.push(value);
+        const size = sizes[value];
+        queueMicrotask(() => {
+          if (!size) {
+            this.onerror?.();
+            return;
+          }
+          [this.naturalWidth, this.naturalHeight] = size;
+          this.onload?.();
+        });
+      }
+    }
+    vi.stubGlobal('Image', FakeImage);
+    return requested;
+  };
+
+  const article = (html: string) =>
+    ({ id: '1', title: 't', html }) as ArticleView;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('stops at the first candidate large enough to use', async () => {
+    const requested = stubImages({
+      'http://e.test/a.jpg': [800, 600],
+      'http://e.test/b.jpg': [800, 600],
+    });
+
+    const preview = await getPreviewImage(
+      article('<img src="http://e.test/a.jpg"><img src="http://e.test/b.jpg">')
+    );
+
+    expect(preview?.src).toBe('http://e.test/a.jpg');
+    // The second candidate is never fetched: probing an image means decoding
+    // it, which is the cost this is here to avoid paying needlessly.
+    expect(requested).toEqual(['http://e.test/a.jpg']);
+  });
+
+  it('passes over candidates that are too small or fail to load', async () => {
+    const requested = stubImages({
+      'http://e.test/pixel.gif': [1, 1],
+      'http://e.test/real.jpg': [400, 300],
+    });
+
+    const preview = await getPreviewImage(
+      article(
+        '<img src="http://e.test/pixel.gif">' +
+          '<img src="http://e.test/missing.jpg">' +
+          '<img src="http://e.test/real.jpg">'
+      )
+    );
+
+    expect(preview?.src).toBe('http://e.test/real.jpg');
+    expect(requested).toEqual([
+      'http://e.test/pixel.gif',
+      'http://e.test/missing.jpg',
+      'http://e.test/real.jpg',
+    ]);
+  });
+
+  it('returns nothing when no candidate is usable', async () => {
+    stubImages({ 'http://e.test/pixel.gif': [1, 1] });
+    expect(
+      await getPreviewImage(article('<img src="http://e.test/pixel.gif">'))
+    ).toBeUndefined();
+  });
+
+  it('returns nothing when the article has no images to consider', async () => {
+    stubImages({});
+    expect(
+      await getPreviewImage(article('<p>no pictures here</p>'))
+    ).toBeUndefined();
   });
 });

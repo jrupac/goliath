@@ -201,17 +201,16 @@ export async function getPreviewImage(
 ): Promise<ArticleImagePreview | undefined> {
   const minPixelSize = 100;
 
-  let imageElements: HTMLCollectionOf<HTMLImageElement>;
+  let imageElements: NodeListOf<HTMLImageElement>;
   try {
-    imageElements = new DOMParser().parseFromString(
-      article.html,
-      'text/html'
-    ).images;
+    imageElements = new DOMParser()
+      .parseFromString(article.html, 'text/html')
+      .querySelectorAll('img');
   } catch {
     return;
   }
 
-  if (!imageElements || imageElements.length === 0) {
+  if (imageElements.length === 0) {
     return;
   }
 
@@ -227,28 +226,29 @@ export async function getPreviewImage(
     return;
   }
 
-  const results = await Promise.all(
-    candidates.map(
-      (src) =>
-        new Promise<{ src: string; valid: boolean }>((resolve) => {
-          const img = new Image();
-          img.onload = () =>
-            resolve({
-              src,
-              valid:
-                img.naturalWidth >= minPixelSize &&
-                img.naturalHeight >= minPixelSize,
-            });
-          img.onerror = () => resolve({ src, valid: false });
-          img.src = src;
-        })
-    )
-  );
+  // Candidates are probed one at a time, in order, and the first one big
+  // enough wins. Probing means loading: the only way to learn an image's
+  // natural size is to decode it, and a decode of a full-resolution photograph
+  // is among the most expensive things a row can ask for. Since the first
+  // candidate usually is the article's picture, probing them all in parallel
+  // spends two further downloads and decodes per row to learn nothing, and a
+  // reader scrolling pays that for every row that goes past.
+  for (const src of candidates) {
+    const ok = await new Promise<boolean>((resolve) => {
+      const img = new Image();
+      img.onload = () =>
+        resolve(
+          img.naturalWidth >= minPixelSize && img.naturalHeight >= minPixelSize
+        );
+      img.onerror = () => resolve(false);
+      img.src = src;
+    });
+    if (ok) {
+      return { src, x: 0, y: 0, width: 0, height: 0, origWidth: 0 };
+    }
+  }
 
-  const first = results.find((r) => r.valid);
-  if (!first) return undefined;
-
-  return { src: first.src, x: 0, y: 0, width: 0, height: 0, origWidth: 0 };
+  return undefined;
 }
 
 export function scopeArticleHtml(html: string, articleId: ArticleId): string {
