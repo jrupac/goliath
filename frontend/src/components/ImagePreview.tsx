@@ -38,33 +38,53 @@ function getCachedPreview(
   return promise;
 }
 
-// Custom hook to use IntersectionObserver
+// How long a row has to stay on screen before its image is worth fetching.
+// Short enough to be invisible to a reader who has stopped, long enough to
+// cover the rows a flick throws past.
+const SETTLE_MS = 150;
+
+// Reports whether the element has come to rest on screen, rather than merely
+// crossed it.
+//
+// Finding an image means downloading one to measure it, which is the most
+// expensive thing a row asks for. Committing the moment a row touches the
+// viewport means a scroll pays that for every row it passes, all of it
+// competing with the scrolling itself and almost all of it discarded unseen.
+// Waiting for the row to still be there a moment later spends the work only on
+// rows the reader actually arrived at.
 const useOnScreen = (ref: React.RefObject<HTMLElement | null>) => {
-  const [isIntersecting, setIntersecting] = useState(false);
+  const [settled, setSettled] = useState(false);
 
   useEffect(() => {
     const element = ref.current;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setIntersecting(true);
-        if (element) {
-          observer.unobserve(element);
-        }
-      }
-    });
-
-    if (element) {
-      observer.observe(element);
+    if (!element) {
+      return;
     }
 
-    return () => {
-      if (element) {
-        observer.unobserve(element);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        timer = setTimeout(() => {
+          timer = undefined;
+          setSettled(true);
+          observer.unobserve(element);
+        }, SETTLE_MS);
+      } else if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
       }
+    });
+    observer.observe(element);
+
+    return () => {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+      }
+      observer.unobserve(element);
     };
   }, [ref]);
 
-  return isIntersecting;
+  return settled;
 };
 
 const ImagePreview = ({ article }: ImagePreviewProps) => {
@@ -109,6 +129,13 @@ const ImagePreview = ({ article }: ImagePreviewProps) => {
             className="GoliathArticleListImagePreview"
             src={imgSrc}
             alt={`Preview for ${article.title}`}
+            // The box this is drawn in is a fixed size in CSS, so the
+            // dimensions are only here to let the decode happen off the
+            // critical path: a row that appears mid-scroll must not hold up
+            // the frame while a full-resolution photograph is decoded.
+            decoding="async"
+            width={110}
+            height={110}
           />
         </figure>
       )}

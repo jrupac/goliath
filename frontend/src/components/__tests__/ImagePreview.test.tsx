@@ -10,6 +10,11 @@ import {
   vi,
 } from 'vitest';
 import ImagePreview, { previewCache } from '../ImagePreview';
+
+// Lets the on-screen settle delay elapse. Real timers rather than fake ones:
+// the component's own effects and promises have to interleave with it, and
+// the delay is short enough not to be worth faking.
+const settle = () => new Promise((resolve) => setTimeout(resolve, 250));
 import * as helpers from '../../utils/helpers';
 import { ArticleView } from '../../models/article';
 
@@ -95,6 +100,9 @@ describe('ImagePreview', () => {
       mockIntersectionObserver.mock.results[0].value.trigger([
         { isIntersecting: true },
       ] as IntersectionObserverEntry[]);
+      // The fetch waits for the row to stay put, so nothing happens until it
+      // has.
+      await settle();
     });
 
     // Wait for the image to appear and verify the src
@@ -122,6 +130,9 @@ describe('ImagePreview', () => {
       mockIntersectionObserver.mock.results[0].value.trigger([
         { isIntersecting: true },
       ] as IntersectionObserverEntry[]);
+      // The fetch waits for the row to stay put, so nothing happens until it
+      // has.
+      await settle();
     });
 
     // Wait for the component to fully unmount after the load resolves with no image
