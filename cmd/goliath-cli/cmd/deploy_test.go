@@ -105,3 +105,23 @@ func TestChooseRollback(t *testing.T) {
 		}
 	}
 }
+
+func TestUpgradeNeedsConfirmation(t *testing.T) {
+	compatible := schema.Migration{Version: 32, Compat: schema.CompatOlderBinariesRun}
+	breaking := schema.Migration{Version: 32, Compat: schema.CompatOlderBinariesBreak}
+
+	for _, c := range []struct {
+		name    string
+		pending []schema.Migration
+		want    bool
+	}{
+		{"nothing pending", nil, false},
+		{"empty slice", []schema.Migration{}, false},
+		{"a compatible migration", []schema.Migration{compatible}, true},
+		{"a breaking migration", []schema.Migration{breaking}, true},
+	} {
+		if got := upgradeNeedsConfirmation(c.pending); got != c.want {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
+	}
+}

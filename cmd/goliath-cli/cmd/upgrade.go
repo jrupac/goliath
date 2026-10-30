@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jrupac/goliath/schema"
 	"github.com/spf13/cobra"
 )
 
@@ -31,6 +32,9 @@ var upgradeCmd = &cobra.Command{
 
 The image that was running stays tagged :previous, and with the checkpoint is
 what 'goliath-cli rollback' returns to. One deploy back is kept.
+
+A run with migrations to apply asks for confirmation; a run without one goes
+ahead, so an ordinary release needs nobody at the terminal.
 
 Examples:
   goliath-cli upgrade
@@ -217,7 +221,12 @@ func runUpgrade(o upgradeOptions) {
 	fmt.Println("The image is built first; the application is down from the checkpoint until")
 	fmt.Println("the new image is up.")
 	fmt.Println()
-	confirmOrExit(o.yes, "upgrade")
+	if upgradeNeedsConfirmation(plan.Pending) {
+		confirmOrExit(o.yes, "upgrade")
+	} else {
+		fmt.Println("Nothing to migrate, so going ahead without asking.")
+		fmt.Println()
+	}
 
 	const steps = 7
 	step := 0
@@ -330,6 +339,20 @@ func runUpgrade(o upgradeOptions) {
 		}
 		fmt.Println("  sudo make install")
 	}
+}
+
+// upgradeNeedsConfirmation says whether a run should make the operator type a
+// word before it goes on.
+//
+// What that word guards is the database. Once a migration has been applied,
+// getting back to the release before it can mean restoring the checkpoint and
+// losing whatever was written since, which is a choice worth stopping for. An
+// upgrade with nothing to migrate never reaches that: it builds an image,
+// swaps it in and leaves the data untouched, and returning to the previous
+// release is re-tagging an image. Asking there buys no safety and costs every
+// ordinary release the ability to run unattended.
+func upgradeNeedsConfirmation(pending []schema.Migration) bool {
+	return len(pending) > 0
 }
 
 func orUnknown(s string) string {
