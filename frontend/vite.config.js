@@ -46,10 +46,16 @@ export default defineConfig(() => {
       react(),
 
       VitePWA({
-        registerType: 'autoUpdate',
+        // A new release installs and waits rather than claiming the page.
+        // Under 'autoUpdate' the updated worker takes over as soon as it is
+        // installed and claims every open tab at once, so one tab noticing a
+        // deploy reloads all of them out from under their readers. src/index.tsx
+        // turns the waiting worker into an offer instead.
+        registerType: 'prompt',
         // src/index.tsx registers the worker itself via `virtual:pwa-register`,
-        // which is what installs the reload-on-update handler. Without this the
-        // plugin would also inject its own bare registration script.
+        // which is what gives the page its say in when the new build takes
+        // effect. Without this the plugin would also inject its own bare
+        // registration script.
         injectRegister: null,
         manifest: false,
         devOptions: {

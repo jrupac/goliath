@@ -55,10 +55,13 @@ import LogoutTwoToneIcon from '@mui/icons-material/LogoutTwoTone';
 import MenuTwoToneIcon from '@mui/icons-material/MenuTwoTone';
 import SettingsTwoToneIcon from '@mui/icons-material/SettingsTwoTone';
 import KeybindingsModal from './components/KeybindingsModal';
+import UpdateBanner from './components/UpdateBanner';
 import SettingsModal from './components/SettingsModal';
 import QuickAddDialog from './components/QuickAddDialog';
 import { Keybindings, getTinykeysSequence } from './utils/keybindings';
 import { keybindRegistry } from './utils/keybindRegistry';
+import { applyPendingUpdate, subscribeUpdatePending } from './utils/swUpdate';
+import RefreshTwoToneIcon from '@mui/icons-material/RefreshTwoTone';
 
 export function getLayoutMetrics(width: number, height: number) {
   const isMobile = width < 600 || height < 500;
@@ -97,6 +100,8 @@ export interface AppState {
   reloading: boolean;
   refreshNonce: number;
   newArticleCount: number | null;
+  updatePending: boolean;
+  updateNoticeDismissed: boolean;
   isMobile: boolean;
   isTabletPortrait: boolean;
   isTabletLandscape: boolean;
@@ -110,6 +115,7 @@ export default class App extends React.Component<AppProps, AppState> {
   private globalHandlers: Record<string, () => void>;
   private resizeListener?: () => void;
   private newArticleTimer?: ReturnType<typeof setTimeout>;
+  private updateUnsubscribe?: () => void;
 
   constructor(props: AppProps) {
     super(props);
@@ -142,6 +148,8 @@ export default class App extends React.Component<AppProps, AppState> {
       reloading: false,
       refreshNonce: 0,
       newArticleCount: null,
+      updatePending: false,
+      updateNoticeDismissed: false,
       isMobile: metrics.isMobile,
       isTabletPortrait: metrics.isTabletPortrait,
       isTabletLandscape: metrics.isTabletLandscape,
@@ -236,9 +244,14 @@ export default class App extends React.Component<AppProps, AppState> {
     if (this.newArticleTimer !== undefined) {
       clearTimeout(this.newArticleTimer);
     }
+    this.updateUnsubscribe?.();
   }
 
   componentDidMount() {
+    this.updateUnsubscribe = subscribeUpdatePending((pending: boolean) => {
+      this.setState({ updatePending: pending });
+    });
+
     this.resizeListener = () => {
       const metrics = getLayoutMetrics(window.innerWidth, window.innerHeight);
       this.setState({
@@ -734,6 +747,12 @@ export default class App extends React.Component<AppProps, AppState> {
               }}
             />
           </main>
+          {this.state.updatePending && !this.state.updateNoticeDismissed && (
+            <UpdateBanner
+              onReload={applyPendingUpdate}
+              onDismiss={() => this.setState({ updateNoticeDismissed: true })}
+            />
+          )}
         </div>
         <Menu
           open={this.state.menuAnchor !== null}
@@ -746,6 +765,19 @@ export default class App extends React.Component<AppProps, AppState> {
             list: { 'aria-label': 'Menu', dense: true },
           }}
         >
+          {this.state.updatePending && (
+            <MenuItem
+              onClick={() => {
+                this.setState({ menuAnchor: null });
+                applyPendingUpdate();
+              }}
+            >
+              <ListItemIcon>
+                <RefreshTwoToneIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Reload for new version</ListItemText>
+            </MenuItem>
+          )}
           <MenuItem
             onClick={() =>
               this.setState({ menuAnchor: null, showSettingsModal: true })

@@ -2268,3 +2268,77 @@
 .GoliathMobileBottomBar .MuiIconButton-root {
   color: var(--bar-font-color);
 }
+
+/******************************************************************************
+ * Update notice
+ *
+ * A new build waits rather than claiming the page, so the offer to take it has
+ * to be visible from wherever the reader is. It floats over the bottom of the
+ * window, clear of the sidebar and of a narrow layout's bottom bar, and below
+ * the modal layer so a dialog still covers it.
+ ******************************************************************************/
+
+.GoliathUpdateBanner {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 14px;
+  border-radius: 99px;
+  background-color: var(--modal-background-color);
+  border: 1px solid var(--accent-color);
+  color: var(--content-font-color);
+  box-shadow: 0 4px 16px var(--goliath-box-shadow-color);
+  animation: GoliathUpdateBannerAppear 200ms ease-out;
+}
+
+.GoliathUpdateBannerText {
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.GoliathUpdateBannerAction.MuiButton-root {
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: none;
+  border-radius: 99px;
+  padding: 2px 10px;
+  min-width: 0;
+  background-color: var(--accent-color);
+  color: var(--accent-font-color);
+}
+
+.GoliathUpdateBannerAction.MuiButton-root:hover {
+  background-color: var(--accent-color-hover);
+}
+
+.GoliathUpdateBannerDismiss.MuiIconButton-root {
+  color: var(--content-font-muted-1-color);
+}
+
+@keyframes GoliathUpdateBannerAppear {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* On a phone the bar spans the width above the bottom bar, which is where the
+   thumb already is. */
+@media (max-width: 599px), (max-height: 499px) {
+  .GoliathUpdateBanner {
+    left: 16px;
+    right: 16px;
+    bottom: 72px;
+    justify-content: center;
+  }
+}
