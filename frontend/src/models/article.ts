@@ -83,6 +83,30 @@ export class ArticleCls {
     this.parsed = parsed;
   }
 
+  // WithStatus returns a copy of this article in the given state, carrying
+  // over everything else, including any full text already extracted.
+  //
+  // A copy rather than a change in place, so that the tree this article came
+  // from is left exactly as it was: its counts are kept per feed and folder,
+  // and an article changing state underneath them would leave them wrong.
+  public WithStatus(
+    readStatus: ReadStatus,
+    savedStatus: SavedStatus
+  ): ArticleCls {
+    const copy = new ArticleCls(
+      this.id,
+      this.title,
+      this.author,
+      this.html,
+      this.url,
+      savedStatus,
+      this.creationTime,
+      readStatus
+    );
+    copy.parsed = this.parsed;
+    return copy;
+  }
+
   public MarkArticle(markState: MarkState): void {
     if (markState === MarkState.Read) {
       this.readStatus = ReadStatus.Read;

@@ -13,7 +13,12 @@ import { parseJson } from '../utils/helpers';
 import { ContentTreeCls } from '../models/contentTree';
 import { FolderCls, FolderId } from '../models/folder';
 import { FaviconCls, FeedCls, FeedId } from '../models/feed';
-import { ArticleCls, ReadStatus, SavedStatus } from '../models/article';
+import {
+  ArticleCls,
+  ArticleId,
+  ReadStatus,
+  SavedStatus,
+} from '../models/article';
 import {
   GReaderItemContent,
   GReaderItemRef,
@@ -44,12 +49,21 @@ export default class GReader implements FetchAPI {
   private folderFeeds: Map<FolderId, FeedCls[]>;
   private folderMap: Map<FolderId, FolderCls>;
   private feedToArticles: Map<FeedId, ArticleCls[]>;
+  // Every article the last tree built here holds, by ID. These are the
+  // objects in that tree, so a mark the reader makes on it shows up here too.
+  //
+  // Kept so that loading again fetches the contents of only the articles it
+  // has not seen. An article's text does not change once fetched, and is
+  // nearly all of what a load transfers; its state is what does change, and
+  // the ID lists that carry state are small.
+  private held: Map<ArticleId, ArticleCls>;
   private postToken: string;
 
   constructor() {
     this.folderFeeds = new Map<FolderId, FeedCls[]>();
     this.folderMap = new Map<FolderId, FolderCls>();
     this.feedToArticles = new Map<FeedId, ArticleCls[]>();
+    this.held = new Map<ArticleId, ArticleCls>();
     this.postToken = '';
   }
 
@@ -84,8 +98,10 @@ export default class GReader implements FetchAPI {
     });
 
     // Dropped either way, since a caller signing out is done with it whatever
-    // the server made of the request.
+    // the server made of the request. The articles go too: they are the
+    // signed-out user's, and nothing should be shown from them again.
     this.postToken = '';
+    this.held = new Map<ArticleId, ArticleCls>();
 
     if (!res.ok) {
       throw new Error('Logout failed: ' + res.statusText);
@@ -105,7 +121,9 @@ export default class GReader implements FetchAPI {
   ): Promise<ContentTreeCls> {
     // Reset so that this can be called again to pick up a changed feed list.
     // Otherwise a second call would layer the new subscriptions and articles
-    // over the old ones, and every feed would appear twice.
+    // over the old ones, and every feed would appear twice. The articles
+    // already held are kept apart from this, so that their contents need not
+    // be fetched again.
     this.folderFeeds = new Map<FolderId, FeedCls[]>();
     this.folderMap = new Map<FolderId, FolderCls>();
     this.feedToArticles = new Map<FeedId, ArticleCls[]>();
@@ -411,53 +429,72 @@ export default class GReader implements FetchAPI {
   }
 
   private async fetchArticles(cb: (status: Status) => void): Promise<void> {
-    const articleRefLimit = 1000;
+    // The server answers up to this many IDs per request. A backlog then
+    // costs one round trip per list rather than one per thousand, and the IDs
+    // are small next to the contents they stand for.
+    const articleRefLimit = 10000;
     const articleContentLimit = 100;
 
-    // Fetch unread items
+    // The state each held article had locally before the server was asked.
+    // One that differs by the time the answer arrives was marked by the
+    // reader meanwhile, which the answer cannot reflect, and the reader's
+    // mark is the newer of the two.
+    const localAtStart = new Map<ArticleId, [boolean, boolean]>();
+    this.held.forEach((article: ArticleCls, id: ArticleId): void => {
+      localAtStart.set(id, [article.IsRead(), article.IsSaved()]);
+    });
+
     const unreadFormData = new FormData();
     unreadFormData.set('s', GReaderStream.ReadingList);
     unreadFormData.set('xt', GReaderTag.Read);
     unreadFormData.set('n', articleRefLimit.toString());
+    const unread = await this.fetchStreamIds(unreadFormData, articleRefLimit);
 
-    const unreadArticleIdStrs = await this.fetchStreamIds(
-      unreadFormData,
-      articleRefLimit
-    );
-
-    // Fetch saved items
     const savedFormData = new FormData();
     savedFormData.set('s', GReaderStream.Starred);
     savedFormData.set('n', articleRefLimit.toString());
+    const saved = await this.fetchStreamIds(savedFormData, articleRefLimit);
 
-    const savedArticleIdStrs = await this.fetchStreamIds(
-      savedFormData,
-      articleRefLimit
-    );
+    // The tree holds what is unread or saved; anything else has nothing to
+    // show it under.
+    const wanted = new Map<ArticleId, FeedId>([...unread, ...saved]);
+    const held = new Map<ArticleId, ArticleCls>();
+    const place = (feedId: FeedId, article: ArticleCls): void => {
+      held.set(article.Id(), article);
+      const articles = this.feedToArticles.get(feedId);
+      if (!articles) {
+        this.feedToArticles.set(feedId, [article]);
+      } else {
+        articles.push(article);
+      }
+    };
 
-    const unreadSet = new Set(unreadArticleIdStrs.map(([id]) => id));
-    const savedSet = new Set(savedArticleIdStrs.map(([id]) => id));
-
-    // Combine into a single list of unique article IDs (maintaining metadata)
-    const uniqueArticleMap = new Map<string, [string, string]>();
-    unreadArticleIdStrs.forEach(([id, feedId, folderId]) => {
-      uniqueArticleMap.set(id, [feedId, folderId]);
+    const missing: ArticleId[] = [];
+    wanted.forEach((feedId: FeedId, id: ArticleId): void => {
+      const known = this.held.get(id);
+      if (known === undefined) {
+        missing.push(id);
+        return;
+      }
+      const [readAtStart, savedAtStart] = localAtStart.get(id)!;
+      const isRead =
+        known.IsRead() !== readAtStart ? known.IsRead() : !unread.has(id);
+      const isSaved =
+        known.IsSaved() !== savedAtStart ? known.IsSaved() : saved.has(id);
+      place(
+        feedId,
+        known.WithStatus(
+          isRead ? ReadStatus.Read : ReadStatus.Unread,
+          isSaved ? SavedStatus.Saved : SavedStatus.Unsaved
+        )
+      );
     });
-    savedArticleIdStrs.forEach(([id, feedId, folderId]) => {
-      uniqueArticleMap.set(id, [feedId, folderId]);
-    });
 
-    const articleIdStrs = Array.from(uniqueArticleMap.entries()).map(
-      ([id, [feedId, folderId]]) => [id, feedId, folderId]
-    );
-
-    for (let i = 0; i < articleIdStrs.length; i += articleContentLimit) {
+    for (let i = 0; i < missing.length; i += articleContentLimit) {
       const articleContentsForm = new FormData();
-      articleIdStrs
+      missing
         .slice(i, i + articleContentLimit)
-        .forEach(([id, _feedId, _folderId]) =>
-          articleContentsForm.append('i', id)
-        );
+        .forEach((id: ArticleId) => articleContentsForm.append('i', id));
 
       const res: Response = await this.doFetch({
         uri: GReaderURI.StreamItemContents,
@@ -472,48 +509,45 @@ export default class GReader implements FetchAPI {
       const result: string = await res.text();
       const streamItemContents: GReaderStreamContents = await parseJson(result);
 
+      // Articles that went away between the ID lists and this request are
+      // left out of the answer, which may leave nothing.
       if (!streamItemContents.items) {
-        return;
+        continue;
       }
 
       streamItemContents.items.forEach((item: GReaderItemContent) => {
         const hexId = this.parseArticleID(item.id);
-        const isRead = unreadSet.has(hexId)
-          ? ReadStatus.Unread
-          : ReadStatus.Read;
-        const isSaved = savedSet.has(hexId)
-          ? SavedStatus.Saved
-          : SavedStatus.Unsaved;
-
         const article = new ArticleCls(
           hexId,
           item.title,
           '',
           item.summary.content,
           item.canonical[0].href,
-          isSaved,
+          saved.has(hexId) ? SavedStatus.Saved : SavedStatus.Unsaved,
           item.published,
-          isRead
+          unread.has(hexId) ? ReadStatus.Unread : ReadStatus.Read
         );
-
-        const feedId = this.parseFeedID(item.categories[1]);
-        const articles = this.feedToArticles.get(feedId);
-        if (!articles) {
-          this.feedToArticles.set(feedId, [article]);
-        } else {
-          articles.push(article);
-        }
+        place(
+          wanted.get(hexId) ?? this.parseFeedID(item.categories[1]),
+          article
+        );
       });
     }
 
+    // Replaced only once everything has arrived, so that a load that fails
+    // partway leaves the next one with everything the last good one had.
+    this.held = held;
     cb(Status.Article);
   }
 
+  // fetchStreamIds reads every item in a stream, following continuations,
+  // and returns each item's ID in the hex form other requests take, with the
+  // feed it is in.
   private async fetchStreamIds(
     formData: FormData,
     limit: number
-  ): Promise<string[][]> {
-    const articleIdStrs: string[][] = [];
+  ): Promise<Map<ArticleId, FeedId>> {
+    const ids = new Map<ArticleId, FeedId>();
 
     for (;;) {
       const res: Response = await this.doFetch({
@@ -536,21 +570,12 @@ export default class GReader implements FetchAPI {
 
       stream.itemRefs.forEach((greaderStreamRef: GReaderItemRef) => {
         // The ID is a 64-bit base-10 number as a string, so parse as BigInt.
+        // Requests that name an item take it as hex.
         const id: bigint = BigInt(greaderStreamRef.id);
-        const feedId: bigint = BigInt(
+        ids.set(
+          id.toString(16),
           this.parseFeedID(greaderStreamRef.directStreamIds[0])
         );
-        const folderId: bigint = BigInt(
-          this.parseFolderID(greaderStreamRef.directStreamIds[1])
-        );
-
-        // When requesting article IDs, pass a hex string. This seems to match
-        // other real-world client behavior.
-        articleIdStrs.push([
-          id.toString(16),
-          feedId.toString(16),
-          folderId.toString(16),
-        ]);
       });
 
       // Keep fetching until we see less than the max items returned. This can
@@ -563,7 +588,7 @@ export default class GReader implements FetchAPI {
       }
     }
 
-    return articleIdStrs;
+    return ids;
   }
 
   private populateFolderFeeds(subscriptions: GReaderSubscription[]) {

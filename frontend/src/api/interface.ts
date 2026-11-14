@@ -56,6 +56,11 @@ export interface FetchAPI {
   //
   // The given `cb` callback will be invoked to update status as the fetching is
   // progressing.
+  //
+  // Calling it again returns a new tree reflecting the server's current feeds
+  // and article state, fetching the contents of only the articles the last
+  // tree did not hold. That tree is left untouched, and a mark made on it
+  // while the call was in progress is carried into the new one.
   InitializeContent(cb: (s: Status) => void): Promise<ContentTreeCls>;
 
   // MarkArticle will mark the specified article with the specified mark status.
