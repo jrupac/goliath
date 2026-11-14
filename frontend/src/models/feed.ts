@@ -94,9 +94,18 @@ export class FeedCls {
   }
 
   public AddArticle(article: ArticleCls): void {
-    this.articles.set(article.Id(), article);
+    this.AddArticles([article]);
+  }
+
+  // AddArticles adds many articles at once, sorting once at the end. Adding
+  // them one at a time sorts the whole feed after each, which for a feed of
+  // thousands is millions of comparisons.
+  public AddArticles(articles: ArticleCls[]): void {
+    articles.forEach((article: ArticleCls): void => {
+      this.articles.set(article.Id(), article);
+      this.unread_count += article.IsRead() ? 0 : 1;
+    });
     this.sort();
-    this.unread_count += article.IsRead() ? 0 : 1;
     this.feedView.unread_count = this.unread_count;
   }
 

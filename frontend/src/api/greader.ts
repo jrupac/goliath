@@ -611,7 +611,7 @@ export default class GReader implements FetchAPI {
         // articles for this feed, which is fine. Just add the empty folder
         // to the feed.
         if (articles !== undefined) {
-          articles.forEach((article: ArticleCls) => feed.AddArticle(article));
+          feed.AddArticles(articles);
         }
         folder.AddFeed(feed);
         feed.SetFolderId(folderId);
