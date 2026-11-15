@@ -123,7 +123,6 @@ func main() {
 		scheduler.Run(ctx)
 	}()
 	go storage.StartGC(ctx, d)
-	go fetch.ShrinkStoredFavicons(ctx, d)
 	go admin.Start(ctx, d, scheduler)
 	go serveMetrics(ctx)
 

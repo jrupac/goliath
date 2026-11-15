@@ -34,8 +34,6 @@ type MockDB struct {
 	OnMarkArticlesForUser                          func(u models.User, ids []models.ArticleId, mark models.MarkAction) (int64, error)
 	OnUpdateArticleParsedContentForUser            func(u models.User, articleID models.ArticleId, parsed string) error
 	OnGetAllUsers                                  func() ([]models.User, error)
-	OnGetAllFaviconsForUser                        func(u models.User) (map[models.FeedId]string, error)
-	OnInsertFaviconForUser                         func(u models.User, id models.FeedId, mime string, favicon []byte) error
 	OnGetFaviconHashesForUser                      func(u models.User) (map[models.FeedId]string, error)
 	OnGetFaviconByHash                             func(hash string) (string, []byte, error)
 	OnGetAllFeedsForUser                           func(u models.User) ([]models.Feed, error)
@@ -357,10 +355,7 @@ func (m *MockDB) GetFeedsPerFolderForUser(u models.User) (map[models.FolderId][]
 func (m *MockDB) GetFolderFeedTreeForUser(models.User) (*models.Folder, error) {
 	return nil, nil
 }
-func (m *MockDB) GetAllFaviconsForUser(u models.User) (map[models.FeedId]string, error) {
-	if m.OnGetAllFaviconsForUser != nil {
-		return m.OnGetAllFaviconsForUser(u)
-	}
+func (m *MockDB) GetAllFaviconsForUser(models.User) (map[models.FeedId]string, error) {
 	return nil, nil
 }
 func (m *MockDB) GetFaviconHashesForUser(u models.User) (map[models.FeedId]string, error) {
@@ -404,9 +399,6 @@ func (m *MockDB) UpdateFeedMetadataForUser(u models.User, feed models.Feed) erro
 
 func (m *MockDB) InsertFaviconForUser(u models.User, id models.FeedId, mime string, favicon []byte) error {
 	m.InsertFaviconForUserCalled = true
-	if m.OnInsertFaviconForUser != nil {
-		return m.OnInsertFaviconForUser(u, id, mime, favicon)
-	}
 	return m.InsertFaviconForUserErr
 }
 
