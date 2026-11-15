@@ -130,6 +130,8 @@ type Database interface {
 	GetFeedsPerFolderForUser(models.User) (map[models.FolderId][]models.FeedId, error)
 	GetFolderFeedTreeForUser(models.User) (*models.Folder, error)
 	GetAllFaviconsForUser(models.User) (map[models.FeedId]string, error)
+	GetFaviconHashesForUser(models.User) (map[models.FeedId]string, error)
+	GetFaviconByHash(string) (string, []byte, error)
 
 	GetArticleMetaWithFilterForUser(models.User, models.Stream, int, models.StreamCursor) ([]models.ArticleMeta, error)
 	GetArticleContentsForUser(models.User, models.ArticleId, int) ([]models.Article, error)

@@ -7,7 +7,7 @@ import { FolderId } from './folder';
 export type FeedId = string;
 /** FeedTitle is the textual title of a feed. */
 export type FeedTitle = string;
-/** Favicon is described by a MIME type followed by a base64 encoding. */
+/** Favicon is the source of a feed's icon image: a URL, or a data URI. */
 export type Favicon = string;
 
 export class FaviconCls {

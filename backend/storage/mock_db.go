@@ -36,6 +36,8 @@ type MockDB struct {
 	OnGetAllUsers                                  func() ([]models.User, error)
 	OnGetAllFaviconsForUser                        func(u models.User) (map[models.FeedId]string, error)
 	OnInsertFaviconForUser                         func(u models.User, id models.FeedId, mime string, favicon []byte) error
+	OnGetFaviconHashesForUser                      func(u models.User) (map[models.FeedId]string, error)
+	OnGetFaviconByHash                             func(hash string) (string, []byte, error)
 	OnGetAllFeedsForUser                           func(u models.User) ([]models.Feed, error)
 	OnGetFeedsPerFolderForUser                     func(u models.User) (map[models.FolderId][]models.FeedId, error)
 	OnGetAllRetrievalCaches                        func() (map[UserFeedKey]string, error)
@@ -360,6 +362,18 @@ func (m *MockDB) GetAllFaviconsForUser(u models.User) (map[models.FeedId]string,
 		return m.OnGetAllFaviconsForUser(u)
 	}
 	return nil, nil
+}
+func (m *MockDB) GetFaviconHashesForUser(u models.User) (map[models.FeedId]string, error) {
+	if m.OnGetFaviconHashesForUser != nil {
+		return m.OnGetFaviconHashesForUser(u)
+	}
+	return nil, nil
+}
+func (m *MockDB) GetFaviconByHash(hash string) (string, []byte, error) {
+	if m.OnGetFaviconByHash != nil {
+		return m.OnGetFaviconByHash(hash)
+	}
+	return "", nil, sql.ErrNoRows
 }
 func (m *MockDB) GetArticleMetaWithFilterForUser(u models.User, stream models.Stream, limit int, cursor models.StreamCursor) ([]models.ArticleMeta, error) {
 	if m.OnGetArticleMetaWithFilterForUser != nil {

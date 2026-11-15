@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"cmp"
 	"database/sql"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -114,6 +116,15 @@ func (a GReader) preprocessRequest(w http.ResponseWriter, r *http.Request) bool 
 }
 
 func (a GReader) route(w http.ResponseWriter, r *http.Request) {
+	// Favicons are images rather than API calls: fetched without credentials,
+	// many at a time, and by whatever draws them. They are kept out of the
+	// request log and the API's latency, which they would otherwise dominate.
+	if strings.HasPrefix(r.URL.Path, faviconPathPrefix) {
+		defer a.recordLatency(time.Now(), "favicon")
+		a.handleFavicon(w, r)
+		return
+	}
+
 	// Record the total server latency of each call.
 	defer a.recordLatency(time.Now(), "server")
 
@@ -216,7 +227,7 @@ func (a GReader) handleUserInfo(w http.ResponseWriter, _ *http.Request, user mod
 	})
 }
 
-func (a GReader) handleSubscriptionList(w http.ResponseWriter, _ *http.Request, user models.User) {
+func (a GReader) handleSubscriptionList(w http.ResponseWriter, r *http.Request, user models.User) {
 	folders, err := a.d.GetAllFoldersForUser(user)
 	if err != nil {
 		a.returnError(w, http.StatusInternalServerError)
@@ -229,11 +240,12 @@ func (a GReader) handleSubscriptionList(w http.ResponseWriter, _ *http.Request, 
 		return
 	}
 
-	faviconMap, err := a.d.GetAllFaviconsForUser(user)
+	faviconHashes, err := a.d.GetFaviconHashesForUser(user)
 	if err != nil {
 		a.returnError(w, http.StatusInternalServerError)
 		return
 	}
+	baseURL := publicBaseURL(r)
 
 	folderMap := map[models.FolderId]string{}
 	for _, folder := range folders {
@@ -259,10 +271,12 @@ func (a GReader) handleSubscriptionList(w http.ResponseWriter, _ *http.Request, 
 	subList := greaderSubscriptionList{}
 
 	for _, feed := range feeds {
-		// Return an empty string if the favicon is not found
+		// A URL rather than the image, so that a client fetches each favicon
+		// once and caches it, instead of receiving all of them on every sync.
+		// Empty for a feed with no favicon.
 		var iconUrl string
-		if favicon, ok := faviconMap[feed.ID]; ok {
-			iconUrl = fmt.Sprintf("data:%s", favicon)
+		if hash, ok := faviconHashes[feed.ID]; ok {
+			iconUrl = baseURL + faviconPathPrefix + hash
 		}
 
 		subList.Subscriptions = append(subList.Subscriptions, greaderSubscription{
@@ -1371,6 +1385,101 @@ func (a GReader) returnSuccess(w http.ResponseWriter, resp any) {
 			a.returnError(w, http.StatusInternalServerError)
 		}
 	}
+}
+
+// faviconPathPrefix is where favicons are served, each at its hash.
+const faviconPathPrefix = "/greader/ext/favicon/"
+
+// faviconHashPattern is the form of a favicon's hash: SHA-256, in hex.
+var faviconHashPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+// servedFaviconTypes are the types a favicon is served as. Only raster images:
+// the response comes from this origin to anyone holding the URL, and a type
+// that can carry script, such as SVG, would run as this site when opened
+// directly.
+var servedFaviconTypes = map[string]bool{
+	"image/png":                true,
+	"image/gif":                true,
+	"image/jpeg":               true,
+	"image/webp":               true,
+	"image/x-icon":             true,
+	"image/vnd.microsoft.icon": true,
+}
+
+// handleFavicon serves the favicon a URL names by hash.
+//
+// No credentials are asked for. Clients fetch an icon URL as they would any
+// image, without the API's authorization header; the image is a site's public
+// favicon; and the hash names its bytes, not a user or a feed. Feeds with the
+// same favicon share a URL, so a client fetches it once. The name changes
+// whenever the image does, so a response can be cached indefinitely and never
+// needs revalidating.
+func (a GReader) handleFavicon(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		a.returnError(w, http.StatusMethodNotAllowed)
+		return
+	}
+
+	hash := strings.TrimPrefix(r.URL.Path, faviconPathPrefix)
+	if !faviconHashPattern.MatchString(hash) {
+		a.returnError(w, http.StatusNotFound)
+		return
+	}
+
+	mime, img, err := a.d.GetFaviconByHash(hash)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			a.returnError(w, http.StatusNotFound)
+			return
+		}
+		log.Warningf("Failed to look up favicon %s: %s", hash, err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+	if !servedFaviconTypes[mime] {
+		log.Warningf("Not serving favicon %s of type %q", hash, mime)
+		a.returnError(w, http.StatusNotFound)
+		return
+	}
+
+	h := w.Header()
+	h.Set("Content-Type", mime)
+	h.Set("Cache-Control", "public, max-age=31536000, immutable")
+	h.Set("ETag", `"`+hash+`"`)
+	h.Set("X-Content-Type-Options", "nosniff")
+	h.Set("Content-Security-Policy", "default-src 'none'")
+	// Answers HEAD, ranges and a conditional request carrying the ETag.
+	http.ServeContent(w, r, "", time.Time{}, bytes.NewReader(img))
+}
+
+// publicBaseURL returns the scheme and host a client reached this server by,
+// for URLs it is handed to fetch afterwards.
+//
+// Behind a proxy the request names the proxy's upstream, and the proxy reports
+// what the client asked for in X-Forwarded-Proto and X-Forwarded-Host; failing
+// those, the request itself says. Both headers are the client's to set, which
+// is harmless here: the URL goes back only to the client that sent them.
+func publicBaseURL(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	if p := firstForwarded(r.Header.Get("X-Forwarded-Proto")); p == "http" || p == "https" {
+		scheme = p
+	}
+	host := r.Host
+	if h := firstForwarded(r.Header.Get("X-Forwarded-Host")); h != "" {
+		host = h
+	}
+	return scheme + "://" + host
+}
+
+// firstForwarded returns the first entry of a forwarding header, which is the
+// one the client's own request set when several proxies each appended theirs.
+func firstForwarded(v string) string {
+	first, _, _ := strings.Cut(v, ",")
+	return strings.TrimSpace(first)
 }
 
 type parseFullArticleResponse struct {

@@ -2080,6 +2080,65 @@ func (crdb *Crdb) GetAllFaviconsForUser(u models.User) (map[models.FeedId]string
 	return favicons, err
 }
 
+// GetFaviconHashesForUser returns the hash of each of the user's feeds'
+// favicons, which names the URL the favicon is served at. Feeds with no favicon
+// are not part of the returned map.
+func (crdb *Crdb) GetFaviconHashesForUser(u models.User) (map[models.FeedId]string, error) {
+	defer logElapsedTime(time.Now(), "GetFaviconHashesForUser")
+
+	hashes := map[models.FeedId]string{}
+
+	// The conditions are the predicate of the index holding just the hashes,
+	// which spares reading the favicons stored beside them.
+	query := `
+		SELECT id, faviconhash
+		FROM Feed
+		WHERE userid = $1 AND faviconhash IS NOT NULL AND deleted IS NULL
+	`
+	rows, err := crdb.db.Query(query, u.UserId)
+	defer closeSilent(rows)
+
+	if err != nil {
+		return hashes, err
+	}
+
+	for rows.Next() {
+		var id models.FeedId
+		var hash string
+		if err = rows.Scan(&id, &hash); err != nil {
+			return hashes, err
+		}
+		hashes[id] = hash
+	}
+	return hashes, rows.Err()
+}
+
+// GetFaviconByHash returns the MIME type and bytes of the favicon with the
+// given hash, or sql.ErrNoRows if no feed has it.
+//
+// Any user's feed answers. The hash is of the image itself, so every feed
+// carrying it carries the same image, and serving it says nothing about whose
+// feed it came from.
+func (crdb *Crdb) GetFaviconByHash(hash string) (string, []byte, error) {
+	defer logElapsedTime(time.Now(), "GetFaviconByHash")
+
+	var mime, encoded string
+	query := `
+		SELECT mime, favicon
+		FROM Feed
+		WHERE faviconhash = $1 AND faviconhash IS NOT NULL
+		LIMIT 1
+	`
+	if err := crdb.db.QueryRow(query, hash).Scan(&mime, &encoded); err != nil {
+		return "", nil, err
+	}
+	img, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return "", nil, fmt.Errorf("stored favicon is not base64: %w", err)
+	}
+	return mime, img, nil
+}
+
 // liveArticles restricts a read of Article to articles whose feed the user is
 // still subscribed to. Every read a client can reach carries it: the articles
 // of a feed unsubscribed from stay stored until the garbage collector removes

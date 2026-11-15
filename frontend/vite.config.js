@@ -82,6 +82,9 @@ export default defineConfig(() => {
           target: 'http://goliath-dev:9999',
           changeOrigin: true,
           secure: false,
+          // Tells the backend the address the browser used, which it puts in
+          // URLs the page fetches later, such as favicons'.
+          xfwd: true,
         },
       },
     },
@@ -97,6 +100,9 @@ export default defineConfig(() => {
           target: 'http://goliath-dev:9999',
           changeOrigin: true,
           secure: false,
+          // Tells the backend the address the browser used, which it puts in
+          // URLs the page fetches later, such as favicons'.
+          xfwd: true,
         },
       },
     },
