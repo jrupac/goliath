@@ -107,28 +107,43 @@ func processItem(feed *models.Feed, item *rss.Item) models.Article {
 	}
 }
 
-// maybeResizeImage converts the provided besticon.Icon to a 256x256 PNG image
-// and returns an imagePair struct containing the base64-encoded image and
-// metadata.
+// faviconSize is the width and height favicons are normalized to. Clients draw
+// favicons at a range of sizes, some well above the smallest, and on screens of
+// several pixels per point; this leaves room for all of that while keeping each
+// image to a few kilobytes, since a client fetches every one a user has.
+const faviconSize = 64
+
+// maybeResizeImage returns the favicon to store for a feed: the image as
+// fetched, or normalized to a faviconSize PNG when normalization is enabled.
 func maybeResizeImage(feedId models.FeedId, bi besticon.Icon, i *image.Image) (ip imagePair) {
 	ip = imagePair{feedId, "image/" + bi.Format, bi.ImageData}
 
 	if *normalizeFavicons {
-		var buff bytes.Buffer
-
-		resized := image.NewRGBA(image.Rect(0, 0, 256, 256))
-		draw.CatmullRom.Scale(resized, resized.Rect, *i, (*i).Bounds(), draw.Over, nil)
-
-		err := png.Encode(&buff, resized)
+		normalized, err := normalizeFavicon(*i)
 		if err != nil {
 			log.Warningf("failed to encode image as PNG: %s", err)
 			return
 		}
-
-		ip = imagePair{feedId, "image/png", buff.Bytes()}
+		ip = imagePair{feedId, "image/png", normalized}
 	}
 
 	return
+}
+
+// normalizeFavicon scales an image to faviconSize square and encodes it as PNG.
+//
+// The result depends only on the image, so feeds whose sites use the same icon
+// end up storing the same bytes, which is what lets them share a URL.
+func normalizeFavicon(img image.Image) ([]byte, error) {
+	resized := image.NewNRGBA(image.Rect(0, 0, faviconSize, faviconSize))
+	draw.CatmullRom.Scale(resized, resized.Rect, img, img.Bounds(), draw.Over, nil)
+
+	var buff bytes.Buffer
+	enc := png.Encoder{CompressionLevel: png.BestCompression}
+	if err := enc.Encode(&buff, resized); err != nil {
+		return nil, err
+	}
+	return buff.Bytes(), nil
 }
 
 // getAbsoluteUrl takes a feed link and an input URL string, and returns an
