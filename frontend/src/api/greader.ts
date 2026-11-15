@@ -58,6 +58,8 @@ export default class GReader implements FetchAPI {
   // the ID lists that carry state are small.
   private held: Map<ArticleId, ArticleCls>;
   private postToken: string;
+  // The post-token refresh in flight, if any.
+  private postTokenRefresh: Promise<boolean> | null;
 
   constructor() {
     this.folderFeeds = new Map<FolderId, FeedCls[]>();
@@ -65,6 +67,7 @@ export default class GReader implements FetchAPI {
     this.feedToArticles = new Map<FeedId, ArticleCls[]>();
     this.held = new Map<ArticleId, ArticleCls>();
     this.postToken = '';
+    this.postTokenRefresh = null;
   }
 
   public async HandleAuth(loginInfo: LoginInfo): Promise<boolean> {
@@ -434,6 +437,7 @@ export default class GReader implements FetchAPI {
     // are small next to the contents they stand for.
     const articleRefLimit = 10000;
     const articleContentLimit = 100;
+    const articleContentConcurrency = 4;
 
     // The state each held article had locally before the server was asked.
     // One that differs by the time the answer arrives was marked by the
@@ -490,54 +494,90 @@ export default class GReader implements FetchAPI {
       );
     });
 
+    // Contents are fetched a few batches at a time. One at a time, each batch
+    // waits out a whole round trip and the parsing of the batch before it, so
+    // the connection sits idle for much of a load; a few in flight keep it
+    // busy without asking the server to assemble the whole backlog at once.
+    const batches: ArticleId[][] = [];
     for (let i = 0; i < missing.length; i += articleContentLimit) {
-      const articleContentsForm = new FormData();
-      missing
-        .slice(i, i + articleContentLimit)
-        .forEach((id: ArticleId) => articleContentsForm.append('i', id));
-
-      const res: Response = await this.doFetch({
-        uri: GReaderURI.StreamItemContents,
-        formData: articleContentsForm,
-      });
-
-      if (!res.ok) {
-        console.log('Fetching item contents failed: %s' + res.statusText);
-        return Promise.reject(res.statusText);
+      batches.push(missing.slice(i, i + articleContentLimit));
+    }
+    let next = 0;
+    let failed = false;
+    const fetchBatches = async (): Promise<void> => {
+      while (!failed && next < batches.length) {
+        const batch = batches[next++];
+        let items: GReaderItemContent[];
+        try {
+          items = await this.fetchItemContents(batch);
+        } catch (e) {
+          failed = true;
+          throw e;
+        }
+        if (failed) {
+          return;
+        }
+        items.forEach((item: GReaderItemContent) => {
+          const hexId = this.parseArticleID(item.id);
+          const article = new ArticleCls(
+            hexId,
+            item.title,
+            '',
+            item.summary.content,
+            item.canonical[0].href,
+            saved.has(hexId) ? SavedStatus.Saved : SavedStatus.Unsaved,
+            item.published,
+            unread.has(hexId) ? ReadStatus.Unread : ReadStatus.Read
+          );
+          place(
+            wanted.get(hexId) ?? this.parseFeedID(item.categories[1]),
+            article
+          );
+        });
       }
-
-      const result: string = await res.text();
-      const streamItemContents: GReaderStreamContents = await parseJson(result);
-
-      // Articles that went away between the ID lists and this request are
-      // left out of the answer, which may leave nothing.
-      if (!streamItemContents.items) {
-        continue;
-      }
-
-      streamItemContents.items.forEach((item: GReaderItemContent) => {
-        const hexId = this.parseArticleID(item.id);
-        const article = new ArticleCls(
-          hexId,
-          item.title,
-          '',
-          item.summary.content,
-          item.canonical[0].href,
-          saved.has(hexId) ? SavedStatus.Saved : SavedStatus.Unsaved,
-          item.published,
-          unread.has(hexId) ? ReadStatus.Unread : ReadStatus.Read
-        );
-        place(
-          wanted.get(hexId) ?? this.parseFeedID(item.categories[1]),
-          article
-        );
-      });
+    };
+    // Every batch in flight is waited for, even after one fails, so that none
+    // is still adding to the tree after this load has given up.
+    const outcomes = await Promise.allSettled(
+      Array.from(
+        { length: Math.min(articleContentConcurrency, batches.length) },
+        fetchBatches
+      )
+    );
+    const failure = outcomes.find(
+      (o): o is PromiseRejectedResult => o.status === 'rejected'
+    );
+    if (failure) {
+      return Promise.reject(failure.reason);
     }
 
     // Replaced only once everything has arrived, so that a load that fails
     // partway leaves the next one with everything the last good one had.
     this.held = held;
     cb(Status.Article);
+  }
+
+  // fetchItemContents fetches the contents of the given articles. Articles
+  // that went away since their IDs were listed are left out of the answer,
+  // which may leave nothing.
+  private async fetchItemContents(
+    ids: ArticleId[]
+  ): Promise<GReaderItemContent[]> {
+    const form = new FormData();
+    ids.forEach((id: ArticleId) => form.append('i', id));
+
+    const res: Response = await this.doFetch({
+      uri: GReaderURI.StreamItemContents,
+      formData: form,
+    });
+
+    if (!res.ok) {
+      console.log('Fetching item contents failed: %s' + res.statusText);
+      return Promise.reject(res.statusText);
+    }
+
+    const contents: GReaderStreamContents = parseJson(await res.text());
+    return contents.items ?? [];
   }
 
   // fetchStreamIds reads every item in a stream, following continuations,
@@ -676,8 +716,19 @@ export default class GReader implements FetchAPI {
   }
 
   // refreshPostToken obtains a new post token, returning false if the session
-  // can no longer produce one.
-  private async refreshPostToken(): Promise<boolean> {
+  // can no longer produce one. Requests in flight together are refused
+  // together when the token expires, so they share one refresh rather than
+  // each asking for a token of its own.
+  private refreshPostToken(): Promise<boolean> {
+    if (this.postTokenRefresh === null) {
+      this.postTokenRefresh = this.fetchPostToken().finally(() => {
+        this.postTokenRefresh = null;
+      });
+    }
+    return this.postTokenRefresh;
+  }
+
+  private async fetchPostToken(): Promise<boolean> {
     const res: Response = await this.sendOnce({
       uri: GReaderURI.Token,
       omitPostToken: true,

@@ -19,6 +19,9 @@ class FakeServer {
   contentRequests: string[][] = [];
   // When set, the unread ID list is held back until this resolves.
   holdUnreadIds: Promise<void> | null = null;
+  // Contents requests being answered, and the most there have been at once.
+  contentsInFlight = 0;
+  maxContentsInFlight = 0;
 
   add(id: bigint, read = false, saved = false): void {
     this.articles.set(id, { read, saved });
@@ -56,6 +59,14 @@ class FakeServer {
       case '/greader/reader/api/0/stream/items/contents': {
         const ids = (form?.getAll('i') ?? []) as string[];
         this.contentRequests.push(ids);
+        this.contentsInFlight++;
+        this.maxContentsInFlight = Math.max(
+          this.maxContentsInFlight,
+          this.contentsInFlight
+        );
+        // Answered on a later tick, so that requests made together overlap.
+        await new Promise((r) => setTimeout(r, 1));
+        this.contentsInFlight--;
         return this.json({
           id: 'user/-/state/com.google/reading-list',
           updated: 0,
@@ -238,5 +249,86 @@ describe('loading content', () => {
     await greader.InitializeContent(noop);
 
     expect(server.contentRequests).toEqual([['11']]);
+  });
+
+  it('fetches several batches of contents at once', async () => {
+    for (let i = 0n; i < 450n; i++) {
+      server.add(0x1000n + i);
+    }
+
+    const tree = await greader.InitializeContent(noop);
+
+    expect(server.contentRequests).toHaveLength(5);
+    expect(server.maxContentsInFlight).toBeGreaterThan(1);
+    expect(server.maxContentsInFlight).toBeLessThanOrEqual(4);
+    expect(new Set(server.contentRequests.flat()).size).toBe(450);
+    expect(tree.UnreadCount()).toBe(450);
+  });
+
+  it('starts no more batches once one fails, and finishes those in flight', async () => {
+    for (let i = 0n; i < 1000n; i++) {
+      server.add(0x1000n + i);
+    }
+    let first = true;
+    mockFetch.mockImplementation(async (uri: string, init?: RequestInit) => {
+      if (uri === '/greader/reader/api/0/stream/items/contents' && first) {
+        first = false;
+        return {
+          ok: false,
+          status: 500,
+          statusText: 'boom',
+          headers: new Headers(),
+        } as Response;
+      }
+      return server.respond(uri, init);
+    });
+
+    await expect(greader.InitializeContent(noop)).rejects.toBe('boom');
+
+    expect(server.contentsInFlight).toBe(0);
+    const answered = server.contentRequests.length;
+    expect(answered).toBeLessThan(9);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(server.contentRequests).toHaveLength(answered);
+  });
+
+  // Requests in flight together all find an expired post token at once.
+  it('refreshes an expired post token once for all the batches in flight', async () => {
+    for (let i = 0n; i < 400n; i++) {
+      server.add(0x1000n + i);
+    }
+    let token = 'old';
+    let tokenRequests = 0;
+    mockFetch.mockImplementation(async (uri: string, init?: RequestInit) => {
+      if (uri === '/greader/reader/api/0/token') {
+        tokenRequests++;
+        await new Promise((r) => setTimeout(r, 1));
+        token = 'new';
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          text: async () => 'new',
+        } as unknown as Response;
+      }
+      const form = init?.body as FormData | undefined;
+      if (
+        uri === '/greader/reader/api/0/stream/items/contents' &&
+        form?.get('T') !== token
+      ) {
+        return {
+          ok: false,
+          status: 401,
+          statusText: 'Unauthorized',
+          headers: new Headers({ 'X-Reader-Google-Bad-Token': 'true' }),
+        } as Response;
+      }
+      return server.respond(uri, init);
+    });
+
+    const tree = await greader.InitializeContent(noop);
+
+    expect(tokenRequests).toBe(1);
+    expect(tree.UnreadCount()).toBe(400);
   });
 });
