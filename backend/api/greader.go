@@ -21,6 +21,7 @@ import (
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
+	"github.com/klauspost/compress/gzhttp"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -215,6 +216,7 @@ func (a GReader) handleLogin(w http.ResponseWriter, r *http.Request) {
 		a.returnError(w, status)
 		return
 	}
+	keepUncompressed(w)
 	// Revealed at the boundary: handing the token to the client is the point
 	// of this response, and it is the only time the value is recoverable.
 	a.returnSuccess(w, greaderHandlelogin{Auth: token.Reveal()})
@@ -451,10 +453,21 @@ func (a GReader) handleStreamItemIds(w http.ResponseWriter, r *http.Request, use
 
 func (a GReader) handlePostToken(w http.ResponseWriter, r *http.Request, user models.User) {
 	token := createPostToken(postTokenBinding(user, sessionFrom(r.Context())))
+	keepUncompressed(w)
 	// Revealed at the boundary: handing the token to the client is what this
 	// endpoint is for. Printing it without this writes the redaction placeholder
 	// into the response body instead.
 	_, _ = fmt.Fprint(w, token.Reveal())
+}
+
+// keepUncompressed sends a response uncompressed even to a client that accepts
+// compression. It is for responses that carry a credential. How far a body
+// compresses depends on what in it repeats, so a credential compressed
+// alongside anything an attacker can influence leaks through the length of the
+// encrypted response. Such a response is little more than the credential, so
+// compressing it would save nothing anyway.
+func keepUncompressed(w http.ResponseWriter) {
+	w.Header().Set(gzhttp.HeaderNoCompression, "1")
 }
 
 // checkPostToken validates the post token on a mutating request, writing the

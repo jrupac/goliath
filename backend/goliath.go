@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/jrupac/goliath/schema"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
+	"github.com/klauspost/compress/gzhttp"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/vharitonsky/iniflags"
 )
@@ -304,7 +306,7 @@ func serve(ctx context.Context, d storage.Database, subs fetch.Subscriptions) er
 }
 
 // newMux routes every path the HTTP server answers.
-func newMux(d storage.Database, subs fetch.Subscriptions) *http.ServeMux {
+func newMux(d storage.Database, subs fetch.Subscriptions) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/auth", auth.HandleLogin(d))
 	mux.HandleFunc("/logout", auth.HandleLogout(d))
@@ -314,7 +316,31 @@ func newMux(d storage.Database, subs fetch.Subscriptions) *http.ServeMux {
 	mux.Handle("/cache", auth.WithAuth(cache.NewImageProxy(), d, *publicFolder, cache.DenyUnauthenticated, true))
 	mux.Handle("/static/", http.FileServer(http.Dir(*publicFolder)))
 	mux.Handle("/", auth.WithAuth(http.FileServer(http.Dir(*publicFolder)), d, *publicFolder, nil, false))
-	return mux
+	return compressResponses(mux)
+}
+
+// compressResponses compresses responses for clients that accept it, with
+// zstd where offered and gzip otherwise. The API's JSON repeats the same keys
+// and long IDs throughout and shrinks several times over. It is done here
+// rather than left to a proxy in front, so that it holds however the server is
+// deployed. Responses below a kilobyte go as they are.
+func compressResponses(h http.Handler) http.Handler {
+	wrap, err := gzhttp.NewWrapper(gzhttp.ContentTypeFilter(compressible))
+	if err != nil {
+		log.Fatalf("Invalid compression options: %s", err)
+	}
+	return wrap(h)
+}
+
+// compressible reports whether a response of the given type is worth
+// compressing. Raster images are already compressed, so compressing them again
+// costs time and saves nothing; SVG is text.
+func compressible(contentType string) bool {
+	ct := strings.ToLower(strings.TrimSpace(contentType))
+	if strings.HasPrefix(ct, "image/") && !strings.HasPrefix(ct, "image/svg+xml") {
+		return false
+	}
+	return gzhttp.DefaultContentTypeFilter(ct)
 }
 
 func handleVersion(w http.ResponseWriter, _ *http.Request) {

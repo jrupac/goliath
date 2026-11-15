@@ -8,6 +8,7 @@ require (
 	github.com/arbovm/levenshtein v0.0.0-20160628152529-48b4e1c0c4d0
 	github.com/golang/glog v1.2.5
 	github.com/jrupac/rss/v2 v2.1.0
+	github.com/klauspost/compress v1.20.3
 	github.com/kljensen/snowball v0.10.0
 	github.com/lib/pq v1.12.3
 	github.com/mat/besticon/v3 v3.23.0
@@ -34,7 +35,6 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/itlightning/dateparse v0.2.1 // indirect
-	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
