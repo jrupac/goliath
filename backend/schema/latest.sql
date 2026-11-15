@@ -256,6 +256,12 @@ CREATE
     INDEX IF NOT EXISTS article_idx_readat
     ON Article (userid, readat) STORING (read, date);
 
+-- The saved stream, which clients ask for on every sync; without it, finding
+-- the few saved articles reads every article the user has
+CREATE
+    INDEX IF NOT EXISTS article_userid_saved_idx
+    ON Article (userid, id) STORING (date) WHERE saved;
+
 CREATE TABLE IF NOT EXISTS UserFeedMuteRegexes
 (
     userid UUID NOT NULL,
@@ -288,7 +294,7 @@ CREATE TABLE IF NOT EXISTS SchemaVersion
 -- It is marked as `breaks_older_binaries` because this file cannot know
 -- what previous migrations may have been done on an existing DB.
 INSERT INTO SchemaVersion (version, name, breaks_older_binaries)
-SELECT 32, 'latest.sql', true
+SELECT 33, 'latest.sql', true
 WHERE NOT EXISTS (SELECT 1 FROM SchemaVersion)
   AND NOT EXISTS (SELECT 1 FROM UserTable);
 
