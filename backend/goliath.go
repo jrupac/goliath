@@ -342,17 +342,25 @@ func compressible(contentType string) bool {
 	return gzhttp.DefaultContentTypeFilter(ct)
 }
 
+// versionResponse is what /version reports about the running server.
+type versionResponse struct {
+	BuildTimestamp string `json:"build_timestamp"`
+	BuildHash      string `json:"build_hash"`
+	// The newest migration the binary was built with, and the newest the
+	// database had when it started. They differ only when the database is
+	// ahead, on migrations the binary was allowed to run past.
+	SchemaVersion   int `json:"schema_version"`
+	DBSchemaVersion int `json:"db_schema_version"`
+}
+
 func handleVersion(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	resp := map[string]any{
-		"build_timestamp": buildTimestamp,
-		"build_hash":      buildHash,
-		// The newest migration the binary was built with, and the newest the
-		// database had when it started. They differ only when the database is
-		// ahead, on migrations the binary was allowed to run past.
-		"schema_version":    schema.Latest(),
-		"db_schema_version": dbSchemaVersion,
+	resp := versionResponse{
+		BuildTimestamp:  buildTimestamp,
+		BuildHash:       buildHash,
+		SchemaVersion:   schema.Latest(),
+		DBSchemaVersion: dbSchemaVersion,
 	}
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		log.Warningf("Failed to encode response JSON: %s", err)
