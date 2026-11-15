@@ -31,9 +31,11 @@ var discoverClient = &http.Client{
 
 // SetDiscoverClientForTesting replaces the client subscriptions are checked
 // with, so that a test can subscribe to feeds served from a local address the
-// guard refuses.
-func SetDiscoverClientForTesting(client *http.Client) {
+// guard refuses. It returns a function that puts the previous client back.
+func SetDiscoverClientForTesting(client *http.Client) (restore func()) {
+	previous := discoverClient
 	discoverClient = client
+	return func() { discoverClient = previous }
 }
 
 // DiscoverFeed fetches `feedURL` and returns what is known about it, or an
