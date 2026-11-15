@@ -45,7 +45,7 @@ goliath/
 │   │   ├── api/          # API client interfaces and implementations
 │   │   ├── models/       # Frontend data models (ContentTree)
 │   │   ├── themes/       # CSS themes (default.css, dark.css)
-│   │   └── utils/        # Helpers, type definitions, lossless JSON
+│   │   └── utils/        # Helpers, type definitions
 │   ├── vite.config.js    # Vite config with PWA plugin
 │   └── package.json
 ├── cli/                  # goliath-cli admin CLI (Go)
@@ -82,6 +82,7 @@ goliath/
 | `backend/cache/` | In-process retrieval cache persisted to DB on shutdown |
 | `backend/admin/` | gRPC admin service; protobuf types in `proto/` |
 | `backend/opml/` | OPML import/export via CLI flags |
+| `backend/jsonsafe/` | Test helper: finds response fields whose JSON numbers a JavaScript client could round |
 
 ### Notable dependencies
 
@@ -126,7 +127,7 @@ The backend serves the built static files from `/` and `/static/`.
 ### Notable frontend details
 
 - `App.tsx` is a large class component managing global state with optimistic updates.
-- Custom lossless JSON handling (`utils/`) for large-number precision (feed IDs from CockroachDB are 64-bit integers).
+- Responses are parsed with plain `JSON.parse`, which rounds integers past 2^53. IDs are 64-bit, so the backend sends every one as a string; tests built on `backend/jsonsafe` fail on any response field that could carry a larger number.
 - PWA support via Workbox; LRU cache for in-memory data structures.
 - Theme switching (`t` key), keyboard shortcuts for navigation.
 

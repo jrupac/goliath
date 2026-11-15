@@ -9,7 +9,6 @@ import {
   SelectionKey,
   Status,
 } from '../utils/types';
-import { parseJson } from '../utils/helpers';
 import { ContentTreeCls } from '../models/contentTree';
 import { FolderCls, FolderId } from '../models/folder';
 import { FaviconCls, FeedCls, FeedId } from '../models/feed';
@@ -225,7 +224,7 @@ export default class GReader implements FetchAPI {
     }
 
     const result = await res.text();
-    const responseJson = parseJson(result);
+    const responseJson = JSON.parse(result);
     return responseJson.content;
   }
 
@@ -251,7 +250,7 @@ export default class GReader implements FetchAPI {
     }
 
     const result: string = await res.text();
-    const response: GReaderQuickAddResponse = parseJson(result);
+    const response: GReaderQuickAddResponse = JSON.parse(result);
     if (response.numResults < 1 || !response.streamId) {
       throw new Error('That address is not a feed.');
     }
@@ -275,7 +274,7 @@ export default class GReader implements FetchAPI {
       if (!res.ok) {
         return undefined;
       }
-      const list: GReaderSubscriptionList = parseJson(await res.text());
+      const list: GReaderSubscriptionList = JSON.parse(await res.text());
       const sub = list.subscriptions?.find(
         (s) => s.id === this.feedStreamId(feedId)
       );
@@ -346,7 +345,7 @@ export default class GReader implements FetchAPI {
     }
 
     const result: string = await res.text();
-    const tagList: GReaderTagList = parseJson(result);
+    const tagList: GReaderTagList = JSON.parse(result);
     return (tagList.tags ?? [])
       .filter((tag) => tag.type === 'folder')
       .map((tag) => ({
@@ -419,7 +418,7 @@ export default class GReader implements FetchAPI {
     }
 
     const result: string = await res.text();
-    const subscriptionList: GReaderSubscriptionList = await parseJson(result);
+    const subscriptionList: GReaderSubscriptionList = JSON.parse(result);
 
     // Only populate if there are any subscriptions returned.
     if (subscriptionList.subscriptions) {
@@ -576,7 +575,7 @@ export default class GReader implements FetchAPI {
       return Promise.reject(res.statusText);
     }
 
-    const contents: GReaderStreamContents = parseJson(await res.text());
+    const contents: GReaderStreamContents = JSON.parse(await res.text());
     return contents.items ?? [];
   }
 
@@ -601,7 +600,7 @@ export default class GReader implements FetchAPI {
       }
 
       const result: string = await res.text();
-      const stream: GReaderStreamIds = await parseJson(result);
+      const stream: GReaderStreamIds = JSON.parse(result);
 
       // If no articles are returned, this list might be null.
       if (!stream.itemRefs) {

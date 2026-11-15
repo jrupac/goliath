@@ -1,5 +1,3 @@
-import { isLosslessNumber, parse as parseLossless } from 'lossless-json';
-
 import { ArticleId, ArticleView } from '../models/article';
 import { FeedId, FeedView } from '../models/feed';
 import { FolderId, FolderView } from '../models/folder';
@@ -22,17 +20,6 @@ export function makeAbsolute(url: string): string {
   const a = document.createElement('a');
   a.href = url;
   return a.href;
-}
-
-export function parseJson(text: string): any {
-  // Parse as Lossless numbers since values from the server are 64-bit
-  // Integer, but then convert back to String for use going forward.
-  return parseLossless(text, (_: string, v: unknown) => {
-    if (isLosslessNumber(v)) {
-      return String(v);
-    }
-    return v;
-  });
 }
 
 export function cookieExists(name: string): boolean {

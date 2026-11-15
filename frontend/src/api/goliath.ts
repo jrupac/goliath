@@ -1,5 +1,3 @@
-import { parseJson } from '../utils/helpers';
-
 /** VersionData describes metadata about the backend version. */
 export type VersionData = {
   build_timestamp: string;
@@ -9,7 +7,7 @@ export type VersionData = {
 };
 
 /** describeSchema says which schema version the backend is running on. */
-function describeSchema(binary?: string, database?: string): string {
+function describeSchema(binary?: number, database?: number): string {
   if (!binary) {
     return '<unknown>';
   }
@@ -25,15 +23,15 @@ export async function GetVersion(): Promise<VersionData> {
   interface version {
     build_timestamp: string;
     build_hash: string;
-    schema_version?: string;
-    db_schema_version?: string;
+    schema_version?: number;
+    db_schema_version?: number;
   }
 
   return await fetch('/version', {
     credentials: 'include',
   })
     .then((result) => result.text())
-    .then((result) => parseJson(result))
+    .then((result) => JSON.parse(result))
     .then((body: version): VersionData => {
       return {
         build_timestamp: body.build_timestamp,
