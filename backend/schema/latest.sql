@@ -133,6 +133,8 @@ CREATE TABLE IF NOT EXISTS Feed
     mime        STRING,
     -- Base64 encoding of favicon
     favicon     STRING,
+    -- SHA-256 of the favicon's bytes, which names the URL it is served at
+    faviconhash STRING AS (sha256(decode(NULLIF(favicon, ''), 'base64'))) STORED,
     -- Latest timestamp of articles in this feed
     latest TIMESTAMPTZ DEFAULT CAST(0 AS TIMESTAMPTZ),
     -- Estimated interval between feed fetches (in seconds)
@@ -168,6 +170,17 @@ CREATE
 CREATE
     INDEX IF NOT EXISTS feed_userid_folder_idx
     ON Feed (userid, folder);
+
+-- Finds a favicon by hash alone, across every user's feeds, to serve it
+CREATE
+    INDEX IF NOT EXISTS feed_faviconhash_idx
+    ON Feed (faviconhash) WHERE faviconhash IS NOT NULL;
+
+-- A user's feeds' favicon hashes, without the favicons the rows also hold
+CREATE
+    INDEX IF NOT EXISTS feed_userid_faviconhash_idx
+    ON Feed (userid) STORING (faviconhash)
+    WHERE faviconhash IS NOT NULL AND deleted IS NULL;
 
 CREATE TABLE IF NOT EXISTS UserUnmuteFeeds
 (
@@ -275,7 +288,7 @@ CREATE TABLE IF NOT EXISTS SchemaVersion
 -- It is marked as `breaks_older_binaries` because this file cannot know
 -- what previous migrations may have been done on an existing DB.
 INSERT INTO SchemaVersion (version, name, breaks_older_binaries)
-SELECT 31, 'latest.sql', true
+SELECT 32, 'latest.sql', true
 WHERE NOT EXISTS (SELECT 1 FROM SchemaVersion)
   AND NOT EXISTS (SELECT 1 FROM UserTable);
 
