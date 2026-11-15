@@ -18,6 +18,7 @@ import (
 	log "github.com/golang/glog"
 	"github.com/jrupac/goliath/auth"
 	"github.com/jrupac/goliath/fetch"
+	"github.com/jrupac/goliath/jsonsafe"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 	"github.com/jrupac/goliath/utils"
@@ -519,7 +520,7 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 
 	streamItemContents := greaderStreamItemsContents{
 		Id:      readingListStreamId,
-		Updated: time.Now().Unix(),
+		Updated: jsonsafe.Int(time.Now().Unix()),
 	}
 
 	for _, article := range articles {
@@ -530,7 +531,7 @@ func (a GReader) handleStreamItemsContents(w http.ResponseWriter, r *http.Reques
 			Categories: append([]string{readingListStreamId},
 				itemStreamIds(article.FeedID, folders)...),
 			Title:     article.Title,
-			Published: article.Date.Unix(),
+			Published: jsonsafe.Int(article.Date.Unix()),
 			Canonical: []greaderCanonical{
 				{Href: article.Link},
 			},
@@ -1390,13 +1391,25 @@ func (a GReader) returnInvalidPostToken(w http.ResponseWriter, token models.Secr
 	w.WriteHeader(http.StatusUnauthorized)
 }
 
+// returnSuccess sends resp as JSON. A response a client could misread is
+// refused with a server error instead: a type holding an integer that is
+// neither quoted nor a jsonsafe.Int, or a jsonsafe.Int too large to read back.
+// Encoding completes before anything is written, so a refused response sends
+// none of its body.
 func (a GReader) returnSuccess(w http.ResponseWriter, resp any) {
-	if resp != nil {
-		enc := json.NewEncoder(w)
-		enc.SetEscapeHTML(false)
-		if err := enc.Encode(resp); err != nil {
-			a.returnError(w, http.StatusInternalServerError)
-		}
+	if resp == nil {
+		return
+	}
+	if err := jsonsafe.Check(resp); err != nil {
+		log.Errorf("Refusing to send a response: %s", err)
+		a.returnError(w, http.StatusInternalServerError)
+		return
+	}
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(resp); err != nil {
+		log.Errorf("Failed to encode a response: %s", err)
+		a.returnError(w, http.StatusInternalServerError)
 	}
 }
 

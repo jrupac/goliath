@@ -1,5 +1,7 @@
 package api
 
+import "github.com/jrupac/goliath/jsonsafe"
+
 type greaderTokenType struct {
 	Username string `json:"username"`
 	Token    string `json:"token"`
@@ -76,7 +78,7 @@ type greaderItemContent struct {
 	Id            string             `json:"id"`
 	Categories    []string           `json:"categories"`
 	Title         string             `json:"title"`
-	Published     int64              `json:"published"`
+	Published     jsonsafe.Int       `json:"published"`
 	Canonical     []greaderCanonical `json:"canonical"`
 	Alternate     []greaderCanonical `json:"alternate"`
 	Summary       greaderContent     `json:"summary"`
@@ -96,7 +98,7 @@ type greaderStreamItemIds struct {
 
 type greaderStreamItemsContents struct {
 	Id      string               `json:"id"`
-	Updated int64                `json:"updated"`
+	Updated jsonsafe.Int         `json:"updated"`
 	Items   []greaderItemContent `json:"items"`
 }
 
@@ -106,8 +108,8 @@ type greaderStreamItemsContents struct {
 // echoed back, the number of subscriptions it produced, and the stream ID the
 // new feed can be read from.
 type greaderQuickAddResponse struct {
-	Query      string `json:"query"`
-	NumResults int    `json:"numResults"`
-	StreamId   string `json:"streamId,omitempty"`
-	StreamName string `json:"streamName,omitempty"`
+	Query      string       `json:"query"`
+	NumResults jsonsafe.Int `json:"numResults"`
+	StreamId   string       `json:"streamId,omitempty"`
+	StreamName string       `json:"streamName,omitempty"`
 }

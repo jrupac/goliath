@@ -20,6 +20,7 @@ import (
 	"github.com/jrupac/goliath/auth"
 	"github.com/jrupac/goliath/cache"
 	"github.com/jrupac/goliath/fetch"
+	"github.com/jrupac/goliath/jsonsafe"
 	"github.com/jrupac/goliath/opml"
 	"github.com/jrupac/goliath/schema"
 	"github.com/jrupac/goliath/storage"
@@ -349,20 +350,27 @@ type versionResponse struct {
 	// The newest migration the binary was built with, and the newest the
 	// database had when it started. They differ only when the database is
 	// ahead, on migrations the binary was allowed to run past.
-	SchemaVersion   int `json:"schema_version"`
-	DBSchemaVersion int `json:"db_schema_version"`
+	SchemaVersion   jsonsafe.Int `json:"schema_version"`
+	DBSchemaVersion jsonsafe.Int `json:"db_schema_version"`
 }
 
 func handleVersion(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 	resp := versionResponse{
 		BuildTimestamp:  buildTimestamp,
 		BuildHash:       buildHash,
-		SchemaVersion:   schema.Latest(),
-		DBSchemaVersion: dbSchemaVersion,
+		SchemaVersion:   jsonsafe.Int(schema.Latest()),
+		DBSchemaVersion: jsonsafe.Int(dbSchemaVersion),
 	}
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		log.Warningf("Failed to encode response JSON: %s", err)
+	err := jsonsafe.Check(resp)
+	var body []byte
+	if err == nil {
+		body, err = json.Marshal(resp)
 	}
+	if err != nil {
+		log.Errorf("Refusing to send the version: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(append(body, '\n'))
 }

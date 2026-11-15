@@ -9,10 +9,12 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/jrupac/goliath/fetch"
+	"github.com/jrupac/goliath/jsonsafe"
 	"github.com/jrupac/goliath/models"
 	"github.com/jrupac/goliath/storage"
 )
@@ -157,5 +159,35 @@ func TestParseFullArticleServesWhatWasParsedBefore(t *testing.T) {
 	want := map[string]any{"content": "<p>Stored</p>"}
 	if got := decodeResponse(t, w); !reflect.DeepEqual(got, want) {
 		t.Errorf("response = %#v, want %#v", got, want)
+	}
+}
+
+// A response a client could misread is refused with a server error, and none
+// of it is sent: a type holding an integer that is neither quoted nor a
+// jsonsafe.Int, and a jsonsafe.Int beyond what a client reads back exactly.
+func TestReturnSuccessRefusesWhatAClientCouldMisread(t *testing.T) {
+	type rawID struct {
+		ID int64 `json:"id"`
+	}
+	for name, tc := range map[string]struct {
+		resp   any
+		digits string
+	}{
+		"unquoted integer": {rawID{ID: 1<<60 + 1}, "1152921504606846977"},
+		"large jsonsafe.Int": {
+			greaderStreamItemsContents{Id: "kept-out", Updated: jsonsafe.MaxInt + 1},
+			"9007199254740992",
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			GReader{}.returnSuccess(w, tc.resp)
+			if w.Code != http.StatusInternalServerError {
+				t.Errorf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+			}
+			if body := w.Body.String(); strings.Contains(body, tc.digits) || strings.Contains(body, "kept-out") {
+				t.Errorf("body = %q, want none of the response", body)
+			}
+		})
 	}
 }

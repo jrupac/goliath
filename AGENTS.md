@@ -82,7 +82,7 @@ goliath/
 | `backend/cache/` | In-process retrieval cache persisted to DB on shutdown |
 | `backend/admin/` | gRPC admin service; protobuf types in `proto/` |
 | `backend/opml/` | OPML import/export via CLI flags |
-| `backend/jsonsafe/` | Test helper: finds response fields whose JSON numbers a JavaScript client could round |
+| `backend/jsonsafe/` | Keeps responses exact for JavaScript clients: `Int`, and the check every response passes before it is sent |
 
 ### Notable dependencies
 
@@ -127,7 +127,7 @@ The backend serves the built static files from `/` and `/static/`.
 ### Notable frontend details
 
 - `App.tsx` is a large class component managing global state with optimistic updates.
-- Responses are parsed with plain `JSON.parse`, which rounds integers past 2^53. IDs are 64-bit, so the backend sends every one as a string; tests built on `backend/jsonsafe` fail on any response field that could carry a larger number.
+- Responses are parsed with plain `JSON.parse`, which rounds integers past 2^53. IDs are 64-bit, so the backend sends every one as a string. Every integer in a response is either tagged `,string` or a `jsonsafe.Int`, which stays a JSON number but refuses to encode past 2^53; the backend refuses to send any response type holding another kind of integer.
 - PWA support via Workbox; LRU cache for in-memory data structures.
 - Theme switching (`t` key), keyboard shortcuts for navigation.
 
