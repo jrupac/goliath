@@ -34,6 +34,7 @@ import {
   Menu,
   MenuItem,
   ThemeProvider,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { FetchAPI, FetchAPIFactory } from './api/interface';
@@ -54,7 +55,6 @@ import KeyboardTwoToneIcon from '@mui/icons-material/KeyboardTwoTone';
 import LogoutTwoToneIcon from '@mui/icons-material/LogoutTwoTone';
 import SettingsTwoToneIcon from '@mui/icons-material/SettingsTwoTone';
 import KeybindingsModal from './components/KeybindingsModal';
-import UpdateBanner from './components/UpdateBanner';
 import SettingsModal from './components/SettingsModal';
 import QuickAddDialog from './components/QuickAddDialog';
 import { Keybindings, getTinykeysSequence } from './utils/keybindings';
@@ -101,7 +101,6 @@ export interface AppState {
   newArticleCount: number | null;
   newArticleNoteShown: boolean;
   updatePending: boolean;
-  updateNoticeDismissed: boolean;
   isMobile: boolean;
   isTabletPortrait: boolean;
   isTabletLandscape: boolean;
@@ -150,7 +149,6 @@ export default class App extends React.Component<AppProps, AppState> {
       newArticleCount: null,
       newArticleNoteShown: false,
       updatePending: false,
-      updateNoticeDismissed: false,
       isMobile: metrics.isMobile,
       isTabletPortrait: metrics.isTabletPortrait,
       isTabletLandscape: metrics.isTabletLandscape,
@@ -658,16 +656,35 @@ export default class App extends React.Component<AppProps, AppState> {
               )}
               <div className="GoliathLogoInline">Goliath</div>
               <div className="GoliathActionBarSpacer"></div>
-              <IconButton
-                aria-label="Account menu"
-                className="GoliathButton"
-                size="small"
-                aria-haspopup="true"
-                aria-expanded={this.state.menuAnchor !== null}
-                onClick={(e) => this.setState({ menuAnchor: e.currentTarget })}
+              <Tooltip
+                title={this.state.updatePending ? 'A new version is ready' : ''}
               >
-                <AccountCircleTwoToneIcon />
-              </IconButton>
+                <IconButton
+                  aria-label={
+                    this.state.updatePending
+                      ? 'Account menu, new version ready'
+                      : 'Account menu'
+                  }
+                  className={
+                    this.state.updatePending
+                      ? 'GoliathButton GoliathButtonMarked'
+                      : 'GoliathButton'
+                  }
+                  size="small"
+                  aria-haspopup="true"
+                  aria-expanded={this.state.menuAnchor !== null}
+                  onClick={(e) =>
+                    this.setState({ menuAnchor: e.currentTarget })
+                  }
+                >
+                  <AccountCircleTwoToneIcon />
+                </IconButton>
+              </Tooltip>
+              {this.state.updatePending && (
+                <div className="GoliathVisuallyHidden" role="status">
+                  A new version is ready
+                </div>
+              )}
             </div>
             {this.state.reloading && (
               <LinearProgress
@@ -721,6 +738,7 @@ export default class App extends React.Component<AppProps, AppState> {
                   : undefined
               }
               modalOpen={this.isModalOpen(this.state)}
+              updatePending={this.state.updatePending}
               isMobile={this.state.isMobile}
               isTabletPortrait={this.state.isTabletPortrait}
               isTabletLandscape={this.state.isTabletLandscape}
@@ -743,12 +761,6 @@ export default class App extends React.Component<AppProps, AppState> {
               }}
             />
           </main>
-          {this.state.updatePending && !this.state.updateNoticeDismissed && (
-            <UpdateBanner
-              onReload={applyPendingUpdate}
-              onDismiss={() => this.setState({ updateNoticeDismissed: true })}
-            />
-          )}
         </div>
         <Menu
           open={this.state.menuAnchor !== null}
@@ -763,6 +775,7 @@ export default class App extends React.Component<AppProps, AppState> {
         >
           {this.state.updatePending && (
             <MenuItem
+              className="GoliathAppMenuUpdateItem"
               onClick={() => {
                 this.setState({ menuAnchor: null });
                 applyPendingUpdate();

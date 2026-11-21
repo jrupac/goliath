@@ -89,6 +89,10 @@ export interface ArticleListProps {
   onArticleSelect: () => void;
   openDrawer: () => void;
   selectionTitle: string;
+  // Whether a newly deployed build is waiting to be taken. On a narrow
+  // layout the sidebar is unmounted while closed, so the button that opens it
+  // carries the mark that would otherwise sit on the account control.
+  updatePending?: boolean;
 }
 
 const ArticleList = ({
@@ -119,6 +123,7 @@ const ArticleList = ({
   onArticleSelect,
   openDrawer,
   selectionTitle,
+  updatePending = false,
 }: ArticleListProps) => {
   const showListMobileLayout =
     isMobile || (isTabletPortrait && !tabletShowFeedList);
@@ -511,9 +516,15 @@ const ArticleList = ({
   const renderMobileListBar = () => (
     <>
       <IconButton
-        aria-label="Show feed list"
+        aria-label={
+          updatePending ? 'Show feed list, new version ready' : 'Show feed list'
+        }
         onClick={openDrawer}
-        className="GoliathButton GoliathActionBarLeadIcon"
+        className={
+          updatePending
+            ? 'GoliathButton GoliathActionBarLeadIcon GoliathButtonMarked'
+            : 'GoliathButton GoliathActionBarLeadIcon'
+        }
         size="small"
       >
         <ViewSidebarTwoToneIcon />
