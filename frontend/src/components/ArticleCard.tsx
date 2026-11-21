@@ -115,7 +115,7 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
   // rather than by looking: sideways back to the list, and an overscroll at
   // either end of the article on to the next or back to the last.
   const columnRef = useRef<HTMLDivElement | null>(null);
-  const { direction: peekDirection, sliding } = useSwipeNavigate(
+  const { direction: peekDirection } = useSwipeNavigate(
     contentScrollRef,
     columnRef,
     {
@@ -123,15 +123,14 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
       onBack,
       onNext,
       onPrevious: onPrev,
+      // What the gesture uncovers is not this card's to draw -- it is the
+      // pane behind it, which the layout above owns. Handed over by the
+      // gesture rather than watched for, so that it lands in the same frame
+      // as the movement that needs it.
+      onSlidingChange,
     }
   );
   const peek = peekDirection === -1 ? previousPeek : nextPeek;
-
-  // What the gesture uncovers is not this card's to draw -- it is the pane
-  // behind it, which the layout above owns.
-  useEffect(() => {
-    onSlidingChange?.(sliding);
-  }, [sliding, onSlidingChange]);
 
   // Likewise, the scroll container is reused across articles, so a new article
   // would otherwise open at the previous one's scroll offset. Reset before

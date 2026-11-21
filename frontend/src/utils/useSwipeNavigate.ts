@@ -66,6 +66,10 @@ export interface SwipeNavigateHandlers {
   // takes the distance and moves it itself, and this pane stays put.
   onCarry?: (offset: number) => void;
   onCarryEnd?: (committed: boolean) => void;
+  // Told the moment a sideways gesture starts and the moment it is over,
+  // so that whatever is behind this pane can be put on screen for exactly
+  // as long as the gesture lasts.
+  onSlidingChange?: (sliding: boolean) => void;
 }
 
 export interface SwipeNavigateState {
@@ -128,11 +132,26 @@ export function useSwipeNavigate(
 
     const report = (next: SwipeNavigateState): void => {
       if (
-        reported.direction !== next.direction ||
-        reported.armed !== next.armed ||
-        reported.sliding !== next.sliding
+        reported.direction === next.direction &&
+        reported.armed === next.armed &&
+        reported.sliding === next.sliding
       ) {
-        reported = next;
+        return;
+      }
+      // Whether the pane behind this one is on screen is settled in the same
+      // frame as the movement that uncovers it, and in the same frame as the
+      // move that lands. Left to its own turn, there is a frame in between
+      // with the pane moved and nothing behind it, or with the move taken
+      // and the arrangement for the gesture still in place -- and either one
+      // paints bare ground.
+      const uncovers = reported.sliding !== next.sliding;
+      reported = next;
+      if (uncovers) {
+        flushSync(() => {
+          setState(next);
+          latest.current.onSlidingChange?.(next.sliding);
+        });
+      } else {
         setState(next);
       }
     };
