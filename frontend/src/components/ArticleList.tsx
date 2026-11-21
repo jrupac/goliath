@@ -628,6 +628,16 @@ const ArticleList = ({
                       </IconButton>
                     </Tooltip>
                   )}
+                  {/* What is being read, and then what the last refresh
+                      brought into it. Both sit ahead of the spacer, so the
+                      note arriving takes its width from the slack rather
+                      than from the controls at either end. */}
+                  <Typography
+                    variant="subtitle1"
+                    className="GoliathArticleListTitleText GoliathArticleListTitleInline"
+                  >
+                    {selectionTitle}
+                  </Typography>
                   <NewArticleNote
                     count={newArticleCount}
                     shown={newArticleNoteShown}

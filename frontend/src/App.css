@@ -999,6 +999,15 @@
   white-space: nowrap;
 }
 
+/* In the wide layout the title shares its bar with the refresh note and the
+   scroll controls, so it takes only the width it needs and is the first
+   thing to give way when the bar runs short. */
+.GoliathArticleListTitleText.GoliathArticleListTitleInline.MuiTypography-root {
+  flex-grow: 0;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
 /* Frosted list header. It belongs to the sheet, so it takes the list surface
    rather than a chrome colour, and it rounds the sheet's top-left corner
    itself because a backdrop filter paints outside an ancestor's clip. */
