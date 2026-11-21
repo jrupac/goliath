@@ -2736,8 +2736,11 @@ body,
   position: relative;
 }
 
-.GoliathSwipeRevealing > .GoliathArticleListColumn,
-.GoliathSwipeRevealing > .GoliathSplitViewArticleOuter {
+/* Only the list goes behind. The article stays in the flow, which is what
+   gives the row a height for the list to be stretched against -- take both
+   out of it and the row collapses, and the list is laid out at no height at
+   all. */
+.GoliathSwipeRevealing > .GoliathArticleListColumn {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -2745,7 +2748,8 @@ body,
 }
 
 .GoliathSwipeRevealing > .GoliathSplitViewArticleOuter {
-  z-index: 2;
+  position: relative;
+  z-index: 1;
 }
 
 /******************************************************************************
