@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { describe, it, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import { useSwipeNavigate } from '../useSwipeNavigate';
 
@@ -28,18 +28,16 @@ interface HarnessProps {
 
 const Harness = ({ enabled = true, ...handlers }: HarnessProps) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const paneRef = useRef<HTMLDivElement | null>(null);
-  const peekRef = useRef<HTMLDivElement | null>(null);
-  const { direction, armed } = useSwipeNavigate(scrollRef, paneRef, peekRef, {
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const { direction, armed, sliding } = useSwipeNavigate(scrollRef, stageRef, {
     enabled,
     ...handlers,
   });
 
   return (
-    <div data-testid="pane" ref={paneRef}>
+    <div data-testid="stage" ref={stageRef}>
       <div data-testid="scroller" ref={scrollRef} />
-      <div data-testid="peek" ref={peekRef} />
-      <span data-testid="state">{`${direction}:${armed}`}</span>
+      <span data-testid="state">{`${direction}:${armed}:${sliding}`}</span>
     </div>
   );
 };
@@ -57,11 +55,15 @@ const setup = (
   render(<Harness {...handlers} />);
   const scroller = screen.getByTestId('scroller');
   stub(scroller, scroll);
-  stub(screen.getByTestId('pane'), { clientWidth: 300 });
+  const stage = screen.getByTestId('stage');
+  stub(stage, { clientWidth: 300, clientHeight: 600 });
   return {
     scroller,
-    pane: screen.getByTestId('pane'),
-    peek: screen.getByTestId('peek'),
+    stage,
+    offset: () => [
+      stage.style.getPropertyValue('--swipe-x'),
+      stage.style.getPropertyValue('--swipe-y'),
+    ],
     state: () => screen.getByTestId('state').textContent,
   };
 };
@@ -78,9 +80,22 @@ const drag = (
     }
     el.dispatchEvent(touch('touchend', 0, 0));
   });
+  // A committed gesture carries the pane the rest of the way before it takes
+  // the move, so the move lands once that is over.
+  act(() => {
+    vi.advanceTimersByTime(500);
+  });
 };
 
 describe('useSwipeNavigate', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('goes on to the next article when the pull runs past the end', () => {
     const onNext = vi.fn();
     const { scroller } = setup({ onNext });
@@ -100,7 +115,7 @@ describe('useSwipeNavigate', () => {
 
   it('leaves a short pull alone', () => {
     const onNext = vi.fn();
-    const { scroller, peek } = setup({ onNext });
+    const { scroller, offset } = setup({ onNext });
 
     drag(
       scroller,
@@ -112,7 +127,7 @@ describe('useSwipeNavigate', () => {
     );
 
     expect(onNext).not.toHaveBeenCalled();
-    expect(peek.style.height).toBe('0px');
+    expect(offset()).toEqual(['0px', '0px']);
   });
 
   it('goes back to the previous article from the top of the article', () => {
@@ -161,7 +176,7 @@ describe('useSwipeNavigate', () => {
 
   it('carries the pane sideways and goes back past a third of it', () => {
     const onBack = vi.fn();
-    const { scroller, pane } = setup({ onBack });
+    const { scroller, offset } = setup({ onBack });
 
     drag(
       scroller,
@@ -175,7 +190,7 @@ describe('useSwipeNavigate', () => {
 
     expect(onBack).toHaveBeenCalledTimes(1);
     // The pane is put back for whatever is rendered next.
-    expect(pane.style.transform).toBe('');
+    expect(offset()).toEqual(['0px', '0px']);
   });
 
   it('keeps a sideways gesture that does not reach the third', () => {

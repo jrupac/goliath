@@ -28,7 +28,7 @@ import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
 import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
 import { useOverlayScrollbar } from '../utils/useOverlayScrollbar';
 import { useSwipeNavigate } from '../utils/useSwipeNavigate';
-import NextArticlePeek, { ArticlePeek } from './NextArticlePeek';
+import NextArticlePreview, { ArticlePeek } from './NextArticlePreview';
 
 export interface ArticleProps {
   fetchApi: FetchAPI;
@@ -50,9 +50,12 @@ export interface ArticleProps {
   onBack?: () => void;
   onPrev?: () => void;
   onNext?: () => void;
-  // What a pull would arrive at, for the strip that opens while it is made.
+  // What a pull would arrive at, drawn off the edge it will come from.
   nextPeek?: ArticlePeek;
   previousPeek?: ArticlePeek;
+  // Told while the card is being carried sideways, so that whatever is
+  // behind it can be put on screen for the length of the gesture.
+  onSlidingChange?: (sliding: boolean) => void;
   isMobile?: boolean;
   showMobileLayout?: boolean;
 }
@@ -72,6 +75,7 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
     onNext,
     nextPeek,
     previousPeek,
+    onSlidingChange,
     isMobile,
     showMobileLayout,
   } = props;
@@ -111,11 +115,9 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
   // rather than by looking: sideways back to the list, and an overscroll at
   // either end of the article on to the next or back to the last.
   const columnRef = useRef<HTMLDivElement | null>(null);
-  const peekRef = useRef<HTMLDivElement | null>(null);
-  const { direction: peekDirection, armed: peekArmed } = useSwipeNavigate(
+  const { direction: peekDirection, sliding } = useSwipeNavigate(
     contentScrollRef,
     columnRef,
-    peekRef,
     {
       enabled: Boolean(useMobileLayout),
       onBack,
@@ -124,6 +126,12 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
     }
   );
   const peek = peekDirection === -1 ? previousPeek : nextPeek;
+
+  // What the gesture uncovers is not this card's to draw -- it is the pane
+  // behind it, which the layout above owns.
+  useEffect(() => {
+    onSlidingChange?.(sliding);
+  }, [sliding, onSlidingChange]);
 
   // Likewise, the scroll container is reused across articles, so a new article
   // would otherwise open at the previous one's scroll offset. Reset before
@@ -275,92 +283,215 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
 
   return (
     <Stack className="GoliathArticleCardColumn" ref={columnRef}>
-      {/* Topmost bar (feed name, date, buttons) */}
-      <div className="GoliathArticleByline">
-        <div className="GoliathArticleBylineInfo">
-          {!useMobileLayout && onBack && (
+      {/* Everything the gesture carries. The column itself stays put and
+          clips, so that what is coming can wait just off its edge. */}
+      <div className="GoliathArticleCardSlide">
+        {/* Topmost bar (feed name, date, buttons) */}
+        <div className="GoliathArticleByline">
+          <div className="GoliathArticleBylineInfo">
+            {!useMobileLayout && onBack && (
+              <IconButton
+                aria-label="back to list"
+                onClick={onBack}
+                className="GoliathButton GoliathActionBarLeadIcon"
+                size="small"
+              >
+                <ArrowBackTwoToneIcon />
+              </IconButton>
+            )}
+            <FeedIcon
+              favicon={faviconSrc}
+              feedTitle={feedTitle}
+              feedId={props.feedId}
+              size={16}
+            />
+            <span className="GoliathArticleBylineText">{feedTitle}</span>
+            <span className="GoliathArticleBylineSep">·</span>
+            <Tooltip title={formatFull(date)}>
+              <span className="GoliathArticleBylineDate">
+                {formatFriendly(date)}
+              </span>
+            </Tooltip>
+          </div>
+          <div className="GoliathArticleBylineActions">
+            {!useMobileLayout && onPrev && (
+              <Tooltip title="Scroll up / Previous article">
+                <IconButton
+                  aria-label="previous article"
+                  onClick={onPrev}
+                  className="GoliathButton"
+                  size="small"
+                >
+                  <ExpandLessTwoToneIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+            {!useMobileLayout && onNext && (
+              <Tooltip title="Scroll down / Next article">
+                <IconButton
+                  aria-label="next article"
+                  onClick={onNext}
+                  className="GoliathButton"
+                  size="small"
+                >
+                  <ExpandMoreTwoToneIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+            {!useMobileLayout && (
+              <Tooltip title="Reader mode (m)">
+                <IconButton
+                  aria-label="reader mode"
+                  className={`GoliathButton${state.showParsed ? ' GoliathReaderModeActive' : ''}`}
+                  size="small"
+                  onClick={toggleParseContent}
+                >
+                  {state.showParsed ? (
+                    <ChromeReaderModeIcon />
+                  ) : (
+                    <ChromeReaderModeOutlinedIcon />
+                  )}
+                </IconButton>
+              </Tooltip>
+            )}
+            {!useMobileLayout && (
+              <Tooltip
+                title={
+                  props.article.isSaved ? 'Unsave article' : 'Save article'
+                }
+              >
+                <IconButton
+                  aria-label="save article"
+                  className="GoliathButton"
+                  size="small"
+                  onClick={props.onToggleSave}
+                >
+                  {props.article.isSaved ? <StarIcon /> : <StarBorderIcon />}
+                </IconButton>
+              </Tooltip>
+            )}
+            {!useMobileLayout &&
+              props.selectionType !== SelectionType.Saved && (
+                <Tooltip
+                  title={
+                    props.article.isRead ? 'Mark as unread' : 'Mark as read'
+                  }
+                >
+                  <IconButton
+                    aria-label="mark as read"
+                    onClick={() => props.onMarkArticleRead()}
+                    className="GoliathButton"
+                    size="small"
+                  >
+                    {props.article.isRead ? (
+                      <CheckCircleOutlinedIcon />
+                    ) : (
+                      <CheckCircleTwoToneIcon />
+                    )}
+                  </IconButton>
+                </Tooltip>
+              )}
+          </div>
+        </div>
+
+        {/* Article scroll area */}
+        <div
+          className="GoliathSplitViewArticleContainer"
+          ref={contentScrollRef}
+        >
+          {/* Frosted title bar. It lives inside the scroller and sticks to its
+            top, so content scrolls under it and is blurred by it while the
+            scrollbar, which is outside the content box, stays crisp. */}
+          <div className="GoliathArticleTitleBar" ref={titleBarRef}>
+            <h1 className="GoliathArticleTitle">
+              <a
+                target="_blank"
+                rel="noopener noreferrer"
+                href={props.article.url}
+              >
+                <span
+                  dangerouslySetInnerHTML={{ __html: props.article.title }}
+                />
+              </a>
+            </h1>
+          </div>
+
+          {/* Article content */}
+          <div
+            ref={articleContentRef}
+            className="GoliathSplitViewArticleContent GoliathArticleContentStyling"
+          >
+            {renderContent()}
+          </div>
+        </div>
+
+        {/* Scrollbar for the container above. The rail spans the whole scroller,
+          but its track starts below the title bar — see useOverlayScrollbar.
+          Hidden until the first sync finds something to scroll. */}
+        <div
+          className="GoliathArticleScrollbar"
+          ref={railRef}
+          onPointerDown={onRailPointerDown}
+          aria-hidden="true"
+          hidden
+        >
+          <div
+            className="GoliathArticleScrollbarThumb"
+            ref={thumbRef}
+            onPointerDown={onThumbPointerDown}
+          />
+        </div>
+
+        {/* Mobile Bottom Navigation Bar */}
+        {useMobileLayout && (
+          <div className="GoliathMobileBottomBar">
             <IconButton
               aria-label="back to list"
               onClick={onBack}
-              className="GoliathButton GoliathActionBarLeadIcon"
+              className="GoliathButton"
               size="small"
             >
               <ArrowBackTwoToneIcon />
             </IconButton>
-          )}
-          <FeedIcon
-            favicon={faviconSrc}
-            feedTitle={feedTitle}
-            feedId={props.feedId}
-            size={16}
-          />
-          <span className="GoliathArticleBylineText">{feedTitle}</span>
-          <span className="GoliathArticleBylineSep">·</span>
-          <Tooltip title={formatFull(date)}>
-            <span className="GoliathArticleBylineDate">
-              {formatFriendly(date)}
-            </span>
-          </Tooltip>
-        </div>
-        <div className="GoliathArticleBylineActions">
-          {!useMobileLayout && onPrev && (
-            <Tooltip title="Scroll up / Previous article">
-              <IconButton
-                aria-label="previous article"
-                onClick={onPrev}
-                className="GoliathButton"
-                size="small"
-              >
-                <ExpandLessTwoToneIcon />
-              </IconButton>
-            </Tooltip>
-          )}
-          {!useMobileLayout && onNext && (
-            <Tooltip title="Scroll down / Next article">
-              <IconButton
-                aria-label="next article"
-                onClick={onNext}
-                className="GoliathButton"
-                size="small"
-              >
-                <ExpandMoreTwoToneIcon />
-              </IconButton>
-            </Tooltip>
-          )}
-          {!useMobileLayout && (
-            <Tooltip title="Reader mode (m)">
-              <IconButton
-                aria-label="reader mode"
-                className={`GoliathButton${state.showParsed ? ' GoliathReaderModeActive' : ''}`}
-                size="small"
-                onClick={toggleParseContent}
-              >
-                {state.showParsed ? (
-                  <ChromeReaderModeIcon />
-                ) : (
-                  <ChromeReaderModeOutlinedIcon />
-                )}
-              </IconButton>
-            </Tooltip>
-          )}
-          {!useMobileLayout && (
-            <Tooltip
-              title={props.article.isSaved ? 'Unsave article' : 'Save article'}
+            <IconButton
+              aria-label="previous article"
+              onClick={onPrev}
+              disabled={!onPrev}
+              className="GoliathButton"
+              size="small"
             >
-              <IconButton
-                aria-label="save article"
-                className="GoliathButton"
-                size="small"
-                onClick={props.onToggleSave}
-              >
-                {props.article.isSaved ? <StarIcon /> : <StarBorderIcon />}
-              </IconButton>
-            </Tooltip>
-          )}
-          {!useMobileLayout && props.selectionType !== SelectionType.Saved && (
-            <Tooltip
-              title={props.article.isRead ? 'Mark as unread' : 'Mark as read'}
+              <ExpandLessTwoToneIcon />
+            </IconButton>
+            <IconButton
+              aria-label="next article"
+              onClick={onNext}
+              disabled={!onNext}
+              className="GoliathButton"
+              size="small"
             >
+              <ExpandMoreTwoToneIcon />
+            </IconButton>
+            <IconButton
+              aria-label="reader mode"
+              className={`GoliathButton${state.showParsed ? ' GoliathReaderModeActive' : ''}`}
+              size="small"
+              onClick={toggleParseContent}
+            >
+              {state.showParsed ? (
+                <ChromeReaderModeIcon />
+              ) : (
+                <ChromeReaderModeOutlinedIcon />
+              )}
+            </IconButton>
+            <IconButton
+              aria-label="save article"
+              className="GoliathButton"
+              size="small"
+              onClick={props.onToggleSave}
+            >
+              {props.article.isSaved ? <StarIcon /> : <StarBorderIcon />}
+            </IconButton>
+            {props.selectionType !== SelectionType.Saved && (
               <IconButton
                 aria-label="mark as read"
                 onClick={() => props.onMarkArticleRead()}
@@ -373,131 +504,15 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
                   <CheckCircleTwoToneIcon />
                 )}
               </IconButton>
-            </Tooltip>
-          )}
-        </div>
-      </div>
-
-      {/* Article scroll area */}
-      <div className="GoliathSplitViewArticleContainer" ref={contentScrollRef}>
-        {/* Frosted title bar. It lives inside the scroller and sticks to its
-            top, so content scrolls under it and is blurred by it while the
-            scrollbar, which is outside the content box, stays crisp. */}
-        <div className="GoliathArticleTitleBar" ref={titleBarRef}>
-          <h1 className="GoliathArticleTitle">
-            <a
-              target="_blank"
-              rel="noopener noreferrer"
-              href={props.article.url}
-            >
-              <span dangerouslySetInnerHTML={{ __html: props.article.title }} />
-            </a>
-          </h1>
-        </div>
-
-        {/* Article content */}
-        <div
-          ref={articleContentRef}
-          className="GoliathSplitViewArticleContent GoliathArticleContentStyling"
-        >
-          {renderContent()}
-        </div>
-      </div>
-
-      {/* Scrollbar for the container above. The rail spans the whole scroller,
-          but its track starts below the title bar — see useOverlayScrollbar.
-          Hidden until the first sync finds something to scroll. */}
-      <div
-        className="GoliathArticleScrollbar"
-        ref={railRef}
-        onPointerDown={onRailPointerDown}
-        aria-hidden="true"
-        hidden
-      >
-        <div
-          className="GoliathArticleScrollbarThumb"
-          ref={thumbRef}
-          onPointerDown={onThumbPointerDown}
-        />
-      </div>
-
-      {/* What a pull is heading for. Drawn over the bar below rather than
-          beside it, since for as long as it is open it is the only thing
-          the gesture is about. */}
-      {useMobileLayout && (
-        <NextArticlePeek
-          ref={peekRef}
-          direction={peekDirection}
-          armed={peekArmed}
-          feedTitle={peek?.feedTitle}
-          title={peek?.title}
-        />
-      )}
-
-      {/* Mobile Bottom Navigation Bar */}
-      {useMobileLayout && (
-        <div className="GoliathMobileBottomBar">
-          <IconButton
-            aria-label="back to list"
-            onClick={onBack}
-            className="GoliathButton"
-            size="small"
-          >
-            <ArrowBackTwoToneIcon />
-          </IconButton>
-          <IconButton
-            aria-label="previous article"
-            onClick={onPrev}
-            disabled={!onPrev}
-            className="GoliathButton"
-            size="small"
-          >
-            <ExpandLessTwoToneIcon />
-          </IconButton>
-          <IconButton
-            aria-label="next article"
-            onClick={onNext}
-            disabled={!onNext}
-            className="GoliathButton"
-            size="small"
-          >
-            <ExpandMoreTwoToneIcon />
-          </IconButton>
-          <IconButton
-            aria-label="reader mode"
-            className={`GoliathButton${state.showParsed ? ' GoliathReaderModeActive' : ''}`}
-            size="small"
-            onClick={toggleParseContent}
-          >
-            {state.showParsed ? (
-              <ChromeReaderModeIcon />
-            ) : (
-              <ChromeReaderModeOutlinedIcon />
             )}
-          </IconButton>
-          <IconButton
-            aria-label="save article"
-            className="GoliathButton"
-            size="small"
-            onClick={props.onToggleSave}
-          >
-            {props.article.isSaved ? <StarIcon /> : <StarBorderIcon />}
-          </IconButton>
-          {props.selectionType !== SelectionType.Saved && (
-            <IconButton
-              aria-label="mark as read"
-              onClick={() => props.onMarkArticleRead()}
-              className="GoliathButton"
-              size="small"
-            >
-              {props.article.isRead ? (
-                <CheckCircleOutlinedIcon />
-              ) : (
-                <CheckCircleTwoToneIcon />
-              )}
-            </IconButton>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
+
+      {/* The article the pull is heading for, waiting one pane off the edge
+          it will arrive from. */}
+      {useMobileLayout && (
+        <NextArticlePreview direction={peekDirection} peek={peek} />
       )}
     </Stack>
   );

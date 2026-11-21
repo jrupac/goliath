@@ -33,7 +33,7 @@ import NewArticleNote from './NewArticleNote';
 import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
 import { useOverlayScrollbar } from '../utils/useOverlayScrollbar';
 import { useSwipeNavigate } from '../utils/useSwipeNavigate';
-import { ArticlePeek } from './NextArticlePeek';
+import { ArticlePeek } from './NextArticlePreview';
 import { keybindRegistry } from '../utils/keybindRegistry';
 import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
 import ViewSidebarTwoToneIcon from '@mui/icons-material/ViewSidebarTwoTone';
@@ -128,6 +128,11 @@ const ArticleList = ({
   selectionTitle,
   updatePending = false,
 }: ArticleListProps) => {
+  // Set while the card is being carried sideways. The list is behind it and
+  // has to be on screen for the whole of the gesture, not put there when the
+  // finger lifts.
+  const [backSliding, setBackSliding] = useState(false);
+
   const showListMobileLayout =
     isMobile || (isTabletPortrait && !tabletShowFeedList);
 
@@ -144,7 +149,7 @@ const ArticleList = ({
   const articleListColumnClasses = [
     'GoliathArticleListColumn',
     isTabletPortrait && tabletShowFeedList && 'GoliathArticleListColumnWide',
-    hideArticleList && 'GoliathPaneHidden',
+    hideArticleList && !backSliding && 'GoliathPaneHidden',
   ]
     .filter(Boolean)
     .join(' ');
@@ -172,8 +177,7 @@ const ArticleList = ({
   // list. There is no sequence to pull through here: above and below the
   // list is the list.
   const listColumnRef = useRef<HTMLDivElement | null>(null);
-  const noPeekRef = useRef<HTMLDivElement | null>(null);
-  useSwipeNavigate(listScrollRef, listColumnRef, noPeekRef, {
+  useSwipeNavigate(listScrollRef, listColumnRef, {
     enabled: showListMobileLayout,
     onBack: openDrawer,
   });
@@ -595,9 +599,16 @@ const ArticleList = ({
     const articleView = articles[renderIndex];
     const peekAt = (index: number): ArticlePeek | undefined => {
       const entry = articles[index];
-      return entry === undefined
-        ? undefined
-        : { feedTitle: entry.feedTitle, title: extractText(entry.title) ?? '' };
+      if (entry === undefined) {
+        return undefined;
+      }
+      return {
+        feedId: entry.feedId,
+        feedTitle: entry.feedTitle,
+        favicon: faviconMap.get(entry.feedId)?.GetFavicon() || '',
+        date: new Date(entry.creationTime * 1000),
+        title: extractText(entry.title) ?? '',
+      };
     };
 
     if (!articleView) {
@@ -609,7 +620,12 @@ const ArticleList = ({
         maxWidth={false}
         className="GoliathSplitViewArticleListContainer"
       >
-        <Grid container wrap="nowrap" size="grow">
+        <Grid
+          container
+          wrap="nowrap"
+          size="grow"
+          className={backSliding ? 'GoliathSwipeRevealing' : undefined}
+        >
           <Stack className={articleListColumnClasses} ref={listColumnRef}>
             <div
               className="GoliathSplitViewArticleListActionBar"
@@ -795,6 +811,7 @@ const ArticleList = ({
                 }
                 nextPeek={peekAt(renderIndex + 1)}
                 previousPeek={peekAt(renderIndex - 1)}
+                onSlidingChange={setBackSliding}
                 isMobile={isMobile}
                 showMobileLayout={
                   isMobile || (isTabletPortrait && !tabletShowFeedList)

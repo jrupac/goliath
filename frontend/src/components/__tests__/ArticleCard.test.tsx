@@ -202,19 +202,22 @@ describe('ArticleCard', () => {
     expect(mockOnNext).toHaveBeenCalledTimes(1);
   });
 
-  it('renders the byline at the root level and the title bar inside the scroller', () => {
+  it('renders the byline above the scroller, both inside the carried pane', () => {
     const props = makeProps();
     const { container } = render(<ArticleCard {...props} />);
 
-    // The byline is a direct child of the GoliathArticleCardColumn stack,
-    // above the scroll container.
+    // The column stays put and clips; everything a gesture carries is one
+    // layer inside it, with the byline above the scroll container.
     const cardColumn = container.firstChild;
     expect(cardColumn).toHaveClass('GoliathArticleCardColumn');
 
-    const byline = cardColumn?.childNodes[0];
+    const slide = cardColumn?.childNodes[0];
+    expect(slide).toHaveClass('GoliathArticleCardSlide');
+
+    const byline = slide?.childNodes[0];
     expect(byline).toHaveClass('GoliathArticleByline');
 
-    const containerEl = cardColumn?.childNodes[1];
+    const containerEl = slide?.childNodes[1];
     expect(containerEl).toHaveClass('GoliathSplitViewArticleContainer');
 
     // The title bar sticks to the top of the scroll container, so it has to be

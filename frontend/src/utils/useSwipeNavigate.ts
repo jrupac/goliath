@@ -1,4 +1,5 @@
 import { RefObject, useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 
 /* Touch gestures for a layout that shows one pane at a time.
 
@@ -7,37 +8,37 @@ import { RefObject, useEffect, useRef, useState } from 'react';
    that are made most -- back to where this came from, and on to the next
    article -- are the ones a hand can make directly.
 
+   Both gestures carry the pane itself and show what is behind or below it,
+   so that the move is one continuous motion: the finger starts it, the
+   release finishes it along the same path, and what arrives is what was
+   already in view. Nothing is swapped in at the moment of release.
+
    Sideways is the hierarchy: carrying the pane to the right uncovers what is
    behind it, which is the list behind an article and the feed tree behind the
    list. It tracks the finger exactly, because a gesture that uncovers
-   something should feel like a door rather than like elastic, and it commits
-   past a third of the pane.
+   something should feel like a door rather than like elastic.
 
    Up and down are the sequence, and they are an overscroll rather than a
    swipe: the pull only starts once the article has nothing left to scroll in
    that direction, so it can never take a scroll away from the reader. It is
-   damped, so that the reader has to mean it and has a moment to see what is
-   coming before it arrives. What that moment shows is the caller's business;
-   this only reports how far the pull has got.
+   damped, which is what makes the reader mean it, and what gives them the
+   moment in which the article below is readable before they commit to it.
+
+   The gesture writes two custom properties on the stage and nothing else;
+   which elements move, and how far, is the stylesheet's business.
 
    Touch events rather than pointer events, because a pointer stream is
    cancelled the moment the browser claims the gesture for scrolling -- which
    is exactly the gesture the pull continues from. */
 
-/** Finger travel that commits a pull to the next or previous article. */
-const PULL_COMMIT_PX = 90;
+/** Finger travel, past the slop, that commits a pull to the next article. */
+const PULL_COMMIT_PX = 120;
 
 /** Share of the pane's width that commits the sideways gesture. */
 const BACK_COMMIT_FRACTION = 0.33;
 
 /** Scale of the pull's resistance: the travel at which it gives half. */
-const PULL_RESISTANCE_PX = 260;
-
-/** How far the peek opens, however hard the pull. */
-const PEEK_MAX_PX = 56;
-
-/** How much of the pull the peek takes, up to that ceiling. */
-const PEEK_GAIN = 1.15;
+const PULL_RESISTANCE_PX = 420;
 
 /** Movement before the gesture decides which way it is going. */
 const AXIS_SLOP_PX = 10;
@@ -45,7 +46,7 @@ const AXIS_SLOP_PX = 10;
 /** How much more sideways than vertical a sideways gesture has to be. */
 const AXIS_BIAS = 1.5;
 
-/** Class the pane and the peek wear while they return or carry through. */
+/** Class the stage wears while it carries through or returns. */
 const SETTLING_CLASS = 'GoliathSwipeSettling';
 
 /** How long that takes, which the class's transition has to agree with. */
@@ -63,10 +64,20 @@ export interface SwipeNavigateHandlers {
 }
 
 export interface SwipeNavigateState {
+  /** Which way a pull is going, and so which article is shown below it. */
   direction: PeekDirection;
-  /** Whether letting go now would commit the pull. */
+  /** Whether letting go now would go there. */
   armed: boolean;
+  /** Whether the pane is being carried sideways, and so whatever is behind
+      it has to be rendered. */
+  sliding: boolean;
 }
+
+const IDLE: SwipeNavigateState = {
+  direction: 0,
+  armed: false,
+  sliding: false,
+};
 
 const damp = (distance: number): number => {
   const sign = distance < 0 ? -1 : 1;
@@ -74,16 +85,15 @@ const damp = (distance: number): number => {
   return sign * (travelled / (1 + travelled / PULL_RESISTANCE_PX));
 };
 
+/** Damped travel at which a pull commits. */
+const pullCommitOffset = (): number => damp(PULL_COMMIT_PX);
+
 export function useSwipeNavigate(
   scrollRef: RefObject<HTMLElement | null>,
-  paneRef: RefObject<HTMLElement | null>,
-  peekRef: RefObject<HTMLElement | null>,
+  stageRef: RefObject<HTMLElement | null>,
   handlers: SwipeNavigateHandlers
 ): SwipeNavigateState {
-  const [state, setState] = useState<SwipeNavigateState>({
-    direction: 0,
-    armed: false,
-  });
+  const [state, setState] = useState<SwipeNavigateState>(IDLE);
 
   // Read inside the listeners, so that a changed callback does not mean
   // tearing the listeners down and putting them back mid-gesture.
@@ -96,13 +106,10 @@ export function useSwipeNavigate(
 
   useEffect(() => {
     const scroller = scrollRef.current;
-    if (!scroller || !enabled) {
+    const stage = stageRef.current;
+    if (!scroller || !stage || !enabled) {
       return;
     }
-    // Held for as long as the listeners are, so that the cleanup puts back
-    // the same elements the gesture was moving.
-    const pane = paneRef.current;
-    const peek = peekRef.current;
 
     let axis: null | 'x' | 'y' | 'scroll' = null;
     let startX = 0;
@@ -112,58 +119,75 @@ export function useSwipeNavigate(
     let carry = 0;
     let pull = 0;
     let settleTimer: ReturnType<typeof setTimeout> | undefined;
-    // What the caller has been told. Held here rather than read back out of
-    // React, so that the comparison costs nothing on a move that changes
-    // neither -- which is almost all of them.
-    let reported: SwipeNavigateState = { direction: 0, armed: false };
+    let reported: SwipeNavigateState = IDLE;
 
-    const report = (direction: PeekDirection, armed: boolean): void => {
-      if (reported.direction !== direction || reported.armed !== armed) {
-        reported = { direction, armed };
-        setState(reported);
+    const report = (next: SwipeNavigateState): void => {
+      if (
+        reported.direction !== next.direction ||
+        reported.armed !== next.armed ||
+        reported.sliding !== next.sliding
+      ) {
+        reported = next;
+        setState(next);
       }
     };
 
     // Written straight to the DOM: this runs on every touch move, and the
-    // pane holds a whole article's markup.
-    const paint = (): void => {
-      if (pane) {
-        pane.style.transform = carry === 0 ? '' : `translateX(${carry}px)`;
-      }
-      if (peek) {
-        peek.style.height = `${Math.min(PEEK_MAX_PX, Math.abs(pull) * PEEK_GAIN)}px`;
-      }
+    // stage holds a whole article's markup.
+    const place = (x: number, y: number): void => {
+      stage.style.setProperty('--swipe-x', `${x}px`);
+      stage.style.setProperty('--swipe-y', `${y}px`);
     };
 
     const setSettling = (on: boolean): void => {
-      pane?.classList.toggle(SETTLING_CLASS, on);
-      peek?.classList.toggle(SETTLING_CLASS, on);
+      stage.classList.toggle(SETTLING_CLASS, on);
     };
 
-    const release = (): void => {
-      const committed =
-        axis === 'x'
-          ? carry >= (pane?.clientWidth ?? 0) * BACK_COMMIT_FRACTION
-          : axis === 'y' && Math.abs(pull) >= damp(PULL_COMMIT_PX);
-
-      if (committed) {
-        if (axis === 'x') {
-          latest.current.onBack?.();
-        } else if (pull < 0) {
-          latest.current.onNext?.();
-        } else {
-          latest.current.onPrevious?.();
-        }
-      }
-
+    const rest = (): void => {
       axis = null;
       carry = 0;
       pull = 0;
+      place(0, 0);
+      report(IDLE);
+    };
+
+    /** Carries the pane the rest of the way, then takes the move. */
+    const carryThrough = (x: number, y: number, move: () => void): void => {
       setSettling(true);
-      paint();
-      report(0, false);
+      place(x, y);
       clearTimeout(settleTimer);
-      settleTimer = setTimeout(() => setSettling(false), SETTLE_MS);
+      settleTimer = setTimeout(() => {
+        // As far as the screen is concerned the move and the pane coming
+        // back to rest are one change. Let either land on its own and the
+        // pane that is leaving is painted back in place for a frame.
+        flushSync(move);
+        setSettling(false);
+        rest();
+      }, SETTLE_MS);
+    };
+
+    const release = (): void => {
+      if (axis === 'x' && carry >= stage.clientWidth * BACK_COMMIT_FRACTION) {
+        carryThrough(stage.clientWidth, 0, () => latest.current.onBack?.());
+        return;
+      }
+      if (axis === 'y' && Math.abs(pull) >= pullCommitOffset()) {
+        const forward = pull < 0;
+        carryThrough(
+          0,
+          forward ? -stage.clientHeight : stage.clientHeight,
+          () =>
+            forward ? latest.current.onNext?.() : latest.current.onPrevious?.()
+        );
+        return;
+      }
+
+      if (axis === 'x' || axis === 'y') {
+        setSettling(true);
+        clearTimeout(settleTimer);
+        settleTimer = setTimeout(() => setSettling(false), SETTLE_MS);
+      }
+      rest();
     };
 
     const onTouchStart = (event: TouchEvent): void => {
@@ -190,9 +214,9 @@ export function useSwipeNavigate(
       const dy = touch.clientY - startY;
 
       if (axis === null) {
-        // A gesture that has already scrolled the article is a scroll, and
-        // stays one until the finger lifts -- except at the end of the
-        // travel, where it can go on into a pull.
+        // A gesture that has already scrolled the article is a scroll and not
+        // a way out of it -- except at the end of the travel, where it can go
+        // on into a pull.
         const sideways =
           scroller.scrollTop === startTop &&
           dx > AXIS_SLOP_PX &&
@@ -215,21 +239,24 @@ export function useSwipeNavigate(
       }
 
       if (axis === 'x') {
-        // The browser is not panning sideways -- the pane is marked pan-y --
-        // so this only has to stop a long drag turning into a text
-        // selection or a page gesture.
+        // The pane is marked pan-y, so the browser is not panning sideways;
+        // this stops a long drag becoming a selection or a page gesture.
         event.preventDefault();
         carry = Math.max(0, dx);
-        paint();
-        const width = pane?.clientWidth ?? 0;
-        report(0, carry >= width * BACK_COMMIT_FRACTION);
+        place(carry, 0);
+        report({
+          direction: 0,
+          armed: carry >= stage.clientWidth * BACK_COMMIT_FRACTION,
+          sliding: true,
+        });
       } else if (axis === 'y') {
         pull = damp(touch.clientY - originY);
-        paint();
-        report(
-          pull < 0 ? 1 : -1,
-          Math.abs(pull) >= Math.abs(damp(PULL_COMMIT_PX))
-        );
+        place(0, pull);
+        report({
+          direction: pull < 0 ? 1 : -1,
+          armed: Math.abs(pull) >= pullCommitOffset(),
+          sliding: false,
+        });
       }
     };
 
@@ -245,14 +272,10 @@ export function useSwipeNavigate(
       scroller.removeEventListener('touchcancel', release);
       clearTimeout(settleTimer);
       setSettling(false);
-      if (pane) {
-        pane.style.transform = '';
-      }
-      if (peek) {
-        peek.style.height = '';
-      }
+      stage.style.removeProperty('--swipe-x');
+      stage.style.removeProperty('--swipe-y');
     };
-  }, [scrollRef, paneRef, peekRef, enabled]);
+  }, [scrollRef, stageRef, enabled]);
 
   return state;
 }
