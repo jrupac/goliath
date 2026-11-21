@@ -2501,6 +2501,22 @@
     padding: 10px 16px;
   }
 
+  /* A frosted bar is a layer the compositor keeps sampling, and the bar's own
+     text is rasterised into that layer with it -- which on a hand-held
+     browser is how a pinned header ends up looking soft against the crisp
+     article text below it. Showing one pane at a time there is nothing
+     behind the bar worth seeing through to, so it takes an opaque surface
+     and no filter. */
+  .GoliathSplitViewArticleListActionBar {
+    backdrop-filter: none;
+    background-color: var(--bar-background-color);
+  }
+
+  .GoliathArticleTitleBar {
+    backdrop-filter: none;
+    background: var(--content-background-color);
+  }
+
   /* Phone density. A list held in one hand is scanned rather than read, so
      the card gives up the space a pointer needs to aim and keeps only what
      the eye needs to tell one article from the next: the thumbnail shrinks,
