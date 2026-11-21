@@ -5,10 +5,11 @@
  * differ. The tokens are organised into two surfaces:
  *
  *   Nav surface     — sidebar, login splash, mobile bottom bar. Dark in both
- *                     themes; here it is a neutral dark grey and is the one
- *                     large block of colour in the UI.
- *   Content surface — article list column and reading pane. This is where the
- *                     two themes actually diverge, which is why it has its own
+ *                     themes; it is the window's ground, the surface the rest
+ *                     of the interface is placed on.
+ *   Content surface — article list column and reading pane, carried on a
+ *                     sheet raised above that ground. This is where the two
+ *                     themes actually diverge, which is why it has its own
  *                     base rather than being derived from the nav colour.
  *
  * The accent hue is shared with the dark theme, but text and icons drawn in it
@@ -129,22 +130,53 @@
   --border-color-subtle: #9aa1a9;
 
   /****************************************************************************
-   * Action bars
+   * Sheet
    *
-   * All three panes' bars take the chrome colour, so the top of the window
-   * reads as one strip. The reading pane's byline is that same colour tinted
-   * with the accent, which is what sets it apart from the other two.
+   * The list column and reading pane ride on one sheet raised above the nav
+   * ground: a hairline ring to cut its edge, and a shadow to seat it.
    ***************************************************************************/
 
-  --bar-background-color: var(--primary-darker-1-color);
+  --sheet-ring-color: rgba(0, 0, 0, 0.3);
+  --sheet-shadow-color: rgba(0, 0, 0, 0.4);
+
+  /****************************************************************************
+   * Action bars
+   *
+   * The list bar and the reading pane's byline belong to the sheet, so they
+   * take content colours. The byline is that same surface tinted with the
+   * accent, which is what sets the reading pane's bar apart from the list's.
+   ***************************************************************************/
+
+  --bar-background-color: var(--content-list-background-color);
+  --bar-scrim-color: color-mix(
+    in srgb,
+    var(--bar-background-color) 74%,
+    transparent
+  );
   --bar-accent-background-color: color-mix(
     in srgb,
-    var(--bar-background-color) 85%,
-    var(--accent-color) 15%
+    var(--content-background-color) 94%,
+    var(--accent-color) 6%
   );
 
-  --bar-font-color: var(--primary-font-color);
-  --bar-font-muted-color: var(--primary-font-darker-1-color);
+  --bar-font-color: var(--content-font-color);
+  --bar-font-muted-color: var(--content-font-muted-2-color);
+
+  /****************************************************************************
+   * Menu surface
+   *
+   * The chrome's menu drops out of the sidebar, so it is cut from the nav
+   * colour and lightened far enough to read as raised off the ground it
+   * covers.
+   ***************************************************************************/
+
+  --menu-background-color: color-mix(
+    in srgb,
+    var(--primary-background-color) 85%,
+    #fff
+  );
+  --menu-font-color: var(--primary-font-color);
+  --menu-font-muted-color: var(--primary-font-darker-1-color);
 
   /****************************************************************************
    * Modal surface

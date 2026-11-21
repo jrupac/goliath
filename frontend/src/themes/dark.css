@@ -4,15 +4,14 @@
  * Both themes declare the same token set in the same order; only the values
  * differ. The tokens are organised into two surfaces:
  *
- *   Nav surface     — sidebar, login splash, mobile bottom bar. Dark in both
- *                     themes (in light mode it is the one large block of
- *                     colour, a neutral dark grey).
- *   Content surface — article list column and reading pane. This is where the
- *                     two themes actually diverge, which is why it has its own
- *                     base rather than being derived from the nav colour.
- *
- * In this theme the content surface is simply another step down the nav ramp,
- * so its tokens are aliases.
+ *   Nav surface     — sidebar, login splash, mobile bottom bar. This is the
+ *                     window's ground: the surface everything else is placed
+ *                     on, and so the darkest thing in either theme.
+ *   Content surface — article list column and reading pane. These sit on a
+ *                     sheet raised above the ground, so every one of them is
+ *                     lighter than the nav surface rather than a step down
+ *                     from it, and they carry explicit values rather than
+ *                     being derived from the nav colour.
  */
 .dark-theme {
   /* Fonts */
@@ -23,13 +22,9 @@
    * Nav surface
    ***************************************************************************/
 
-  --primary-background-color: #2b303b;
+  --primary-background-color: #0f1217;
 
-  --primary-selected-color: color-mix(
-    in srgb,
-    var(--primary-background-color) 70%,
-    #000
-  );
+  --primary-selected-color: var(--nav-row-selected-color);
   --primary-hover-color: color-mix(
     in srgb,
     var(--primary-background-color) 70%,
@@ -78,51 +73,55 @@
   --primary-logo-font-color: var(--primary-font-color);
   --goliath-login-page-logo-color: var(--primary-font-color);
 
-  --nav-border-color: var(--primary-darker-4-color);
-  --nav-row-hover-color: var(--primary-darker-1-color);
-  --nav-row-selected-color: var(--primary-darker-2-color);
+  --nav-border-color: var(--primary-darker-2-color);
+  /* Rows on the ground lift towards the light, the way they do on a light
+     nav surface, since there is nothing darker left to move towards. */
+  --nav-row-hover-color: color-mix(
+    in srgb,
+    var(--primary-background-color) 90%,
+    #fff
+  );
+  --nav-row-selected-color: color-mix(
+    in srgb,
+    var(--primary-background-color) 80%,
+    #fff
+  );
 
   /****************************************************************************
    * Content surface
    ***************************************************************************/
 
-  --content-background-color: var(--primary-darker-3-color);
-  --content-list-background-color: var(--primary-darker-2-color);
-  --content-card-background-color: var(--primary-darker-1-color);
+  --content-background-color: #191d23;
+  --content-list-background-color: #20242b;
+  --content-card-background-color: #272c34;
 
   --content-font-color: var(--primary-font-lighter-1-color);
   --content-font-muted-1-color: var(--primary-font-darker-1-color);
   --content-font-muted-2-color: var(--primary-font-darker-2-color);
 
-  --content-border-color: var(--primary-darker-4-color);
+  --content-border-color: #12151a;
 
-  /* Frosted article title bar — a translucent wash of the reading surface. */
+  /* Frosted article title bar — a translucent wash of the reading surface,
+     tinted with the accent so it reads as a bar rather than as more page. */
   --content-scrim-color: color-mix(
     in srgb,
-    var(--primary-background-color) 60%,
+    color-mix(in srgb, var(--accent-color) 6%, var(--content-background-color))
+      72%,
     transparent
   );
 
-  --content-code-background-color: var(--primary-darker-2-color);
+  --content-code-background-color: #11151a;
   --content-code-font-color: #f38a6a;
-  --content-pre-background-color: var(--primary-darker-1-color);
+  --content-pre-background-color: #13171d;
   --content-pre-font-color: var(--primary-font-color);
 
-  --table-row-background-color: var(--primary-darker-2-color);
-  --table-border-color: color-mix(
-    in srgb,
-    var(--primary-background-color) 70%,
-    #fff
-  );
-  --table-header-background-color: var(--primary-darker-1-color);
+  --table-row-background-color: #20242b;
+  --table-border-color: #3a4049;
+  --table-header-background-color: #272c34;
   --table-header-border-color: var(--table-border-color);
   --table-header-font-color: var(--primary-font-lighter-1-color);
 
-  --img-border-color: color-mix(
-    in srgb,
-    var(--primary-background-color) 99%,
-    #fff
-  );
+  --img-border-color: #2c313a;
   --primary-img-background-color: white;
 
   /* Favicon plate — a light neutral so transparent favicons stay legible. */
@@ -131,34 +130,67 @@
   --border-color-subtle: #4a5060;
 
   /****************************************************************************
-   * Action bars
+   * Sheet
    *
-   * All three panes' bars take the chrome colour, so the top of the window
-   * reads as one strip. The reading pane's byline is that same colour tinted
-   * with the accent, which is what sets it apart from the other two.
+   * The list column and reading pane ride on one sheet raised above the nav
+   * ground. On a dark ground a drop shadow alone barely registers, so the
+   * sheet's edge is drawn as a rim of light instead.
    ***************************************************************************/
 
-  --bar-background-color: var(--primary-darker-2-color);
+  --sheet-ring-color: rgba(255, 255, 255, 0.07);
+  --sheet-shadow-color: rgba(0, 0, 0, 0.6);
+
+  /****************************************************************************
+   * Action bars
+   *
+   * The list bar and the reading pane's byline belong to the sheet, so they
+   * take content colours. The byline is that same surface tinted with the
+   * accent, which is what sets the reading pane's bar apart from the list's.
+   ***************************************************************************/
+
+  --bar-background-color: var(--content-list-background-color);
+  --bar-scrim-color: color-mix(
+    in srgb,
+    var(--bar-background-color) 74%,
+    transparent
+  );
   --bar-accent-background-color: color-mix(
     in srgb,
-    var(--bar-background-color) 85%,
-    var(--accent-color) 15%
+    var(--content-background-color) 94%,
+    var(--accent-color) 6%
   );
 
-  --bar-font-color: var(--primary-font-color);
-  --bar-font-muted-color: var(--primary-font-darker-1-color);
+  --bar-font-color: var(--content-font-color);
+  --bar-font-muted-color: var(--content-font-muted-2-color);
+
+  /****************************************************************************
+   * Menu surface
+   *
+   * The chrome's menu drops out of the sidebar, so it is cut from the nav
+   * colour and lightened far enough to read as raised off the ground it
+   * covers.
+   ***************************************************************************/
+
+  --menu-background-color: color-mix(
+    in srgb,
+    var(--primary-background-color) 85%,
+    #fff
+  );
+  --menu-font-color: var(--primary-font-color);
+  --menu-font-muted-color: var(--primary-font-darker-1-color);
 
   /****************************************************************************
    * Modal surface
+   *
+   * A dialog is raised above everything, so it takes the list surface and the
+   * cards and fields on it take the card surface, one step further up.
    ***************************************************************************/
 
-  /* The dialog itself sits one step below the nav surface; cards and fields
-     on it take the nav colour, so they read as raised. */
-  --modal-background-color: var(--primary-darker-1-color);
-  --modal-surface-color: var(--primary-background-color);
+  --modal-background-color: var(--content-list-background-color);
+  --modal-surface-color: var(--content-card-background-color);
   --modal-rail-color: var(--modal-background-color);
-  --modal-key-background-color: var(--primary-darker-2-color);
-  --modal-border-color: var(--primary-darker-3-color);
+  --modal-key-background-color: var(--content-background-color);
+  --modal-border-color: var(--content-border-color);
   --modal-hairline-color: color-mix(
     in srgb,
     var(--primary-font-color) 10%,
@@ -188,11 +220,11 @@
   /* Unread dots, badge fills, selected tints. */
   --accent-color: #d4634a;
   /* Accent for text and icons — must clear 4.5:1 on the content surface. */
-  --accent-color-strong: var(--accent-color);
+  --accent-color-strong: #e58d77;
   --accent-font-color: #14171a;
   --accent-color-subtle: color-mix(
     in srgb,
-    var(--accent-color) 15%,
+    var(--accent-color) 17%,
     transparent
   );
   /* Filled accent controls, pointed at. */
@@ -211,16 +243,8 @@
    * Elevation and state
    ***************************************************************************/
 
-  --goliath-box-shadow-color: color-mix(
-    in srgb,
-    var(--primary-darker-3-color) 30%,
-    transparent
-  );
-  --pre-box-shadow: color-mix(
-    in srgb,
-    var(--primary-darker-4-color) 50%,
-    transparent
-  );
+  --goliath-box-shadow-color: rgba(0, 0, 0, 0.45);
+  --pre-box-shadow: rgba(0, 0, 0, 0.35);
 
   --card-read-text-opacity: 0.6;
 
