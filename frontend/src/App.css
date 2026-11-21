@@ -2486,6 +2486,40 @@
     gap: 12px;
     padding: 10px 16px;
   }
+
+  /* Phone density. A list held in one hand is scanned rather than read, so
+     the card gives up the space a pointer needs to aim and keeps only what
+     the eye needs to tell one article from the next: the thumbnail shrinks,
+     the row above the title loses most of its padding, and the title and
+     snippet drop a size. A whole card more on screen is worth more than any
+     of it. */
+  .GoliathArticleCard {
+    height: 142px;
+  }
+
+  .GoliathArticleCardSource {
+    height: 20px;
+    padding: 10px 16px 4px 13px;
+  }
+
+  .GoliathArticleCardBody {
+    height: 108px;
+    padding-bottom: 6px;
+  }
+
+  .GoliathArticleListImagePreviewBox,
+  .GoliathArticleListImagePreviewFigure {
+    width: 92px;
+    height: 92px;
+  }
+
+  .GoliathArticleCardTitle {
+    font-size: 16px;
+  }
+
+  .GoliathArticleCardSnippet.MuiTypography-root {
+    font-size: 13px;
+  }
 }
 
 /* Tablet layouts (600px to 1024px in portrait) */
