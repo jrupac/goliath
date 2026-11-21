@@ -2499,6 +2499,14 @@
     padding: 10px 16px;
   }
 
+  /* An opaque bar cannot show what has gone under it, so it casts instead.
+     Only once something has: a bar with nothing beneath it is sitting on the
+     surface, not above it. */
+  .GoliathArticleTitleBar.GoliathHeaderLifted,
+  .GoliathSplitViewArticleListActionBar.GoliathHeaderLifted {
+    box-shadow: 0 4px 12px -6px var(--goliath-box-shadow-color);
+  }
+
   .GoliathSplitViewArticleListActionBar {
     display: flex;
     align-items: center;

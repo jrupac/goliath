@@ -82,6 +82,11 @@ export function useOverlayScrollbar(
     const inset = headerRef?.current?.offsetHeight ?? 0;
     const trackHeight = rail.clientHeight - inset;
 
+    // An opaque header cannot show what has passed under it, so it is told
+    // when something has and casts a shadow instead. This is the one place
+    // that already watches both the header and the offset.
+    headerRef?.current?.classList.toggle('GoliathHeaderLifted', scrollTop > 0);
+
     // Where the scrollport effectively begins, so that scrollIntoView lands
     // its target below the header instead of behind it. Only written when it
     // changes — which is per article, as the title reflows — because this runs
