@@ -108,8 +108,10 @@ export interface AppState {
   // How the sidebar is moving under a swipe: 'carrying' while the finger
   // has it, then 'opening' or 'closing' while it finishes the travel on its
   // own. The two ends differ: one hands the sidebar back to the drawer's own
-  // open position, the other sends it out the way it came.
-  sidebarCarry: 'none' | 'carrying' | 'opening' | 'closing';
+  // open position, the other sends it out the way it came. 'closed' is the
+  // moment after that, where the sidebar is held out of sight without a
+  // transition while the drawer takes it back.
+  sidebarCarry: 'none' | 'carrying' | 'opening' | 'closing' | 'closed';
   tabletShowFeedList: boolean;
   drawerOpen: boolean;
 }
@@ -506,8 +508,20 @@ export default class App extends React.Component<AppProps, AppState> {
     }
     this.sidebarCarryTimer = setTimeout(() => {
       this.sidebarCarryTimer = undefined;
-      document.documentElement.style.removeProperty('--sidebar-carry');
-      this.setState({ sidebarCarry: 'none', drawerOpen: committed });
+      if (committed) {
+        document.documentElement.style.removeProperty('--sidebar-carry');
+        this.setState({ sidebarCarry: 'none' });
+        return;
+      }
+      // Held where it ended up, and held still, while the drawer closes
+      // behind it. Let the drawer have the paper back with a transition
+      // still on it and it plays its own exit from the open position --
+      // the same travel over again, at full width.
+      this.setState({ drawerOpen: false, sidebarCarry: 'closed' });
+      requestAnimationFrame(() => {
+        document.documentElement.style.removeProperty('--sidebar-carry');
+        this.setState({ sidebarCarry: 'none' });
+      });
     }, App.sidebarSettleMs);
   };
 
@@ -677,7 +691,10 @@ export default class App extends React.Component<AppProps, AppState> {
             variant={this.state.isMobile ? 'temporary' : 'permanent'}
             open={
               this.state.isMobile
-                ? this.state.drawerOpen || this.state.sidebarCarry !== 'none'
+                ? this.state.drawerOpen ||
+                  this.state.sidebarCarry === 'carrying' ||
+                  this.state.sidebarCarry === 'opening' ||
+                  this.state.sidebarCarry === 'closing'
                 : undefined
             }
             onClose={
@@ -686,13 +703,20 @@ export default class App extends React.Component<AppProps, AppState> {
                 : undefined
             }
             anchor="left"
+            // For as long as the finger has it, the drawer's own enter and
+            // exit are in the way: the position comes from the gesture, and
+            // the travel at either end of it is this component's to animate.
+            transitionDuration={
+              this.state.sidebarCarry === 'none' ? undefined : 0
+            }
             className={[
               'GoliathDrawer',
               this.state.isTabletPortrait &&
                 !this.state.tabletShowFeedList &&
                 'GoliathPaneHidden',
               (this.state.sidebarCarry === 'carrying' ||
-                this.state.sidebarCarry === 'closing') &&
+                this.state.sidebarCarry === 'closing' ||
+                this.state.sidebarCarry === 'closed') &&
                 'GoliathDrawerCarrying',
               (this.state.sidebarCarry === 'opening' ||
                 this.state.sidebarCarry === 'closing') &&
