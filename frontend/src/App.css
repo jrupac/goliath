@@ -2605,12 +2605,21 @@
  * elements those move, and how far, is settled here.
  ******************************************************************************/
 
-/* A pull takes over where the scroll runs out, so the scroller must neither
-   bounce nor hand the overscroll to the page; and a sideways drag belongs to
-   the gesture rather than to a pan. */
+/* A pull takes over where the scroll runs out, so nothing may bounce: a
+   rubber band is a second motion on top of the gesture's own, and since the
+   article's header is sticky and its content is not, the two come apart and
+   travel at different speeds. A sideways drag belongs to the gesture rather
+   than to a pan. */
+html,
+body,
+.GoliathSplitViewArticleContainer,
+.GoliathSplitViewArticleListBox,
+.GoliathFolderFeedList {
+  overscroll-behavior: none;
+}
+
 .GoliathSplitViewArticleContainer,
 .GoliathSplitViewArticleListBox {
-  overscroll-behavior-y: contain;
   touch-action: pan-y;
 }
 
