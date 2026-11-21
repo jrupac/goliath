@@ -105,6 +105,11 @@ export interface AppState {
   isTabletPortrait: boolean;
   isTabletLandscape: boolean;
   mobilePane: 'list' | 'card';
+  // How the sidebar is moving under a swipe: 'carrying' while the finger
+  // has it, then 'opening' or 'closing' while it finishes the travel on its
+  // own. The two ends differ: one hands the sidebar back to the drawer's own
+  // open position, the other sends it out the way it came.
+  sidebarCarry: 'none' | 'carrying' | 'opening' | 'closing';
   tabletShowFeedList: boolean;
   drawerOpen: boolean;
 }
@@ -114,6 +119,7 @@ export default class App extends React.Component<AppProps, AppState> {
   private globalHandlers: Record<string, () => void>;
   private resizeListener?: () => void;
   private newArticleTimer?: ReturnType<typeof setTimeout>;
+  private sidebarCarryTimer?: ReturnType<typeof setTimeout>;
   private updateUnsubscribe?: () => void;
 
   constructor(props: AppProps) {
@@ -153,6 +159,7 @@ export default class App extends React.Component<AppProps, AppState> {
       isTabletPortrait: metrics.isTabletPortrait,
       isTabletLandscape: metrics.isTabletLandscape,
       mobilePane: 'list',
+      sidebarCarry: 'none',
       tabletShowFeedList: true,
       drawerOpen: false,
     };
@@ -457,6 +464,10 @@ export default class App extends React.Component<AppProps, AppState> {
   // their attention settling on the rebuilt list.
   private static newArticleNoteMs = 5000;
 
+  // How long the sidebar takes to finish a swipe it was handed partway
+  // through. Has to agree with the transition on .GoliathDrawerSettling.
+  private static sidebarSettleMs = 280;
+
   // Re-reads everything from the server and lands at the top of the unread
   // stream.
   //
@@ -466,6 +477,40 @@ export default class App extends React.Component<AppProps, AppState> {
   // than where the reader had got to. How many articles the refresh brought in
   // is published for a few seconds, since the unread count is a net and so
   // cannot be read as a yield.
+  /** Distance the finger has carried the sidebar in from the left edge. */
+  handleSidebarCarry = (offset: number): void => {
+    // Written to the document rather than through state: this runs on every
+    // touch move, and the sidebar is in a portal of its own, so the one
+    // thing both it and the gesture can see is the root.
+    document.documentElement.style.setProperty(
+      '--sidebar-carry',
+      `${offset}px`
+    );
+    if (this.state.sidebarCarry === 'none') {
+      this.setState({ sidebarCarry: 'carrying' });
+    }
+  };
+
+  handleSidebarCarryEnd = (committed: boolean): void => {
+    if (this.sidebarCarryTimer !== undefined) {
+      clearTimeout(this.sidebarCarryTimer);
+    }
+    if (committed) {
+      // Hand it back to the drawer, which finishes the travel itself.
+      this.setState({ drawerOpen: true, sidebarCarry: 'opening' });
+    } else {
+      // Send it back out along the path it came in on, and only then let
+      // the drawer close, so that it is already gone when it does.
+      document.documentElement.style.setProperty('--sidebar-carry', '0px');
+      this.setState({ sidebarCarry: 'closing' });
+    }
+    this.sidebarCarryTimer = setTimeout(() => {
+      this.sidebarCarryTimer = undefined;
+      document.documentElement.style.removeProperty('--sidebar-carry');
+      this.setState({ sidebarCarry: 'none', drawerOpen: committed });
+    }, App.sidebarSettleMs);
+  };
+
   handleRefresh = (): void => {
     if (this.state.reloading) {
       return;
@@ -630,18 +675,31 @@ export default class App extends React.Component<AppProps, AppState> {
         <div className={`GoliathAppShell ${this.state.themeInfo.themeClasses}`}>
           <Drawer
             variant={this.state.isMobile ? 'temporary' : 'permanent'}
-            open={this.state.isMobile ? this.state.drawerOpen : undefined}
+            open={
+              this.state.isMobile
+                ? this.state.drawerOpen || this.state.sidebarCarry !== 'none'
+                : undefined
+            }
             onClose={
               this.state.isMobile
                 ? () => this.setState({ drawerOpen: false })
                 : undefined
             }
             anchor="left"
-            className={
-              this.state.isTabletPortrait && !this.state.tabletShowFeedList
-                ? 'GoliathDrawer GoliathPaneHidden'
-                : 'GoliathDrawer'
-            }
+            className={[
+              'GoliathDrawer',
+              this.state.isTabletPortrait &&
+                !this.state.tabletShowFeedList &&
+                'GoliathPaneHidden',
+              (this.state.sidebarCarry === 'carrying' ||
+                this.state.sidebarCarry === 'closing') &&
+                'GoliathDrawerCarrying',
+              (this.state.sidebarCarry === 'opening' ||
+                this.state.sidebarCarry === 'closing') &&
+                'GoliathDrawerSettling',
+            ]
+              .filter(Boolean)
+              .join(' ')}
           >
             <div className="GoliathDrawerActionBar">
               {this.state.isMobile && (
@@ -752,6 +810,8 @@ export default class App extends React.Component<AppProps, AppState> {
                   this.setState({ tabletShowFeedList: false });
                 }
               }}
+              onSidebarCarry={this.handleSidebarCarry}
+              onSidebarCarryEnd={this.handleSidebarCarryEnd}
               openDrawer={() => {
                 if (this.state.isTabletPortrait) {
                   this.setState({ tabletShowFeedList: true });

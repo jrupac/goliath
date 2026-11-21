@@ -61,6 +61,11 @@ export interface SwipeNavigateHandlers {
   onBack?: () => void;
   onNext?: () => void;
   onPrevious?: () => void;
+  // Where what the gesture uncovers is not behind this pane but over it --
+  // the sidebar, which slides in rather than being revealed -- the caller
+  // takes the distance and moves it itself, and this pane stays put.
+  onCarry?: (offset: number) => void;
+  onCarryEnd?: (committed: boolean) => void;
 }
 
 export interface SwipeNavigateState {
@@ -167,9 +172,17 @@ export function useSwipeNavigate(
     };
 
     const release = (): void => {
-      if (axis === 'x' && carry >= stage.clientWidth * BACK_COMMIT_FRACTION) {
-        carryThrough(stage.clientWidth, 0, () => latest.current.onBack?.());
-        return;
+      if (axis === 'x') {
+        const committed = carry >= stage.clientWidth * BACK_COMMIT_FRACTION;
+        if (latest.current.onCarry) {
+          latest.current.onCarryEnd?.(committed);
+          rest();
+          return;
+        }
+        if (committed) {
+          carryThrough(stage.clientWidth, 0, () => latest.current.onBack?.());
+          return;
+        }
       }
       if (axis === 'y' && Math.abs(pull) >= pullCommitOffset()) {
         const forward = pull < 0;
@@ -221,7 +234,7 @@ export function useSwipeNavigate(
           scroller.scrollTop === startTop &&
           dx > AXIS_SLOP_PX &&
           dx > Math.abs(dy) * AXIS_BIAS;
-        if (sideways && latest.current.onBack) {
+        if (sideways && (latest.current.onBack || latest.current.onCarry)) {
           axis = 'x';
         } else if (Math.abs(dy) > AXIS_SLOP_PX && Math.abs(dy) > Math.abs(dx)) {
           const { scrollTop, scrollHeight, clientHeight } = scroller;
@@ -243,7 +256,11 @@ export function useSwipeNavigate(
         // this stops a long drag becoming a selection or a page gesture.
         event.preventDefault();
         carry = Math.max(0, dx);
-        place(carry, 0);
+        if (latest.current.onCarry) {
+          latest.current.onCarry(carry);
+        } else {
+          place(carry, 0);
+        }
         report({
           direction: 0,
           armed: carry >= stage.clientWidth * BACK_COMMIT_FRACTION,

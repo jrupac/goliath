@@ -91,6 +91,10 @@ export interface ArticleListProps {
   onMobileNavigate: (pane: 'list' | 'card') => void;
   onArticleSelect: () => void;
   openDrawer: () => void;
+  // The sidebar comes in over the list rather than from behind it, so the
+  // gesture hands its distance up rather than moving anything itself.
+  onSidebarCarry?: (offset: number) => void;
+  onSidebarCarryEnd?: (committed: boolean) => void;
   selectionTitle: string;
   // Whether a newly deployed build is waiting to be taken. On a narrow
   // layout the sidebar is unmounted while closed, so the button that opens it
@@ -125,6 +129,8 @@ const ArticleList = ({
   onMobileNavigate,
   onArticleSelect,
   openDrawer,
+  onSidebarCarry,
+  onSidebarCarryEnd,
   selectionTitle,
   updatePending = false,
 }: ArticleListProps) => {
@@ -172,14 +178,16 @@ const ArticleList = ({
     onThumbPointerDown: onListThumbPointerDown,
   } = useOverlayScrollbar(listScrollRef, listContentRef, listHeaderRef);
 
-  // The list is the second rung of the hierarchy, so carrying it sideways
-  // uncovers the feed tree, the same way carrying an article uncovers the
-  // list. There is no sequence to pull through here: above and below the
-  // list is the list.
+  // The list is the second rung of the hierarchy, and a sideways gesture on
+  // it brings the feed tree in. The tree is over the list rather than behind
+  // it, so the distance goes up to whoever owns the sidebar and the list
+  // itself holds still. There is no sequence to pull through here: above and
+  // below the list is the list.
   const listColumnRef = useRef<HTMLDivElement | null>(null);
   useSwipeNavigate(listScrollRef, listColumnRef, {
     enabled: showListMobileLayout,
-    onBack: openDrawer,
+    onCarry: onSidebarCarry,
+    onCarryEnd: onSidebarCarryEnd,
   });
 
   const [selectedArticleId, setSelectedArticleId] = useState<ArticleId | null>(
