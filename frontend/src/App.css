@@ -46,8 +46,14 @@
   --pane-height: calc(100vh - 2 * var(--shell-inset));
   display: flex;
   overflow: hidden;
-  height: 100vh;
   background-color: var(--primary-background-color);
+  /* Pinned to the window rather than merely as tall as it. The shell is the
+     whole window either way, and a platform that draws a blurred edge over
+     whatever scrolls past the top of a standalone web app leaves a fixed,
+     opaque box spanning the viewport alone. */
+  position: fixed;
+  inset: 0;
+  height: 100%;
 }
 
 /* Spacing for an icon that leads a bar, ahead of the bar's own gap. */
