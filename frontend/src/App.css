@@ -1053,7 +1053,6 @@
   width: 30vw;
   flex-shrink: 0;
   background-color: var(--content-list-background-color);
-  scrollbar-color: var(--content-font-muted-2-color) transparent;
 }
 
 /* Tablet portrait showing the feed list: the column is the whole pane, so it
@@ -1067,13 +1066,24 @@
    it, so the band it covers is reserved as padding here and cards scroll up
    into it. Keeping the band part of the scrollable content is also what lets
    the list go on scrolling a selected card to just below the header: the
-   distance measured from the first card already excludes it. */
+   distance measured from the first card already excludes it.
+
+   The native scrollbar is hidden and redrawn by .GoliathArticleScrollbar, for
+   the same reason the reading pane's is. No space is reserved for it here:
+   cards run the full width of the column, and the padding they already carry
+   on their right edge is wider than the rail. */
 .GoliathSplitViewArticleListBox {
   overflow-y: auto;
   width: 100%;
   flex-grow: 1;
   padding-top: var(--bar-height);
   box-sizing: border-box;
+  scrollbar-width: none;
+}
+
+/* Hide the native scrollbar on older WebKit, which predates scrollbar-width */
+.GoliathSplitViewArticleListBox::-webkit-scrollbar {
+  display: none;
 }
 
 .GoliathArticleListImagePreviewBox {
@@ -2392,6 +2402,17 @@
 
   .GoliathArticleScrollbar {
     visibility: hidden;
+  }
+
+  /* With no rail drawn, the list hands scroll feedback back to the native
+     scrollbar, which on a touch surface is an overlay that fades out and
+     costs the column no width. */
+  .GoliathSplitViewArticleListBox {
+    scrollbar-width: auto;
+  }
+
+  .GoliathSplitViewArticleListBox::-webkit-scrollbar {
+    display: block;
   }
 
   .GoliathSplitViewArticleContainer {
