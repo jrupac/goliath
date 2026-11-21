@@ -31,6 +31,7 @@ import ArticleCard from './ArticleCard';
 import ArticleListEntry from './ArticleListEntry';
 import NewArticlePill from './NewArticlePill';
 import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
+import { useOverlayScrollbar } from '../utils/useOverlayScrollbar';
 import { keybindRegistry } from '../utils/keybindRegistry';
 import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
 import ViewSidebarTwoToneIcon from '@mui/icons-material/ViewSidebarTwoTone';
@@ -142,6 +143,19 @@ const ArticleList = ({
     : 'GoliathSplitViewArticleOuter';
 
   const listRef = useRef<ReactListType | null>(null);
+
+  // The list's scrollbar is drawn as an overlay rather than natively, so that
+  // its header can be full-bleed and the thumb can start below it instead of
+  // sitting behind it — see useOverlayScrollbar.
+  const listScrollRef = useRef<HTMLDivElement | null>(null);
+  const listContentRef = useRef<HTMLDivElement | null>(null);
+  const listHeaderRef = useRef<HTMLDivElement | null>(null);
+  const {
+    railRef: listRailRef,
+    thumbRef: listThumbRef,
+    onRailPointerDown: onListRailPointerDown,
+    onThumbPointerDown: onListThumbPointerDown,
+  } = useOverlayScrollbar(listScrollRef, listContentRef, listHeaderRef);
 
   const [selectedArticleId, setSelectedArticleId] = useState<ArticleId | null>(
     null
@@ -553,7 +567,10 @@ const ArticleList = ({
       >
         <Grid container wrap="nowrap" size="grow">
           <Stack className={articleListColumnClasses}>
-            <div className="GoliathSplitViewArticleListActionBar">
+            <div
+              className="GoliathSplitViewArticleListActionBar"
+              ref={listHeaderRef}
+            >
               {showListMobileLayout ? (
                 renderMobileListBar()
               ) : (
@@ -611,15 +628,38 @@ const ArticleList = ({
                 </>
               )}
             </div>
-            <div className="GoliathSplitViewArticleListBox">
-              <ReactList
-                key={reactListKey}
-                ref={handleMounted}
-                itemRenderer={renderArticleListEntry}
-                length={articles.length}
-                threshold={threshold}
-                useStaticSize={true}
-                type="uniform"
+            <div className="GoliathSplitViewArticleListBox" ref={listScrollRef}>
+              {/* Wraps the list purely to give the overlay scrollbar an
+                  element whose height it can watch: react-list sizes this as
+                  articles are added and removed, while the scroller itself
+                  never changes size when that happens. */}
+              <div ref={listContentRef}>
+                <ReactList
+                  key={reactListKey}
+                  ref={handleMounted}
+                  itemRenderer={renderArticleListEntry}
+                  length={articles.length}
+                  threshold={threshold}
+                  useStaticSize={true}
+                  type="uniform"
+                />
+              </div>
+            </div>
+            {/* Scrollbar for the container above. The rail spans the column,
+                but its track starts below the header — see
+                useOverlayScrollbar. Hidden until the first sync finds
+                something to scroll. */}
+            <div
+              className="GoliathArticleScrollbar GoliathListScrollbar"
+              ref={listRailRef}
+              onPointerDown={onListRailPointerDown}
+              aria-hidden="true"
+              hidden
+            >
+              <div
+                className="GoliathArticleScrollbarThumb"
+                ref={listThumbRef}
+                onPointerDown={onListThumbPointerDown}
               />
             </div>
             {showListMobileLayout && (

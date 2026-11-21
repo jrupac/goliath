@@ -416,17 +416,26 @@
   font-weight: 600;
 }
 
-/* Row content wrapper — flex row stretching full width */
+/* Row content wrapper — flex row stretching full width.
+
+   The right padding ends the row where a stream row's ends, so every unread
+   count in the sidebar lands on one line, and it leaves the gutter the
+   scrollbar is drawn in clear of the digits. It goes on the row rather than
+   on the tree item around it, which carries padding of the tree's own that
+   wins over ours; the highlight still runs to the sidebar's edge either way,
+   since the row is full width and this is padding inside it. */
 .GoliathFolderRowContent,
 .GoliathFeedTitleRow {
   display: flex;
   align-items: center;
   width: 100%;
   gap: 4px;
+  padding-right: 11px;
 }
 
 .GoliathFolderRowContent {
-  padding: 5px 0;
+  padding-top: 5px;
+  padding-bottom: 5px;
 }
 
 /* Feed/folder title text — truncates with ellipsis */
@@ -451,10 +460,22 @@
   color: var(--accent-color);
 }
 
+/* Holds the tree and the rail drawn over it. */
+.GoliathFolderFeedListPane {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .GoliathFolderFeedList {
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
+}
+
+.GoliathFolderFeedList::-webkit-scrollbar {
+  display: none;
 }
 
 /* Support both v6 (MuiTreeView) and v7 (MuiSimpleTreeView) class names */
@@ -1195,6 +1216,42 @@
     transparent
   );
   will-change: transform;
+}
+
+/* The list and the feed tree put their headers inside the scroller rather
+   than above it, so their rails start at the top of the pane and the track's
+   own offset is what keeps the thumb clear of the header. */
+.GoliathListScrollbar,
+.GoliathFolderScrollbar {
+  top: 0;
+}
+
+/* The feed tree's rows end in their unread counts, with only a few pixels to
+   spare, so its rail is drawn narrower than a content pane's rather than over
+   the digits. */
+.GoliathFolderScrollbar {
+  width: 10px;
+}
+
+/* The feed tree is on the nav surface, so its thumb takes that surface's ink
+   rather than the content surface's. */
+.GoliathFolderScrollbar .GoliathArticleScrollbarThumb {
+  right: 2px;
+  width: 5px;
+  background-color: color-mix(
+    in srgb,
+    var(--primary-font-color) 26%,
+    transparent
+  );
+}
+
+.GoliathFolderScrollbar:hover .GoliathArticleScrollbarThumb,
+.GoliathFolderScrollbar .GoliathArticleScrollbarThumbDragging {
+  background-color: color-mix(
+    in srgb,
+    var(--primary-font-color) 45%,
+    transparent
+  );
 }
 
 .GoliathArticleScrollbar:hover .GoliathArticleScrollbarThumb,

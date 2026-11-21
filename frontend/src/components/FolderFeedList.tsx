@@ -1,5 +1,6 @@
 import React, { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { extractText } from '../utils/helpers';
+import { useOverlayScrollbar } from '../utils/useOverlayScrollbar';
 import {
   FeedSelection,
   FolderSelection,
@@ -152,6 +153,24 @@ const FolderFeedList = ({
   );
   const [isScrolled, setIsScrolled] = useState(false);
   const treeViewRef = useRef<HTMLUListElement>(null);
+
+  // Drawn as an overlay rather than natively, to match the other two panes
+  // and to drop the stepper arrows a classic scrollbar comes with. The tree's
+  // own header sits outside the scroller, so the track spans the whole rail.
+  const {
+    railRef: treeRailRef,
+    thumbRef: treeThumbRef,
+    sync: syncTreeScrollbar,
+    onRailPointerDown: onTreeRailPointerDown,
+    onThumbPointerDown: onTreeThumbPointerDown,
+  } = useOverlayScrollbar(treeViewRef);
+
+  // The scroller's own size never changes when rows are added or hidden, and
+  // the rows are the scroller's children rather than one element that could
+  // be watched, so the redraw is driven from what decides which rows exist.
+  useEffect(() => {
+    syncTreeScrollbar();
+  }, [folderFeedView, hideEmpty, syncTreeScrollbar]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -388,33 +407,49 @@ const FolderFeedList = ({
         </Tooltip>
       </div>
 
-      <SimpleTreeView
-        ref={treeViewRef}
-        className="GoliathFolderFeedList"
-        onSelectedItemsChange={handleItemSelect}
-        selectedItems={selectedKeyString}
-        expandedItems={expandedItems}
-        slots={{ collapseIcon: FolderOpenTwoToneIcon }}
-      >
-        {Array.from(folderFeedView, ([k, v]) => {
-          const feedsToRender = v.map(renderFeed).filter(Boolean);
-          if (!shouldRenderItem(k)) {
-            // If we're not rendering the folder, don't render any of the
-            // feeds inside of it either.
-            return null;
-          }
-          return (
-            <TreeItem
-              key={k.id}
-              itemId={k.id}
-              label={renderFolder(k)}
-              className="GoliathFolderRow"
-            >
-              {feedsToRender}
-            </TreeItem>
-          );
-        })}
-      </SimpleTreeView>
+      <div className="GoliathFolderFeedListPane">
+        <SimpleTreeView
+          ref={treeViewRef}
+          className="GoliathFolderFeedList"
+          onSelectedItemsChange={handleItemSelect}
+          selectedItems={selectedKeyString}
+          expandedItems={expandedItems}
+          slots={{ collapseIcon: FolderOpenTwoToneIcon }}
+        >
+          {Array.from(folderFeedView, ([k, v]) => {
+            const feedsToRender = v.map(renderFeed).filter(Boolean);
+            if (!shouldRenderItem(k)) {
+              // If we're not rendering the folder, don't render any of the
+              // feeds inside of it either.
+              return null;
+            }
+            return (
+              <TreeItem
+                key={k.id}
+                itemId={k.id}
+                label={renderFolder(k)}
+                className="GoliathFolderRow"
+              >
+                {feedsToRender}
+              </TreeItem>
+            );
+          })}
+        </SimpleTreeView>
+        {/* Hidden until the first sync finds something to scroll. */}
+        <div
+          className="GoliathArticleScrollbar GoliathFolderScrollbar"
+          ref={treeRailRef}
+          onPointerDown={onTreeRailPointerDown}
+          aria-hidden="true"
+          hidden
+        >
+          <div
+            className="GoliathArticleScrollbarThumb"
+            ref={treeThumbRef}
+            onPointerDown={onTreeThumbPointerDown}
+          />
+        </div>
+      </div>
     </>
   );
 };

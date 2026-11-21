@@ -3,30 +3,39 @@ import React, { RefObject, useCallback, useEffect, useRef } from 'react';
 /* Draws a scroll container's scrollbar as an overlay element instead of using
    the native one.
 
-   This exists so the article title bar can be full-bleed. A native scrollbar
+   This exists so that a pane's header can be full-bleed. A native scrollbar
    is laid out between the border box and the padding box, and a scroller clips
    its contents to that padding box, so nothing inside the scroller can paint
    over the scrollbar and nothing outside it can paint there without covering
    the scrollbar entirely. A header that spans the full width therefore has to
    have the scrollbar drawn on top of it, which means drawing it ourselves.
 
+   It also lets a pane decide where its scrollbar starts, which a native one
+   cannot: a scroller that runs up behind a header would otherwise park a short
+   thumb underneath it, where the reader never sees it.
+
    Only the *painted* bar is replaced. The scroller stays a real scroller, so
    the wheel, keyboard, touch scrolling, find-in-page and scrollIntoView are
    all still handled natively; this just mirrors scrollTop and writes it back
    when the thumb is dragged.
 
-   The track starts below the sticky header rather than at the top of the
-   scroller. That keeps the thumb from being drawn over the frosted header,
-   and it describes the article better besides: the scroller does extend up
-   behind the header, but that part of it is occluded, so the region the thumb
-   spans is the region the reader can actually see.
+   The track starts below the header rather than at the top of the scroller.
+   That keeps the thumb from being drawn over the frosted header, and it
+   describes the content better besides: the scroller does extend up behind
+   the header, but that part of it is occluded, so the region the thumb spans
+   is the region the reader can actually see.
 
    How far the header occludes the scroller is the one fact this hook has to
    keep measuring, and the track is not its only consumer: the same distance
    is the scroller's scroll-padding-top, without which scrollIntoView — what
-   an in-article anchor link ends up calling — parks its target underneath the
+   an in-content anchor link ends up calling — parks its target underneath the
    header. So this owns that too, rather than leaving a second observer
-   watching the same element to work it out again. */
+   watching the same element to work it out again.
+
+   A pane whose header sits outside its scroller passes none, and the track
+   then spans the whole rail. A pane whose content cannot be given an element
+   of its own passes no content ref either, and is responsible for calling
+   sync when it changes shape. */
 
 /** Shortest the thumb may get, so it stays grabbable on very long articles. */
 const MIN_THUMB_HEIGHT = 24;
@@ -42,8 +51,8 @@ export interface OverlayScrollbar {
 
 export function useOverlayScrollbar(
   scrollRef: RefObject<HTMLElement | null>,
-  contentRef: RefObject<HTMLElement | null>,
-  headerRef: RefObject<HTMLElement | null>
+  contentRef?: RefObject<HTMLElement | null>,
+  headerRef?: RefObject<HTMLElement | null>
 ): OverlayScrollbar {
   const railRef = useRef<HTMLDivElement>(null);
   const thumbRef = useRef<HTMLDivElement>(null);
@@ -66,7 +75,7 @@ export function useOverlayScrollbar(
     // The rail spans the whole scroller — it has to, since its height is what
     // is being measured here and a zero-height rail could never show itself
     // again — but the track is only the part below the header.
-    const inset = headerRef.current?.offsetHeight ?? 0;
+    const inset = headerRef?.current?.offsetHeight ?? 0;
     const trackHeight = rail.clientHeight - inset;
 
     // Where the scrollport effectively begins, so that scrollIntoView lands
@@ -129,10 +138,10 @@ export function useOverlayScrollbar(
         ? null
         : new ResizeObserver(schedule);
     observer?.observe(scroller);
-    if (contentRef.current) {
+    if (contentRef?.current) {
       observer?.observe(contentRef.current);
     }
-    if (headerRef.current) {
+    if (headerRef?.current) {
       observer?.observe(headerRef.current);
     }
 
@@ -155,7 +164,7 @@ export function useOverlayScrollbar(
       }
 
       const overflow = scroller.scrollHeight - scroller.clientHeight;
-      const inset = headerRef.current?.offsetHeight ?? 0;
+      const inset = headerRef?.current?.offsetHeight ?? 0;
       const travel = rail.clientHeight - inset - thumb.offsetHeight;
       if (overflow <= 0 || travel <= 0) {
         return;
@@ -207,7 +216,7 @@ export function useOverlayScrollbar(
 
       // The strip of rail alongside the header is not part of the track, so a
       // press there is not a press on anything.
-      const inset = headerRef.current?.offsetHeight ?? 0;
+      const inset = headerRef?.current?.offsetHeight ?? 0;
       if (event.clientY < rail.getBoundingClientRect().top + inset) {
         return;
       }
