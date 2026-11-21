@@ -1,14 +1,12 @@
 import { FeedId } from '../models/feed';
-import { formatFriendly } from '../utils/dates';
 import FeedIcon from './FeedIcon';
 import { PeekDirection } from '../utils/useSwipeNavigate';
 
-/** The little of an article that the pane below a pull has to show. */
+/** The little of an article that the pane behind a pull has to show. */
 export interface ArticlePeek {
   feedId: FeedId;
   feedTitle: string;
   favicon: string;
-  date: Date;
   title: string;
 }
 
@@ -19,17 +17,17 @@ export interface NextArticlePreviewProps {
 }
 
 /**
- * The article a pull is heading for, waiting off the edge it will arrive
- * from.
+ * The article a pull is heading for, waiting behind the one being read.
  *
- * It is not a badge or a hint: it is the top of the article itself, byline
- * and headline, drawn where the article will be. That is what makes the pull
- * one movement rather than a gesture followed by a replacement -- by the time
- * the pane has carried through, what is on screen is already the thing the
- * reader asked for, and only the body arrives late.
+ * It names that article and stops there: which feed, by its mark, and the
+ * headline in a line or two. Drawing the article's own byline and title
+ * instead would be a near-match for what lands a moment later, and a
+ * near-match is worse than a plain difference -- every pull would end in the
+ * type resettling by a few pixels. This is its own thing, so there is
+ * nothing for the eye to compare.
  *
- * It moves with the pull because the stylesheet adds the pull to its resting
- * offset, which is one pane clear of the screen; it has no state of its own.
+ * It takes no part in the gesture. The stylesheet decides where it waits and
+ * whether the pull moves it or merely uncovers it.
  */
 const NextArticlePreview = ({ direction, peek }: NextArticlePreviewProps) => {
   if (direction === 0 || peek === undefined) {
@@ -45,20 +43,15 @@ const NextArticlePreview = ({ direction, peek }: NextArticlePreviewProps) => {
       }
       aria-hidden="true"
     >
-      <div className="GoliathArticlePreviewByline">
+      <div className="GoliathArticlePreviewCard">
         <FeedIcon
           favicon={peek.favicon}
           feedTitle={peek.feedTitle}
           feedId={peek.feedId}
-          size={16}
+          size={18}
         />
-        <span className="GoliathArticlePreviewFeed">{peek.feedTitle}</span>
-        <span className="GoliathArticlePreviewSep">·</span>
-        <span className="GoliathArticlePreviewDate">
-          {formatFriendly(peek.date)}
-        </span>
+        <span className="GoliathArticlePreviewTitle">{peek.title}</span>
       </div>
-      <div className="GoliathArticlePreviewTitle">{peek.title}</div>
     </div>
   );
 };

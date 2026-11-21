@@ -614,7 +614,6 @@ const ArticleList = ({
         feedId: entry.feedId,
         feedTitle: entry.feedTitle,
         favicon: faviconMap.get(entry.feedId)?.GetFavicon() || '',
-        date: new Date(entry.creationTime * 1000),
         title: extractText(entry.title) ?? '',
       };
     };
