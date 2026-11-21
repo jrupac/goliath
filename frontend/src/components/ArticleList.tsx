@@ -32,6 +32,8 @@ import ArticleListEntry from './ArticleListEntry';
 import NewArticleNote from './NewArticleNote';
 import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
 import { useOverlayScrollbar } from '../utils/useOverlayScrollbar';
+import { useSwipeNavigate } from '../utils/useSwipeNavigate';
+import { ArticlePeek } from './NextArticlePeek';
 import { keybindRegistry } from '../utils/keybindRegistry';
 import DoneAllRounded from '@mui/icons-material/DoneAllRounded';
 import ViewSidebarTwoToneIcon from '@mui/icons-material/ViewSidebarTwoTone';
@@ -45,6 +47,7 @@ import HotelClassTwoTone from '@mui/icons-material/HotelClassTwoTone';
 import HotelClassRounded from '@mui/icons-material/HotelClassRounded';
 import { FaviconCls, FeedId } from '../models/feed';
 import { FetchAPI } from '../api/interface';
+import { extractText } from '../utils/helpers';
 
 export interface ArticleListProps {
   fetchApi: FetchAPI;
@@ -163,6 +166,17 @@ const ArticleList = ({
     onRailPointerDown: onListRailPointerDown,
     onThumbPointerDown: onListThumbPointerDown,
   } = useOverlayScrollbar(listScrollRef, listContentRef, listHeaderRef);
+
+  // The list is the second rung of the hierarchy, so carrying it sideways
+  // uncovers the feed tree, the same way carrying an article uncovers the
+  // list. There is no sequence to pull through here: above and below the
+  // list is the list.
+  const listColumnRef = useRef<HTMLDivElement | null>(null);
+  const noPeekRef = useRef<HTMLDivElement | null>(null);
+  useSwipeNavigate(listScrollRef, listColumnRef, noPeekRef, {
+    enabled: showListMobileLayout,
+    onBack: openDrawer,
+  });
 
   const [selectedArticleId, setSelectedArticleId] = useState<ArticleId | null>(
     null
@@ -579,6 +593,12 @@ const ArticleList = ({
     // guard against it being out of bounds during a brief render cycle.
     const renderIndex = Math.min(scrollIndex, articles.length - 1);
     const articleView = articles[renderIndex];
+    const peekAt = (index: number): ArticlePeek | undefined => {
+      const entry = articles[index];
+      return entry === undefined
+        ? undefined
+        : { feedTitle: entry.feedTitle, title: extractText(entry.title) ?? '' };
+    };
 
     if (!articleView) {
       return renderEmpty();
@@ -590,7 +610,7 @@ const ArticleList = ({
         className="GoliathSplitViewArticleListContainer"
       >
         <Grid container wrap="nowrap" size="grow">
-          <Stack className={articleListColumnClasses}>
+          <Stack className={articleListColumnClasses} ref={listColumnRef}>
             <div
               className="GoliathSplitViewArticleListActionBar"
               ref={listHeaderRef}
@@ -773,6 +793,8 @@ const ArticleList = ({
                     ? () => handleScrollDown({ markRead: true })
                     : undefined
                 }
+                nextPeek={peekAt(renderIndex + 1)}
+                previousPeek={peekAt(renderIndex - 1)}
                 isMobile={isMobile}
                 showMobileLayout={
                   isMobile || (isTabletPortrait && !tabletShowFeedList)

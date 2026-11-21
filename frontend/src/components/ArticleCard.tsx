@@ -27,6 +27,8 @@ import ArrowBackTwoToneIcon from '@mui/icons-material/ArrowBackTwoTone';
 import ExpandLessTwoToneIcon from '@mui/icons-material/ExpandLessTwoTone';
 import ExpandMoreTwoToneIcon from '@mui/icons-material/ExpandMoreTwoTone';
 import { useOverlayScrollbar } from '../utils/useOverlayScrollbar';
+import { useSwipeNavigate } from '../utils/useSwipeNavigate';
+import NextArticlePeek, { ArticlePeek } from './NextArticlePeek';
 
 export interface ArticleProps {
   fetchApi: FetchAPI;
@@ -48,6 +50,9 @@ export interface ArticleProps {
   onBack?: () => void;
   onPrev?: () => void;
   onNext?: () => void;
+  // What a pull would arrive at, for the strip that opens while it is made.
+  nextPeek?: ArticlePeek;
+  previousPeek?: ArticlePeek;
   isMobile?: boolean;
   showMobileLayout?: boolean;
 }
@@ -65,6 +70,8 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
     onBack,
     onPrev,
     onNext,
+    nextPeek,
+    previousPeek,
     isMobile,
     showMobileLayout,
   } = props;
@@ -99,6 +106,24 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
     onRailPointerDown,
     onThumbPointerDown,
   } = useOverlayScrollbar(contentScrollRef, articleContentRef, titleBarRef);
+
+  // Showing one pane at a time, the moves off this card are made by hand
+  // rather than by looking: sideways back to the list, and an overscroll at
+  // either end of the article on to the next or back to the last.
+  const columnRef = useRef<HTMLDivElement | null>(null);
+  const peekRef = useRef<HTMLDivElement | null>(null);
+  const { direction: peekDirection, armed: peekArmed } = useSwipeNavigate(
+    contentScrollRef,
+    columnRef,
+    peekRef,
+    {
+      enabled: Boolean(useMobileLayout),
+      onBack,
+      onNext,
+      onPrevious: onPrev,
+    }
+  );
+  const peek = peekDirection === -1 ? previousPeek : nextPeek;
 
   // Likewise, the scroll container is reused across articles, so a new article
   // would otherwise open at the previous one's scroll offset. Reset before
@@ -249,7 +274,7 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
   };
 
   return (
-    <Stack className="GoliathArticleCardColumn">
+    <Stack className="GoliathArticleCardColumn" ref={columnRef}>
       {/* Topmost bar (feed name, date, buttons) */}
       <div className="GoliathArticleByline">
         <div className="GoliathArticleBylineInfo">
@@ -395,6 +420,19 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
           onPointerDown={onThumbPointerDown}
         />
       </div>
+
+      {/* What a pull is heading for. Drawn over the bar below rather than
+          beside it, since for as long as it is open it is the only thing
+          the gesture is about. */}
+      {useMobileLayout && (
+        <NextArticlePeek
+          ref={peekRef}
+          direction={peekDirection}
+          armed={peekArmed}
+          feedTitle={peek?.feedTitle}
+          title={peek?.title}
+        />
+      )}
 
       {/* Mobile Bottom Navigation Bar */}
       {useMobileLayout && (
