@@ -2696,6 +2696,15 @@ body,
   line-height: 1.2;
 }
 
+/* The same size the title will be when it gets here. Stated again rather
+   than in the phone block above, because this section comes after it. */
+@media (max-width: 599.95px), (max-height: 499.95px) {
+  .GoliathArticlePreviewTitle {
+    font-size: 22px;
+    padding: 10px 16px;
+  }
+}
+
 /* Worn by the column only while a gesture carries through or returns. The
    drag itself is written frame by frame and must not be interpolated. */
 .GoliathSwipeSettling .GoliathArticleCardSlide,
