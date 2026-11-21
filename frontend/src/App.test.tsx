@@ -42,7 +42,7 @@ vi.mock('./api/greader', () => {
 // Opens the chrome menu and picks one of its items. Settings and the
 // shortcuts sheet have no button of their own on the action bar.
 const openMenuItem = async (label: string) => {
-  fireEvent.click(screen.getByLabelText('Menu'));
+  fireEvent.click(screen.getByLabelText('Account menu'));
   fireEvent.click(await screen.findByText(label));
 };
 

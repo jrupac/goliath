@@ -52,7 +52,6 @@ import AccountCircleTwoToneIcon from '@mui/icons-material/AccountCircleTwoTone';
 import ChevronLeftTwoToneIcon from '@mui/icons-material/ChevronLeftTwoTone';
 import KeyboardTwoToneIcon from '@mui/icons-material/KeyboardTwoTone';
 import LogoutTwoToneIcon from '@mui/icons-material/LogoutTwoTone';
-import MenuTwoToneIcon from '@mui/icons-material/MenuTwoTone';
 import SettingsTwoToneIcon from '@mui/icons-material/SettingsTwoTone';
 import KeybindingsModal from './components/KeybindingsModal';
 import UpdateBanner from './components/UpdateBanner';
@@ -654,23 +653,17 @@ export default class App extends React.Component<AppProps, AppState> {
                   <ChevronLeftTwoToneIcon />
                 </IconButton>
               )}
-              <IconButton
-                aria-label="Account"
-                className="GoliathButton"
-                size="small"
-              >
-                <AccountCircleTwoToneIcon />
-              </IconButton>
+              <div className="GoliathLogoInline">Goliath</div>
               <div className="GoliathActionBarSpacer"></div>
               <IconButton
-                aria-label="Menu"
+                aria-label="Account menu"
                 className="GoliathButton"
                 size="small"
                 aria-haspopup="true"
                 aria-expanded={this.state.menuAnchor !== null}
                 onClick={(e) => this.setState({ menuAnchor: e.currentTarget })}
               >
-                <MenuTwoToneIcon />
+                <AccountCircleTwoToneIcon />
               </IconButton>
             </div>
             {this.state.reloading && (
@@ -679,7 +672,6 @@ export default class App extends React.Component<AppProps, AppState> {
                 aria-label="Refreshing subscriptions"
               />
             )}
-            <div className="GoliathLogo">Goliath</div>
             <FolderFeedList
               folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
               unreadCount={unreadCount}

@@ -229,13 +229,28 @@
   background-color: color-mix(in srgb, var(--bar-font-color) 10%, transparent);
 }
 
-.GoliathLogo {
-  text-align: center;
+/* Wordmark in the sidebar's header row. Trimming the text box is what lets it
+   sit level with the sheet's header: the logo face carries far more leading
+   than the interface face, so centring its untrimmed line box puts the letters
+   visibly high. The trim leaves descenders outside the box, which is why
+   nothing here clips overflow. */
+/* Centred on the sidebar rather than on the space the controls leave, so that
+   it stays put as controls come and go with the layout. Taken out of flow for
+   that, which is also why the row still needs its spacer to push the menu
+   button to the end. */
+.GoliathLogoInline {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   font-family: var(--primary-logo-font), cursive;
   color: var(--primary-font-color);
-  background-color: var(--primary-background-color);
-  font-size: 48px;
-  padding-top: 24px;
+  font-size: 22px;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  text-box-trim: trim-both;
+  text-box-edge: cap alphabetic;
 }
 
 .GoliathStreamSelector,
@@ -2353,13 +2368,6 @@
     justify-content: flex-start;
     gap: 12px;
     padding: 10px 16px;
-  }
-
-  .GoliathLogo {
-    font-size: 36px;
-    padding-top: 16px;
-    padding-bottom: 16px;
-    line-height: 1.2;
   }
 }
 
