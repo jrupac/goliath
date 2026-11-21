@@ -217,24 +217,28 @@ describe('App', () => {
         container.querySelector('.GoliathStreamSelectorSelected')?.textContent
       ).toContain('Unread items');
     });
-    // The mocked server has nothing to hand over, which the badge reports as
-    // such rather than by staying away.
-    expect(await screen.findByText('+0')).toBeInTheDocument();
+    // The mocked server has nothing to hand over, which the note reports as
+    // such rather than by staying silent.
+    expect(await screen.findByText('Nothing new')).toBeInTheDocument();
   });
 
-  it('withdraws the refresh badge after a few seconds', async () => {
+  it('withdraws the refresh note after a few seconds', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
-      render(<App />);
+      const { container } = render(<App />);
       await screen.findByText('Goliath');
 
       fireEvent.keyDown(window, { key: 'r', code: 'KeyR' });
-      await screen.findByText('+0');
+      await screen.findByText('Nothing new');
 
       await act(async () => {
         vi.advanceTimersByTime(6000);
       });
-      expect(screen.queryByText('+0')).toBeNull();
+      // The note keeps its text through the fade and is hidden by losing the
+      // class that shows it, rather than by being taken out of the bar.
+      expect(
+        container.querySelector('.GoliathNewArticleNoteVisible')
+      ).toBeNull();
     } finally {
       vi.useRealTimers();
     }

@@ -28,7 +28,7 @@ import { FolderView } from '../models/folder';
 import { FeedId, FeedTitle, FeedView } from '../models/feed';
 import StarTwoToneIcon from '@mui/icons-material/StarTwoTone';
 import FeedIcon from './FeedIcon';
-import NewArticlePill from './NewArticlePill';
+import { useCountUp } from '../utils/useCountUp';
 
 /* How long the pointer has to rest on a sidebar title before its tooltip
    opens. Long enough to tell a reader from someone on their way to another
@@ -179,10 +179,11 @@ const FeedTreeItem = React.memo(function FeedTreeItem({
 export interface FolderFeedListProps {
   folderFeedView: Map<FolderView, FeedView[]>;
   unreadCount: number;
-  // How many articles the last refresh brought in, or null when no refresh is
-  // recent enough to report. Zero is not null: a refresh that found nothing is
-  // the answer to having asked, and saying so is the point.
-  newArticleCount?: number | null;
+  // Bumped once per refresh. The unread count walks to its new value when
+  // this changes, which is the sidebar's whole report of what a refresh
+  // brought in; it is taken straight at any other time, since the count also
+  // moves every time an article is read.
+  refreshNonce?: number;
   selectedKey: SelectionKey;
   selectionType: SelectionType;
   handleSelect: (type: SelectionType, key: SelectionKey) => void;
@@ -193,7 +194,7 @@ export interface FolderFeedListProps {
 const FolderFeedList = ({
   folderFeedView,
   unreadCount,
-  newArticleCount = null,
+  refreshNonce = 0,
   selectedKey,
   selectionType,
   handleSelect,
@@ -210,6 +211,8 @@ const FolderFeedList = ({
   );
   const [isScrolled, setIsScrolled] = useState(false);
   const treeViewRef = useRef<HTMLUListElement>(null);
+
+  const shownUnreadCount = useCountUp(unreadCount, refreshNonce);
 
   // Drawn as an overlay rather than natively, to match the other two panes
   // and to drop the stepper arrows a classic scrollbar comes with. The tree's
@@ -323,14 +326,9 @@ const FolderFeedList = ({
     return (
       <div className="GoliathStreamContent">
         <span>Unread items</span>
-        <div className="GoliathStreamPills">
-          {unreadCount > 0 && (
-            <div className="GoliathSidebarPill">{unreadCount}</div>
-          )}
-          {newArticleCount !== null && (
-            <NewArticlePill count={newArticleCount} />
-          )}
-        </div>
+        {unreadCount > 0 && (
+          <div className="GoliathSidebarPill">{shownUnreadCount}</div>
+        )}
       </div>
     );
   };

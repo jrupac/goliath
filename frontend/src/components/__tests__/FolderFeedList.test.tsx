@@ -217,38 +217,40 @@ describe('FolderFeedList', () => {
     });
   });
 
-  it('shows how many articles the last refresh brought in', () => {
+  it('takes an unread count straight when no refresh caused it', async () => {
     const props = {
       folderFeedView: new Map<FolderView, FeedView[]>(),
       unreadCount: 12,
       selectedKey: KeyUnread,
       selectionType: SelectionType.Unread,
       handleSelect: vi.fn(),
-      newArticleCount: 10,
+      refreshNonce: 1,
     };
-    render(<FolderFeedList {...props} />);
 
-    expect(screen.getByText('+10')).toBeInTheDocument();
-    // Announced too, since the badge comes and goes on its own.
-    expect(screen.getByRole('status')).toHaveTextContent('10 new articles');
+    const { rerender } = render(<FolderFeedList {...props} />);
+    expect(screen.getByText('12')).toBeInTheDocument();
+
+    // Reading an article moves the count without a refresh behind it, and a
+    // number that walked on every one of those would never be still.
+    rerender(<FolderFeedList {...props} unreadCount={11} />);
+    expect(await screen.findByText('11')).toBeInTheDocument();
   });
 
-  it('says so when a refresh found nothing, and says nothing without one', () => {
+  it('walks the unread count to where a refresh left it', async () => {
     const props = {
       folderFeedView: new Map<FolderView, FeedView[]>(),
       unreadCount: 12,
       selectedKey: KeyUnread,
       selectionType: SelectionType.Unread,
       handleSelect: vi.fn(),
+      refreshNonce: 1,
     };
 
-    const { rerender } = render(
-      <FolderFeedList {...props} newArticleCount={0} />
-    );
-    expect(screen.getByText('+0')).toBeInTheDocument();
+    const { rerender } = render(<FolderFeedList {...props} />);
+    rerender(<FolderFeedList {...props} unreadCount={40} refreshNonce={2} />);
 
-    rerender(<FolderFeedList {...props} newArticleCount={null} />);
-    expect(screen.queryByText('+0')).toBeNull();
-    expect(screen.queryByRole('status')).toBeNull();
+    // The walk is driven by animation frames, so the end of it is what can be
+    // asserted on; that it did not jump there is what the frames are for.
+    expect(await screen.findByText('40')).toBeInTheDocument();
   });
 });

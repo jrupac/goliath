@@ -315,13 +315,16 @@
   text-box-edge: cap alphabetic;
 }
 
-/* Unread count pill — accent-colored badge */
+/* Unread count pill — accent-colored badge. The digits are tabular because
+   the count walks to its new value after a refresh rather than being
+   replaced, and proportional digits make that walk shuffle its own width. */
 .GoliathSidebarPill {
   margin-left: auto;
   background-color: var(--accent-color);
   color: var(--accent-font-color);
   font-size: 11px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   padding: 4px 6px;
   border-radius: 99px;
   white-space: nowrap;
@@ -337,6 +340,7 @@
   color: var(--primary-font-darker-1-color);
   font-size: 11px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   min-width: 18px;
   text-align: center;
@@ -345,54 +349,33 @@
   text-box-edge: cap alphabetic;
 }
 
-/* The stream row's badges, as one group pushed to the end of the row. The
-   pills inside carry their own margin-left: auto for use on a folder or feed
-   row, where they are the only badge; here the group places them instead. */
-.GoliathStreamPills {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+/* What the last refresh brought in, reported in the list's own header.
 
-.GoliathStreamPills > div {
-  margin-left: 0;
-}
-
-/* How many articles the last refresh brought in. Outlined rather than filled,
-   so that it reads as a note on the unread count beside it rather than as a
-   second count. */
-.GoliathSidebarPillNew {
-  background-color: var(--accent-color-subtle);
-  border: 1px solid var(--accent-color);
-  color: var(--primary-font-color);
+   It is placed ahead of the bar's spacer, which takes up whatever width the
+   note gives back, so the controls at either end of the bar hold still while
+   it comes and goes. The element stays in the bar with nothing to say, which
+   is why it fades rather than being removed. */
+.GoliathNewArticleNote {
   font-size: 11px;
   font-weight: 700;
-  padding: 3px 5px;
-  border-radius: 99px;
+  font-family: var(--primary-sans-serif-font), sans-serif;
+  letter-spacing: 0.02em;
+  color: var(--accent-color-strong);
   white-space: nowrap;
   line-height: 1;
+  padding: 0 6px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 0.26s ease,
+    transform 0.26s ease;
   text-box-trim: trim-both;
   text-box-edge: cap alphabetic;
-  animation: GoliathPillAppear 160ms ease-out;
 }
 
-/* Drawn on the chrome of a narrow layout's list, where there is no sidebar to
-   put it beside. */
-.GoliathSplitViewArticleListActionBar .GoliathSidebarPillNew {
-  color: var(--bar-font-color);
-  margin-right: 4px;
-}
-
-@keyframes GoliathPillAppear {
-  from {
-    opacity: 0;
-    transform: scale(0.85);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+.GoliathNewArticleNoteVisible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* Invisible placeholder — reserves space matching pill dimensions */
@@ -955,6 +938,13 @@
   flex: 1;
   min-height: 0;
   justify-content: space-between;
+}
+
+/* The refresh report, where there is no bar to put it in. */
+.GoliathArticleListEmptyNote {
+  display: flex;
+  justify-content: center;
+  padding-top: 18px;
 }
 
 .GoliathArticleListEmptyIcon.MuiSvgIcon-root {

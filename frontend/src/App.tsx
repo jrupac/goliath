@@ -99,6 +99,7 @@ export interface AppState {
   reloading: boolean;
   refreshNonce: number;
   newArticleCount: number | null;
+  newArticleNoteShown: boolean;
   updatePending: boolean;
   updateNoticeDismissed: boolean;
   isMobile: boolean;
@@ -147,6 +148,7 @@ export default class App extends React.Component<AppProps, AppState> {
       reloading: false,
       refreshNonce: 0,
       newArticleCount: null,
+      newArticleNoteShown: false,
       updatePending: false,
       updateNoticeDismissed: false,
       isMobile: metrics.isMobile,
@@ -452,10 +454,10 @@ export default class App extends React.Component<AppProps, AppState> {
     console.log('Reloaded content.');
   };
 
-  // How long the count of articles a refresh brought in stays on screen. Long
-  // enough to notice after the eye has gone back to the list, short enough not
-  // to be mistaken for part of the unread count.
-  private static newArticleBadgeMs = 5000;
+  // How long the count of articles a refresh brought in stays on screen. It
+  // reports on an action the reader has just taken, so it only has to outlast
+  // their attention settling on the rebuilt list.
+  private static newArticleNoteMs = 5000;
 
   // Re-reads everything from the server and lands at the top of the unread
   // stream.
@@ -464,8 +466,8 @@ export default class App extends React.Component<AppProps, AppState> {
   // carries none of the pins that hold a just-read article in place, and a
   // stream asked for fresh is expected to show what is still unread rather
   // than where the reader had got to. How many articles the refresh brought in
-  // is published for a few seconds, since the unread count alone cannot be
-  // read as a yield.
+  // is published for a few seconds, since the unread count is a net and so
+  // cannot be read as a yield.
   handleRefresh = (): void => {
     if (this.state.reloading) {
       return;
@@ -476,7 +478,7 @@ export default class App extends React.Component<AppProps, AppState> {
       clearTimeout(this.newArticleTimer);
       this.newArticleTimer = undefined;
     }
-    this.setState({ reloading: true, newArticleCount: null });
+    this.setState({ reloading: true, newArticleNoteShown: false });
 
     this.fetchApi
       .InitializeContent(() => {})
@@ -495,13 +497,14 @@ export default class App extends React.Component<AppProps, AppState> {
           selectionType: SelectionType.Unread,
           refreshNonce: prevState.refreshNonce + 1,
           newArticleCount: added,
+          newArticleNoteShown: true,
           mobilePane: 'list',
         }));
 
         this.newArticleTimer = setTimeout((): void => {
           this.newArticleTimer = undefined;
-          this.setState({ newArticleCount: null });
-        }, App.newArticleBadgeMs);
+          this.setState({ newArticleNoteShown: false });
+        }, App.newArticleNoteMs);
       })
       .catch((err: Error) => {
         console.error(`Failed to refresh content: ${err}`);
@@ -675,7 +678,7 @@ export default class App extends React.Component<AppProps, AppState> {
             <FolderFeedList
               folderFeedView={this.state.contentTreeCls.GetFolderFeedView()}
               unreadCount={unreadCount}
-              newArticleCount={this.state.newArticleCount}
+              refreshNonce={this.state.refreshNonce}
               selectedKey={selectionKey}
               selectionType={selectionType}
               handleSelect={this.handleSelect}
@@ -697,6 +700,7 @@ export default class App extends React.Component<AppProps, AppState> {
               selectionType={selectionType}
               refreshNonce={this.state.refreshNonce}
               newArticleCount={this.state.newArticleCount}
+              newArticleNoteShown={this.state.newArticleNoteShown}
               handleMark={this.handleMark}
               clearReadCallback={this.handleClearRead}
               selectAllCallback={() =>

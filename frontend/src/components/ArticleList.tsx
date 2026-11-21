@@ -29,7 +29,7 @@ import {
 } from '@mui/material';
 import ArticleCard from './ArticleCard';
 import ArticleListEntry from './ArticleListEntry';
-import NewArticlePill from './NewArticlePill';
+import NewArticleNote from './NewArticleNote';
 import { Keybindings, getTinykeysSequence } from '../utils/keybindings';
 import { useOverlayScrollbar } from '../utils/useOverlayScrollbar';
 import { keybindRegistry } from '../utils/keybindRegistry';
@@ -62,9 +62,10 @@ export interface ArticleListProps {
   // shown, so the selection key alone cannot say that the list should go back
   // to the top of a rebuilt stream.
   refreshNonce?: number;
-  // How many articles the last refresh brought in, or null when there is
-  // nothing recent to report.
+  // How many articles the last refresh brought in, or null before there has
+  // been one, together with whether that report is still current.
   newArticleCount?: number | null;
+  newArticleNoteShown?: boolean;
   selectAllCallback: () => void;
   selectUnreadCallback: () => void;
   handleMark: (
@@ -99,6 +100,7 @@ const ArticleList = ({
   selectionType,
   refreshNonce = 0,
   newArticleCount = null,
+  newArticleNoteShown = false,
   selectAllCallback,
   selectUnreadCallback,
   selectSavedCallback,
@@ -519,7 +521,7 @@ const ArticleList = ({
       <Typography variant="subtitle1" className="GoliathArticleListTitleText">
         {selectionTitle}
       </Typography>
-      {newArticleCount !== null && <NewArticlePill count={newArticleCount} />}
+      <NewArticleNote count={newArticleCount} shown={newArticleNoteShown} />
     </>
   );
 
@@ -531,6 +533,17 @@ const ArticleList = ({
         </div>
       )}
       <div className="GoliathArticleListEmpty">
+        {/* An empty stream has no action bar to report into, and it is the
+            one case where a refresh that found nothing is worth saying out
+            loud -- the pane looks the same either way. */}
+        {!showListMobileLayout && (
+          <div className="GoliathArticleListEmptyNote">
+            <NewArticleNote
+              count={newArticleCount}
+              shown={newArticleNoteShown}
+            />
+          </div>
+        )}
         {selectionType === SelectionType.Saved ? (
           <HotelClassRounded className="GoliathArticleListEmptyIcon" />
         ) : (
@@ -604,6 +617,10 @@ const ArticleList = ({
                       </IconButton>
                     </Tooltip>
                   )}
+                  <NewArticleNote
+                    count={newArticleCount}
+                    shown={newArticleNoteShown}
+                  />
                   <div className="GoliathActionBarSpacer"></div>
                   <Tooltip title="Scroll up">
                     <IconButton
