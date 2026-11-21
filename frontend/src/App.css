@@ -653,11 +653,9 @@
     box-shadow 0.2s ease;
 }
 
-/* Divider between cards. It is held clear of the scrollbar's gutter at both
-   ends, which breaks up the ladder a run of full-width rules makes, and so it
-   cannot be a border on the card itself. The selected card is the exception:
-   the rules above and below it run the full width, so the one card in the list
-   that is singled out is fenced off rather than merely tinted.
+/* Divider between cards. Between two cards that look alike it is held clear
+   of the scrollbar's gutter at both ends, which breaks up the ladder a run of
+   full-width rules makes, and so it cannot be a border on the card itself.
 
    The line is a border on a zero-height box rather than a filled one. On a
    display whose device pixel ratio is not a whole number, a one-pixel box
@@ -676,8 +674,16 @@
   pointer-events: none;
 }
 
+/* Where two cards of unlike state meet, their backgrounds change across the
+   boundary, and an inset rule would leave the two colors touching at both
+   ends of it. A divider across a change of state therefore runs the full
+   width, which also fences off the selected card rather than merely tinting
+   it. There are three states a card's background can be in -- selected,
+   unread, read -- so there are three such changes to catch. */
 .GoliathArticleCardSelected::after,
-.GoliathArticleCard:has(+ .GoliathArticleCardSelected)::after {
+.GoliathArticleCard:has(+ .GoliathArticleCardSelected)::after,
+.GoliathArticleCardBright:has(+ .GoliathArticleCardDimmed)::after,
+.GoliathArticleCardDimmed:has(+ .GoliathArticleCardBright)::after {
   left: 0;
   right: 0;
 }
