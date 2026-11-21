@@ -2646,11 +2646,14 @@ body,
   color: var(--content-font-color);
   transform: translateY(calc(100% + var(--swipe-y, 0px)));
   pointer-events: none;
-  z-index: 1;
 }
 
+/* Pulling down lands at the top of the article above, so that article is
+   already in place and the one being read slides off it. Stacking it above
+   the screen instead would bring its foot into view first, which is the one
+   part of it the reader is not going to. */
 .GoliathArticlePreviewBefore {
-  transform: translateY(calc(-100% + var(--swipe-y, 0px)));
+  transform: none;
 }
 
 /* Drawn to match the real byline and title, since in a moment it will be

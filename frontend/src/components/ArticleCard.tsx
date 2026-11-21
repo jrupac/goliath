@@ -283,6 +283,13 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
 
   return (
     <Stack className="GoliathArticleCardColumn" ref={columnRef}>
+      {/* The article the pull is heading for. Drawn before the one being
+          read, and so behind it: pulling down uncovers it where it already
+          is, and pulling up brings it in from below. */}
+      {useMobileLayout && (
+        <NextArticlePreview direction={peekDirection} peek={peek} />
+      )}
+
       {/* Everything the gesture carries. The column itself stays put and
           clips, so that what is coming can wait just off its edge. */}
       <div className="GoliathArticleCardSlide">
@@ -508,12 +515,6 @@ const ArticleCard = ({ modalOpen = false, ...props }: ArticleProps) => {
           </div>
         )}
       </div>
-
-      {/* The article the pull is heading for, waiting one pane off the edge
-          it will arrive from. */}
-      {useMobileLayout && (
-        <NextArticlePreview direction={peekDirection} peek={peek} />
-      )}
     </Stack>
   );
 };
