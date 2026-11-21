@@ -1,4 +1,11 @@
-import React, { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  ReactElement,
+  ReactNode,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { extractText } from '../utils/helpers';
 import { useOverlayScrollbar } from '../utils/useOverlayScrollbar';
 import {
@@ -22,6 +29,54 @@ import { FeedId, FeedTitle, FeedView } from '../models/feed';
 import StarTwoToneIcon from '@mui/icons-material/StarTwoTone';
 import FeedIcon from './FeedIcon';
 import NewArticlePill from './NewArticlePill';
+
+/* How long the pointer has to rest on a sidebar title before its tooltip
+   opens. Long enough to tell a reader from someone on their way to another
+   row. */
+const TITLE_TOOLTIP_DELAY_MS = 1000;
+
+/* A sidebar title, with a tooltip that carries the full text only when the
+   row was too narrow to show it.
+
+   A sidebar row is a click target first and a label second, so a tooltip that
+   opens the moment the pointer crosses one covers the rows beneath it and
+   takes the click meant for them. Showing one only where it says something
+   the row does not already say, and only after a pause, keeps it out of the
+   way of picking a feed.
+
+   Whether the title fits is measured as the pointer arrives rather than
+   watched per row: there is one of these for every feed the user subscribes
+   to, and the delay before the tooltip could open leaves far more time than
+   the measurement needs. */
+function SidebarTitle({
+  title,
+  className,
+  as: Tag,
+}: {
+  title: string;
+  className: string;
+  as: 'div' | 'span';
+}): ReactElement {
+  const [clipped, setClipped] = useState(false);
+
+  return (
+    <Tooltip
+      title={clipped ? title : ''}
+      enterDelay={TITLE_TOOLTIP_DELAY_MS}
+      enterNextDelay={TITLE_TOOLTIP_DELAY_MS}
+    >
+      <Tag
+        className={className}
+        onMouseEnter={(event: React.MouseEvent<HTMLElement>) => {
+          const el = event.currentTarget;
+          setClipped(el.scrollWidth > el.clientWidth);
+        }}
+      >
+        {title}
+      </Tag>
+    </Tooltip>
+  );
+}
 
 function precomputeIdToSelectionKey(
   folderFeedView: Map<FolderView, FeedView[]>
@@ -106,9 +161,11 @@ const FeedTreeItem = React.memo(function FeedTreeItem({
           }
         >
           <div className="GoliathFeedTitleRow">
-            <Tooltip title={plainTitle}>
-              <div className="GoliathFeedTitleText">{plainTitle}</div>
-            </Tooltip>
+            <SidebarTitle
+              title={plainTitle}
+              className="GoliathFeedTitleText"
+              as="div"
+            />
             <div className={pillClass}>{hasUnread && unreadCount}</div>
           </div>
         </span>
@@ -308,9 +365,11 @@ const FolderFeedList = ({
               : 'GoliathFolderTitle'
           }
         >
-          <Tooltip title={folderView.title}>
-            <span className="GoliathFolderTitleText">{folderView.title}</span>
-          </Tooltip>
+          <SidebarTitle
+            title={folderView.title}
+            className="GoliathFolderTitleText"
+            as="span"
+          />
           {hasUnread && (
             <div
               className={
