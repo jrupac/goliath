@@ -2739,6 +2739,12 @@ body,
   inset: 0;
   width: 100%;
   height: auto;
+  /* Stated so that the list is a stacking context of its own. Its header
+     floats over its cards from a z-index of its own, which without this
+     competes with the article in front of it and wins -- leaving the
+     article's own header replaced by the list's before the gesture has
+     moved anything. */
+  z-index: 0;
 }
 
 .GoliathSwipeRevealing > .GoliathSplitViewArticleOuter {
