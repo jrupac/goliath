@@ -2512,12 +2512,12 @@
   }
 
   .GoliathArticleCardSource {
-    height: 20px;
-    padding: 10px 16px 4px 13px;
+    height: 30px;
+    padding: 10px 16px 6px 13px;
   }
 
   .GoliathArticleCardBody {
-    height: 108px;
+    height: 112px;
     padding-bottom: 6px;
   }
 
