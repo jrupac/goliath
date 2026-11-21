@@ -25,11 +25,29 @@
 }
 
 /* The window: a row of sidebar and main pane, neither of which scrolls the
-   page itself. */
+   page itself.
+
+   The shell paints the nav surface, which is the ground the rest of the
+   interface stands on: the sidebar is that ground showing through, and the
+   list and reading panes ride on a sheet inset from the window's edges. The
+   inset collapses to nothing on a layout narrow enough that there is no room
+   to float anything. */
 .GoliathAppShell {
+  --shell-inset: 12px;
+  --shell-radius: 14px;
+  --bar-height: 50px;
+  /* Width of a pane's scrollbar rail. Unlike a native scrollbar's gutter this
+     is ours to choose -- so it is a regular scrollbar width rather than
+     whatever `scrollbar-width: thin` happened to resolve to -- and a pane that
+     reserves it reserves it whether or not there is anything to scroll, so
+     nothing shifts as content grows past the viewport. */
+  --scrollbar-rail-width: 14px;
+  /* The sheet's height, and so the height of every pane on it. */
+  --pane-height: calc(100vh - 2 * var(--shell-inset));
   display: flex;
   overflow: hidden;
   height: 100vh;
+  background-color: var(--primary-background-color);
 }
 
 /* Spacing for an icon that leads a bar, ahead of the bar's own gap. */
@@ -156,7 +174,9 @@
   background-color: var(--primary-background-color);
   background-image: none;
   color: var(--primary-font-color);
-  border-right: 1px solid var(--nav-border-color);
+  /* Set, not omitted: a docked drawer carries a right border of MUI's own,
+     and on the ground there is nothing for it to divide. */
+  border-right: none;
   scrollbar-color: var(--primary-font-darker-2-color) transparent;
   overflow: hidden;
   display: flex;
@@ -164,29 +184,46 @@
   height: 100vh;
 }
 
+/* The sidebar is the ground, so its header takes no colour of its own: it is
+   a row of controls standing on the surface behind it. It drops by the sheet's
+   inset and matches its header's height, so the controls on either side of the
+   gap sit on one line. */
 .GoliathDrawerActionBar {
+  margin-top: var(--shell-inset);
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  background-color: var(--bar-background-color);
   padding: 10px;
-  border-bottom: 1px solid var(--nav-border-color);
   position: relative;
   z-index: 1;
-  height: 50px;
+  height: var(--bar-height);
   box-sizing: border-box;
 }
 
-/* Icon buttons on the chrome. Left unset, MUI resolves these from its own
-   palette mode, which in light mode is near-black on a near-black bar. */
-.GoliathDrawerActionBar .MuiIconButton-root,
+/* Icon buttons on the two headers. Left unset, MUI resolves these from its
+   own palette mode, which does not follow the surface they are drawn on.
+
+   The sidebar's header is on the nav surface and the sheet's header is on the
+   list surface, so the two take their ink from different ramps. */
+.GoliathDrawerActionBar .MuiIconButton-root {
+  color: var(--primary-font-darker-1-color);
+}
+
+.GoliathDrawerActionBar .MuiIconButton-root:hover {
+  color: var(--primary-font-color);
+  background-color: color-mix(
+    in srgb,
+    var(--primary-font-color) 10%,
+    transparent
+  );
+}
+
 .GoliathSplitViewArticleListActionBar .MuiIconButton-root {
   color: var(--bar-font-muted-color);
 }
 
-.GoliathDrawerActionBar .MuiIconButton-root:hover,
 .GoliathSplitViewArticleListActionBar .MuiIconButton-root:hover {
   color: var(--bar-font-color);
   background-color: color-mix(in srgb, var(--bar-font-color) 10%, transparent);
@@ -567,11 +604,15 @@
  * Main Container
  ******************************************************************************/
 
+/* Holds the sheet's inset, so that the ground shows on all four sides of it
+   and the sheet's shadow has somewhere to fall. */
 .GoliathMainContainer {
   display: flex;
   flex-grow: 1;
   flex-wrap: nowrap;
   min-width: 0;
+  padding: var(--shell-inset);
+  box-sizing: border-box;
 }
 
 /******************************************************************************
@@ -583,7 +624,6 @@
 .GoliathArticleCard {
   position: relative;
   height: 182px;
-  border-bottom: 1px solid var(--content-border-color);
   background-color: var(--content-list-background-color);
   color: var(--content-font-color);
   cursor: pointer;
@@ -592,6 +632,35 @@
   transition:
     background-color 0.2s ease,
     box-shadow 0.2s ease;
+}
+
+/* Divider between cards. It is held clear of the scrollbar's gutter at both
+   ends, which breaks up the ladder a run of full-width rules makes, and so it
+   cannot be a border on the card itself. The selected card is the exception:
+   the rules above and below it run the full width, so the one card in the list
+   that is singled out is fenced off rather than merely tinted.
+
+   The line is a border on a zero-height box rather than a filled one. On a
+   display whose device pixel ratio is not a whole number, a one-pixel box
+   lands on a fraction of a device pixel for every second card in a run of
+   equal heights, and is spread across two rows of pixels at half strength.
+   Border edges are snapped to whole device pixels before they are painted, so
+   drawn this way every divider in the list has the same weight. */
+.GoliathArticleCard::after {
+  content: '';
+  position: absolute;
+  left: var(--scrollbar-rail-width);
+  right: var(--scrollbar-rail-width);
+  bottom: 0;
+  height: 0;
+  border-bottom: 1px solid var(--content-border-color);
+  pointer-events: none;
+}
+
+.GoliathArticleCardSelected::after,
+.GoliathArticleCard:has(+ .GoliathArticleCardSelected)::after {
+  left: 0;
+  right: 0;
 }
 
 /* Selected unread active left border stripe using absolute pseudo-element to end with flat bottom edge */
@@ -830,8 +899,14 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: var(--pane-height);
   background-color: var(--content-background-color);
+  border-radius: var(--shell-radius);
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px var(--sheet-ring-color),
+    0 1px 2px var(--sheet-shadow-color),
+    0 16px 38px -14px var(--sheet-shadow-color);
 }
 
 .GoliathArticleListEmpty {
@@ -877,8 +952,12 @@
   white-space: nowrap;
 }
 
+/* Frosted list header. It belongs to the sheet, so it takes the list surface
+   rather than a chrome colour, and it rounds the sheet's top-left corner
+   itself because a backdrop filter paints outside an ancestor's clip. */
 .GoliathSplitViewArticleListActionBar {
-  background-color: var(--bar-background-color);
+  background-color: var(--bar-scrim-color);
+  backdrop-filter: blur(12px) saturate(1.3);
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -886,24 +965,45 @@
   width: 100%;
   gap: 10px;
   padding: 10px;
-  border-bottom: 1px solid var(--nav-border-color);
-  height: 50px;
+  border-bottom: 1px solid var(--content-border-color);
+  border-top-left-radius: var(--shell-radius);
+  height: var(--bar-height);
   box-sizing: border-box;
 }
 
+/* In the list column the header floats over the scrolling cards. Everywhere
+   else it is an ordinary row at the top of its pane. */
+.GoliathArticleListColumn > .GoliathSplitViewArticleListActionBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: auto;
+  z-index: 3;
+}
+
 .GoliathArticleListBox {
-  height: 100vh;
+  height: var(--pane-height);
   padding: 0 24px;
   overflow-y: auto;
 }
 
 /** Split article list */
 
+/* The sheet: list column and reading pane as one object raised off the nav
+   ground. Clipping here is what rounds both panes' outer corners, and is also
+   why a bar that draws a backdrop filter has to round its own corner -- a
+   filtered element is painted outside this clip. */
 .GoliathSplitViewArticleListContainer.MuiContainer-root {
   padding: 0;
   display: flex;
   width: 100%;
-  overflow-y: hidden;
+  overflow: hidden;
+  border-radius: var(--shell-radius);
+  box-shadow:
+    0 0 0 1px var(--sheet-ring-color),
+    0 1px 2px var(--sheet-shadow-color),
+    0 16px 38px -14px var(--sheet-shadow-color);
 }
 
 .GoliathSplitViewArticleListContainer .MuiGrid-root {
@@ -912,9 +1012,18 @@
   flex-grow: 1;
 }
 
+/* Rounded here as well as on the sheet: a filtered element -- the header --
+   promotes its own layer along with what paints beside it, and a layer carries
+   an ancestor's rounded clip less exactly than the ancestor applies it, which
+   shows up as a card's accent stripe creeping past the curve. Clipping at the
+   column, with no filter in between, puts the curve back on the content. */
 .GoliathArticleListColumn {
   display: flex;
-  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  border-top-left-radius: var(--shell-radius);
+  border-bottom-left-radius: var(--shell-radius);
+  height: var(--pane-height);
   width: 30vw;
   flex-shrink: 0;
   background-color: var(--content-list-background-color);
@@ -928,10 +1037,17 @@
   flex-grow: 1;
 }
 
+/* The header floats over the top of this container rather than sitting above
+   it, so the band it covers is reserved as padding here and cards scroll up
+   into it. Keeping the band part of the scrollable content is also what lets
+   the list go on scrolling a selected card to just below the header: the
+   distance measured from the first card already excludes it. */
 .GoliathSplitViewArticleListBox {
   overflow-y: auto;
   width: 100%;
   flex-grow: 1;
+  padding-top: var(--bar-height);
+  box-sizing: border-box;
 }
 
 .GoliathArticleListImagePreviewBox {
@@ -964,14 +1080,8 @@
  ******************************************************************************/
 
 .GoliathArticleCardColumn {
-  /* Width of the scrollbar rail. Unlike a native scrollbar's gutter this is
-     ours to choose — so it is a regular scrollbar width rather than whatever
-     `scrollbar-width: thin` happened to resolve to — and it is reserved
-     whether or not the article scrolls, so nothing shifts when moving between
-     a short article and a long one. */
-  --scrollbar-rail-width: 14px;
-  --byline-height: 50px;
-  height: 100vh;
+  --byline-height: var(--bar-height);
+  height: var(--pane-height);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -992,6 +1102,9 @@
   overflow-x: hidden;
   padding-right: var(--scrollbar-rail-width);
   border-left: 1px solid var(--content-border-color);
+  /* The list is the lighter surface of the two, so it casts onto the reading
+     pane rather than being divided from it by the rule alone. */
+  box-shadow: inset 11px 0 14px -12px var(--goliath-box-shadow-color);
   background: var(--content-background-color);
   color: var(--content-font-color);
   scrollbar-width: none;
@@ -1091,8 +1204,14 @@
   white-space: nowrap;
   /* Accent tint is what sets the reading pane's bar apart from the other two */
   background-color: var(--bar-accent-background-color);
-  border-left: 1px solid var(--nav-border-color);
-  border-bottom: 1px solid var(--nav-border-color); /* Distinct separator */
+  border-left: 1px solid var(--content-border-color);
+  /* Carries the list's shadow across the byline as well, so the lighter
+     surface casts down the whole height of the pane rather than stopping at
+     the header. The byline paints above the pane, so it has to draw its own
+     share rather than inherit one. */
+  box-shadow: inset 11px 0 14px -12px var(--goliath-box-shadow-color);
+  border-bottom: 1px solid var(--content-border-color); /* Distinct separator */
+  border-top-right-radius: var(--shell-radius);
   box-sizing: border-box;
   height: var(--byline-height);
   position: relative;
@@ -1546,18 +1665,18 @@
   color: var(--accent-color-strong);
 }
 
-/* The chrome's own menu, anchored to the sidebar action bar rather than
-   opened from a dialog. Wider than a value picker, since its items are
-   labelled commands with icons.
+/* The chrome's own menu, anchored to the sidebar header rather than opened
+   from a dialog. Wider than a value picker, since its items are labelled
+   commands with icons.
 
-   It takes the action bar's colour rather than a dialog's, so that it reads
-   as belonging to the bar it drops out of and stands against the sidebar body
-   it covers -- which is the colour a dialog surface would have given it. */
+   It is cut from the nav colour and lightened, so that it reads as belonging
+   to the sidebar it drops out of while still standing clear of the rows it
+   covers. */
 .GoliathAppMenuPaper.MuiPaper-root {
   min-width: 208px;
   margin-top: 4px;
-  background-color: var(--bar-background-color);
-  color: var(--bar-font-color);
+  background-color: var(--menu-background-color);
+  color: var(--menu-font-color);
   box-shadow: 0 8px 24px var(--goliath-box-shadow-color);
 }
 
@@ -1568,16 +1687,16 @@
 }
 
 .GoliathAppMenuPaper .MuiMenuItem-root:hover {
-  background-color: color-mix(in srgb, var(--bar-font-color) 10%, transparent);
+  background-color: color-mix(in srgb, var(--menu-font-color) 10%, transparent);
 }
 
 .GoliathAppMenuPaper .MuiListItemIcon-root {
-  color: var(--bar-font-muted-color);
+  color: var(--menu-font-muted-color);
   min-width: 30px;
 }
 
 .GoliathAppMenuDivider.MuiDivider-root {
-  border-color: color-mix(in srgb, var(--bar-font-color) 12%, transparent);
+  border-color: color-mix(in srgb, var(--menu-font-color) 12%, transparent);
   margin: 4px 0;
 }
 
@@ -2169,11 +2288,19 @@
     box-sizing: border-box;
   }
 
+  /* No room to float a sheet: the panes take the window, and the drawer is
+     an overlay again rather than the ground, so it needs its own edge back. */
+  .GoliathAppShell {
+    --shell-inset: 0px;
+    --shell-radius: 0px;
+  }
+
   .GoliathDrawer {
     width: clamp(250px, 80vw, 320px) !important;
   }
   .GoliathDrawer .MuiDrawer-paper {
     width: clamp(250px, 80vw, 320px) !important;
+    border-right: 1px solid var(--nav-border-color);
   }
 
   .GoliathArticleListColumn {
@@ -2257,7 +2384,7 @@
   margin-top: auto;
   height: auto;
   background-color: var(--bar-background-color);
-  border-top: 1px solid var(--nav-border-color);
+  border-top: 1px solid var(--content-border-color);
   display: flex;
   align-items: center;
   justify-content: space-around;
