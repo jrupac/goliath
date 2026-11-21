@@ -672,6 +672,11 @@
   height: 0;
   border-bottom: 1px solid var(--content-border-color);
   pointer-events: none;
+  /* Reaching the edges is how a divider answers a change of background, so
+     it takes as long to get there as the background takes to change. */
+  transition:
+    left 0.2s ease,
+    right 0.2s ease;
 }
 
 /* Where two cards of unlike state meet, their backgrounds change across the
@@ -679,11 +684,17 @@
    ends of it. A divider across a change of state therefore runs the full
    width, which also fences off the selected card rather than merely tinting
    it. There are three states a card's background can be in -- selected,
-   unread, read -- so there are three such changes to catch. */
+   unread, read -- so there are three such changes to catch.
+
+   Hovering tints a card as well, and the pointer can only be on one of them,
+   so a hovered card is bounded on both sides for as long as it is pointed
+   at. */
 .GoliathArticleCardSelected::after,
 .GoliathArticleCard:has(+ .GoliathArticleCardSelected)::after,
 .GoliathArticleCardBright:has(+ .GoliathArticleCardDimmed)::after,
-.GoliathArticleCardDimmed:has(+ .GoliathArticleCardBright)::after {
+.GoliathArticleCardDimmed:has(+ .GoliathArticleCardBright)::after,
+.GoliathArticleCard:hover::after,
+.GoliathArticleCard:has(+ .GoliathArticleCard:hover)::after {
   left: 0;
   right: 0;
 }
