@@ -28,7 +28,7 @@ import { FolderView } from '../models/folder';
 import { FeedId, FeedTitle, FeedView } from '../models/feed';
 import StarTwoToneIcon from '@mui/icons-material/StarTwoTone';
 import FeedIcon from './FeedIcon';
-import { useCountUp } from '../utils/useCountUp';
+import { useCountTo } from '../utils/useCountTo';
 
 /* How long the pointer has to rest on a sidebar title before its tooltip
    opens. Long enough to tell a reader from someone on their way to another
@@ -212,7 +212,7 @@ const FolderFeedList = ({
   const [isScrolled, setIsScrolled] = useState(false);
   const treeViewRef = useRef<HTMLUListElement>(null);
 
-  const shownUnreadCount = useCountUp(unreadCount, refreshNonce);
+  const shownUnreadCount = useCountTo(unreadCount, refreshNonce);
 
   // Drawn as an overlay rather than natively, to match the other two panes
   // and to drop the stepper arrows a classic scrollbar comes with. The tree's

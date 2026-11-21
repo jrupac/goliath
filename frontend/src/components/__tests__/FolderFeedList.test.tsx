@@ -217,7 +217,7 @@ describe('FolderFeedList', () => {
     });
   });
 
-  it('takes an unread count straight when no refresh caused it', async () => {
+  it('takes an unread count straight when it rises without a refresh', async () => {
     const props = {
       folderFeedView: new Map<FolderView, FeedView[]>(),
       unreadCount: 12,
@@ -230,10 +230,29 @@ describe('FolderFeedList', () => {
     const { rerender } = render(<FolderFeedList {...props} />);
     expect(screen.getByText('12')).toBeInTheDocument();
 
-    // Reading an article moves the count without a refresh behind it, and a
-    // number that walked on every one of those would never be still.
-    rerender(<FolderFeedList {...props} unreadCount={11} />);
-    expect(await screen.findByText('11')).toBeInTheDocument();
+    // The first count is the only one most readers see rise on its own, and
+    // it is the list arriving rather than growing.
+    rerender(<FolderFeedList {...props} unreadCount={40} />);
+    expect(screen.getByText('40')).toBeInTheDocument();
+  });
+
+  it('walks the unread count down as articles are read', async () => {
+    const props = {
+      folderFeedView: new Map<FolderView, FeedView[]>(),
+      unreadCount: 12,
+      selectedKey: KeyUnread,
+      selectionType: SelectionType.Unread,
+      handleSelect: vi.fn(),
+      refreshNonce: 1,
+    };
+
+    const { rerender } = render(<FolderFeedList {...props} />);
+    rerender(<FolderFeedList {...props} unreadCount={2} />);
+
+    // The walk is driven by animation frames, so the old value is still up
+    // when the render that started it returns.
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(await screen.findByText('2')).toBeInTheDocument();
   });
 
   it('walks the unread count to where a refresh left it', async () => {
