@@ -40,6 +40,9 @@ import React, { RefObject, useCallback, useEffect, useRef } from 'react';
 /** Shortest the thumb may get, so it stays grabbable on very long articles. */
 const MIN_THUMB_HEIGHT = 24;
 
+/** How long the thumb stays up after the last scroll before it fades out. */
+const SHOWN_AFTER_SCROLL_MS = 900;
+
 export interface OverlayScrollbar {
   railRef: RefObject<HTMLDivElement | null>;
   thumbRef: RefObject<HTMLDivElement | null>;
@@ -58,6 +61,7 @@ export function useOverlayScrollbar(
   const thumbRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef(0);
   const insetRef = useRef(-1);
+  const shownTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Written straight to the DOM rather than through state: this runs on every
   // scroll event, and re-rendering the article on each one would be far more
@@ -121,6 +125,29 @@ export function useOverlayScrollbar(
     });
   }, [sync]);
 
+  // The thumb is an answer to "where am I", which is only ever asked while the
+  // view is moving, so it is shown for a moment after each scroll and then
+  // withdrawn. CSS keeps it up while the rail is hovered or the thumb dragged;
+  // this only has to cover scrolling the content itself.
+  const show = useCallback(() => {
+    const rail = railRef.current;
+    if (!rail) {
+      return;
+    }
+    rail.classList.add('GoliathArticleScrollbarShown');
+    clearTimeout(shownTimerRef.current);
+    shownTimerRef.current = setTimeout(() => {
+      railRef.current?.classList.remove('GoliathArticleScrollbarShown');
+    }, SHOWN_AFTER_SCROLL_MS);
+  }, []);
+
+  // Resizing the pane moves the thumb as well, but it is not the reader
+  // moving through the content, so it redraws the thumb without raising it.
+  const onScroll = useCallback(() => {
+    show();
+    schedule();
+  }, [show, schedule]);
+
   useEffect(() => {
     const scroller = scrollRef.current;
     if (!scroller) {
@@ -128,7 +155,7 @@ export function useOverlayScrollbar(
     }
 
     sync();
-    scroller.addEventListener('scroll', schedule, { passive: true });
+    scroller.addEventListener('scroll', onScroll, { passive: true });
 
     // The scroller resizes with the window; the content resizes as images load
     // and when reader mode is toggled; the header resizes as each article's
@@ -146,13 +173,14 @@ export function useOverlayScrollbar(
     }
 
     return () => {
-      scroller.removeEventListener('scroll', schedule);
+      scroller.removeEventListener('scroll', onScroll);
       observer?.disconnect();
+      clearTimeout(shownTimerRef.current);
       if (frameRef.current) {
         cancelAnimationFrame(frameRef.current);
       }
     };
-  }, [scrollRef, contentRef, headerRef, schedule, sync]);
+  }, [scrollRef, contentRef, headerRef, onScroll, schedule, sync]);
 
   const onThumbPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {

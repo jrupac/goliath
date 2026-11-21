@@ -168,6 +168,36 @@ describe('useOverlayScrollbar', () => {
     expect(scroller.scrollTop).toBe(300);
   });
 
+  it('raises the thumb while scrolling and withdraws it afterwards', () => {
+    vi.useFakeTimers();
+    try {
+      const { scroller, rail } = setup();
+      expect(rail.classList.contains('GoliathArticleScrollbarShown')).toBe(
+        false
+      );
+
+      fireEvent.scroll(scroller);
+      expect(rail.classList.contains('GoliathArticleScrollbarShown')).toBe(
+        true
+      );
+
+      // Each scroll restarts the wait, so a continuous scroll never drops it.
+      vi.advanceTimersByTime(800);
+      fireEvent.scroll(scroller);
+      vi.advanceTimersByTime(800);
+      expect(rail.classList.contains('GoliathArticleScrollbarShown')).toBe(
+        true
+      );
+
+      vi.advanceTimersByTime(200);
+      expect(rail.classList.contains('GoliathArticleScrollbarShown')).toBe(
+        false
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('pages towards a press on the bare rail', () => {
     const { scroller, rail, thumb } = setup();
     thumb.getBoundingClientRect = vi.fn(() => ({ top: 100 }) as DOMRect);

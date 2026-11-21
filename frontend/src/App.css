@@ -1208,14 +1208,33 @@
   position: absolute;
   top: 0;
   right: 3px;
-  width: 8px;
-  border-radius: 4px;
+  width: 6px;
+  border-radius: 3px;
   background-color: color-mix(
     in srgb,
     var(--content-font-color) 30%,
     transparent
   );
   will-change: transform;
+  /* The thumb answers "where am I in this", a question only asked while the
+     view is moving, so a pane at rest is just its content. The rail stays
+     where it is either way, so it can be hovered and grabbed blind. */
+  opacity: 0;
+  transition:
+    opacity 0.35s ease,
+    background-color 0.2s ease;
+}
+
+/* Raised while the pane is being scrolled, while the rail is hovered, and for
+   the whole of a drag -- which, held still, would otherwise time out. It
+   comes up faster than it goes away: arriving late would defeat it, while
+   lingering costs nothing. */
+.GoliathArticleScrollbarShown .GoliathArticleScrollbarThumb,
+.GoliathArticleScrollbar:hover .GoliathArticleScrollbarThumb,
+.GoliathArticleScrollbar:has(.GoliathArticleScrollbarThumbDragging)
+  .GoliathArticleScrollbarThumb {
+  opacity: 1;
+  transition-duration: 0.1s;
 }
 
 /* The list and the feed tree put their headers inside the scroller rather
