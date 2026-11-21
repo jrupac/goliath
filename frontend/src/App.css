@@ -861,7 +861,11 @@
   font-family: var(--primary-sans-serif-font), sans-serif;
   font-size: 20px;
   line-height: 1.25;
-  padding: 0 0 4px 0;
+  /* The clamp bounds the content box, while overflow clips at the padding
+     edge, so padding below a clamped title is a band the next line shows
+     through. The space under the title is a margin for that reason. */
+  padding: 0;
+  margin-bottom: 4px;
   display: -webkit-box;
   -webkit-line-clamp: 2; /* Up to 2 lines before ellipsizing */
   -webkit-box-orient: vertical;
