@@ -1182,6 +1182,20 @@
   display: none;
 }
 
+/* Reading alone, with the list taken out of the layout rather than scrolled
+   off it. There is nothing to the left to be divided from or cast on by, so
+   the rule and the shadow that describe that edge would be describing
+   nothing -- and against the window they read as a smudge down the side. */
+.GoliathArticleListColumn.GoliathPaneHidden
+  + .GoliathSplitViewArticleOuter
+  .GoliathSplitViewArticleContainer,
+.GoliathArticleListColumn.GoliathPaneHidden
+  + .GoliathSplitViewArticleOuter
+  .GoliathArticleByline {
+  border-left: none;
+  box-shadow: none;
+}
+
 /* Reader mode button — accent color when active. Lives on the byline, so it
    takes the chrome accent rather than the one darkened for light content. */
 .GoliathReaderModeActive {
